@@ -8,7 +8,9 @@ MmiriOma is a technology-enabled water delivery platform in Enugu, Nigeria. The
 MVP covers customer water ordering, configurable pricing, delivery scheduling,
 dispatch, driver assignments, delivery confirmation, and administration.
 
-**Before implementing any feature, read the PRD and SRS** and follow them. If a
+**Before implementing any feature, read the PRD and SRS**
+(`MmiriOma_MVP_PRD.md` and `MmiriOma_MVP_SRS.md` at the repo root; the SRS is
+normative) and follow them. If a
 requirement is missing, ambiguous, or conflicts with this file, ask; do not guess
 business rules (pricing, order states, dispatch logic, payments).
 
@@ -129,10 +131,12 @@ with the reason.
 - New features must include appropriate automated tests.
 - Business logic lives in module services, not in API routers. Routers parse the
   request, call a service, and shape the response.
-- Financial calculations must use explicit precision: Python `decimal.Decimal`
-  (never `float`) with a documented rounding rule, `Numeric(precision, scale)`
-  columns, and amounts sent over the API as strings or integer minor units (kobo),
-  never as JSON floats.
+- Money is stored, calculated, and sent as **integer kobo** in NGN (SRS §5,
+  BR-01). Use `BigInteger` columns named `*_kobo` or `*_minor_units`, Python
+  `int`, and integer JSON fields such as `total_minor_units` (SRS §6). Never use
+  `float`. If an intermediate step produces fractions (e.g. a percentage fee),
+  compute it with `decimal.Decimal` and convert to whole kobo with a documented
+  rounding rule. Convert to naira only for display.
 - Database migrations must be reviewed by a person and tested (`alembic upgrade
   head`, `alembic downgrade -1`, `alembic check`) before merge.
 - Never introduce unnecessary dependencies.
@@ -160,21 +164,22 @@ purpose, trace its execution, and maintain it.
 - Do not write comments that repeat what the code obviously does.
 
 ```python
-def calculate_delivery_fee(distance_km: Decimal, zone: Zone) -> Decimal:
-    """Return the delivery fee in naira for an order.
+def calculate_quote_total_kobo(rule: PricingRule, quantity_litres: int) -> int:
+    """Return the all-inclusive quote total in kobo for a quantity.
 
-    Applies the zone's base fee plus a per-km rate beyond the free radius
-    (SRS 4.3.2). The result is rounded half-up to 2 decimal places.
+    Sums the active rule's water cost, zone fee, and handling fees (FR-022).
+    Amounts are integer kobo throughout (SRS §5), so no rounding is needed.
 
     Args:
-        distance_km: Road distance from depot to customer.
-        zone: The customer's delivery zone.
+        rule: Active pricing rule for the service zone and water category.
+        quantity_litres: Requested quantity in whole litres.
 
     Returns:
-        The fee as a Decimal with two decimal places.
+        The total in kobo.
 
     Raises:
-        ValueError: If distance_km is negative.
+        APIError: 422 ``manual_quote_required`` if the quantity is outside the
+            rule's supported band (FR-021).
     """
 ```
 
