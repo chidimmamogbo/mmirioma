@@ -23,6 +23,19 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-14: GitHub API briefly unreachable
+
+- **Area:** tooling (GitHub)
+- **Author:** nnamdi-security + Claude Code
+- **Symptom:** `error connecting to api.github.com ... check your internet
+  connection or https://githubstatus.com` right after a successful `git push`.
+- **Cause:** Transient network or GitHub outage; it recovered within minutes.
+- **Fix / workaround:** Retry. When a fetch-edit-write sequence fails part way,
+  check that nothing was half-applied (here an empty PR body was caught before
+  it was sent).
+- **Status:** resolved
+- **Refs:** PR #16
+
 ### 2026-10-14: `npx prettier` reformatted a whole file in the wrong style
 
 - **Area:** tooling (frontend)
@@ -135,7 +148,7 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 - **Status:** resolved (pending confirmation that `Bonvee120` is Chukwuebuka)
 - **Refs:** issues #7, #8, #12, #13
 
-### 2026-10-14: `gh issue create --project` fails
+### 2026-10-14: `gh issue create --project` and `gh pr edit` fail
 
 - **Area:** GitHub / tooling
 - **Author:** nnamdi-security + Claude Code
@@ -145,5 +158,9 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 - **Fix / workaround:** Create the issue without `--project`, then run
   `gh project item-add 1 --owner mmiri-oma --url <issue-url>`. Needs the
   `project` token scope (`gh auth refresh -s project`).
+  `gh pr edit` fails the same way (`... (repository.pullRequest.projectCards)`).
+  Edit PRs through the REST API instead:
+  `gh api -X PATCH repos/mmiri-oma/mmirioma/pulls/<n> -F "body=@body.md"`.
+  Upgrading `gh` may remove the need for both workarounds.
 - **Status:** workaround
-- **Refs:** issues #2–#13, project "MmiriOma — MVP Development"
+- **Refs:** issues #2–#13, PR #16, project "MmiriOma — MVP Development"
