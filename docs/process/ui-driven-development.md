@@ -116,3 +116,4 @@ designers prepare slice N+1. Do not design the whole product up front.
 | [00-design-system.md](../design/prompts/00-design-system.md) | Shared visual system (S1-04, S1-08) | Ready |
 | [01-customer-ordering.md](../design/prompts/01-customer-ordering.md) | Customer sign-in, order request, order history (S1-04) | Ready |
 | [02-admin-orders.md](../design/prompts/02-admin-orders.md) | Admin sign-in, order directory and detail (S1-08) | Ready |
+| [03-driver-deliveries.md](../design/prompts/03-driver-deliveries.md) | Driver jobs, accept/decline (S1-07); pickup, proof, incidents (design ahead) | Ready; contract pending S1-06 |
