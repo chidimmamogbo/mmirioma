@@ -19,6 +19,7 @@ from app.main import create_app
 from app.modules.auth import service
 from app.modules.auth.dependencies import CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from app.modules.auth.models import UserRole
+from app.modules.auth.rate_limit import get_auth_rate_limits
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -269,3 +270,23 @@ def test_staff_created_by_service_can_sign_in_with_their_role(
     response = db_client.post("/api/v1/auth/login", json={"phone": phone, "password": PASSWORD})
     assert response.status_code == 200
     assert response.json()["user"]["role"] == "driver"
+
+
+def test_login_lockout_after_five_failures_then_success_after_wait(
+    db_client: TestClient, created_phones: list[str]
+) -> None:
+    # NFR-002: even the right password is refused while the phone is limited.
+    session = register(db_client, created_phones)
+    db_client.cookies.clear()
+    phone = session["phone"]
+
+    for _ in range(5):
+        wrong = db_client.post("/api/v1/auth/login", json={"phone": phone, "password": "nope nope"})
+        assert wrong.status_code == 401
+    limited = db_client.post("/api/v1/auth/login", json={"phone": phone, "password": PASSWORD})
+    assert limited.status_code == 429
+
+    get_auth_rate_limits().login_failures_by_phone.reset(e164(phone))  # the window passing
+    assert (
+        db_client.post("/api/v1/auth/login", json={"phone": phone, "password": PASSWORD})
+    ).status_code == 200

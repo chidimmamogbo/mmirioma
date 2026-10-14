@@ -3,7 +3,7 @@
 from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -12,11 +12,18 @@ from app.core.errors import ErrorResponse
 from app.modules.auth import security, service
 from app.modules.auth.dependencies import SESSION_COOKIE_NAME, AuthSession
 from app.modules.auth.models import UserRole
+from app.modules.auth.rate_limit import AuthRateLimits, get_auth_rate_limits
 from app.modules.auth.schemas import LoginRequest, RegisterRequest, SessionRead, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
+RateLimits = Annotated[AuthRateLimits, Depends(get_auth_rate_limits)]
+
+
+def _client_ip(request: Request) -> str:
+    # The direct peer; see rate_limit.py for running behind a reverse proxy.
+    return request.client.host if request.client else "unknown"
 
 
 def _session_response(auth: service.AuthenticatedSession) -> SessionRead:
@@ -44,17 +51,29 @@ def _set_session_cookie(response: Response, auth: service.AuthenticatedSession) 
 @router.post(
     "/register",
     status_code=HTTPStatus.CREATED,
-    responses={HTTPStatus.CONFLICT: {"model": ErrorResponse}},
+    responses={
+        HTTPStatus.CONFLICT: {"model": ErrorResponse},
+        HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
 )
-async def register(body: RegisterRequest, response: Response, db: DbSession) -> SessionRead:
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    limits: RateLimits,
+) -> SessionRead:
     """Create a customer account and sign it in.
 
     The role is always ``customer``; staff accounts are created with the
-    command-line tool. The phone starts unverified (FR-003).
+    command-line tool. The phone starts unverified (FR-003). Attempts are
+    counted per IP whatever their outcome, which also limits probing for
+    registered phones (NFR-002).
 
     Raises:
-        APIError: 409 ``phone_already_registered``.
+        APIError: 409 ``phone_already_registered``; 429 ``too_many_attempts``.
     """
+    limits.check_and_record_registration(_client_ip(request))
     user = await service.create_user(
         db, name=body.name, phone=body.phone, password=body.password, role=UserRole.CUSTOMER
     )
@@ -63,14 +82,33 @@ async def register(body: RegisterRequest, response: Response, db: DbSession) -> 
     return _session_response(auth)
 
 
-@router.post("/login", responses={HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse}})
-async def login(body: LoginRequest, response: Response, db: DbSession) -> SessionRead:
+@router.post(
+    "/login",
+    responses={
+        HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
+        HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
+)
+async def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    limits: RateLimits,
+) -> SessionRead:
     """Sign in with phone and password and start a new session.
 
+    Failed attempts are limited per phone and per IP (NFR-002); the limit is
+    checked before the password, so a limited caller learns nothing about it.
+
     Raises:
-        APIError: 401 ``invalid_credentials`` for any failure.
+        APIError: 401 ``invalid_credentials`` for any failure;
+            429 ``too_many_attempts``.
     """
+    ip = _client_ip(request)
+    limits.begin_login(body.phone, ip)
     user = await service.authenticate(db, phone=body.phone, password=body.password)
+    limits.login_succeeded(body.phone, ip)
     auth = await service.start_session(db, user)
     _set_session_cookie(response, auth)
     return _session_response(auth)

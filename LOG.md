@@ -23,6 +23,23 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-14: Rate limit could be bypassed with concurrent login requests
+
+- **Area:** backend (security)
+- **Author:** nnamdi-security + Claude Code
+- **Symptom:** Caught in self-review before commit. The first version checked
+  the login limit, awaited the password check, and only then recorded the
+  failure. Many requests sent at once would all pass the check before any
+  failure was counted, defeating the 5-attempt limit.
+- **Cause:** Check-then-record split across an `await` (scrypt runs in a thread).
+- **Fix / workaround:** Count the attempt in the same synchronous step as the
+  check (`AuthRateLimits.begin_login`), and withdraw it only when the login
+  succeeds. Rule of thumb: never put an `await` between checking a limit or
+  capacity and recording its use. Regression test:
+  `test_login_attempts_count_before_they_finish`.
+- **Status:** resolved
+- **Refs:** `backend/app/modules/auth/rate_limit.py`
+
 ### 2026-10-14: `npx prettier` reformatted a whole file in the wrong style
 
 - **Area:** tooling (frontend)

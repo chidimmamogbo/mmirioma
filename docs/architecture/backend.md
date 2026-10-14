@@ -117,7 +117,7 @@ change.
 
 | Source                                    | Status | `code`                     | `details`                     |
 | ----------------------------------------- | ------ | -------------------------- | ----------------------------- |
-| `raise APIError(status, code, msg, det)`  | given  | given                      | given                         |
+| `raise APIError(status, code, msg, det, headers)` | given | given              | given                         |
 | Framework HTTP errors (unknown route, 405)| as raised | derived from status phrase (`not_found`, `method_not_allowed`) | `null` |
 | Request validation (pydantic)             | 422    | `validation_error`         | list of `{loc, msg, type}`    |
 | Any other exception                       | 500    | `internal_server_error`    | `null`                        |
@@ -128,6 +128,7 @@ change.
 - Unexpected exceptions are logged with a traceback server-side. The client only
   receives the generic message.
 - Response headers on HTTP errors (for example `Allow` on 405) are preserved.
+  `APIError` accepts optional `headers` too (for example `Retry-After` on 429).
 - Application code should raise `APIError`, not `fastapi.HTTPException`, so it
   can choose a specific `code`.
 

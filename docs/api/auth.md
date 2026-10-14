@@ -2,7 +2,7 @@
 
 Requirements: FR-001, FR-002, FR-003, NFR-001, NFR-002 · Acceptance tests: T-07
 
-Status: proposed (S1-01). Implemented in S1-02.
+Status: proposed (S1-01). Implemented in S1-02, including rate limiting.
 
 ## Roles
 
@@ -86,8 +86,8 @@ Only the signed-in user's own object is returned by these endpoints.
 
 | Method | Path | Auth | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/auth/register` | none | `{name, phone, password}` | 201 `Session` + cookie | 409 `phone_already_registered`, 422 `validation_error` |
-| POST | `/auth/login` | none | `{phone, password}` | 200 `Session` + cookie | 401 `invalid_credentials`, 422 `validation_error` |
+| POST | `/auth/register` | none | `{name, phone, password}` | 201 `Session` + cookie | 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts` |
+| POST | `/auth/login` | none | `{phone, password}` | 200 `Session` + cookie | 401 `invalid_credentials`, 422 `validation_error`, 429 `too_many_attempts` |
 | POST | `/auth/logout` | session + CSRF | none | 204, cookie cleared | 401 `not_authenticated`, 403 `csrf_failed` |
 | GET | `/auth/me` | session | none | 200 `Session` | 401 `not_authenticated` |
 
@@ -102,8 +102,14 @@ Only the signed-in user's own object is returned by these endpoints.
 - `invalid_credentials` is returned for a wrong password, an unknown phone and an
   inactive account alike, so login does not reveal which accounts exist.
 - `phone_already_registered` does reveal that a phone is registered. This is
-  accepted for usability. Rate limiting (NFR-002) is the mitigation and is
-  tracked separately.
+  accepted for usability; the per-IP registration limit below is the mitigation.
+- **Rate limits (NFR-002).** 429 `too_many_attempts` comes with a `Retry-After`
+  header (seconds) and `details: {"retry_after_seconds": n}`:
+  - login: 5 failed attempts per phone and 50 per IP within 15 minutes. While a
+    phone is limited, even the correct password gets 429. A successful login
+    clears that phone's count.
+  - registration: 20 attempts per IP per hour, whatever the outcome.
+  The UI should show the wait and keep the entered phone number (NFR-012).
 - `name` is trimmed, 1–100 characters.
 
 Examples: [examples/auth-session.json](examples/auth-session.json),
@@ -114,7 +120,7 @@ Examples: [examples/auth-session.json](examples/auth-session.json),
 - Dispatcher marks a customer phone as verified (FR-003).
 - Admin activates or deactivates accounts through the API (FR-002). Sprint 1
   uses the command-line tool.
-- Rate limiting of login, registration, quote, OTP and order endpoints (NFR-002).
+- Rate limiting of quote, OTP and order endpoints (NFR-002).
 
 ## Open questions
 
