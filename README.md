@@ -137,6 +137,8 @@ npm run build
   database, migrations, error envelope, CORS, health endpoints.
 - [`docs/architecture/frontend.md`](docs/architecture/frontend.md): API client and
   error handling.
+- [`docs/api/`](docs/api/README.md): agreed API contracts and mock JSON samples
+  for frontend work.
 - `docs/features/`: one document per implemented feature (none yet).
 
 ## Continuous integration
