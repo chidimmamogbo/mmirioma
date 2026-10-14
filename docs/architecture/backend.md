@@ -16,8 +16,9 @@ uvicorn app.main:app
        ├─ CORSMiddleware               FRONTEND_URL only, credentials allowed
        ├─ register_exception_handlers  every error -> error envelope
        └─ api_router (/api/v1)         app/api/v1/router.py
-            └─ health.router           /health, /health/ready
-                 └─ Depends(get_db_session) -> AsyncSession (asyncpg)
+            ├─ health.router           /health, /health/ready
+            │    └─ Depends(get_db_session) -> AsyncSession (asyncpg)
+            └─ auth.router             /auth/* (app/modules/auth)
 ```
 
 On shutdown, the `lifespan` handler calls `dispose_engine()` to close pooled
@@ -38,6 +39,9 @@ ignored. Application code must read configuration only through `get_settings()`.
 | `DATABASE_URL`   | `postgresql+asyncpg://user:pass@host:port/db` | required, no default  |
 | `FRONTEND_URL`   | absolute http(s) origin, no path            | `http://localhost:5173` |
 | `SESSION_SECRET` | string                                      | random per process      |
+| `SESSION_MAX_AGE_SECONDS` | int, 300 to 2592000 (30 days)      | `604800` (7 days)       |
+| `SESSION_COOKIE_SECURE` | bool, or unset                       | unset: on in production only |
+| `SESSION_COOKIE_SAMESITE` | `lax`, `strict`, `none`            | `lax`                   |
 
 Validation rules:
 
@@ -45,11 +49,15 @@ Validation rules:
   It is a `SecretStr`, so the password is masked in `repr()` and logs.
 - `FRONTEND_URL` has any trailing slash removed, because CORS compares origins
   exactly. Values with a path, query, or fragment are rejected.
-- `SESSION_SECRET` is not used yet; it is reserved for future cookie sessions.
-  Outside production an unset value becomes a random token per process.
+- `SESSION_SECRET` keys the HMAC of stored session tokens and derives CSRF
+  tokens (see [authentication](../features/authentication.md)). Outside
+  production an unset value becomes a random token per process, so sessions do
+  not survive a restart. Changing it signs everyone out.
+- `SESSION_COOKIE_SAMESITE=none` requires a secure cookie. Use it only when the
+  frontend and API are on different sites.
 - When `APP_ENV=production`, startup fails if `APP_DEBUG` is true,
-  `SESSION_SECRET` is unset or shorter than 32 characters, or `FRONTEND_URL`
-  is not `https`.
+  `SESSION_SECRET` is unset or shorter than 32 characters, `FRONTEND_URL`
+  is not `https`, or `SESSION_COOKIE_SECURE` is explicitly false.
 - `APP_DEBUG=true` turns on SQL statement logging (`echo`) and Starlette's debug
   traceback page. SQL logs can contain personal data; never enable it on shared
   environments.
@@ -77,7 +85,7 @@ driver. Only Alembic uses it.
     database `now()`. `updated_at` is refreshed by ORM updates only; bulk
     `UPDATE` statements must set it themselves.
 
-No business tables exist yet.
+Tables so far: `users` and `user_sessions` (revision `0002`, auth module).
 
 ### Migrations (`alembic/`)
 
@@ -134,9 +142,9 @@ Known limitations:
 ## CORS
 
 `CORSMiddleware` allows exactly one origin, `FRONTEND_URL`, with
-`allow_credentials=True` so cookies can be sent in the future. Methods
+`allow_credentials=True` so the session cookie is sent. Methods
 (`GET, POST, PUT, PATCH, DELETE, OPTIONS`) and request headers
-(`Accept, Content-Type, Authorization`) are listed explicitly. Wildcards are not
+(`Accept, Content-Type, Authorization, X-CSRF-Token`) are listed explicitly. Wildcards are not
 used. Any new custom request header must be added to `allow_headers`.
 
 ## Health endpoints (`app/api/v1/health.py`)
