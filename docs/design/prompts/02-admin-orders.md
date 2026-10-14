@@ -41,6 +41,21 @@ States: default, submitting, "Phone number or password is incorrect",
 error. A signed-in customer who opens an admin page sees "You do not have
 access to this page".
 
+SCREEN 1A: Session and access states
+- "Forgot your password? Ask the technical lead to reset it." under the
+  sign-in form (there is no self-service reset).
+- Opening the app: brief loading state while the session is checked, never a
+  flash of the sign-in screen.
+- Session ended (signed out after 7 days, or the account was deactivated):
+  sign-in screen with "Your session has ended. Please sign in again." After
+  signing in, return to the page the dispatcher was on, with its filters.
+- Security check failed: "Security token missing or invalid. Reload the page
+  and try again." with a "Reload" button.
+- Wrong kind of account: a customer or driver account sees "You do not have
+  access to this page" with "Sign out".
+- Signing out: spinner on "Sign out", then the sign-in screen with "You've
+  signed out."
+
 SCREEN 2: Layout
 - Desktop: left sidebar with "Orders" (active) and greyed items for later
   sections: "Drivers", "Sources", "Payments", "Reports" (each marked "Coming
@@ -74,8 +89,7 @@ SCREEN 4: Order detail
   - Customer account: name, phone, phone confirmation state ("Not confirmed"
     with an explanation that it must be confirmed before the order can be).
   - Price: "No price yet - this is a quote request."
-  - History: list of status changes with time and who made them (this release
-    shows only "Request received").
+- No status history section in this release (see Screen 7).
 - Back link to the directory that keeps the active filters.
 States: loading, "Order not found", error with Retry.
 
@@ -98,6 +112,15 @@ SCREEN 6: Confirm customer phone
   procedure: who confirmed, when, and a note. Wording must not suggest
   automated SMS verification.
 
+SCREEN 7: Order history on order detail
+- A "History" section added to the order detail: a list of status changes,
+  newest first, each with the status, date and time (Africa/Lagos), who made
+  the change (customer, staff member, driver, or system), and the reason when
+  one was given (cancelled, failed, disputed, reassigned).
+- Include assignment events: driver assigned, driver accepted, driver
+  declined (with reason), reassigned.
+- Empty state is not needed: every order has at least "Request received".
+
 DELIVERABLE
 All screens and states, desktop and mobile, annotated with which API data each
 element shows. End with a list of components used and any new component or
@@ -110,6 +133,6 @@ token added to the design system.
 2. Record the result in `docs/design/admin-orders.md` using the
    [template](../_template.md), with the screen-to-endpoint table (`GET
    /admin/orders`, `GET /admin/orders/{reference}`, auth endpoints).
-3. The "History" section needs `order_events` data that the Sprint 1 admin
-   contract does not return yet. Raise it with the S1-03 owner before S1-09
-   builds it. Do not invent the field in the frontend.
+3. Order history (Screen 7) is deferred to the dispatch and delivery-tracking
+   work, when the contract will return `order_events`. S1-09 does not build it,
+   and the frontend must not invent the field.
