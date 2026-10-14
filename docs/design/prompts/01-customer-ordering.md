@@ -68,6 +68,23 @@ too-many-attempts with wait time, network error. Link to "Create account".
 No "forgot password" link in this release (password reset is handled by
 contacting support: show "Forgot your password? Contact us").
 
+SCREEN 3A: Session and access states
+- Opening the app: while the app checks whether the customer is still signed
+  in, show a brief loading state (logo plus spinner), never a flash of the
+  sign-in screen.
+- Session ended (signed out after 7 days, or the account was deactivated):
+  the sign-in screen with the banner "Your session has ended. Please sign in
+  again." If this happens while filling in the request form, the banner also
+  says "Your request has not been sent. What you typed is kept." and the form
+  reopens filled in after signing in (password never kept).
+- Security check failed: error banner "Security token missing or invalid.
+  Reload the page and try again." with a "Reload" button.
+- Wrong kind of account: a staff or driver account signing in here sees "This
+  account is for MmiriOma staff. Use the staff or driver app." with "Sign out".
+- Signing out: the menu item shows a spinner, then the Welcome screen with a
+  toast "You've signed out." If signing out fails because the network is down,
+  show "Couldn't sign out. Check your connection and try again."
+
 SCREEN 4: Home / My orders (order history)
 - Top bar with app name and an account menu (name, phone, "Sign out").
 - If the phone is not yet confirmed by staff: an info banner "We'll confirm

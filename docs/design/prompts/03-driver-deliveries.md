@@ -56,6 +56,20 @@ States: default, submitting, "Phone number or password is incorrect",
 "Too many attempts. Please wait and try again." with the wait time, network
 error. A deactivated account cannot sign in (same incorrect-details message).
 
+SCREEN 1A: Session and access states
+- "Forgot your password? Call the dispatcher." under the sign-in form (there
+  is no self-service reset).
+- Opening the app: brief loading state while the session is checked, never a
+  flash of the sign-in screen.
+- Session ended (signed out after 7 days, or the account was deactivated):
+  sign-in screen with "Your session has ended. Please sign in again." Do not
+  explain why; a deactivated driver sees the same message.
+- Security check failed: "Security token missing or invalid. Reload the page
+  and try again." with a "Reload" button.
+- Wrong kind of account: a customer or admin account sees "This app is for
+  MmiriOma delivery partners." with "Sign out".
+- Signing out: spinner, then the sign-in screen with "You've signed out."
+
 SCREEN 2: My jobs
 - Top bar: "My jobs", driver name, menu with "Sign out".
 - Section "New offers" (assigned, not yet accepted): each card shows delivery
