@@ -26,3 +26,5 @@ dist/
 
 # Design handoff packs (root design/ only): kept locally as the visual reference, not tracked (fork only)
 /design/
+# Logo export pack: the app uses the copies in frontend/public (fork only)
+/web-ready-logos/
