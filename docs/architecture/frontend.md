@@ -266,7 +266,10 @@ time the page opens. The main bundle keeps the router, guards
 the public pages, so the landing link opens without waiting for app code.
 The root route's `hydrateFallbackElement` shows the loading screen while the
 first chunk arrives; the service worker precaches all chunks, so pages still
-open offline. Sizes after splitting: main bundle about 370 kB (109 kB
+open offline. Its `errorElement` (`src/app/RouteError.tsx`) catches any route
+error: a chunk missing after a new deploy (an open tab asking for an old
+hashed file) reloads the page once, at most once a minute; anything else
+shows the app's error screen. Sizes after splitting: main bundle about 370 kB (109 kB
 gzipped), page chunks 1 to 15 kB.
 
 ## Admin

@@ -6,6 +6,7 @@ import { marketingRoutes } from '../features/marketing/routes'
 import { partnerRoutes } from '../features/partner/routes'
 import { LoadingScreen } from '../components/layout/StateScreens'
 import { AppRoot } from './AppRoot'
+import { RouteError } from './RouteError'
 import { AdminGallery, FoundationPreview, Lazy, MenuGallery, MobileGallery } from './lazyPages'
 import { NotFound } from './NotFound'
 
@@ -36,6 +37,8 @@ export const routes: RouteObject[] = [
     element: <AppRoot />,
     // Shown while the first page's chunk loads (every app page is lazy; see below).
     hydrateFallbackElement: <LoadingScreen />,
+    // Any error a page throws, including a chunk missing after a deploy.
+    errorElement: <RouteError />,
     children: [
       ...marketingRoutes,
       { path: '/app', element: <RootRedirect /> },
