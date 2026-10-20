@@ -32,6 +32,9 @@ export default defineConfig({
     // opt into jsdom with a `// @vitest-environment jsdom` comment.
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}'],
+    // jsdom page tests type, click and load lazy page chunks; with every file
+    // running at once on a busy machine or CI runner they can pass 5 s.
+    testTimeout: 15_000,
     setupFiles: ['./src/test/setup.ts'],
   },
 })

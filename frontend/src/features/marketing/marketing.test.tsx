@@ -97,16 +97,17 @@ describe('routes', () => {
   it('shows the landing page at / to everyone', async () => {
     resetMockDb()
     renderAt('/')
-    expect(await screen.findByRole('heading', { level: 1, name: /Water at\s*your gate/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Water at\s*your gate/ }, { timeout: 10_000 })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Order Water' })[0]).toHaveAttribute('href', '/order')
     const become = screen.getAllByRole('link', { name: /Become a Rider or Driver/ })
     expect(become.length).toBeGreaterThan(0)
     for (const link of become) expect(link).toHaveAttribute('href', '/partner/signup')
-  })
+  }, 20_000)
 
+  // /app loads the lazy sign-in page; allow for a slow machine or CI runner.
   it('still sends /app to sign-in when signed out', async () => {
     resetMockDb()
     const router = renderAt('/app')
-    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/signin'), { timeout: 3000 })
-  })
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/signin'), { timeout: 10_000 })
+  }, 20_000)
 })

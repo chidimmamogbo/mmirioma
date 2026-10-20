@@ -10,6 +10,11 @@ import { read, resetMockDb } from '../../mocks/db'
 import { DEMO_PASSWORD } from '../../mocks/seed'
 import { timeAgo } from './adminFormat'
 
+// Whole-app renders load lazy page chunks, which can take seconds on a busy
+// machine or CI runner; give them room instead of Vitest's 5 s default.
+const WAIT = 10_000
+const SLOW = 20_000
+
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(
@@ -25,27 +30,27 @@ beforeEach(() => resetMockDb())
 describe('admin pages', () => {
   it('send signed-out visitors to staff sign-in', async () => {
     const router = renderAt('/admin/orders')
-    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/admin/login'), { timeout: 4000 })
-    expect(await screen.findByRole('heading', { name: 'Staff sign in' })).toBeInTheDocument()
-  })
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/admin/login'), { timeout: WAIT })
+    expect(await screen.findByRole('heading', { name: 'Staff sign in' }, { timeout: WAIT })).toBeInTheDocument()
+  }, SLOW)
 
   it('show the dashboard to staff, with every sidebar section', async () => {
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     renderAt('/admin')
-    expect((await screen.findAllByText('Awaiting rider', {}, { timeout: 4000 })).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Awaiting rider', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
     expect(screen.getByText('Riders online')).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Service areas/ }).length).toBeGreaterThan(0)
-  })
+  }, SLOW)
 
   it('assign a rider from the orders panel', async () => {
     const user = userEvent.setup()
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     renderAt('/admin/orders?ref=MO-6RTA2KXP9B')
-    const button = await screen.findByRole('button', { name: /^Assign / }, { timeout: 4000 })
+    const button = await screen.findByRole('button', { name: /^Assign / }, { timeout: WAIT })
     await user.click(button)
-    expect(await screen.findByText(/Assigned\./, {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByText(/Assigned\./, {}, { timeout: WAIT })).toBeInTheDocument()
     expect(read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage).toBe('assigned')
-  })
+  }, SLOW)
 })
 
 describe('timeAgo', () => {

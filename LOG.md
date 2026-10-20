@@ -23,6 +23,26 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-20: Page tests passed alone but timed out in the full run
+
+- **Area:** frontend (tests)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** In `npm test` (all files in parallel), `admin.test.tsx` and the FAQ page test failed with `Test timed out in 5000ms`; they passed when run on their own.
+- **Cause:** After code splitting, whole-app renders load lazy page chunks; with every file running at once on a busy machine, typing and loading can take longer than Vitest's 5 s default.
+- **Fix / workaround:** `testTimeout: 15_000` in `vite.config.ts`, longer waits in the route tests. The same CI-style run then passed 130/130.
+- **Status:** resolved
+- **Refs:** `frontend/vite.config.ts`, `frontend/src/features/admin/admin.test.tsx`, `frontend/src/features/marketing/marketing.test.tsx`
+
+### 2026-10-20: Demo staff sign-in said "phone number or password is not right"
+
+- **Area:** frontend (admin, mock mode)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Signing in at `/admin/login` with the demo admin failed for the owner.
+- **Cause:** The account and login worked (checked by typing the values); the fields held Chrome autofill from another form, and the instructions named the `DEMO_PASSWORD` constant rather than saying to type its value.
+- **Fix / workaround:** In mock mode the staff sign-in has a "Use demo staff account" button that fills the form. Clear autofilled fields before typing.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/admin/pages/AdminLogin.tsx`, `frontend/src/mocks/seed.ts`
+
 ### 2026-10-20: Route conversion script kept every page import
 
 - **Area:** tooling (frontend code splitting)
