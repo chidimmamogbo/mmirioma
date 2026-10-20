@@ -1,0 +1,131 @@
+/*
+ * Motion from the design handoff (tokens/mo.css plus the few keyframes that
+ * individual screens define inline).
+ *
+ * Rule: animate only transform and opacity. Three design animations changed
+ * paint properties and are reworked here so they look the same but run on a
+ * pseudo-element with transform/opacity:
+ *   - glow  (was box-shadow)       -> ::after ring that scales up and fades out
+ *   - blink (was border-color)     -> ::after border that fades in and out
+ *   - shine (was background-position) -> ::after stripes that slide with translateX
+ * Two SVG stroke animations stay as designed, because a dashed or partial path
+ * stroke has no transform equivalent: `route` (map route flow) and `donut`
+ * (admin chart draw-in). Both are tiny SVGs and stop under reduced motion.
+ *
+ * Everything stops under prefers-reduced-motion (see the end of this file).
+ */
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes floaty { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes drive { 0%, 100% { transform: translateX(0) rotate(0) } 50% { transform: translateX(4px) rotate(-0.6deg) } }
+@keyframes ping { 0% { transform: scale(0.6); opacity: 0.7 } 100% { transform: scale(2.4); opacity: 0 } }
+@keyframes dash { to { stroke-dashoffset: -48 } }
+@keyframes pop { 0% { transform: scale(0.3); opacity: 0 } 60% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes wave { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+@keyframes sway { 0%, 100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
+@keyframes confetti {
+  0% { transform: translateY(-10px) rotate(0); opacity: 0 }
+  15% { opacity: 1 }
+  100% { transform: translateY(120px) rotate(260deg); opacity: 0 }
+}
+/* Screen-level keyframes from the handoff */
+@keyframes slide-in { from { transform: translateX(-100%) } to { transform: none } }
+@keyframes sheet { from { transform: translateY(100%) } to { transform: none } }
+@keyframes shake {
+  0%, 100% { transform: none }
+  20%, 60% { transform: translateX(-7px) }
+  40%, 80% { transform: translateX(7px) }
+}
+@keyframes grow-y { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+@keyframes grow-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@keyframes donut { from { stroke-dashoffset: 314 } }
+/* Reworked animations */
+@keyframes glow-ring { 0% { transform: scale(1); opacity: 0.45 } 50%, 100% { transform: scale(1.8); opacity: 0 } }
+@keyframes blink-fade { 0%, 100% { opacity: 0 } 50% { opacity: 1 } }
+@keyframes shine-slide { from { transform: translateX(-60px) } to { transform: translateX(0) } }
+
+/* Screen enter: .a1 to .a5 in the design, staggered 80 ms */
+@utility rise-1 { animation: rise 0.5s var(--ease-rise) both; }
+@utility rise-2 { animation: rise 0.5s 0.08s var(--ease-rise) both; }
+@utility rise-3 { animation: rise 0.5s 0.16s var(--ease-rise) both; }
+@utility rise-4 { animation: rise 0.5s 0.24s var(--ease-rise) both; }
+@utility rise-5 { animation: rise 0.5s 0.32s var(--ease-rise) both; }
+
+/* Drawer menu slides in from the left; bottom sheet rises */
+@utility animate-slide-in { animation: slide-in 0.4s var(--ease-rise) both; }
+@utility animate-sheet { animation: sheet 0.5s var(--ease-rise) both; }
+/* Wrong delivery code */
+@utility animate-shake { animation: shake 0.5s ease 0.2s both; }
+/* Bar charts and progress bars grow in; set transform-origin on the element */
+@utility animate-grow-y { transform-origin: bottom; animation: grow-y 0.8s var(--ease-rise) both; }
+@utility animate-grow-x { transform-origin: left; animation: grow-x 1s var(--ease-rise) both; }
+@utility animate-donut { animation: donut 1.2s var(--ease-rise) both; }
+/* Map route: dashed stroke that flows (SVG stroke, see header) */
+@utility route-flow { stroke-dasharray: 10 14; animation: dash 1.2s linear infinite; }
+
+/* glow: a soft ring pulses out from an online/unread dot (was a box-shadow pulse) */
+@utility glow {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(34, 197, 94, 0.45);
+    pointer-events: none;
+    animation: glow-ring 1.8s ease-in-out infinite;
+  }
+}
+
+/* blink: the active OTP box border pulses light blue (was a border-color change) */
+@utility blink {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border: 1.5px solid var(--color-blink);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: blink-fade 1.1s ease-in-out infinite;
+  }
+}
+
+/* shine: moving diagonal stripes on a progress bar (was background-position) */
+@utility shine {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 -60px;
+    background-image: repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0) 0 15px,
+      rgba(255, 255, 255, 0.3) 15px 30px
+    );
+    pointer-events: none;
+    animation: shine-slide 1.2s linear infinite;
+  }
+}
+
+/* One confetti piece (.cf in the design) */
+@utility confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: confetti 2.6s ease-in infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .confetti-piece {
+    display: none;
+  }
+}

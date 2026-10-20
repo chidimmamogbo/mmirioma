@@ -1,0 +1,504 @@
+import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { cx } from '../../lib/cx'
+import { LANDING_FAQS, SERVICE_AREAS } from './content'
+import {
+  ArrowRightIcon,
+  BigPinIcon,
+  CardIcon,
+  ChevronIcon,
+  DottedArrowIcon,
+  DownloadArrowIcon,
+  DropCheckIcon,
+  DropFilledIcon,
+  HouseIcon,
+  PinIcon,
+  ShieldCheckIcon,
+  TruckIcon,
+} from './icons'
+import { InstallAppButton, Kicker, MarketingFooter, MarketingHeader, Oma, Pic, SectionHead } from './MarketingParts'
+import { useMarketingPage } from './useMarketingPage'
+
+const PRIMARY_BUTTON =
+  'inline-flex items-center gap-2.5 rounded-[10px] bg-primary font-bold text-white no-underline hover:bg-primary-dark hover:text-white'
+
+/**
+ * Public landing page at `/` (design/MmiriOma-landing-handoff, "Landing").
+ * Shown to everyone, signed in or not, because it is the page we share; the
+ * installed apps open at `/app` instead (decision Q1 of round 2).
+ */
+export function Landing() {
+  useMarketingPage(
+    'MmiriOma | Water delivery in Enugu',
+    'Order water by keke or tanker in Enugu and have it poured into your drums or tank. Install the MmiriOma app, no app store needed.',
+  )
+  return (
+    <div className="mk-page min-w-0 overflow-x-hidden bg-white font-marketing text-[16px] leading-normal text-ink">
+      <MarketingHeader current="home" />
+      <main>
+        <Hero />
+        <div className="bg-white pt-10 pb-[72px]">
+          <div className="mk-wrap flex flex-col gap-8">
+            <HowItWorks />
+            <DeliveryOptions />
+          </div>
+        </div>
+        <ForDrivers />
+        <InstallSection />
+        <AreasAndFaqs />
+      </main>
+      <MarketingFooter variant="full" />
+    </div>
+  )
+}
+
+function Badge({ icon, children, navy = false }: { icon: ReactNode; children: ReactNode; navy?: boolean }) {
+  return (
+    <div className={cx('flex items-center gap-2.5 text-[13px] leading-[1.3] font-semibold', navy ? 'text-white' : 'text-ink')}>
+      <span
+        className={cx(
+          'inline-flex size-[42px] shrink-0 items-center justify-center rounded-full',
+          navy ? 'bg-mk-mint text-mk-drivers' : 'bg-mk-badge text-mk-badge-icon',
+        )}
+      >
+        {icon}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+function Hero() {
+  return (
+    <section id="top" className="mk-hero">
+      <div className="mk-wrap mk-hero-grid w-full">
+        <div className="mk-hero-text flex flex-col gap-[22px]">
+          <Kicker>Water at your gate.</Kicker>
+          <h1 className="m-0 font-display text-[clamp(46px,6.2vw,84px)] leading-[0.98] font-extrabold tracking-[-2px] text-ink">
+            Water at
+            <br />
+            <span className="text-mk-teal">your gate</span>
+          </h1>
+          <p className="m-0 max-w-[440px] text-[19px] leading-[1.55] text-mk-lead">Reliable water delivery for your home, office and business.</p>
+          <div className="flex flex-wrap gap-3.5">
+            <Link to="/order" className={cx(PRIMARY_BUTTON, 'min-h-[54px] px-[26px] text-[16px]')}>
+              <DropFilledIcon />
+              Order Water
+              <ArrowRightIcon />
+            </Link>
+            <Link
+              to="/#download"
+              className="inline-flex min-h-[54px] items-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-primary bg-white px-[26px] text-[16px] font-bold text-primary no-underline hover:text-primary-dark"
+            >
+              <DownloadArrowIcon />
+              Install App
+            </Link>
+          </div>
+          <div className="grid max-w-[560px] grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5 pt-3.5">
+            <Badge icon={<DropCheckIcon />}>Delivered &amp; poured for you</Badge>
+            <Badge icon={<TruckIcon />}>Fast &amp; Reliable Delivery</Badge>
+            <Badge icon={<HouseIcon />}>For Homes, Offices &amp; Businesses</Badge>
+          </div>
+        </div>
+        <Pic
+          name="hero-vehicles"
+          fallback="jpg"
+          width={1410}
+          height={969}
+          eager
+          className="mk-hero-side"
+          alt="A blue MmiriOma keke loaded with water cans beside a white MmiriOma water tanker in front of a modern house"
+        />
+      </div>
+    </section>
+  )
+}
+
+const STEPS: { img: string; w: number; h: number; circle: string; title: string; text: string }[] = [
+  {
+    img: 'step-order',
+    w: 82,
+    h: 122,
+    circle: 'bg-primary',
+    title: 'Place Your Order',
+    text: 'Choose Keke or Tanker, select your size and quantity, and confirm your delivery address.',
+  },
+  { img: 'step-deliver', w: 145, h: 92, circle: 'bg-primary', title: 'We Deliver & Pour', text: 'Our trusted riders collect the water and deliver it to your location.' },
+  {
+    img: 'step-pour',
+    w: 115,
+    h: 122,
+    circle: 'bg-mk-step3',
+    title: 'We Pour for You',
+    text: 'Keke riders pour our cans into your drums. For tanker deliveries, we pour directly into your tank (ground or overhead).',
+  },
+  {
+    img: 'step-code',
+    w: 87,
+    h: 108,
+    circle: 'bg-mk-step4',
+    title: 'Give the Delivery Code',
+    text: "Share the OTP code with our rider to confirm delivery. It's that simple!",
+  },
+]
+
+function Panel({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <section id={id} className="flex flex-col gap-10 rounded-[28px] bg-mk-panel px-[clamp(16px,2.6vw,36px)] py-[clamp(32px,4vw,56px)]">
+      {children}
+    </section>
+  )
+}
+
+function HowItWorks() {
+  return (
+    <Panel id="how">
+      <SectionHead
+        kicker="Simple • Fast • Convenient"
+        title={
+          <>
+            How <Oma /> Works
+          </>
+        }
+        lead="Getting water delivered is easy. Just a few simple steps."
+      />
+      <div className="mk-steps">
+        {STEPS.map((s, i) => (
+          <div key={s.title} className="relative flex flex-col gap-3.5 rounded-[20px] bg-white px-[26px] py-8 shadow-[0_8px_28px_rgba(15,60,120,0.07)]">
+            <Pic name={s.img} width={s.w} height={s.h} className="block h-16 w-auto self-center" />
+            <span className={cx('mt-2 inline-flex size-[30px] items-center justify-center rounded-full text-[14px] font-bold text-white', s.circle)}>{i + 1}</span>
+            <h3 className="m-0 font-display text-[20px] font-bold text-ink">{s.title}</h3>
+            <p className="m-0 text-[15px] leading-[1.6] text-slate">{s.text}</p>
+            {i < STEPS.length - 1 && (
+              <span className="mk-step-arrow absolute top-1/2 right-[-27px] text-mk-arrow" aria-hidden="true">
+                <DottedArrowIcon />
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+}
+
+function SubCard({ title, wide = false, children }: { title: string; wide?: boolean; children: ReactNode }) {
+  return (
+    <div className={cx('flex min-w-0 flex-col gap-4 rounded-2xl bg-white p-5', wide ? 'flex-[1.6_1_260px]' : 'flex-[1_1_180px]')}>
+      <p className="m-0 text-[15px] font-bold text-ink">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function Tiles({ tiles, tone }: { tiles: [string, string][]; tone: 'keke' | 'tanker' }) {
+  return (
+    <div className="grid flex-auto grid-cols-4 gap-2">
+      {tiles.map(([n, unit]) => (
+        <div
+          key={n}
+          className={cx('flex min-h-[76px] flex-col items-center justify-center gap-0.5 rounded-xl', tone === 'keke' ? 'bg-mk-panel' : 'bg-mk-tanker-tile')}
+        >
+          <span className={cx('font-display font-bold text-ink', n === 'Custom' ? 'text-[15px]' : tone === 'keke' ? 'text-[19px]' : 'text-[18px]')}>{n}</span>
+          <span className="text-[12px] text-mute">{unit}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Pictured({ items }: { items: { img: string; w: number; h: number; height: string; label: string }[] }) {
+  return (
+    <div className="grid flex-auto grid-cols-2 items-end gap-2.5">
+      {items.map((it) => (
+        <div key={it.label} className="flex flex-col items-center gap-2.5">
+          <Pic name={it.img} width={it.w} height={it.h} className={cx('w-auto', it.height)} />
+          <span className="text-center text-[14px] leading-[1.25] font-bold text-ink">{it.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function OptionCard({
+  tone,
+  title,
+  text,
+  image,
+  children,
+}: {
+  tone: 'keke' | 'tanker'
+  title: string
+  text: string
+  image: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className={cx('flex flex-col gap-5 rounded-3xl p-[clamp(18px,2vw,24px)]', tone === 'keke' ? 'bg-mk-keke' : 'bg-mk-tanker')}>
+      <div className="grid min-h-[190px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] items-center gap-3">
+        <div className="flex flex-col gap-2.5">
+          <h3 className={cx('m-0 font-display text-[30px] font-extrabold', tone === 'keke' ? 'text-mk-keke-title' : 'text-mk-tanker-title')}>{title}</h3>
+          <p className="m-0 text-[16px] leading-[1.55] text-mk-lead">{text}</p>
+        </div>
+        {image}
+      </div>
+      <div className="flex flex-auto flex-wrap gap-3.5">{children}</div>
+    </div>
+  )
+}
+
+/** Sizes only, no prices: prices come from the server inside the app (FR-022). */
+function DeliveryOptions() {
+  return (
+    <Panel id="options">
+      <SectionHead
+        kicker="Flexible for your needs"
+        title="Choose Your Delivery Option"
+        lead="Whether you need a few gallons for your home or a full tanker for your business, we've got you covered."
+      />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-7">
+        <OptionCard
+          tone="keke"
+          title="Keke Delivery"
+          text="Perfect for homes, offices and small businesses."
+          image={<Pic name="keke" width={473} height={314} alt="Blue MmiriOma keke carrying stacked water cans" className="block h-auto w-full max-w-[320px] justify-self-end" />}
+        >
+          <SubCard title="Available Sizes">
+            <Pictured
+              items={[
+                { img: 'can-25l', w: 85, h: 125, height: 'h-[60px]', label: '25 Litres' },
+                { img: 'can-50l', w: 87, h: 126, height: 'h-[68px]', label: '50 Litres' },
+              ]}
+            />
+          </SubCard>
+          <SubCard title="Available Quantities" wide>
+            <Tiles
+              tone="keke"
+              tiles={[
+                ['12', 'Gallons'],
+                ['24', 'Gallons'],
+                ['30', 'Gallons'],
+                ['60', 'Gallons'],
+              ]}
+            />
+          </SubCard>
+        </OptionCard>
+        <OptionCard
+          tone="tanker"
+          title="Tanker Delivery"
+          text="Ideal for large homes, businesses and estates."
+          image={<Pic name="tanker" width={544} height={295} alt="White MmiriOma water tanker truck" className="block h-auto w-full max-w-[330px] justify-self-end" />}
+        >
+          <SubCard title="Tank Type">
+            <Pictured
+              items={[
+                { img: 'tank-ground', w: 88, h: 112, height: 'h-16', label: 'Ground Tank' },
+                { img: 'tank-overhead', w: 87, h: 129, height: 'h-[68px]', label: 'Overhead Tank' },
+              ]}
+            />
+          </SubCard>
+          <SubCard title="Available Capacities" wide>
+            <Tiles
+              tone="tanker"
+              tiles={[
+                ['500', 'Gallons'],
+                ['750', 'Gallons'],
+                ['1,000', 'Gallons'],
+                ['Custom', 'Size'],
+              ]}
+            />
+          </SubCard>
+        </OptionCard>
+      </div>
+    </Panel>
+  )
+}
+
+const APPROVAL: [string, string][] = [
+  ['Apply in the driver app', 'Tell us if you ride a keke or drive a tanker.'],
+  ['Upload your documents', "A valid ID, driver's licence and vehicle papers."],
+  ['Our team verifies you', 'We review your details and check your vehicle.'],
+  ['Get approved and start earning', 'Go online and accept orders in your area.'],
+]
+
+function ForDrivers() {
+  return (
+    <section id="drivers" className="bg-mk-navy text-white">
+      <div className="mk-drivers">
+        <div className="mk-wrap mk-drivers-grid w-full">
+          <div className="mk-drivers-text flex flex-col gap-5">
+            <Kicker navy>For drivers &amp; riders</Kicker>
+            <h2 className="m-0 font-display text-[clamp(36px,4.4vw,58px)] leading-[1.02] font-extrabold tracking-[-1.5px] text-white">
+              Deliver water,
+              <br />
+              <span className="text-mk-mint">earn every day</span>
+            </h2>
+            <p className="m-0 text-[17px] leading-[1.6] text-mk-on-navy">
+              Join the MmiriOma driver community and be part of a growing service that brings water to homes and businesses.
+            </p>
+            <Link to="/partner/signup" className={cx(PRIMARY_BUTTON, 'min-h-[54px] self-start px-7 text-[16px]')}>
+              Become a Rider or Driver
+              <ArrowRightIcon />
+            </Link>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5 pt-2">
+              <Badge navy icon={<CardIcon />}>
+                Flexible Earnings
+              </Badge>
+              <Badge navy icon={<TruckIcon />}>
+                Choose Keke or Tanker
+              </Badge>
+              <Badge navy icon={<ShieldCheckIcon />}>
+                Simple Approval Process
+              </Badge>
+            </div>
+          </div>
+          <Pic
+            name="drivers-banner"
+            fallback="jpg"
+            width={2202}
+            height={879}
+            className="mk-drivers-photo"
+            alt="Smiling MmiriOma driver in a branded polo and cap standing in front of a water tanker"
+          />
+        </div>
+      </div>
+      <div className="mk-wrap flex flex-col gap-6 pt-12 pb-14">
+        <h3 className="m-0 font-display text-[22px] font-bold text-white">How approval works</h3>
+        <ol className="mk-approval m-0 list-none p-0">
+          {APPROVAL.map(([title, text], i) => (
+            <li key={title} className="flex items-start gap-3.5">
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-mk-mint font-display text-[16px] font-bold text-mk-navy">{i + 1}</span>
+              <div className="flex flex-col gap-1">
+                <p className="m-0 text-[16px] font-bold text-white">{title}</p>
+                <p className="m-0 text-[14px] leading-[1.5] text-mk-approval">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
+const INSTALL_BUTTON = cx(PRIMARY_BUTTON, 'mt-2 min-h-[50px] self-start px-[22px] text-[15px]')
+
+function AppCard({ img, w, h, alt, title, text, button }: { img: string; w: number; h: number; alt: string; title: string; text: string; button: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,170px),1fr))] items-end gap-x-6 gap-y-3 rounded-3xl bg-white px-7 shadow-[0_8px_28px_rgba(15,60,120,0.06)]">
+      <Pic name={img} width={w} height={h} alt={alt} className="mt-[-36px] block h-auto w-full max-w-[210px] justify-self-center" />
+      <div className="flex flex-col gap-3 self-center pt-7 pb-8">
+        <h3 className="m-0 font-display text-[22px] font-bold text-ink">{title}</h3>
+        <p className="m-0 text-[15px] leading-[1.6] text-slate">{text}</p>
+        {button}
+      </div>
+    </div>
+  )
+}
+
+function InstallSection() {
+  return (
+    <section id="download" className="bg-mk-panel">
+      <div className="mk-wrap flex flex-col gap-14 py-[88px]">
+        <SectionHead
+          kicker="Get started today"
+          title={
+            <>
+              Install the <Oma /> App
+            </>
+          }
+          lead="Access the web app on your phone or computer. No app store needed."
+        />
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,460px),1fr))] gap-7">
+          <AppCard
+            img="phone-customer"
+            w={341}
+            h={402}
+            alt="Phone showing the MmiriOma customer app"
+            title="For Customers"
+            text="Order water, track your delivery, manage your addresses and earn loyalty points."
+            button={
+              <InstallAppButton app="customer" className={INSTALL_BUTTON}>
+                Install Customer App
+                <ArrowRightIcon size={15} />
+              </InstallAppButton>
+            }
+          />
+          <AppCard
+            img="phone-driver"
+            w={352}
+            h={374}
+            alt="Phone showing the MmiriOma driver dashboard"
+            title="For Riders & Drivers"
+            text="Receive orders, navigate, complete deliveries and manage your earnings."
+            button={
+              <InstallAppButton app="partner" className={INSTALL_BUTTON}>
+                Install Driver App
+                <ArrowRightIcon size={15} />
+              </InstallAppButton>
+            }
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const TEXT_LINK = 'inline-flex min-h-11 items-center gap-1.5 text-[15px] font-bold text-primary no-underline hover:text-primary-dark'
+
+/** Service areas and FAQs. The "Our Partners" strip is left out until real partners are agreed (decision Q4). */
+function AreasAndFaqs() {
+  return (
+    <section className="relative z-[1] rounded-b-[36px] bg-white">
+      <div className="mk-wrap py-20">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] gap-12">
+          <div id="areas" className="flex flex-col gap-[18px]">
+            <Kicker>Where we deliver</Kicker>
+            <h2 className="m-0 font-display text-[clamp(30px,3.4vw,40px)] font-extrabold tracking-[-1px] text-ink">Our Service Areas</h2>
+            <p className="m-0 max-w-[460px] text-[16px] leading-[1.6] text-slate">
+              Areas we plan to serve in Enugu and nearby. <b className="text-ink">Sample list:</b> our first service zone is still being confirmed.
+            </p>
+            <ul aria-label="Service areas (sample)" className="m-0 flex list-none flex-wrap gap-2.5 p-0 pt-1">
+              {SERVICE_AREAS.map((a) => (
+                <li key={a} className="inline-flex min-h-[46px] items-center gap-2 rounded-xl bg-mk-chip px-4 text-[15px] font-semibold text-ink">
+                  <PinIcon className="text-ink" />
+                  {a}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2.5 flex flex-wrap items-center gap-4 rounded-[18px] bg-mk-chip px-6 py-[22px]">
+              <BigPinIcon className="shrink-0" />
+              <div className="min-w-0 flex-[1_1_200px]">
+                <p className="m-0 text-[16px] font-bold text-ink">Don't see your area?</p>
+                <p className="mt-0.5 mb-0 text-[14px] text-slate">We're expanding! Contact us to check availability.</p>
+              </div>
+              <Link to="/support/contact" className={TEXT_LINK}>
+                Contact Us
+                <ArrowRightIcon size={15} />
+              </Link>
+            </div>
+          </div>
+          <div id="faq" className="mk-split-divider flex flex-col gap-[18px]">
+            <Kicker>Frequently asked questions</Kicker>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="m-0 font-display text-[clamp(30px,3.4vw,40px)] font-extrabold tracking-[-1px] text-ink">FAQs</h2>
+              <Link to="/faq" className={TEXT_LINK}>
+                View All FAQs
+                <ArrowRightIcon size={15} />
+              </Link>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {LANDING_FAQS.map((f) => (
+                <details key={f.q} className="group rounded-xl border border-solid border-line px-[18px]">
+                  <summary className="flex min-h-[54px] items-center justify-between gap-4 text-[15px] font-medium text-ink">
+                    {f.q}
+                    <ChevronIcon className="shrink-0 text-ink transition-transform duration-200 group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-0 mb-4 text-[15px] leading-[1.65] text-slate">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}

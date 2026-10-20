@@ -1,0 +1,43 @@
+{
+  "id": "/partner/",
+  "name": "MmiriOma Partner",
+  "short_name": "MO Partner",
+  "description": "Take water delivery orders in Enugu as a Keke rider or tanker driver.",
+  "start_url": "/partner/",
+  "scope": "/partner/",
+  "display": "standalone",
+  "background_color": "#F4F7FB",
+  "theme_color": "#1570D8",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
