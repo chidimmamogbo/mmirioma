@@ -19,6 +19,7 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
+import { revealDetail } from '../adminFormat'
 import { AdminFrame, ApprovalChip, OnlineChip, PageHead, SplitLayout } from '../AdminParts'
 import { useAdminMutation, useRider, useRiders } from '../queries'
 
@@ -75,7 +76,10 @@ export function Riders() {
                     {
                       header: 'Rider',
                       cell: (r) => (
-                        <button type="button" onClick={() => setParams(query ? { q: query, id: r.id } : { id: r.id }, { replace: true })} className="flex cursor-pointer items-center gap-2.5 border-0 bg-transparent p-0 text-left text-ink">
+                        <button type="button" onClick={() => {
+                            setParams(query ? { q: query, id: r.id } : { id: r.id }, { replace: true })
+                            revealDetail()
+                          }} className="flex cursor-pointer items-center gap-2.5 border-0 bg-transparent p-0 text-left text-ink">
                           <Avatar name={r.name} size={36} />
                           <span>
                             <span className="block font-extrabold">{r.name}</span>

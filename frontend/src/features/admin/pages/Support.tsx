@@ -15,7 +15,7 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
-import { timeAgo } from '../adminFormat'
+import { DETAIL_PANEL_ID, revealDetail, timeAgo } from '../adminFormat'
 import { AdminFrame, PageHead } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useIssuePeople, useIssues } from '../queries'
 
@@ -66,7 +66,10 @@ export function Support() {
               key={i.id}
               type="button"
               aria-pressed={i.id === selectedId}
-              onClick={() => setParams(query ? { q: query, id: i.id } : { id: i.id }, { replace: true })}
+              onClick={() => {
+                setParams(query ? { q: query, id: i.id } : { id: i.id }, { replace: true })
+                revealDetail()
+              }}
               className={cx('flex w-full cursor-pointer items-center gap-3 rounded-card border-2 border-solid bg-white p-3.5 text-left text-ink shadow-stat', i.id === selectedId ? 'border-primary' : 'border-transparent')}
             >
               <IconBadge tone={ISSUE_ICON[i.type].tone} size={46} radius={14}>
@@ -82,7 +85,9 @@ export function Support() {
             </button>
           ))}
         </div>
-        <div className="rise-3 min-w-0 flex-1">{selected && <IssueDetail key={selected.id} issue={selected} />}</div>
+        <div id={DETAIL_PANEL_ID} className="rise-3 min-w-0 flex-1 scroll-mt-4">
+          {selected && <IssueDetail key={selected.id} issue={selected} />}
+        </div>
       </div>
     </AdminFrame>
   )

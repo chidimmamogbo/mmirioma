@@ -32,6 +32,8 @@ import { ANY_PLACE, quoteFor } from './pricing'
 import { lagosAt as lagos, lagosToday } from './time'
 
 export const DEMO_PASSWORD = 'mmirioma-demo'
+/** Demo staff phone, for the mock-only "Use demo staff account" button on the staff sign-in. */
+export const DEMO_ADMIN_PHONE = '0800 000 0100'
 
 export interface MockUser extends User {
   password: string

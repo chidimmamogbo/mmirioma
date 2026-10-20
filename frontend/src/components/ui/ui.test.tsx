@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { DataTable } from './Admin'
 import { Button } from './Button'
 import { OptionTile } from './Choice'
 import { CodeBoxes, Keypad } from './CodeEntry'
@@ -150,5 +151,34 @@ describe('IconLink', () => {
     )
     expect(screen.getByRole('link', { name: 'Close menu' }).className.split(' ')).not.toContain('relative')
     expect(screen.getByRole('link', { name: 'Notifications' }).className.split(' ')).toContain('relative')
+  })
+})
+
+describe('DataTable', () => {
+  const rows = [
+    { id: 'a', name: 'Chinedu Okafor', area: 'GRA' },
+    { id: 'b', name: 'Ifeanyi James', area: 'Independence Layout' },
+  ]
+  it('renders a table for tablets and up, and a card per row for phones, marking the selected row in both', () => {
+    render(
+      <DataTable
+        caption="Riders"
+        rows={rows}
+        rowKey={(r) => r.id}
+        selectedKey="b"
+        columns={[
+          { header: 'Rider', cell: (r) => r.name },
+          { header: 'Area', cell: (r) => r.area },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('table')).toHaveClass('hidden', 'md:table')
+    const list = screen.getByRole('list', { name: 'Riders' })
+    expect(list).toHaveClass('md:hidden')
+    const cards = list.querySelectorAll('li')
+    expect(cards).toHaveLength(2)
+    expect(cards[1]).toHaveAttribute('aria-current', 'true')
+    expect(cards[1]).toHaveTextContent('AreaIndependence Layout')
+    expect(screen.getAllByRole('row')[2]).toHaveAttribute('aria-selected', 'true')
   })
 })

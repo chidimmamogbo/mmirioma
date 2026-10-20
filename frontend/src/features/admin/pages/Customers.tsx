@@ -15,6 +15,7 @@ import { formatShortDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
+import { DETAIL_PANEL_ID, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, StatusChip } from '../AdminParts'
 import { useAdminMutation, useCustomer, useCustomers } from '../queries'
 
@@ -42,7 +43,10 @@ export function Customers() {
               key={c.id}
               type="button"
               aria-pressed={c.id === selected}
-              onClick={() => setParams({ id: c.id }, { replace: true })}
+              onClick={() => {
+                setParams({ id: c.id }, { replace: true })
+                revealDetail()
+              }}
               className={cx(
                 'flex w-full cursor-pointer items-center gap-3 rounded-icon border-2 border-solid px-2.5 py-2 text-left text-ink',
                 c.id === selected ? 'border-primary bg-sky' : 'border-transparent bg-white hover:bg-canvas',
@@ -59,7 +63,9 @@ export function Customers() {
             </button>
           ))}
         </Card>
-        <div className="rise-3 min-w-0 flex-1">{selected && <CustomerDetail key={selected} id={selected} />}</div>
+        <div id={DETAIL_PANEL_ID} className="rise-3 min-w-0 flex-1 scroll-mt-4">
+          {selected && <CustomerDetail key={selected} id={selected} />}
+        </div>
       </div>
     </AdminFrame>
   )

@@ -71,3 +71,17 @@ export const MONEY_TABS = [
 export function editablePrices(p: PriceList): PriceListInput {
   return { keke: structuredClone(p.keke), tanker: structuredClone(p.tanker), delivery_fee: { ...p.delivery_fee }, points: { ...p.points } }
 }
+
+/** Id of the detail panel beside a list (orders, riders, customers, stations, support). */
+export const DETAIL_PANEL_ID = 'admin-detail'
+
+/**
+ * On phones and tablets the detail panel sits below the list, so after
+ * picking an item, scroll its details into view. On laptops and desktops
+ * (1024 px and up) the panel is already beside the list and nothing moves.
+ */
+export function revealDetail(): void {
+  if (typeof window === 'undefined' || !window.matchMedia?.('(max-width: 1023.98px)').matches) return
+  // After React renders the newly selected item.
+  window.setTimeout(() => document.getElementById(DETAIL_PANEL_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+}

@@ -19,7 +19,7 @@ import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
-import { METHOD_LABEL } from '../adminFormat'
+import { METHOD_LABEL, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
@@ -51,6 +51,11 @@ export function Orders() {
     const next = new URLSearchParams(params)
     next.set('ref', reference)
     setParams(next, { replace: true })
+  }
+
+  function open(reference: string) {
+    select(reference)
+    revealDetail()
   }
 
   return (
@@ -103,7 +108,7 @@ export function Orders() {
                     {
                       header: 'Order',
                       cell: (o) => (
-                        <button type="button" onClick={() => select(o.reference)} className="hit-44 cursor-pointer border-0 bg-transparent p-0 font-extrabold text-primary-dark">
+                        <button type="button" onClick={() => open(o.reference)} className="hit-44 cursor-pointer border-0 bg-transparent p-0 font-extrabold text-primary-dark">
                           {o.reference}
                         </button>
                       ),

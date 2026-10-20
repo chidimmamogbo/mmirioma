@@ -16,8 +16,6 @@ import { MONEY_TABS, editablePrices as editable } from '../adminFormat'
 import { AdminFrame, LinkTabs, NairaInput, PageHead } from '../AdminParts'
 import { useAdminMutation, usePriceLists } from '../queries'
 
-const TH = 'border-b border-line px-3 py-2.5 text-left text-chip font-bold whitespace-nowrap text-mute'
-const TD = 'border-b border-row-line px-3 py-2.5'
 
 /**
  * Pricing (`a-pricing`, Pricing tab). Every save is a new version and orders
@@ -65,7 +63,7 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
   return (
     <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
       <div className="rise-3 flex min-w-0 flex-1 flex-col gap-4">
-        <Card className="overflow-x-auto p-4">
+        <Card className="p-4">
           <div className="mb-2 flex items-center gap-3">
             <Illustration name="keke" className="w-24 shrink-0" />
             <div>
@@ -73,39 +71,28 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
               <p className="m-0 text-mute">Per jerrycan, plus one delivery fee per order</p>
             </div>
           </div>
-          <table className="w-full border-collapse text-[14px]">
-            <caption className="sr-only">Keke prices</caption>
-            <thead>
-              <tr>
-                <th className={TH}>Item</th>
-                <th className={TH}>Customer pays (₦)</th>
-                <th className={TH}>Rider earns (₦)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {([25, 50] as const).map((size) => (
-                <tr key={size}>
-                  <td className={`${TD} font-bold`}>{size} L can</td>
-                  <td className={TD}>
-                    <NairaInput label={`${size} L can price`} value={draft.keke.can_minor_units[size]} onChange={(v) => set((d) => (d.keke.can_minor_units[size] = v ?? 0))} />
-                  </td>
-                  <td className={`${TD} text-mute`}>Per trip below</td>
-                </tr>
-              ))}
-              <tr>
-                <td className={`${TD} font-bold`}>Delivery and pouring</td>
-                <td className={TD}>
-                  <NairaInput label="Keke delivery fee" value={draft.keke.delivery_minor_units} onChange={(v) => set((d) => (d.keke.delivery_minor_units = v ?? 0))} />
-                </td>
-                <td className={TD}>
-                  <NairaInput label="Keke rider pay per trip" value={draft.keke.rider_pay_minor_units} onChange={(v) => set((d) => (d.keke.rider_pay_minor_units = v ?? 0))} />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <PriceHead cols={KEKE_COLS} labels={['Item', 'Customer pays (₦)', 'Rider earns (₦)']} />
+          {([25, 50] as const).map((size) => (
+            <PriceRow key={size} cols={KEKE_COLS} title={`${size} L can`}>
+              <Cell label="Customer pays (₦)">
+                <NairaInput label={`${size} L can price`} value={draft.keke.can_minor_units[size]} onChange={(v) => set((d) => (d.keke.can_minor_units[size] = v ?? 0))} />
+              </Cell>
+              <Cell label="Rider earns (₦)">
+                <span className="text-mute">Per trip below</span>
+              </Cell>
+            </PriceRow>
+          ))}
+          <PriceRow cols={KEKE_COLS} title="Delivery and pouring">
+            <Cell label="Customer pays (₦)">
+              <NairaInput label="Keke delivery fee" value={draft.keke.delivery_minor_units} onChange={(v) => set((d) => (d.keke.delivery_minor_units = v ?? 0))} />
+            </Cell>
+            <Cell label="Rider earns (₦)">
+              <NairaInput label="Keke rider pay per trip" value={draft.keke.rider_pay_minor_units} onChange={(v) => set((d) => (d.keke.rider_pay_minor_units = v ?? 0))} />
+            </Cell>
+          </PriceRow>
         </Card>
 
-        <Card className="overflow-x-auto p-4">
+        <Card className="p-4">
           <div className="mb-2 flex items-center gap-3">
             <Illustration name="tanker" className="w-24 shrink-0" />
             <div>
@@ -113,46 +100,31 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
               <p className="m-0 text-mute">Ground and overhead use the same base price. Ninth Mile water costs more.</p>
             </div>
           </div>
-          <table className="w-full border-collapse text-[14px]">
-            <caption className="sr-only">Tanker prices</caption>
-            <thead>
-              <tr>
-                <th className={TH}>Capacity</th>
-                <th className={TH}>{WATER_SOURCE_LABEL.borehole} (₦)</th>
-                <th className={TH}>{WATER_SOURCE_LABEL.ninth_mile} (₦)</th>
-                <th className={TH}>Delivery (₦)</th>
-                <th className={TH}>Driver earns (₦)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {TANK_SIZES.map((size) => {
-                const g = size.toLocaleString('en-NG')
-                return (
-                  <tr key={size}>
-                    <td className={`${TD} font-bold`}>{g} gal</td>
-                    <td className={TD}>
-                      <NairaInput label={`${g} gal borehole water`} value={draft.tanker[size].water_minor_units.borehole} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.borehole = v ?? 0))} />
-                    </td>
-                    <td className={TD}>
-                      <NairaInput label={`${g} gal Ninth Mile water`} value={draft.tanker[size].water_minor_units.ninth_mile} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.ninth_mile = v ?? 0))} />
-                    </td>
-                    <td className={TD}>
-                      <NairaInput label={`${g} gal delivery`} value={draft.tanker[size].delivery_minor_units} onChange={(v) => set((d) => (d.tanker[size].delivery_minor_units = v ?? 0))} />
-                    </td>
-                    <td className={TD}>
-                      <NairaInput label={`${g} gal driver pay`} value={draft.tanker[size].driver_pay_minor_units} onChange={(v) => set((d) => (d.tanker[size].driver_pay_minor_units = v ?? 0))} />
-                    </td>
-                  </tr>
-                )
-              })}
-              <tr>
-                <td className={`${TD} font-bold`}>Custom size</td>
-                <td className={TD} colSpan={4}>
-                  <Chip tone="amber">Manual quote by admin</Chip>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <PriceHead cols={TANKER_COLS} labels={['Capacity', `${WATER_SOURCE_LABEL.borehole} (₦)`, `${WATER_SOURCE_LABEL.ninth_mile} (₦)`, 'Delivery (₦)', 'Driver earns (₦)']} />
+          {TANK_SIZES.map((size) => {
+            const g = size.toLocaleString('en-NG')
+            return (
+              <PriceRow key={size} cols={TANKER_COLS} title={`${g} gal`}>
+                <Cell label={`${WATER_SOURCE_LABEL.borehole} (₦)`}>
+                  <NairaInput label={`${g} gal borehole water`} value={draft.tanker[size].water_minor_units.borehole} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.borehole = v ?? 0))} />
+                </Cell>
+                <Cell label={`${WATER_SOURCE_LABEL.ninth_mile} (₦)`}>
+                  <NairaInput label={`${g} gal Ninth Mile water`} value={draft.tanker[size].water_minor_units.ninth_mile} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.ninth_mile = v ?? 0))} />
+                </Cell>
+                <Cell label="Delivery (₦)">
+                  <NairaInput label={`${g} gal delivery`} value={draft.tanker[size].delivery_minor_units} onChange={(v) => set((d) => (d.tanker[size].delivery_minor_units = v ?? 0))} />
+                </Cell>
+                <Cell label="Driver earns (₦)">
+                  <NairaInput label={`${g} gal driver pay`} value={draft.tanker[size].driver_pay_minor_units} onChange={(v) => set((d) => (d.tanker[size].driver_pay_minor_units = v ?? 0))} />
+                </Cell>
+              </PriceRow>
+            )
+          })}
+          <PriceRow cols={TANKER_COLS} title="Custom size">
+            <Cell label="Price">
+              <Chip tone="amber">Manual quote by admin</Chip>
+            </Cell>
+          </PriceRow>
         </Card>
 
         <Card className="flex flex-col gap-3 p-4">
@@ -184,6 +156,41 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
       </div>
 
       <ChangeLog versions={versions} saveLabel={`Save as version ${current.version + 1}`} changed={changed} save={save} onSave={() => save.mutate(draft)} />
+    </div>
+  )
+}
+
+/**
+ * Price rows: a table-like grid from 768 px; on phones each row is a block
+ * with its title on top and labelled fields in two columns.
+ */
+const KEKE_COLS = 'md:grid-cols-[minmax(150px,1.2fr)_1fr_1fr]'
+const TANKER_COLS = 'md:grid-cols-[minmax(100px,0.8fr)_repeat(4,1fr)]'
+
+function PriceHead({ cols, labels }: { cols: string; labels: string[] }) {
+  return (
+    <div aria-hidden="true" className={`hidden gap-3 border-0 border-b border-solid border-line px-3 py-2.5 text-chip font-bold text-mute md:grid ${cols}`}>
+      {labels.map((l) => (
+        <span key={l}>{l}</span>
+      ))}
+    </div>
+  )
+}
+
+function PriceRow({ cols, title, children }: { cols: string; title: string; children: ReactNode }) {
+  return (
+    <div className={`grid grid-cols-2 items-center gap-3 border-0 border-b border-solid border-row-line px-3 py-3 last:border-b-0 md:gap-3 ${cols}`}>
+      <div className="col-span-2 font-bold md:col-span-1">{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function Cell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="text-chip font-bold text-mute md:hidden">{label}</span>
+      {children}
     </div>
   )
 }

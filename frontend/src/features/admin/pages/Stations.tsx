@@ -15,7 +15,7 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatCalendarDate, formatDateTime } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
-import { PAPERS_LABEL, PAPERS_TONE, daysUntil } from '../adminFormat'
+import { PAPERS_LABEL, PAPERS_TONE, daysUntil, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, SplitLayout } from '../AdminParts'
 import { useAdminMutation, useStations } from '../queries'
 
@@ -61,7 +61,10 @@ export function Stations() {
                   key={st.id}
                   type="button"
                   aria-pressed={selected?.id === st.id}
-                  onClick={() => setParams({ id: st.id }, { replace: true })}
+                  onClick={() => {
+                    setParams({ id: st.id }, { replace: true })
+                    revealDetail()
+                  }}
                   className={cx(
                     'flex cursor-pointer flex-col items-start gap-1.5 rounded-card border-2 border-solid bg-white p-4 text-left text-ink shadow-stat',
                     selected?.id === st.id ? 'border-primary' : 'border-transparent',

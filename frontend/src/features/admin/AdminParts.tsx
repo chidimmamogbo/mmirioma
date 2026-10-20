@@ -10,7 +10,7 @@ import type { PaymentStatus } from '../../domain/orders'
 import type { ApprovalStatus } from '../../domain/partner'
 import { cx } from '../../lib/cx'
 import { RequireRole } from '../auth/RequireRole'
-import { APPROVAL_LABEL, APPROVAL_TONE, PAYMENT_LABEL, PAYMENT_TONE, STATUS_TONE } from './adminFormat'
+import { APPROVAL_LABEL, APPROVAL_TONE, DETAIL_PANEL_ID, PAYMENT_LABEL, PAYMENT_TONE, STATUS_TONE } from './adminFormat'
 import { useShellData } from './queries'
 
 /** `/admin/*` layout route: staff only (RequireRole), each page loads on demand. */
@@ -141,7 +141,9 @@ export function SplitLayout({ main, side, sideWidth = 'lg:w-[360px]' }: { main: 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-3.5">{main}</div>
-      <aside className={cx('flex w-full shrink-0 flex-col gap-3 lg:sticky lg:top-4', sideWidth)}>{side}</aside>
+      <aside id={DETAIL_PANEL_ID} className={cx('flex w-full shrink-0 scroll-mt-4 flex-col gap-3 lg:sticky lg:top-4', sideWidth)}>
+        {side}
+      </aside>
     </div>
   )
 }
@@ -177,7 +179,7 @@ export function NairaInput({ label, value, onChange, className }: { label: strin
     <input
       aria-label={label}
       inputMode="numeric"
-      className={cx(INPUT, 'w-32', className)}
+      className={cx(INPUT, 'w-full max-w-36', className)}
       value={value === null ? '' : (value / 100).toLocaleString('en-NG')}
       onChange={(e) => {
         const digits = e.target.value.replace(/[^\d]/g, '')

@@ -14,7 +14,8 @@ through reports and the audit log.
 
 ## 2. Feature workflow
 
-1. **Sign in** at `/admin/login` (staff accounts only; no sign-up).
+1. **Sign in** at `/admin/login` (staff accounts only; no sign-up). In mock
+   mode a "Use demo staff account" button fills in the demo admin.
 2. **Dashboard** (`/admin`): today's numbers, the drawn live map, orders by
    status and type, recent activity, recent orders, stations.
 3. **Orders** (`/admin/orders`): filter, search, select an order. Before the
@@ -124,8 +125,12 @@ every call (403 `forbidden`). There are no separate staff permissions yet
   an unchanged price list, and resolving an issue twice give clear messages.
 - Orders and support refresh every 30 seconds; the panel stays on the order
   you acted on.
-- Wide tables scroll sideways on small screens; the sidebar becomes a drawer
-  below 1024 px.
+- Every admin page works on desktop (the main use), tablet and phone. From
+  1024 px the sidebar and detail panels sit beside the content; below that
+  the sidebar is a drawer and details stack under the list, and picking an
+  item scrolls its details into view. Tables become one card per row below
+  768 px; the service area and price editors become labelled cards. Checked
+  at 390, 768, 1024 and 1440 px with no sideways page scroll.
 
 ## 9. Testing instructions
 

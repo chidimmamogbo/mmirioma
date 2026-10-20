@@ -271,6 +271,14 @@ gzipped), page chunks 1 to 15 kB.
 
 ## Admin
 
+**Responsive admin.** Staff mostly use desktops, sometimes tablets and
+phones. `DataTable` renders a table from 768 px and a card per row below it
+(first column as the card title); `SplitLayout` puts the detail panel beside
+the list from 1024 px and under it below, and `revealDetail()` scrolls to it
+after a pick on small screens. The staff sign-in is a split layout on
+laptops and desktops and stacks on smaller screens.
+
+
 `src/features/admin/` (details: [docs/features/admin.md](../features/admin.md)).
 Routes use React Router's `lazy`, so every admin page is its own chunk and
 phones using the customer or partner app never download admin code. Every
