@@ -1,0 +1,196 @@
+/*
+ * Layout rules for the public pages that switch backgrounds and grids at the
+ * design's breakpoints (design/MmiriOma-landing-handoff/tokens/landing.css).
+ * Everything else on these pages is Tailwind classes in the components.
+ * Breakpoints: 1180, 1100, 960, 860, 700, 600, 560 px (README).
+ */
+@layer components {
+  /* Sections reached by hash links stop a little below the top edge. */
+  .mk-page [id] {
+    scroll-margin-top: 16px;
+  }
+
+  .mk-wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  /* Native accordion: hide the default marker; the chevron rotates via group-open. */
+  .mk-page summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .mk-page summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* ---------- Hero ---------- */
+  .mk-hero {
+    aspect-ratio: 734 / 300;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background:
+      image-set(url('/marketing/hero-scene.webp') type('image/webp'), url('/marketing/hero-scene.jpg') type('image/jpeg')) right bottom / auto 100% no-repeat,
+      linear-gradient(180deg, #e7f6fd 0%, #eff8fd 25%, #f1f9fc 50%, #f3fbfe 75%, #f6fbfe 100%);
+  }
+  .mk-hero-text {
+    max-width: 540px;
+    padding: 64px 0;
+  }
+  .mk-hero-side {
+    display: none;
+  }
+
+  /* ---------- Drivers banner ---------- */
+  .mk-drivers {
+    aspect-ratio: 734 / 293;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: var(--color-mk-drivers);
+    background-image: image-set(url('/marketing/drivers-banner.webp') type('image/webp'), url('/marketing/drivers-banner.jpg') type('image/jpeg'));
+    background-size: cover;
+    background-position: right center;
+    background-repeat: no-repeat;
+  }
+  .mk-drivers-text {
+    max-width: 460px;
+    padding: 56px 0;
+  }
+  .mk-drivers-photo {
+    display: none;
+    width: 100%;
+    object-fit: cover;
+    object-position: 78% center;
+  }
+
+  /* ---------- Grids ---------- */
+  .mk-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .mk-approval {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px 32px;
+  }
+  /* Display is set here, not with a utility, so the 1100 px rule can hide it. */
+  .mk-step-arrow {
+    display: flex;
+  }
+  .mk-split-divider {
+    border-left: 1px solid var(--color-line);
+    padding-left: 48px;
+  }
+  .mk-foot-brand {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 1180px) {
+    .mk-hero {
+      aspect-ratio: auto;
+      background: linear-gradient(180deg, #f3f9fe, #e9f4fd);
+    }
+    .mk-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      align-items: center;
+      gap: 24px;
+    }
+    .mk-hero-text {
+      max-width: none;
+      padding: 48px 0;
+    }
+    .mk-hero-side {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 20px;
+    }
+    .mk-drivers {
+      aspect-ratio: auto;
+      background-image: none;
+    }
+    .mk-drivers-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: stretch;
+      gap: 32px;
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+    .mk-drivers-text {
+      max-width: none;
+      padding: 0;
+      justify-content: center;
+    }
+    .mk-drivers-photo {
+      display: block;
+      height: 100%;
+      min-height: 360px;
+      border-radius: 20px;
+    }
+  }
+  @media (max-width: 1100px) {
+    .mk-step-arrow {
+      display: none;
+    }
+    .mk-steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+    }
+    .mk-approval {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 960px) {
+    .mk-split-divider {
+      border-left: none;
+      padding-left: 0;
+    }
+  }
+  @media (max-width: 860px) {
+    .mk-hero-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    .mk-hero-text {
+      padding: 40px 0 8px;
+    }
+    .mk-hero-side {
+      border-radius: 0;
+      margin: 0 -24px;
+      width: calc(100% + 48px);
+      max-width: none;
+    }
+    .mk-drivers-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+      padding-bottom: 0;
+    }
+    .mk-drivers-photo {
+      height: 340px;
+      min-height: 0;
+      border-radius: 0;
+      margin: 0 -24px;
+      width: calc(100% + 48px);
+      /* Tailwind's base caps images at 100% wide; full bleed needs the extra 48 px. */
+      max-width: none;
+    }
+  }
+  @media (max-width: 600px) {
+    .mk-steps,
+    .mk-approval {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 560px) {
+    .mk-foot-brand {
+      grid-column: auto;
+    }
+  }
+}

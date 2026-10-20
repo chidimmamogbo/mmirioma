@@ -19,4 +19,11 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // The service worker runs in a worker, not a page.
+    files: ['src-sw/**/*.ts'],
+    languageOptions: {
+      globals: globals.serviceworker,
+    },
+  },
 ])

@@ -23,6 +23,370 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-20: Page tests passed alone but timed out in the full run
+
+- **Area:** frontend (tests)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** In `npm test` (all files in parallel), `admin.test.tsx` and the FAQ page test failed with `Test timed out in 5000ms`; they passed when run on their own.
+- **Cause:** After code splitting, whole-app renders load lazy page chunks; with every file running at once on a busy machine, typing and loading can take longer than Vitest's 5 s default.
+- **Fix / workaround:** `testTimeout: 15_000` in `vite.config.ts`, longer waits in the route tests. The same CI-style run then passed 130/130.
+- **Status:** resolved
+- **Refs:** `frontend/vite.config.ts`, `frontend/src/features/admin/admin.test.tsx`, `frontend/src/features/marketing/marketing.test.tsx`
+
+### 2026-10-20: Demo staff sign-in said "phone number or password is not right"
+
+- **Area:** frontend (admin, mock mode)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Signing in at `/admin/login` with the demo admin failed for the owner.
+- **Cause:** The account and login worked (checked by typing the values); the fields held Chrome autofill from another form, and the instructions named the `DEMO_PASSWORD` constant rather than saying to type its value.
+- **Fix / workaround:** In mock mode the staff sign-in has a "Use demo staff account" button that fills the form. Clear autofilled fields before typing.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/admin/pages/AdminLogin.tsx`, `frontend/src/mocks/seed.ts`
+
+### 2026-10-20: Route conversion script kept every page import
+
+- **Area:** tooling (frontend code splitting)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** After turning page routes into `lazy` routes, `tsc` reported `TS6133: 'Home' is declared but its value is never read` for every page import.
+- **Cause:** The clean-up step looked for each name in the file, and found it inside the new `import('./pages/Home')` paths.
+- **Fix / workaround:** Restored the files and deleted the page import lines; `tsc` confirmed none were still needed.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/customer/routes.tsx`, `frontend/src/features/partner/routes.tsx`
+
+### 2026-10-20: Refund as points hit the manual adjustment limit
+
+- **Area:** frontend (mocks)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Caught by `admin.test.ts`: refunding a ₦11,300 order as points failed with `validation_error`.
+- **Cause:** Refunds reused the point-adjustment helper, which caps manual changes at ±10,000 points as a typo guard.
+- **Fix / workaround:** The cap is a parameter; refunds pass none because their size follows the order total.
+- **Status:** resolved
+- **Refs:** `frontend/src/mocks/adminMock.ts`
+
+### 2026-10-20: Orders panel jumped to another order after assigning
+
+- **Area:** frontend (admin)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** After "Assign Chinedu", the side panel showed the next waiting order and the "Assigned" confirmation never appeared.
+- **Cause:** With no `?ref=` in the address, the panel shows the first waiting order; assigning changed that list.
+- **Fix / workaround:** Actions pin the order in the address before they run.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/admin/pages/Orders.tsx`
+
+### 2026-10-20: Bash heredoc with a long Python edit failed to parse
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `/usr/bin/bash: -c: line 126: unexpected EOF while looking for matching ''` and the edit did not run.
+- **Cause:** Quote characters inside a long inline Python script confused the shell around the heredoc.
+- **Fix / workaround:** Write long edit scripts to a file in the scratchpad and run that file.
+- **Status:** workaround
+- **Refs:** n/a
+
+### 2026-10-20: Stale hot-reload errors in the browser console
+
+- **Area:** tooling (Vite dev server)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Dozens of `does not provide an export named 'sampleRiderPay'` errors in the console after a refactor.
+- **Cause:** Vite hot-reloaded while the pricing rewrite was half done; the errors stay in the console log.
+- **Fix / workaround:** Clear the console and reload; check only fresh errors.
+- **Status:** resolved
+- **Refs:** `frontend/src/mocks/pricing.ts`
+
+### 2026-10-19: Picture `<source>` took a grid cell
+
+- **Area:** frontend (public pages)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** On the landing page the keke, tanker and phone pictures sat under the text instead of beside it.
+- **Cause:** `<picture class="contents">` lets the `<img>` join the grid, but the `<source>` computed to `display: block` and became a grid item too.
+- **Fix / workaround:** `<source className="hidden">` in `Pic` and `BrandLogo`.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/marketing/MarketingParts.tsx`
+
+### 2026-10-19: Media query could not hide an element with a display utility
+
+- **Area:** frontend (public pages)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Dotted arrows between step cards still showed at 768 px.
+- **Cause:** The element had a `flex` utility; utilities beat the `@layer components` rule that hid it at 1100 px.
+- **Fix / workaround:** Set `display` only in `marketing.css` for classes that a breakpoint toggles.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/marketing/marketing.css`
+
+### 2026-10-19: Full-bleed photo stopped 48 px short; footer icon 0 px wide
+
+- **Area:** frontend (public pages)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** The drivers photo on phones was not full width; the footer mail icon was invisible.
+- **Cause:** Tailwind's base `img { max-width: 100% }` capped `width: calc(100% + 48px)`; an SVG in a flex row shrank to 0 next to a long email.
+- **Fix / workaround:** `max-width: none` on the photo rule; `shrink-0` on footer icons.
+- **Status:** resolved
+- **Refs:** `marketing.css`, `MarketingParts.tsx`
+
+### 2026-10-19: Dev server outlived its stopped shell
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `Error: Port 5173 is already in use` when starting Vite again.
+- **Cause:** Claude Code stopped the background shell for low memory, but the Vite process kept running and serving.
+- **Fix / workaround:** Reuse the running server (it reloads on config changes) or stop the process holding the port.
+- **Status:** workaround
+- **Refs:** n/a
+
+### 2026-10-19: Build warning from vite-plugin-pwa
+
+- **Area:** tooling (frontend build)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `WARN inlineDynamicImports option is deprecated, please use codeSplitting: false instead.` while building the service worker.
+- **Cause:** Inside vite-plugin-pwa 1.3.0 with Vite 8; not our config. The build succeeds.
+- **Fix / workaround:** None needed; recheck when the plugin is upgraded.
+- **Status:** open
+- **Refs:** `frontend/vite.config.ts`
+
+### 2026-10-16: Empty state did not accept the tanker illustration
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `tsc -b`: `Type '"tanker"' is not assignable to type '"keke" | "gift" | "jerrycan" | undefined'` in the new tanker screens.
+- **Cause:** `EmptyBlock`'s `illustration` prop listed only the illustrations used before Phase 5.
+- **Fix / workaround:** Added `'tanker'` to the prop type.
+- **Status:** resolved
+- **Refs:** `frontend/src/components/layout/StateScreens.tsx`
+
+### 2026-10-16: Two padding utilities on the drawer header
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Caught in review: the green drawer header had both `pb-[18px]` and `pb-4`.
+- **Cause:** Adding a tone branch on top of the existing class string.
+- **Fix / workaround:** Each tone sets its own bottom padding. Same rule as
+  before: never two utilities for one property on one element (Tailwind v4
+  sorts them by value, not by order).
+- **Status:** resolved
+- **Refs:** `frontend/src/components/layout/DrawerMenu.tsx`
+
+### 2026-10-16: Mock state change lost when a handler threw
+
+- **Area:** frontend (mocks)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Caught in review: a wrong delivery code counts a try and then
+  rejects; the try was kept in memory but not saved for the tab.
+- **Cause:** `mutate` saved only after the change function returned.
+- **Fix / workaround:** `mutate` saves in `finally`, so a handler can record
+  something and still reject, as a server would.
+- **Status:** resolved
+- **Refs:** `frontend/src/mocks/db.ts`
+
+### 2026-10-16: ESLint `react-hooks/purity` on `Date.now()` in render
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `Cannot call impure function during render` for
+  `useNow(resendAt > Date.now())` in the code screen.
+- **Cause:** React's rules want render to be pure; reading the clock in render
+  can give different results on re-render.
+- **Fix / workaround:** `useSecondsUntil(targetMs)` reads the clock only in its
+  state initialiser and timer.
+- **Status:** resolved
+- **Refs:** `frontend/src/lib/useNow.ts`
+
+### 2026-10-16: Form errors shown out of view
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** On "Cannot take this order" and "Confirm pickup", pressing the
+  footer button without a choice showed the error at the bottom of the scroll
+  area, below the fold, so nothing seemed to happen.
+- **Cause:** The error was rendered at the end of the scrolling content.
+- **Fix / workaround:** Errors that block a footer button render in the footer
+  (or right under the question). Use this placement for every such form.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/partner/pages/PartnerShared.tsx`, `RiderTrip.tsx`
+
+### 2026-10-16: Vitest workers timed out on start
+
+- **Area:** tooling (frontend tests)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `[vitest-pool]: Failed to start forks worker ... Timeout waiting
+  for worker to respond`; no tests ran.
+- **Cause:** Unknown; the machine was busy (dev server and browser running).
+  The same command passed on the next run.
+- **Fix / workaround:** Run again. If it repeats, try `npx vitest run --pool=threads`
+  or close other heavy processes. Recurred 2026-10-19 and 2026-10-20 with
+  little free memory; `npx vitest run --maxWorkers=2` passed every time.
+- **Status:** workaround
+- **Refs:** `frontend/src/mocks/*.test.ts`
+
+### 2026-10-16: Seeded earnings listed a delivery twice
+
+- **Area:** frontend (mocks)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** After finishing MO-7KQ2 in the rider app, earnings showed it twice.
+- **Cause:** The seed already had a "pending" earning for a delivery that was
+  not done yet.
+- **Fix / workaround:** Removed it; earnings are added only when a code is verified.
+- **Status:** resolved
+- **Refs:** `frontend/src/mocks/partnerSeed.ts`
+
+### 2026-10-16: Screen overrides of component spacing were ignored
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Found while reviewing, before it showed on screen: passing
+  `gap-3` to a component whose default was `gap-3.5` (or `px-2` over `px-2.5`,
+  `flex-row` over `flex-col`) would silently keep the default.
+- **Cause:** Tailwind v4 sorts utilities by value in the generated CSS
+  (checked in the built CSS: `.gap-3` comes before `.gap-3.5`), so the class
+  order on the element does not matter.
+- **Fix / workaround:** Moved component defaults and colour variants into
+  `@layer components` (`frontend/src/styles/components.css`), which always
+  loses to utilities. Never put two utilities for the same property on one
+  element. See docs/architecture/frontend.md.
+- **Status:** resolved
+- **Refs:** `frontend/src/styles/components.css`
+
+### 2026-10-16: Card content clipped inside the scroll area
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** On home, the points card cut off its "See my points" button.
+- **Cause:** In a scrolling flex column, a child with `overflow: hidden` has a
+  minimum height of 0, so it shrank to its `min-height` instead of its content.
+- **Fix / workaround:** `.mo-scroll > * { flex-shrink: 0 }` in `components.css`.
+- **Status:** resolved
+- **Refs:** `frontend/src/styles/components.css`
+
+### 2026-10-16: "Place order" jumped to the address picker
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** After a successful order the app showed "Where should we
+  deliver?" instead of "Order placed!".
+- **Cause:** Clearing the draft on success made Review's "no address, go back"
+  redirect render in the same update as the navigation to the new order.
+- **Fix / workaround:** Review sets a `finished` flag before clearing the draft
+  and skips the redirect once finished.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/customer/pages/order/Review.tsx`
+
+### 2026-10-16: Chrome automation could not read image data back
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Returning a canvas image as base64 from the page was blocked
+  (`[BLOCKED: Base64 encoded data]`) when saving the edited `drop-hero` image.
+- **Cause:** The browser tool filters encoded data in its results.
+- **Fix / workaround:** A one-off local receiver on `127.0.0.1` (run outside
+  the sandbox) took the image as a plain POST and wrote the file. Send it as
+  `text/plain` to avoid a CORS preflight.
+- **Status:** workaround
+- **Refs:** `frontend/public/illustrations/drop-hero-plain.webp`
+
+### 2026-10-16: Drawer close button rendered in the wrong place
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** In the drawer menu the close button sat under the profile block
+  instead of in its top-right corner.
+- **Cause:** `IconButton`/`IconLink` always added `relative` (to anchor the
+  unread dot). The caller passed `absolute top-2 right-1.5`; both position
+  utilities were on the element and Tailwind emits `relative` after
+  `absolute`, so `relative` won.
+- **Fix / workaround:** Add `relative` only when the caller does not position
+  the button itself. Regression test in `src/components/ui/ui.test.tsx`. With
+  Tailwind, never combine two utilities for the same property; the CSS order,
+  not the class order, decides.
+- **Status:** resolved
+- **Refs:** `frontend/src/components/ui/IconButton.tsx`
+
+### 2026-10-16: ESLint `react-refresh/only-export-components` errors
+
+- **Area:** frontend (tooling)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `Fast refresh only works when a file only exports components`
+  (11 errors) in files that exported a component plus a helper or constant.
+- **Cause:** Vite's React fast refresh can only hot-swap files that export
+  components only; the lint rule enforces it.
+- **Fix / workaround:** Keep helpers and constants in their own files
+  (`queryClient.ts`, `buttonClasses.ts`, `adminNav.tsx`, `lib/initials.ts`,
+  `lazyPages.tsx`).
+- **Status:** resolved
+- **Refs:** `frontend/src/app/`, `frontend/src/components/`
+
+### 2026-10-16: Browser window could not be resized for screenshots
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** The Chrome automation `resize_window` call reported success, but
+  the page stayed at 1366 × 637, so phone screens could not be shown at
+  390 × 844.
+- **Cause:** Probably a maximised window, which the browser does not resize.
+- **Fix / workaround:** For comparisons, set the phone column to 390 px with a
+  temporary inline style from the console. Responsive breakpoints (admin
+  drawer under 1024 px) are covered by tests instead. Un-maximise the window
+  to test breakpoints by hand.
+- **Status:** workaround
+- **Refs:** none
+
+### 2026-10-16: Chrome could not open the Vite dev server
+
+- **Area:** tooling (frontend)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `npx vite` printed `Local: http://localhost:5173/` and `curl`
+  from the agent shell got the page, but Chrome showed an error page for both
+  `http://localhost:5173/` and `http://127.0.0.1:5173/`.
+- **Cause:** The agent's shell runs in a sandbox, so a server started there is
+  not reachable from the desktop browser. Vite also bound only `[::1]` for
+  `localhost`. Stopping the background task left the first server listening on
+  `[::1]:5173`.
+- **Fix / workaround:** Start the dev server outside the sandbox and bind IPv4
+  explicitly: `npx vite --host 127.0.0.1 --port 5173 --strictPort`, then open
+  `http://127.0.0.1:5173/`. Check `netstat -ano | grep :5173` for a leftover
+  server.
+- **Status:** workaround
+- **Refs:** `frontend/`
+
+### 2026-10-16: Tailwind v4 dropped unused theme colour variables
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Swatches styled with `style={{ background: 'var(--color-navy)' }}`
+  were blank; `getComputedStyle` returned an empty `--color-navy`.
+- **Cause:** Tailwind v4 only emits a `@theme` variable when a utility class
+  uses it. Inline styles and SVG attributes that use `var(--color-*)` are not
+  detected.
+- **Fix / workaround:** Declare the tokens with `@theme static { ... }` in
+  `frontend/src/styles/theme.css`, which always emits every variable.
+- **Status:** resolved
+- **Refs:** `frontend/src/styles/theme.css`
+
+### 2026-10-16: Python script crashed printing the naira sign on Windows
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `UnicodeEncodeError: 'charmap' codec can't encode character
+  '₦'` when a helper script printed screen text containing ₦. Setting
+  `PYTHONIOENCODING=utf-8` did not help.
+- **Cause:** Windows console output defaults to cp1252, and the script ran with
+  `python -I`, which ignores all `PYTHON*` environment variables.
+- **Fix / workaround:** Call `sys.stdout.reconfigure(encoding="utf-8")` at the
+  top of the script.
+- **Status:** resolved
+- **Refs:** none (local helper script)
+
+### 2026-10-16: Design handoff was not at the path given in the brief
+
+- **Area:** process
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** The brief said `design/README.md`, `design/tokens/` and so on;
+  the files are in `design/MmiriOma-design-handoff/`. The repository itself is
+  one level down from the opened folder (`Mmirioma-forked/mmirioma/`).
+- **Cause:** The handoff zip was extracted with its top folder.
+- **Fix / workaround:** Use `design/MmiriOma-design-handoff/` as the handoff
+  root. The folder is git-ignored in this fork.
+- **Status:** resolved
+- **Refs:** `.gitignore`, `docs/design/handoff-v1.md`
+
 ### 2026-10-15: Stacked PR #23 merged into its old base, not `main`
 
 - **Area:** GitHub

@@ -1,0 +1,269 @@
+/*
+ * Default looks of the shared components, ported from the handoff's
+ * tokens/mo.css (class names prefixed `mo-`).
+ *
+ * Why a components layer: Tailwind sorts utilities by value, so on one element
+ * `gap-3.5` always beats `gap-3`, whatever the class order. If a component's
+ * defaults were utilities, a screen could not reliably override them. Rules in
+ * `@layer components` always lose to utilities, so components put their
+ * defaults here and screens override with plain utilities (`gap-3`, `px-2`).
+ * State styles that are not meant to be overridden can stay utilities.
+ */
+@layer components {
+  /* Phone screen regions */
+  .mo-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-hairline);
+    position: relative;
+    z-index: 3;
+    flex-shrink: 0;
+  }
+  .mo-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: #c9d6e6 transparent;
+  }
+  /* Children keep their full height. Without this, a child with overflow:hidden
+     (cards with illustrations) may shrink in the flex column and clip its content. */
+  .mo-scroll > * {
+    flex-shrink: 0;
+  }
+  .mo-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 12px 18px max(18px, env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid var(--color-line);
+  }
+
+  /* Surfaces */
+  .mo-card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-card-line);
+  }
+  .mo-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid var(--color-card-line);
+    box-shadow: var(--shadow-tile);
+    padding: 12px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--color-ink);
+    min-height: 92px;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  /* Chips and tags */
+  .mo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 5px 10px;
+    white-space: nowrap;
+  }
+
+  /* Buttons */
+  .mo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 54px;
+    padding: 0 16px;
+    border-radius: 15px;
+    font-weight: 700;
+    font-size: 16px;
+    text-decoration: none;
+    border: 0;
+    box-sizing: border-box;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .mo-btn:active {
+    transform: scale(0.97);
+  }
+  .mo-btn-sm {
+    height: 42px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+  .mo-ib {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    border: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  .mo-pill {
+    height: 38px;
+    padding: 0 15px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mo-mini {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: 0;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  /* Choices */
+  .mo-opt {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    border: 2px solid var(--color-line);
+    border-radius: 16px;
+    background: #fff;
+    padding: 12px 8px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  /* Rows */
+  .mo-mi {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 50px;
+    padding: 0 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+  .mo-li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-hairline);
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+  .mo-li:last-child {
+    border-bottom: 0;
+  }
+  .mo-kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+    padding: 3px 0;
+  }
+
+  /* Form control (`.in`) */
+  .mo-in {
+    height: 48px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid var(--color-input-line);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 15px;
+    background: #fff;
+    color: var(--color-ink);
+  }
+  .mo-in::placeholder {
+    color: var(--color-mute);
+  }
+
+  /* Map label (`.mapbadge`) */
+  .mo-mapbadge {
+    position: absolute;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: var(--shadow-badge);
+  }
+
+  /* Message box */
+  .mo-notice {
+    display: flex;
+    gap: 10px;
+    border-radius: 16px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
+
+/* Colour variants, also in the components layer so screens can override them. */
+@layer components {
+  .mo-btn-primary { background: var(--color-primary); color: #fff; box-shadow: var(--shadow-button); }
+  .mo-btn-primary.mo-btn-sm { box-shadow: var(--shadow-button-sm); }
+  .mo-btn-alt { background: var(--color-sky); color: var(--color-primary-dark); }
+  .mo-btn-line { background: #fff; color: var(--color-ink); border: 1.5px solid var(--color-line); }
+  .mo-btn-danger { background: #dc2626; color: #fff; }
+  .mo-btn-line-danger { background: #fff; color: var(--color-red); border: 1.5px solid var(--color-line); }
+  .mo-btn-disabled { background: #c9d6e6; color: #fff; box-shadow: none; cursor: not-allowed; }
+  .mo-btn-disabled:active { transform: none; }
+  .mo-btn-primary:hover, .mo-btn-danger:hover, .mo-btn-disabled:hover { color: #fff; }
+  .mo-btn-alt:hover { color: var(--color-primary-dark); }
+  .mo-btn-line:hover { color: var(--color-ink); }
+  .mo-btn-line-danger:hover { color: var(--color-red); }
+
+  .mo-ib-plain { background: transparent; color: var(--color-ink); }
+  .mo-ib-soft { background: var(--color-sky); color: var(--color-primary-dark); }
+
+  .mo-mini-primary { background: var(--color-primary); color: #fff; }
+  .mo-mini-alt { background: var(--color-sky); color: var(--color-primary-dark); }
+  .mo-mini-danger { background: #dc2626; color: #fff; }
+  .mo-mini-danger-soft { background: var(--color-red-bg); color: var(--color-red); }
+
+  .mo-chip-blue { background: var(--color-sky); color: var(--color-primary-dark); }
+  .mo-chip-green { background: var(--color-green-bg); color: var(--color-green); }
+  .mo-chip-amber { background: var(--color-amber-bg); color: var(--color-amber); }
+  .mo-chip-red { background: var(--color-red-bg); color: var(--color-red); }
+  .mo-chip-violet { background: var(--color-violet-bg); color: var(--color-violet); }
+  .mo-chip-gray { background: var(--color-gray-bg); color: var(--color-gray); }
+  .mo-chip-gold { background: var(--color-gold-tint); color: var(--color-gold-ink); }
+}

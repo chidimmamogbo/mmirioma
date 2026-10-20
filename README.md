@@ -118,7 +118,9 @@ npm install
 npm run dev                      # http://localhost:5173
 ```
 
-The home page shows whether the backend health endpoint is reachable.
+In this fork the UI follows the design handoff (see
+[`docs/design/handoff-v1.md`](docs/design/handoff-v1.md)). The handoff pack
+itself lives in `design/` locally and is not tracked.
 
 ## 5. Tests and checks
 

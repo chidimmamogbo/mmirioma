@@ -23,3 +23,6 @@ dist/
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# Design handoff packs (root design/ only): kept locally as the visual reference, not tracked (fork only)
+/design/
