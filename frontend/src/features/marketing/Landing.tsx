@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cx } from '../../lib/cx'
-import { LANDING_FAQS, SERVICE_AREAS } from './content'
+import { whatsappLink } from '../../lib/whatsapp'
+import { LANDING_FAQS, OBJECTIONS, ORDER_CTA, SERVICE_AREAS } from './content'
 import {
   ArrowRightIcon,
   BigPinIcon,
@@ -11,34 +12,43 @@ import {
   DownloadArrowIcon,
   DropCheckIcon,
   DropFilledIcon,
-  HouseIcon,
   PinIcon,
   ShieldCheckIcon,
   TruckIcon,
+  WhatsAppIcon,
 } from './icons'
 import { InstallAppButton, Kicker, MarketingFooter, MarketingHeader, Oma, Pic, SectionHead } from './MarketingParts'
+import { useWhatsappNumber } from './queries'
+import { FloatingActions, NewsletterSignup } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 const PRIMARY_BUTTON =
-  'inline-flex items-center gap-2.5 rounded-[10px] bg-primary font-bold text-white no-underline hover:bg-primary-dark hover:text-white'
+  'inline-flex items-center justify-center gap-2.5 rounded-[10px] bg-primary text-center font-bold text-white no-underline transition-colors duration-150 hover:bg-primary-dark hover:text-white'
+const OUTLINE_BUTTON =
+  'inline-flex items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-primary bg-white text-center font-bold text-primary no-underline transition-colors duration-150 hover:bg-mk-panel hover:text-primary-dark'
 
 /**
  * Public landing page at `/` (design/MmiriOma-landing-handoff, "Landing").
  * Shown to everyone, signed in or not, because it is the page we share; the
  * installed apps open at `/app` instead (decision Q1 of round 2).
+ *
+ * Order of sections (owner's copy brief, 2026-10-21): what you get and the
+ * main button above the fold, benefits before features, worries answered
+ * just before the closing button, then the newsletter and footer.
  */
 export function Landing() {
   useMarketingPage(
     'MmiriOma | Water delivery in Enugu',
-    'Order water by keke or tanker in Enugu and have it poured into your drums or tank. Install the MmiriOma app, no app store needed.',
+    'Order water by keke or tanker in Enugu. We pour it into your drums or tank, and you see the price before you confirm.',
   )
   return (
-    <div className="mk-page min-w-0 overflow-x-hidden bg-white font-marketing text-[16px] leading-normal text-ink">
+    <div className="mk-page min-w-0 overflow-x-clip bg-white font-marketing text-[16px] leading-normal text-ink">
       <MarketingHeader current="home" />
       <main>
         <Hero />
         <div className="bg-white pt-10 pb-[72px]">
           <div className="mk-wrap flex flex-col gap-8">
+            <Benefits />
             <HowItWorks />
             <DeliveryOptions />
           </div>
@@ -46,8 +56,11 @@ export function Landing() {
         <ForDrivers />
         <InstallSection />
         <AreasAndFaqs />
+        <BeforeYouOrder />
+        <NewsletterSignup overlap />
       </main>
       <MarketingFooter variant="full" />
+      <FloatingActions />
     </div>
   )
 }
@@ -73,31 +86,30 @@ function Hero() {
     <section id="top" className="mk-hero">
       <div className="mk-wrap mk-hero-grid w-full">
         <div className="mk-hero-text flex flex-col gap-[22px]">
-          <Kicker>Water at your gate.</Kicker>
+          <Kicker>Water delivery in Enugu</Kicker>
           <h1 className="m-0 font-display text-[clamp(46px,6.2vw,84px)] leading-[0.98] font-extrabold tracking-[-2px] text-ink">
             Water at
             <br />
             <span className="text-mk-teal">your gate</span>
           </h1>
-          <p className="m-0 max-w-[440px] text-[19px] leading-[1.55] text-mk-lead">Reliable water delivery for your home, office and business.</p>
+          <p className="m-0 max-w-[460px] text-[19px] leading-[1.55] text-mk-lead">
+            Order on your phone. We bring the water by keke or tanker and pour it into your drums or tank.
+          </p>
           <div className="flex flex-wrap gap-3.5">
             <Link to="/order" className={cx(PRIMARY_BUTTON, 'min-h-[54px] px-[26px] text-[16px]')}>
               <DropFilledIcon />
-              Order Water
+              {ORDER_CTA}
               <ArrowRightIcon />
             </Link>
-            <Link
-              to="/#download"
-              className="inline-flex min-h-[54px] items-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-primary bg-white px-[26px] text-[16px] font-bold text-primary no-underline hover:text-primary-dark"
-            >
+            <Link to="/#download" className={cx(OUTLINE_BUTTON, 'min-h-[54px] px-[26px] text-[16px]')}>
               <DownloadArrowIcon />
-              Install App
+              Install the app
             </Link>
           </div>
           <div className="grid max-w-[560px] grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5 pt-3.5">
-            <Badge icon={<DropCheckIcon />}>Delivered &amp; poured for you</Badge>
-            <Badge icon={<TruckIcon />}>Fast &amp; Reliable Delivery</Badge>
-            <Badge icon={<HouseIcon />}>For Homes, Offices &amp; Businesses</Badge>
+            <Badge icon={<DropCheckIcon />}>Poured into your drums or tank</Badge>
+            <Badge icon={<CardIcon />}>Full price before you confirm</Badge>
+            <Badge icon={<ShieldCheckIcon />}>Done only when you give your code</Badge>
           </div>
         </div>
         <Pic
@@ -114,34 +126,6 @@ function Hero() {
   )
 }
 
-const STEPS: { img: string; w: number; h: number; circle: string; title: string; text: string }[] = [
-  {
-    img: 'step-order',
-    w: 82,
-    h: 122,
-    circle: 'bg-primary',
-    title: 'Place Your Order',
-    text: 'Choose Keke or Tanker, select your size and quantity, and confirm your delivery address.',
-  },
-  { img: 'step-deliver', w: 145, h: 92, circle: 'bg-primary', title: 'We Deliver & Pour', text: 'Our trusted riders collect the water and deliver it to your location.' },
-  {
-    img: 'step-pour',
-    w: 115,
-    h: 122,
-    circle: 'bg-mk-step3',
-    title: 'We Pour for You',
-    text: 'Keke riders pour our cans into your drums. For tanker deliveries, we pour directly into your tank (ground or overhead).',
-  },
-  {
-    img: 'step-code',
-    w: 87,
-    h: 108,
-    circle: 'bg-mk-step4',
-    title: 'Give the Delivery Code',
-    text: "Share the OTP code with our rider to confirm delivery. It's that simple!",
-  },
-]
-
 function Panel({ id, children }: { id: string; children: ReactNode }) {
   return (
     <section id={id} className="flex flex-col gap-10 rounded-[28px] bg-mk-panel px-[clamp(16px,2.6vw,36px)] py-[clamp(32px,4vw,56px)]">
@@ -150,17 +134,55 @@ function Panel({ id, children }: { id: string; children: ReactNode }) {
   )
 }
 
+const BENEFITS: { icon: ReactNode; title: string; text: string }[] = [
+  { icon: <TruckIcon size={22} />, title: 'No more carrying water', text: 'We bring it to your gate. You never lift a jerrycan.' },
+  { icon: <DropCheckIcon size={22} />, title: 'Poured in for you', text: 'Keke riders pour into your drums. Tanker drivers pump into your tank.' },
+  { icon: <CardIcon size={22} />, title: 'No price surprises', text: 'You see the full price before you confirm. Your order keeps that price.' },
+  { icon: <ShieldCheckIcon size={22} />, title: 'You confirm the delivery', text: 'The rider can only finish once you give your delivery code.' },
+]
+
+/** Benefits come before the features (how it works, sizes): what you get, then how. */
+function Benefits() {
+  return (
+    <section id="benefits" aria-labelledby="benefits-title" className="flex flex-col gap-8 py-6">
+      <div className="flex flex-col items-center gap-2.5 text-center">
+        <Kicker>Why MmiriOma</Kicker>
+        <h2 id="benefits-title" className="m-0 font-display text-[clamp(30px,3.8vw,44px)] leading-[1.15] font-extrabold tracking-[-1px] text-ink">
+          Your water, sorted from your phone
+        </h2>
+        <p className="m-0 max-w-[560px] text-[17px] leading-[1.6] text-slate">You order. We bring the water and pour it in. You check it, then give your code.</p>
+      </div>
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,230px),1fr))] gap-4 p-0">
+        {BENEFITS.map((b) => (
+          <li key={b.title} className="flex flex-col gap-2.5 rounded-[20px] border border-solid border-line bg-white p-6">
+            <span className="inline-flex size-11 items-center justify-center rounded-[12px] bg-mk-badge text-mk-badge-icon">{b.icon}</span>
+            <h3 className="m-0 font-display text-[19px] font-bold text-ink">{b.title}</h3>
+            <p className="m-0 text-[15px] leading-[1.55] text-slate">{b.text}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+const STEPS: { img: string; w: number; h: number; circle: string; title: string; text: string }[] = [
+  { img: 'step-order', w: 82, h: 122, circle: 'bg-primary', title: 'Order', text: 'Pick keke or tanker, the size and your address.' },
+  { img: 'step-deliver', w: 145, h: 92, circle: 'bg-primary', title: 'We bring it', text: 'A rider collects the water and heads to you.' },
+  { img: 'step-pour', w: 115, h: 122, circle: 'bg-mk-step3', title: 'We pour it', text: 'Into your drums, or your ground or overhead tank.' },
+  { img: 'step-code', w: 87, h: 108, circle: 'bg-mk-step4', title: 'Give your code', text: 'Share your delivery code once all the water is in.' },
+]
+
 function HowItWorks() {
   return (
     <Panel id="how">
       <SectionHead
-        kicker="Simple • Fast • Convenient"
+        kicker="How it works"
         title={
           <>
-            How <Oma /> Works
+            How <Oma /> works
           </>
         }
-        lead="Getting water delivered is easy. Just a few simple steps."
+        lead="Four steps from order to a full tank."
       />
       <div className="mk-steps">
         {STEPS.map((s, i) => (
@@ -250,19 +272,15 @@ function OptionCard({
 function DeliveryOptions() {
   return (
     <Panel id="options">
-      <SectionHead
-        kicker="Flexible for your needs"
-        title="Choose Your Delivery Option"
-        lead="Whether you need a few gallons for your home or a full tanker for your business, we've got you covered."
-      />
+      <SectionHead kicker="Keke or tanker" title="Pick the size that fits" lead="Keke for drums at home or work. Tanker to fill a whole tank." />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-7">
         <OptionCard
           tone="keke"
           title="Keke Delivery"
-          text="Perfect for homes, offices and small businesses."
+          text="For homes, offices and small shops."
           image={<Pic name="keke" width={473} height={314} alt="Blue MmiriOma keke carrying stacked water cans" className="block h-auto w-full max-w-[320px] justify-self-end" />}
         >
-          <SubCard title="Available Sizes">
+          <SubCard title="Can sizes">
             <Pictured
               items={[
                 { img: 'can-25l', w: 85, h: 125, height: 'h-[60px]', label: '25 Litres' },
@@ -270,7 +288,7 @@ function DeliveryOptions() {
               ]}
             />
           </SubCard>
-          <SubCard title="Available Quantities" wide>
+          <SubCard title="How many" wide>
             <Tiles
               tone="keke"
               tiles={[
@@ -285,10 +303,10 @@ function DeliveryOptions() {
         <OptionCard
           tone="tanker"
           title="Tanker Delivery"
-          text="Ideal for large homes, businesses and estates."
+          text="For big homes, businesses and estates."
           image={<Pic name="tanker" width={544} height={295} alt="White MmiriOma water tanker truck" className="block h-auto w-full max-w-[330px] justify-self-end" />}
         >
-          <SubCard title="Tank Type">
+          <SubCard title="Tank type">
             <Pictured
               items={[
                 { img: 'tank-ground', w: 88, h: 112, height: 'h-16', label: 'Ground Tank' },
@@ -296,7 +314,7 @@ function DeliveryOptions() {
               ]}
             />
           </SubCard>
-          <SubCard title="Available Capacities" wide>
+          <SubCard title="Tanker sizes" wide>
             <Tiles
               tone="tanker"
               tiles={[
@@ -314,10 +332,10 @@ function DeliveryOptions() {
 }
 
 const APPROVAL: [string, string][] = [
-  ['Apply in the driver app', 'Tell us if you ride a keke or drive a tanker.'],
-  ['Upload your documents', "A valid ID, driver's licence and vehicle papers."],
-  ['Our team verifies you', 'We review your details and check your vehicle.'],
-  ['Get approved and start earning', 'Go online and accept orders in your area.'],
+  ['Apply in the driver app', 'Say if you ride a keke or drive a tanker.'],
+  ['Upload your papers', "Valid ID, driver's licence and vehicle papers."],
+  ['We check you', 'Our team reviews your details and your vehicle.'],
+  ['Start taking orders', 'Go online and accept orders near you.'],
 ]
 
 function ForDrivers() {
@@ -326,28 +344,28 @@ function ForDrivers() {
       <div className="mk-drivers">
         <div className="mk-wrap mk-drivers-grid w-full">
           <div className="mk-drivers-text flex flex-col gap-5">
-            <Kicker navy>For drivers &amp; riders</Kicker>
+            <Kicker navy>For riders and drivers</Kicker>
             <h2 className="m-0 font-display text-[clamp(36px,4.4vw,58px)] leading-[1.02] font-extrabold tracking-[-1.5px] text-white">
-              Deliver water,
+              Deliver water.
               <br />
-              <span className="text-mk-mint">earn every day</span>
+              <span className="text-mk-mint">Get paid per trip.</span>
             </h2>
             <p className="m-0 text-[17px] leading-[1.6] text-mk-on-navy">
-              Join the MmiriOma driver community and be part of a growing service that brings water to homes and businesses.
+              Use your own keke or tanker. Take orders near you and see what you earn on every delivery.
             </p>
             <Link to="/partner/signup" className={cx(PRIMARY_BUTTON, 'min-h-[54px] self-start px-7 text-[16px]')}>
-              Become a Rider or Driver
+              Apply to deliver
               <ArrowRightIcon />
             </Link>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5 pt-2">
               <Badge navy icon={<CardIcon />}>
-                Flexible Earnings
+                Pay for every delivery
               </Badge>
               <Badge navy icon={<TruckIcon />}>
-                Choose Keke or Tanker
+                Keke or tanker
               </Badge>
               <Badge navy icon={<ShieldCheckIcon />}>
-                Simple Approval Process
+                Go online when you choose
               </Badge>
             </div>
           </div>
@@ -399,13 +417,13 @@ function InstallSection() {
     <section id="download" className="bg-mk-panel">
       <div className="mk-wrap flex flex-col gap-14 py-[88px]">
         <SectionHead
-          kicker="Get started today"
+          kicker="No app store needed"
           title={
             <>
-              Install the <Oma /> App
+              Put <Oma /> on your phone
             </>
           }
-          lead="Access the web app on your phone or computer. No app store needed."
+          lead="Install it straight from your browser. It opens from your home screen like any app."
         />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,460px),1fr))] gap-7">
           <AppCard
@@ -413,11 +431,11 @@ function InstallSection() {
             w={341}
             h={402}
             alt="Phone showing the MmiriOma customer app"
-            title="For Customers"
-            text="Order water, track your delivery, manage your addresses and earn loyalty points."
+            title="For customers"
+            text="Order water, follow each step of your delivery and earn points."
             button={
               <InstallAppButton app="customer" className={INSTALL_BUTTON}>
-                Install Customer App
+                Install the customer app
                 <ArrowRightIcon size={15} />
               </InstallAppButton>
             }
@@ -427,11 +445,11 @@ function InstallSection() {
             w={352}
             h={374}
             alt="Phone showing the MmiriOma driver dashboard"
-            title="For Riders & Drivers"
-            text="Receive orders, navigate, complete deliveries and manage your earnings."
+            title="For riders and drivers"
+            text="Get orders, deliver them and see what you have earned."
             button={
               <InstallAppButton app="partner" className={INSTALL_BUTTON}>
-                Install Driver App
+                Install the driver app
                 <ArrowRightIcon size={15} />
               </InstallAppButton>
             }
@@ -446,15 +464,16 @@ const TEXT_LINK = 'inline-flex min-h-11 items-center gap-1.5 text-[15px] font-bo
 
 /** Service areas and FAQs. The "Our Partners" strip is left out until real partners are agreed (decision Q4). */
 function AreasAndFaqs() {
+  const whatsapp = useWhatsappNumber()
   return (
-    <section className="relative z-[1] rounded-b-[36px] bg-white">
+    <section className="bg-white">
       <div className="mk-wrap py-20">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] gap-12">
           <div id="areas" className="flex flex-col gap-[18px]">
             <Kicker>Where we deliver</Kicker>
-            <h2 className="m-0 font-display text-[clamp(30px,3.4vw,40px)] font-extrabold tracking-[-1px] text-ink">Our Service Areas</h2>
+            <h2 className="m-0 font-display text-[clamp(30px,3.4vw,40px)] font-extrabold tracking-[-1px] text-ink">Our service areas</h2>
             <p className="m-0 max-w-[460px] text-[16px] leading-[1.6] text-slate">
-              Areas we plan to serve in Enugu and nearby. <b className="text-ink">Sample list:</b> our first service zone is still being confirmed.
+              The areas we plan to serve in Enugu. <b className="text-ink">Sample list:</b> our first zone is still being confirmed.
             </p>
             <ul aria-label="Service areas (sample)" className="m-0 flex list-none flex-wrap gap-2.5 p-0 pt-1">
               {SERVICE_AREAS.map((a) => (
@@ -467,27 +486,32 @@ function AreasAndFaqs() {
             <div className="mt-2.5 flex flex-wrap items-center gap-4 rounded-[18px] bg-mk-chip px-6 py-[22px]">
               <BigPinIcon className="shrink-0" />
               <div className="min-w-0 flex-[1_1_200px]">
-                <p className="m-0 text-[16px] font-bold text-ink">Don't see your area?</p>
-                <p className="mt-0.5 mb-0 text-[14px] text-slate">We're expanding! Contact us to check availability.</p>
+                <p className="m-0 text-[16px] font-bold text-ink">Not on the list?</p>
+                <p className="mt-0.5 mb-0 text-[14px] text-slate">Ask us. We are adding new areas.</p>
               </div>
-              <Link to="/support/contact" className={TEXT_LINK}>
-                Contact Us
+              <a
+                href={whatsappLink(whatsapp, 'Hello MmiriOma, do you deliver to my area?')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={TEXT_LINK}
+              >
+                Check your area on WhatsApp
                 <ArrowRightIcon size={15} />
-              </Link>
+              </a>
             </div>
           </div>
           <div id="faq" className="mk-split-divider flex flex-col gap-[18px]">
-            <Kicker>Frequently asked questions</Kicker>
+            <Kicker>Questions</Kicker>
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="m-0 font-display text-[clamp(30px,3.4vw,40px)] font-extrabold tracking-[-1px] text-ink">FAQs</h2>
               <Link to="/faq" className={TEXT_LINK}>
-                View All FAQs
+                Read all answers
                 <ArrowRightIcon size={15} />
               </Link>
             </div>
             <div className="flex flex-col gap-2.5">
               {LANDING_FAQS.map((f) => (
-                <details key={f.q} className="group rounded-xl border border-solid border-line px-[18px]">
+                <details key={f.q} className="group rounded-xl border border-solid border-line px-[18px] transition-colors duration-150 hover:border-mk-faq-open">
                   <summary className="flex min-h-[54px] items-center justify-between gap-4 text-[15px] font-medium text-ink">
                     {f.q}
                     <ChevronIcon className="shrink-0 text-ink transition-transform duration-200 group-open:rotate-180" />
@@ -496,6 +520,49 @@ function AreasAndFaqs() {
                 </details>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** The common worries, answered right before the closing button (owner's copy brief). */
+function BeforeYouOrder() {
+  const whatsapp = useWhatsappNumber()
+  return (
+    <section id="before-you-order" aria-labelledby="before-title" className="bg-white">
+      <div className="mk-wrap pb-20">
+        <div className="flex flex-col gap-10 rounded-[28px] bg-mk-navy px-[clamp(20px,4vw,56px)] py-[clamp(36px,5vw,64px)] text-white">
+          <div className="flex flex-col items-center gap-2.5 text-center">
+            <Kicker navy>Before you order</Kicker>
+            <h2 id="before-title" className="m-0 font-display text-[clamp(30px,3.8vw,44px)] leading-[1.15] font-extrabold tracking-[-1px] text-white">
+              Worried about something? Read this.
+            </h2>
+          </div>
+          <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-4 p-0">
+            {OBJECTIONS.map((o) => (
+              <li key={o.q} className="flex flex-col gap-2 rounded-[18px] bg-white/8 p-6">
+                <h3 className="m-0 text-[17px] leading-[1.35] font-bold text-white">{o.q}</h3>
+                <p className="m-0 text-[15px] leading-[1.55] text-mk-on-navy">{o.a}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center justify-center gap-3.5">
+            <Link to="/order" className={cx(PRIMARY_BUTTON, 'min-h-[54px] px-[28px] text-[16px]')}>
+              <DropFilledIcon />
+              {ORDER_CTA}
+              <ArrowRightIcon />
+            </Link>
+            <a
+              href={whatsappLink(whatsapp, 'Hello MmiriOma, I have a question before I order.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-white/60 px-[26px] text-center text-[16px] font-bold text-white no-underline transition-colors duration-150 hover:border-white hover:bg-white/10 hover:text-white"
+            >
+              <WhatsAppIcon size={20} />
+              Ask us on WhatsApp
+            </a>
           </div>
         </div>
       </div>

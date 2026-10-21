@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cx } from '../../lib/cx'
+import { WHATSAPP_GREETING, whatsappLink } from '../../lib/whatsapp'
 import { CONTACT, FAQ_CATEGORIES, filterFaqs, type FaqFilter } from './content'
-import { ArrowRightIcon, ChevronIcon, SearchIcon } from './icons'
+import { ArrowRightIcon, ChevronIcon, MailIcon, SearchIcon, WhatsAppIcon } from './icons'
 import { Kicker, MarketingFooter, MarketingHeader, Pic } from './MarketingParts'
+import { useWhatsappNumber } from './queries'
+import { FloatingActions, NewsletterSignup } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
-const CARD_BUTTON = 'mt-auto inline-flex min-h-12 items-center gap-2 self-start rounded-[10px] px-5 text-[15px] font-bold no-underline'
+const CARD_BUTTON =
+  'inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] px-5 text-center text-[15px] font-bold no-underline transition-colors duration-150'
 
 /**
  * FAQ page (`/faq`): search and category filters over the questions in
@@ -18,16 +22,17 @@ export function FaqPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<FaqFilter>('All')
   const { list, counts } = filterFaqs(search, category)
+  const whatsapp = useWhatsappNumber()
 
   return (
-    <div className="mk-page min-w-0 overflow-x-hidden bg-white font-marketing text-[16px] leading-normal text-ink">
+    <div className="mk-page min-w-0 overflow-x-clip bg-white font-marketing text-[16px] leading-normal text-ink">
       <MarketingHeader current="faq" />
       <main>
         <section className="overflow-hidden bg-mk-panel">
           <div className="mk-wrap flex flex-wrap items-center gap-8 py-16">
             <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
               <nav aria-label="Breadcrumb" className="text-[14px] text-mute">
-                <Link to="/" className="no-underline">
+                <Link to="/" className="no-underline hover:underline">
                   Home
                 </Link>{' '}
                 <span aria-hidden="true">/</span> FAQs
@@ -36,9 +41,7 @@ export function FaqPage() {
               <h1 className="m-0 font-display text-[clamp(38px,5vw,64px)] leading-[1.02] font-extrabold tracking-[-1.5px] text-ink">
                 Frequently asked <span className="text-mk-teal">questions</span>
               </h1>
-              <p className="m-0 max-w-[560px] text-[18px] leading-[1.6] text-slate">
-                Answers about ordering, delivery, your delivery code, payments and driving with MmiriOma.
-              </p>
+              <p className="m-0 max-w-[560px] text-[18px] leading-[1.6] text-slate">Ordering, delivery, your code, payments and driving for us. Search or pick a topic.</p>
               <label htmlFor="faq-search" className="sr-only">
                 Search FAQs
               </label>
@@ -60,7 +63,7 @@ export function FaqPage() {
 
         <section>
           <div className="mk-wrap flex flex-wrap items-start gap-10 pt-14 pb-[88px]">
-            <nav aria-label="FAQ categories" className="flex max-w-full flex-[1_1_250px] flex-col gap-2 min-[961px]:sticky min-[961px]:top-6">
+            <nav aria-label="FAQ categories" className="flex max-w-full flex-[1_1_250px] flex-col gap-2 min-[961px]:sticky min-[961px]:top-[100px]">
               <p className="m-0 mb-1.5 text-[13px] font-bold tracking-[1.5px] text-mute">CATEGORIES</p>
               <div className="flex flex-col gap-2 max-[860.98px]:flex-row max-[860.98px]:flex-wrap">
                 {(['All', ...FAQ_CATEGORIES] as FaqFilter[]).map((c) => {
@@ -72,14 +75,14 @@ export function FaqPage() {
                       aria-pressed={on}
                       onClick={() => setCategory(c)}
                       className={cx(
-                        'inline-flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-full border-[1.5px] border-solid px-3.5 text-[14px] font-semibold max-[860.98px]:w-auto',
-                        on ? 'border-primary bg-primary text-white' : 'border-input-line bg-white text-ink',
+                        'inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-solid px-3.5 text-center text-[14px] font-semibold transition-colors duration-150 max-[860.98px]:w-auto',
+                        on ? 'border-primary bg-primary text-white' : 'border-input-line bg-white text-ink hover:border-primary hover:bg-mk-panel',
                       )}
                     >
                       {c}
                       <span
                         className={cx(
-                          'inline-flex h-[22px] min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold',
+                          'inline-flex h-[22px] min-w-6 items-center justify-center rounded-md px-1.5 text-[12px] font-bold',
                           on ? 'bg-white/22 text-white' : 'bg-mk-chip text-ink',
                         )}
                       >
@@ -107,7 +110,7 @@ export function FaqPage() {
                       setSearch('')
                       setCategory('All')
                     }}
-                    className="inline-flex min-h-11 cursor-pointer items-center rounded-[10px] border-[1.5px] border-solid border-input-line bg-white px-[18px] text-[15px] font-semibold text-ink"
+                    className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-solid border-input-line bg-white px-[18px] text-center text-[15px] font-semibold text-ink transition-colors duration-150 hover:border-primary hover:bg-mk-panel"
                   >
                     Clear search
                   </button>
@@ -116,7 +119,7 @@ export function FaqPage() {
                 list.map((f) => (
                   <details
                     key={f.q}
-                    className="group rounded-[14px] border border-solid border-line bg-white px-[22px] open:border-mk-faq-open open:shadow-[0_6px_20px_rgba(15,60,120,0.06)]"
+                    className="group rounded-[14px] border border-solid border-line bg-white px-[22px] transition-colors duration-150 hover:border-mk-faq-open open:border-mk-faq-open open:shadow-[0_6px_20px_rgba(15,60,120,0.06)]"
                   >
                     <summary className="flex min-h-16 items-center justify-between gap-4 text-[16px] font-semibold text-ink">
                       <span className="flex flex-col gap-[3px] py-3">
@@ -132,18 +135,29 @@ export function FaqPage() {
 
               <div className="mt-7 grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4">
                 <div className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-7 text-white">
-                  <p className="m-0 font-display text-[22px] font-bold">Still have a question?</p>
-                  <p className="m-0 text-[15px] leading-[1.6] text-mk-on-navy">Our support team is here to help with orders, deliveries and payments.</p>
-                  <a href={`mailto:${CONTACT.email}`} className={cx(CARD_BUTTON, 'bg-white text-ink hover:text-ink')}>
-                    Email support
-                    <ArrowRightIcon size={15} />
-                  </a>
+                  <p className="m-0 font-display text-[22px] font-bold">Didn't find your answer?</p>
+                  <p className="m-0 text-[15px] leading-[1.6] text-mk-on-navy">Ask us about an order, a delivery or a payment.</p>
+                  <div className="mt-auto flex flex-wrap gap-2.5 pt-1">
+                    <a
+                      href={whatsappLink(whatsapp, WHATSAPP_GREETING)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cx(CARD_BUTTON, 'bg-[#1DA851] text-white hover:bg-[#178A43] hover:text-white')}
+                    >
+                      <WhatsAppIcon size={18} />
+                      Chat on WhatsApp
+                    </a>
+                    <a href={`mailto:${CONTACT.email}`} className={cx(CARD_BUTTON, 'bg-white text-ink hover:bg-mk-panel hover:text-ink')}>
+                      <MailIcon />
+                      Email support
+                    </a>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2.5 rounded-[20px] bg-mk-tanker p-7">
-                  <p className="m-0 font-display text-[22px] font-bold text-ink">Want to drive with us?</p>
-                  <p className="m-0 text-[15px] leading-[1.6] text-mk-lead">Apply in the driver app and start earning once you're approved.</p>
-                  <Link to="/partner/signup" className={cx(CARD_BUTTON, 'bg-mk-teal-button text-white hover:text-white')}>
-                    Become a Rider or Driver
+                  <p className="m-0 font-display text-[22px] font-bold text-ink">Want to deliver with us?</p>
+                  <p className="m-0 text-[15px] leading-[1.6] text-mk-lead">Use your own keke or tanker. Apply in the driver app. Once we approve you, you can take orders.</p>
+                  <Link to="/partner/signup" className={cx(CARD_BUTTON, 'mt-auto self-start bg-mk-teal-button text-white hover:bg-[#0A5559] hover:text-white')}>
+                    Apply to deliver
                     <ArrowRightIcon size={15} />
                   </Link>
                 </div>
@@ -151,8 +165,10 @@ export function FaqPage() {
             </div>
           </div>
         </section>
+        <NewsletterSignup />
       </main>
       <MarketingFooter variant="short" />
+      <FloatingActions />
     </div>
   )
 }

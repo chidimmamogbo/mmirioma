@@ -139,7 +139,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
               {resend.isSuccess && <Notice tone="success">A new code was sent to the customer.</Notice>}
               {resend.isError && <Notice tone="error">{errorMessage(resend.error)}</Notice>}
             </Card>
-            <Link to={issueLink} className="rise-5 text-center text-sub font-bold text-primary no-underline">
+            <Link to={issueLink} className="rise-5 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
               Still not working? Ask admin to confirm the delivery
             </Link>
           </>
@@ -176,7 +176,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           <Button disabled={code.length !== 6} loading={verify.isPending} onClick={submit}>
             Verify code
           </Button>
-          <Link to={issueLink} className="p-1 text-center text-sub font-bold text-primary no-underline">
+          <Link to={issueLink} className="p-1 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
             Code not working? Get help
           </Link>
         </Footer>

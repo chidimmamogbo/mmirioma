@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { DataTable } from './Admin'
 import { Button } from './Button'
 import { OptionTile } from './Choice'
 import { CodeBoxes, Keypad } from './CodeEntry'
+import { ConfirmDialog } from './ConfirmDialog'
 import { Pills, Toggle } from './Controls'
 import { TextField } from './Field'
 import { IconLink } from './IconButton'
@@ -134,6 +135,76 @@ describe('TextField', () => {
   it('shows optional fields in the label', () => {
     render(<TextField label="Landmark" optional />)
     expect(screen.getByLabelText('Landmark (optional)')).toBeInTheDocument()
+  })
+
+  it('lets people show and hide a password without losing what they typed', async () => {
+    const user = userEvent.setup()
+    render(<TextField label="Password" type="password" />)
+    const input = screen.getByLabelText('Password')
+    await user.type(input, 'secret-123')
+    expect(input).toHaveAttribute('type', 'password')
+
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).toHaveValue('secret-123')
+    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(input).toHaveAttribute('type', 'password')
+  })
+
+  it('adds no toggle to other fields', () => {
+    render(<TextField label="Phone" type="tel" />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+})
+
+describe('ConfirmDialog', () => {
+  function Harness({ onConfirm }: { onConfirm: () => void }) {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Log out
+        </button>
+        <ConfirmDialog open={open} title="Log out of MmiriOma?" confirmLabel="Log out" onCancel={() => setOpen(false)} onConfirm={onConfirm}>
+          You will need your password to sign in again.
+        </ConfirmDialog>
+      </>
+    )
+  }
+
+  it('asks first, starts on Cancel, and closes on Escape with focus back on the opener', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    render(<Harness onConfirm={onConfirm} />)
+    const opener = screen.getByRole('button', { name: 'Log out' })
+    await user.click(opener)
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Log out of MmiriOma?' })
+    expect(dialog).toHaveAccessibleDescription('You will need your password to sign in again.')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
+    expect(document.body.style.overflow).toBe('')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('keeps Tab inside the dialog and runs the action on confirm', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    render(<Harness onConfirm={onConfirm} />)
+    await user.click(screen.getByRole('button', { name: 'Log out' }))
+    const dialog = screen.getByRole('alertdialog')
+    await user.tab()
+    expect(within(dialog).getByRole('button', { name: 'Log out' })).toHaveFocus()
+    await user.tab()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await user.click(within(dialog).getByRole('button', { name: 'Log out' }))
+    expect(onConfirm).toHaveBeenCalledOnce()
   })
 })
 

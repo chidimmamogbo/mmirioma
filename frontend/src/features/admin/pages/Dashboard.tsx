@@ -153,7 +153,7 @@ export function Dashboard() {
         title="Recent activity"
         className="rise-4"
         action={
-          <Link to="/admin/settings#audit" className="text-[14px] font-bold text-primary no-underline">
+          <Link to="/admin/settings#audit" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
             View all
           </Link>
         }
@@ -180,7 +180,7 @@ export function Dashboard() {
           title="Recent orders"
           className="min-w-0 flex-[999_1_560px]"
           action={
-            <Link to="/admin/orders" className="text-[14px] font-bold text-primary no-underline">
+            <Link to="/admin/orders" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
               View all
             </Link>
           }
@@ -219,7 +219,7 @@ export function Dashboard() {
           title="Refill stations"
           className="flex-[1_1_300px]"
           action={
-            <Link to="/admin/stations" className="text-[14px] font-bold text-primary no-underline">
+            <Link to="/admin/stations" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
               Manage
             </Link>
           }

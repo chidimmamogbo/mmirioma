@@ -96,7 +96,7 @@ export function RadioRow({ checked, onSelect, className, children }: RadioRowPro
       onClick={onSelect}
       className={cx(
         'box-border flex w-full cursor-pointer items-center gap-2.5 rounded-icon border-2 px-3 py-2.5 text-left text-ink',
-        checked ? 'border-primary bg-sky' : 'border-line bg-white',
+        checked ? 'border-primary bg-sky' : 'border-line bg-white hover:border-[#93C5FD]',
         className,
       )}
     >

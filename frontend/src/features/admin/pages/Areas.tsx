@@ -74,7 +74,7 @@ export function Areas() {
                   : 'the flat delivery fee in the price list'}
           </b>
           .{' '}
-          <Link to="/admin/pricing" className="font-bold text-primary no-underline">
+          <Link to="/admin/pricing" className="font-bold text-primary no-underline hover:text-primary-dark">
             Change on Pricing
           </Link>
         </Notice>
@@ -148,7 +148,7 @@ function AreaRow({ area, stations, onDone }: { area: ServiceArea | null; station
           </Field>
         </div>
         <Field label="Distance (km)">
-          <input inputMode="decimal" className={INPUT} value={d.distance} onChange={(e) => setD({ ...d, distance: e.target.value.replace(/[^\d.]/g, '') })} placeholder="—" />
+          <input inputMode="decimal" className={INPUT} value={d.distance} onChange={(e) => setD({ ...d, distance: e.target.value.replace(/[^\d.]/g, '') })} placeholder="e.g. 4.5" />
         </Field>
         <Field label="Fixed fee (₦)">
           <input inputMode="numeric" className={INPUT} value={d.fee} onChange={(e) => setD({ ...d, fee: e.target.value.replace(/[^\d,]/g, '') })} placeholder="None" />

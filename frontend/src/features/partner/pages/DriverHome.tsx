@@ -75,7 +75,7 @@ export function DriverHome() {
                 ) : (
                   <>
                     <b>Waiting for approval.</b> Admin checks your tanker and papers before you can go online.{' '}
-                    <Link to={`${base}/vehicle`} className="font-bold text-primary no-underline">
+                    <Link to={`${base}/vehicle`} className="font-bold text-primary no-underline hover:text-primary-dark">
                       Upload your papers
                     </Link>
                   </>

@@ -47,7 +47,11 @@ through reports and the audit log.
     action and a reason: confirm the delivery without the code, put the order
     back in the pool, add goodwill points, cancel, or call both and close.
 13. **Settings**: operations values still marked as placeholders, staff list,
-    full audit log. **Notifications**, **My account** (change password, log
+    full audit log. **Company WhatsApp** is live: it is the number the
+    website's chat button, FAQ help card, 404 page and the customer Contact us
+    page open (empty: the interim `0813 377 4902`). It must be a Nigerian
+    mobile number and is saved as E.164 (docs/api/public-site.md).
+    "Reset sample data" (mock only) asks for confirmation first. **Notifications**, **My account** (change password, log
     out) and the **full map** complete the header links.
 
 ## 3. Important files
@@ -155,6 +159,10 @@ in as the demo rider and see the "New order for you" sheet.
 - The live map is a drawing; there is no rider location (decision 14).
 - Settings values (support hours, code time limit, safe load) are stored but
   the apps still show the placeholders until they are agreed and connected.
+  The company WhatsApp number is the exception (used straight away).
+- Confirmation dialogs (`ConfirmDialog`) guard: Mark paid / Confirm transfer,
+  approve / suspend / reactivate a rider, log out, reset sample data. Cancel
+  order already had its own reason panel.
 - Papers uploads keep only the file name in mock mode.
 - Delivery distances are entered per area by admin, not measured.
 - Report revenue uses sample prices and only delivered orders.

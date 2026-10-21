@@ -160,7 +160,7 @@ export function LinkTabs({ label, tabs, className }: { label: string; tabs: { to
             key={t.to}
             to={t.to}
             aria-current={on ? 'page' : undefined}
-            className={cx('mo-pill hit-44 no-underline', on ? 'border-0 bg-ink text-white hover:text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate hover:text-ink')}
+            className={cx('mo-pill hit-44 no-underline', on ? 'border-0 bg-ink text-white hover:text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate hover:border-primary hover:text-ink')}
           >
             {t.label}
           </Link>

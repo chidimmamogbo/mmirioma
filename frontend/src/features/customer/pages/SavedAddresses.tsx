@@ -6,6 +6,7 @@ import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../../components/layout
 import { MiniButton } from '../../../components/ui/Admin'
 import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { IconLink } from '../../../components/ui/IconButton'
 import { Notice } from '../../../components/ui/Notice'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -20,6 +21,7 @@ export function SavedAddresses() {
   const remove = useRemoveAddress()
   const [confirming, setConfirming] = useState<string | null>(null)
   const error = setDefault.error ?? remove.error
+  const confirmingAddress = confirming ? addresses.data?.find((a) => a.id === confirming) : undefined
 
   return (
     <MobileShell>
@@ -54,7 +56,7 @@ export function SavedAddresses() {
                 <PencilIcon size={18} />
               </IconLink>
             </div>
-            {!a.is_default && confirming !== a.id && (
+            {!a.is_default && (
               <div className="mt-2.5 flex gap-2">
                 <MiniButton tone="alt" onClick={() => setDefault.mutate(a.id)} disabled={setDefault.isPending}>
                   Make default
@@ -64,23 +66,19 @@ export function SavedAddresses() {
                 </MiniButton>
               </div>
             )}
-            {confirming === a.id && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2" role="group" aria-label={`Remove ${a.label}?`}>
-                <span className="text-[13px] font-bold">Remove {a.label}?</span>
-                <MiniButton
-                  tone="danger"
-                  disabled={remove.isPending}
-                  onClick={() => remove.mutate(a.id, { onSettled: () => setConfirming(null) })}
-                >
-                  Yes, remove
-                </MiniButton>
-                <MiniButton tone="alt" onClick={() => setConfirming(null)}>
-                  Keep it
-                </MiniButton>
-              </div>
-            )}
           </Card>
         ))}
+        <ConfirmDialog
+          open={confirmingAddress !== undefined}
+          title={`Remove ${confirmingAddress?.label ?? 'this address'}?`}
+          confirmLabel="Remove"
+          cancelLabel="Keep it"
+          loading={remove.isPending}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => confirming && remove.mutate(confirming, { onSettled: () => setConfirming(null) })}
+        >
+          {confirmingAddress?.address}
+        </ConfirmDialog>
         <Link
           to="/addresses/new"
           className="rise-3 flex min-h-14 items-center justify-center gap-2 rounded-option border-2 border-dashed border-blink bg-[#F4F9FF] font-extrabold text-primary no-underline hover:text-primary"

@@ -233,7 +233,7 @@ function LoadingForm({ job: j }: { job: PartnerJob }) {
         <Button onClick={submit} disabled={!full} loading={confirm.isPending}>
           {full ? 'Confirm loading' : `Load ${target.toLocaleString('en-NG')} gal to continue`}
         </Button>
-        <Link to={`${base}/issue?ref=${j.reference}&type=station_problem`} className="p-1 text-center text-sub font-bold text-primary no-underline">
+        <Link to={`${base}/issue?ref=${j.reference}&type=station_problem`} className="p-1 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
           Report a problem at the station
         </Link>
       </Footer>

@@ -23,6 +23,56 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-21: Logo and icon files carried "made with AI" content credentials
+
+- **Area:** frontend (assets)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** The owner asked to remove "made with AI" tags. Nothing in the code or copy said so, but 34 files in `frontend/public` (logos, app icons, favicons) contained C2PA / JUMBF metadata naming Claude as the software agent. Platforms such as Instagram and Facebook read this metadata and show a "Made with AI" label.
+- **Cause:** The credential was embedded when the logo pack was converted to web sizes (2026-10-20). The marketing photos and illustrations had none.
+- **Fix / workaround:** Removed the metadata chunks only (`caBX` in PNG, `C2PA` in WebP, RIFF size rewritten), checked that the pixel chunks are byte-identical, and checked that no file still contains `c2pa`/`jumbf`. To check new images: `LC_ALL=C grep -rl -a -i 'c2pa\|jumbf' frontend/public`.
+- **Status:** resolved
+- **Refs:** `frontend/public/brand/`, `frontend/public/icons/`, `frontend/public/favicon-*.png`, `frontend/public/apple-touch-icon.png`
+
+### 2026-10-21: Newsletter form pulled Zod and React Hook Form into the main bundle
+
+- **Area:** frontend (bundle size)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** After adding the newsletter form to the public pages, the main bundle grew from about 109 kB to 151 kB gzipped (`ZodError` found in `dist/assets/index-*.js`).
+- **Cause:** The public pages are in the main bundle, so anything they import statically (`lib/forms.ts`, Zod, React Hook Form) lands there too.
+- **Fix / workaround:** The form is its own file (`NewsletterForm.tsx`) loaded with `React.lazy`; the public mock is a dynamic import. Main bundle: 113 kB gzipped. Check after changing public pages: `gzip -c dist/assets/index-*.js | wc -c`.
+- **Status:** resolved
+- **Refs:** `frontend/src/features/marketing/SiteExtras.tsx`, `NewsletterForm.tsx`, `publicApi.ts`
+
+### 2026-10-21: Sticky header needs `overflow-x: clip`, not `hidden`
+
+- **Area:** frontend (CSS)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Found during review, before shipping: making the public header `position: sticky` would not have stuck, because each page wrapper had `overflow-x: hidden`.
+- **Cause:** `overflow-x: hidden` turns the wrapper into a scroll container, and a sticky element sticks to its nearest scroll container (which never scrolls), not to the window.
+- **Fix / workaround:** Page wrappers use `overflow-x-clip`, which hides sideways overflow without creating a scroll container. Hash-link targets got `scroll-margin-top: 92px` so sections are not hidden under the header.
+- **Status:** resolved
+- **Refs:** `Landing.tsx`, `FaqPage.tsx`, `LegalPages.tsx`, `marketing.css`
+
+### 2026-10-21: Shell commands hung or failed to parse (agent tooling)
+
+- **Area:** tooling
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** (1) A command ran into the 2-minute timeout and had to be stopped. (2) An inline Python edit script failed with `unexpected EOF while looking for matching '''`.
+- **Cause:** (1) A stray `cat > file` with no input waited for stdin forever. (2) A long heredoc with apostrophes in the edited text (e.g. "Didn't") confused the shell wrapper.
+- **Fix / workaround:** Write edit scripts to a file in the scratchpad and run them with `timeout 30 python script.py`; never run `cat >` without a heredoc.
+- **Status:** resolved
+- **Refs:** none (local tooling)
+
+### 2026-10-21: Vitest workers timed out starting during one full run
+
+- **Area:** frontend (tests)
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** `[vitest-pool]: Failed to start forks worker ... Timeout waiting for worker to respond` for three test files in one `vitest run`.
+- **Cause:** The machine was busy (several node processes); not a test failure.
+- **Fix / workaround:** Run again; the next full `npm test` passed 149/149 in 20 files. If it repeats, run the named files on their own.
+- **Status:** workaround
+- **Refs:** `src/mocks/admin.test.ts`, `src/mocks/partner.test.ts`, `src/features/admin/admin.test.tsx`
+
 ### 2026-10-20: Page tests passed alone but timed out in the full run
 
 - **Area:** frontend (tests)

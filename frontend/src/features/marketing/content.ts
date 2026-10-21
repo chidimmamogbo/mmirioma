@@ -16,6 +16,9 @@ export const CONTACT = {
   place: 'Enugu, Nigeria',
 } as const
 
+/** Label of every "order" button on the public pages: a verb and the outcome (owner's copy brief). */
+export const ORDER_CTA = 'Get water delivered'
+
 /** Header and footer "Quick Links": sections of the landing page, plus the FAQ page. */
 export const NAV_LINKS: { label: string; to: string }[] = [
   { label: 'Home', to: '/' },
@@ -139,7 +142,7 @@ export const FAQS: Faq[] = [
   },
 ]
 
-/** The eight questions on the landing page, in the design's shorter wording. */
+/** The landing page's questions, in the design's shorter wording. "Not at home" moved to OBJECTIONS. */
 export const LANDING_FAQS: { q: string; a: string }[] = [
   {
     q: 'How do I place an order?',
@@ -166,12 +169,34 @@ export const LANDING_FAQS: { q: string; a: string }[] = [
     a: 'Yes. Choose Custom Size and enter the quantity you need. We will confirm availability and price in the app.',
   },
   {
-    q: "What if I'm not at home when the rider arrives?",
-    a: 'Share your delivery code with someone you trust at the gate, like a family member or gateman, so they can receive the water for you.',
-  },
-  {
     q: 'How do I become a rider or driver?',
     a: 'Install the driver app, apply with your documents and wait for our team to verify you. Once approved, go online and start accepting orders.',
+  },
+]
+
+/**
+ * The worries people have before a first order, answered right above the
+ * landing page's closing button. Every answer restates a rule the app keeps:
+ * refunds as points (FAQ "Can I get a refund?"), the order keeps its quote
+ * (FR-024), custom tanker sizes priced by the team (FR-021), the delivery code
+ * (FAQ "Delivery code"), and the sample areas list (decision Q5).
+ */
+export const OBJECTIONS: { q: string; a: string }[] = [
+  {
+    q: 'What if I get less water than I paid for?',
+    a: 'Do not give your delivery code. Report it in the app. If our team confirms the problem, you get your payment back as MmiriOma points.',
+  },
+  {
+    q: 'Can the price change after I order?',
+    a: 'No. You see the full price before you confirm, and your order keeps it. Custom tanker sizes get a price from our team first.',
+  },
+  {
+    q: "What if I'm not at home?",
+    a: 'Give your delivery code to someone you trust at the gate. They can receive the water for you.',
+  },
+  {
+    q: 'Do you deliver to my area?',
+    a: 'We are confirming our first areas in Enugu. Ask us on WhatsApp before you order.',
   },
 ]
 

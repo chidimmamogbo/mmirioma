@@ -86,7 +86,8 @@ Layout and behaviour:
 - "Order Water" goes to `/order` and "Become a Rider or Driver" to
   `/partner/signup` (README link map; the static HTML used `#options` and
   `#download`).
-- "Contact Us" under service areas opens `/support/contact`.
+- "Contact Us" under service areas opened `/support/contact`; since
+  2026-10-21 it is "Check your area on WhatsApp" (see the owner's update).
 - Install buttons: see decision 2 above; running as the installed app they
   read "Open app".
 - The current page's nav link is primary blue and bold (README), not ink as
@@ -94,6 +95,54 @@ Layout and behaviour:
 - Logos come from `public/brand` (README says to prefer those files).
 - Button blue is the app's `--color-primary` #1570D8, not #0F6BDE (tokens
   file).
+
+## Owner's site update (2026-10-21)
+
+Requested by the owner, after the design was approved; recorded here because
+it changes the approved screens. Copy brief: benefits before features, write
+for someone skimming, talk to one buyer ("you"), short lines, no generic
+openers or slogan formulas, a sales-ready first screen, headlines backed by
+the text under them, buttons that say verb plus outcome, worries answered
+before the closing button, no em dashes.
+
+Structure of `/` now: hero → **benefits** (new) → how it works → Keke and
+Tanker → for drivers → install → areas and FAQs → **"Before you order"**
+(new: four worries and the closing buttons) → **newsletter** (new) → footer.
+
+Copy changes (the honesty rules above still hold; every new line restates
+something the app does):
+
+- Hero: kicker "Water delivery in Enugu"; lead "Order on your phone. We bring
+  the water by keke or tanker and pour it into your drums or tank."; badges
+  "Poured into your drums or tank", "Full price before you confirm", "Done
+  only when you give your code" (replaces the unprovable "Fast & Reliable
+  Delivery").
+- Every order button reads "Get water delivered" (was "Order Water"); "Become
+  a Rider or Driver" → "Apply to deliver"; "Install App" → "Install the app";
+  "View All FAQs" → "Read all answers"; "Contact Us" under areas → "Check your
+  area on WhatsApp".
+- Benefits: no more carrying water; poured in for you; no price surprises
+  (the order keeps its quote, FR-024); you confirm the delivery (code).
+- How it works: kicker "How it works" (was "Simple • Fast • Convenient"),
+  steps Order / We bring it / We pour it / Give your code, one line each;
+  "It's that simple!" removed.
+- Options: "Pick the size that fits" with a one-line lead (was "Whether
+  you need… we've got you covered").
+- Drivers: "Deliver water. Get paid per trip." (was "earn every day"); badges
+  "Pay for every delivery", "Keke or tanker", "Go online when you choose".
+- Install: "Put MmiriOma on your phone".
+- Worries (content.ts `OBJECTIONS`): less water than paid for, price change,
+  not at home, area covered. "Not at home" moved here from the landing FAQ.
+- FAQ page: shorter lead; help card offers WhatsApp and email; driver card
+  "Want to deliver with us?" with "Apply to deliver".
+- 404 page redesigned (logo, 404, one line, the most useful next step for
+  that part of the site, home, WhatsApp).
+
+Behaviour added: sticky header on the public pages, floating "Chat on
+WhatsApp" button and "Back to top" (after one screen of scrolling),
+newsletter form (docs/api/public-site.md, proposed), hover states on every
+button, centred button labels, filter pills changed to rounded rectangles
+(10 px) across the apps.
 
 ## Open items
 

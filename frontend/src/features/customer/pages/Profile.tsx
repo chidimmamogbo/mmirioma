@@ -8,6 +8,7 @@ import { Avatar } from '../../../components/ui/Avatar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Toggle } from '../../../components/ui/Controls'
 import { Notice } from '../../../components/ui/Notice'
 import type { CustomerProfile } from '../../../domain/orders'
@@ -32,6 +33,7 @@ export function Profile() {
   const profile = useProfile()
   const update = useUpdateProfile()
   const logout = useLogout()
+  const [leaving, setLeaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const p = profile.data
@@ -120,7 +122,7 @@ export function Profile() {
                     <span className="block text-chip text-mute">Email (optional)</span>
                     <span className="block truncate font-bold">{p.email ?? 'Add an email for updates and offers'}</span>
                   </span>
-                  <Link to="/profile/email" className="hit-44 text-[13px] font-bold text-primary no-underline">
+                  <Link to="/profile/email" className="hit-44 text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
                     {p.email ? 'Edit' : 'Add'}
                   </Link>
                 </div>
@@ -154,13 +156,19 @@ export function Profile() {
                   Delete my account
                 </Link>
               </Card>
-              <Button
-                variant="line-danger"
-                loading={logout.isPending}
-                onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/signin', { replace: true }) })}
-              >
+              <Button variant="line-danger" onClick={() => setLeaving(true)}>
                 Log out
               </Button>
+              <ConfirmDialog
+                open={leaving}
+                title="Log out of MmiriOma?"
+                confirmLabel="Log out"
+                loading={logout.isPending}
+                onCancel={() => setLeaving(false)}
+                onConfirm={() => logout.mutate(undefined, { onSettled: () => navigate('/signin', { replace: true }) })}
+              >
+                You will need your phone number and password to sign in again.
+              </ConfirmDialog>
             </>
           )}
         </div>

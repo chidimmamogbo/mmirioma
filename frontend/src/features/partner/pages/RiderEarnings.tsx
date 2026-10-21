@@ -93,7 +93,7 @@ export function RiderEarnings() {
                   onClick={() => setFilter(f)}
                   className={cx(
                     'mo-pill hit-44 px-4 text-sub transition-colors duration-200',
-                    filter === f ? 'border-0 bg-primary text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate',
+                    filter === f ? 'border-0 bg-primary text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate hover:border-primary hover:text-ink',
                   )}
                 >
                   {f === 'all' ? 'All' : f === 'completed' ? 'Completed' : 'Pending'}

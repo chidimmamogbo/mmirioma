@@ -103,9 +103,14 @@
     text-decoration: none;
     border: 0;
     box-sizing: border-box;
+    text-align: center;
     user-select: none;
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition:
+      transform 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
   .mo-btn:active {
     transform: scale(0.97);
@@ -125,19 +130,32 @@
     justify-content: center;
     flex-shrink: 0;
     text-decoration: none;
+    transition: background-color 0.15s ease;
   }
+  /* Filter tabs. Rounded rectangles, not pills (owner's request, 2026-10-21). */
   .mo-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     height: 38px;
     padding: 0 15px;
-    border-radius: 999px;
+    border-radius: 10px;
     font-weight: 700;
     font-size: 13px;
     cursor: pointer;
     white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
   }
   .mo-mini {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: background-color 0.15s ease;
     height: 32px;
     padding: 0 12px;
     border-radius: 9px;
@@ -166,6 +184,11 @@
       background-color 0.2s ease,
       border-color 0.2s ease,
       box-shadow 0.2s ease;
+  }
+  .mo-tile {
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   /* Rows */
@@ -250,6 +273,26 @@
   .mo-btn-alt:hover { color: var(--color-primary-dark); }
   .mo-btn-line:hover { color: var(--color-ink); }
   .mo-btn-line-danger:hover { color: var(--color-red); }
+
+  /*
+   * Hover states. Only for devices with a real pointer, so a tap on a phone
+   * does not leave a button looking hovered.
+   */
+  @media (hover: hover) {
+    .mo-btn-primary:hover { background: var(--color-primary-dark); }
+    .mo-btn-alt:hover { background: #d3e6fb; }
+    .mo-btn-line:hover { background: var(--color-sky); border-color: var(--color-primary); }
+    .mo-btn-danger:hover { background: #b91c1c; }
+    .mo-btn-line-danger:hover { background: var(--color-red-bg); border-color: #fca5a5; }
+    .mo-ib-plain:hover { background: var(--color-sky); }
+    .mo-ib-soft:hover { background: #d3e6fb; }
+    .mo-mini-primary:hover { background: var(--color-primary-dark); color: #fff; }
+    .mo-mini-alt:hover { background: #d3e6fb; color: var(--color-primary-dark); }
+    .mo-mini-danger:hover { background: #b91c1c; color: #fff; }
+    .mo-mini-danger-soft:hover { background: #fecaca; color: var(--color-red); }
+    a.mo-tile:hover, button.mo-tile:hover { border-color: #bfdbfe; box-shadow: var(--shadow-card); }
+    .mo-opt:hover { border-color: #93c5fd; }
+  }
 
   .mo-ib-plain { background: transparent; color: var(--color-ink); }
   .mo-ib-soft { background: var(--color-sky); color: var(--color-primary-dark); }

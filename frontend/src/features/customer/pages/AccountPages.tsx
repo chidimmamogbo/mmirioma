@@ -12,6 +12,7 @@ import { BackLink, Footer, MobileShell, ScrollArea, TopBar, TopBarSpacer, TopBar
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Button, ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { TextAreaField, TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { ApiError } from '../../../lib/api/client'
@@ -159,6 +160,7 @@ export function ChangePassword({ back = '/profile' }: { back?: string }) {
 export function DeleteAccount() {
   const request = useRequestAccountDeletion()
   const [reason, setReason] = useState('')
+  const [asking, setAsking] = useState(false)
   return (
     <Page back="/profile" title="Delete my account">
       <Notice tone="error" className="rise-1">
@@ -188,9 +190,20 @@ export function DeleteAccount() {
             onChange={(e) => setReason(e.target.value)}
           />
           {request.isError && <Notice tone="error">{errorMessage(request.error)}</Notice>}
-          <Button variant="danger" className="rise-4" loading={request.isPending} onClick={() => request.mutate(reason)}>
+          <Button variant="danger" className="rise-4" onClick={() => setAsking(true)}>
             Ask to delete my account
           </Button>
+          <ConfirmDialog
+            open={asking}
+            title="Delete your MmiriOma account?"
+            confirmLabel="Send request"
+            cancelLabel="Keep my account"
+            loading={request.isPending}
+            onCancel={() => setAsking(false)}
+            onConfirm={() => request.mutate(reason, { onSettled: () => setAsking(false) })}
+          >
+            Our team will close your account and delete your details. Your points will be lost.
+          </ConfirmDialog>
         </>
       )}
     </Page>

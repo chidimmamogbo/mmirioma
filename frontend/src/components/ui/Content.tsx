@@ -48,7 +48,7 @@ export function SectionHeader({ title, action, className }: { title: ReactNode; 
 /** The design's `.link`: bold blue text link. */
 export function TextLink({ to, children, className }: { to: string; children: ReactNode; className?: string }) {
   return (
-    <Link to={to} className={cx('font-bold text-primary no-underline', className)}>
+    <Link to={to} className={cx('font-bold text-primary no-underline hover:text-primary-dark', className)}>
       {children}
     </Link>
   )

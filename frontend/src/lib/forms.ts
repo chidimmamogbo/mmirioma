@@ -22,12 +22,26 @@ export const newPasswordField = z
   .min(8, 'Use at least 8 characters.')
   .max(128, 'Use 128 characters or fewer.')
 
+/** Something@something.something with no spaces: the email check shared by forms and mocks. */
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** Longest email address accepted (RFC 5321 path limit). */
+export const EMAIL_MAX_LENGTH = 254
+const EMAIL_MESSAGE = 'Enter a valid email address, like you@example.com.'
+
 /** Optional email; empty text means "no email". */
 export const optionalEmailField = z
   .string()
   .trim()
-  .max(254, 'This email is too long.')
-  .refine((v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), 'Enter a valid email address, like you@example.com.')
+  .max(EMAIL_MAX_LENGTH, 'This email is too long.')
+  .refine((v) => v === '' || EMAIL_PATTERN.test(v), EMAIL_MESSAGE)
+
+/** Required email (newsletter sign-up). */
+export const emailField = z
+  .string()
+  .trim()
+  .min(1, 'Enter your email address.')
+  .max(EMAIL_MAX_LENGTH, 'This email is too long.')
+  .refine((v) => EMAIL_PATTERN.test(v), EMAIL_MESSAGE)
 
 /**
  * Put a backend `validation_error` (details `[{loc, msg}]`) on the matching

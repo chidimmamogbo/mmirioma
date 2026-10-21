@@ -92,7 +92,7 @@ export function PartnerLogin() {
               {...register('password')}
             />
             <div className="mt-2 text-right">
-              <Link to="/partner/forgot-password" className="text-[13px] font-bold text-primary no-underline">
+              <Link to="/partner/forgot-password" className="text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
                 Forgot password?
               </Link>
             </div>
@@ -105,7 +105,7 @@ export function PartnerLogin() {
           <AlertCircleIcon size={18} color="#1570D8" roundJoin={false} className="shrink-0" />
           <span>
             MmiriOma checks every vehicle before it gets orders. New here?{' '}
-            <Link to="/partner/signup" className="font-bold text-primary no-underline">
+            <Link to="/partner/signup" className="font-bold text-primary no-underline hover:text-primary-dark">
               Create a rider or driver account
             </Link>
           </span>

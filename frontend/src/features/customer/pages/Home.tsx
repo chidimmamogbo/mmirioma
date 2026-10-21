@@ -176,7 +176,7 @@ function VehicleCard({
     <button
       type="button"
       onClick={onClick}
-      className={`relative box-border flex min-h-[214px] cursor-pointer flex-col overflow-hidden rounded-card border-0 px-3 pt-2.5 pb-3.5 text-left text-ink ${gradient}`}
+      className={`relative box-border flex min-h-[214px] cursor-pointer flex-col overflow-hidden rounded-card border-0 px-3 pt-2.5 pb-3.5 text-left text-ink transition-transform duration-150 hover:-translate-y-0.5 ${gradient}`}
     >
       <Illustration name={illustration} alt={alt} className={`animate-float h-auto w-full ${imageClass}`} />
       <span className="mt-auto text-[18px] leading-[1.15] font-extrabold">{title}</span>

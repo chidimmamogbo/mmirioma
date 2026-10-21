@@ -72,7 +72,7 @@ export function AssignedSheet({ job }: { job: PartnerJob }) {
         >
           Start: go to refill station
         </Button>
-        <Link to={`${base}/jobs/${job.reference}/decline`} className="p-1 text-center text-sub font-bold text-primary no-underline">
+        <Link to={`${base}/jobs/${job.reference}/decline`} className="p-1 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
           I cannot take this order
         </Link>
       </div>

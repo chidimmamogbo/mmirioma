@@ -215,7 +215,7 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
         <Button onClick={submit} loading={confirm.isPending}>
           Confirm pickup
         </Button>
-        <Link to={`${base}/issue?ref=${j.reference}&type=station_problem`} className="p-1.5 text-center text-sub font-bold text-primary no-underline">
+        <Link to={`${base}/issue?ref=${j.reference}&type=station_problem`} className="p-1.5 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
           Report a problem at the station
         </Link>
       </Footer>

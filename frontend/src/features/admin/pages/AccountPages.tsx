@@ -5,6 +5,7 @@ import { DataTable } from '../../../components/ui/Admin'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Button, ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { KeyValue } from '../../../components/ui/Content'
 import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
@@ -30,6 +31,7 @@ import { useAdminAccount, useAdminMutation, useAdminNotifications, useAdminOrder
 export function Settings() {
   const settings = useSettings()
   const audit = useAudit()
+  const [resetting, setResetting] = useState(false)
   return (
     <AdminFrame searchPlaceholder="Search settings">
       <PageHead title="Settings" sub="Operations details, staff and the audit log." />
@@ -71,13 +73,22 @@ export function Settings() {
             size="sm"
             block={false}
             className="self-start px-5"
-            onClick={() => {
+            onClick={() => setResetting(true)}
+          >
+            Reset sample data
+          </Button>
+          <ConfirmDialog
+            open={resetting}
+            title="Reset all sample data?"
+            confirmLabel="Reset data"
+            onCancel={() => setResetting(false)}
+            onConfirm={() => {
               resetMockDb()
               window.location.assign('/admin/login')
             }}
           >
-            Reset sample data
-          </Button>
+            Everything you added or changed in the three apps in this browser goes back to the starting samples, and you are signed out. You cannot undo this.
+          </ConfirmDialog>
         </Panel>
       )}
       <Panel title="Audit log" className="rise-3">
@@ -105,7 +116,8 @@ export function Settings() {
 }
 
 function OperationsForm({ initial }: { initial: AdminSettings }) {
-  const [v, setV] = useState(initial)
+  // The WhatsApp number is saved as +234...; show it the way people write it.
+  const [v, setV] = useState({ ...initial, support_whatsapp: initial.support_whatsapp && formatPhone(initial.support_whatsapp) })
   const save = useAdminMutation(() => api.saveSettings(v))
   const field = (label: string, value: string | null, placeholder: string, onChange: (s: string) => void, hint?: string) => (
     <TextField label={label} optional value={value ?? ''} placeholder={placeholder} hint={hint} onChange={(e) => onChange(e.target.value)} />
@@ -121,7 +133,13 @@ function OperationsForm({ initial }: { initial: AdminSettings }) {
         }}
       >
         {field('Support phone', v.support_phone, '0800 000 0000', (s) => setV({ ...v, support_phone: s }), 'Shown in the apps instead of the placeholder number.')}
-        {field('Support WhatsApp', v.support_whatsapp, '0800 000 0000', (s) => setV({ ...v, support_whatsapp: s }))}
+        {field(
+          'Company WhatsApp',
+          v.support_whatsapp,
+          '0813 377 4902',
+          (s) => setV({ ...v, support_whatsapp: s }),
+          'Opens from the WhatsApp chat button on the website and the support page. Leave empty to use 0813 377 4902.',
+        )}
         {field('Support hours', v.support_hours, '[SUPPORT HOURS]', (s) => setV({ ...v, support_hours: s }), 'e.g. Mon to Sat, 7 AM to 7 PM')}
         {field('Delivery code time limit', v.code_time_limit, '[CODE TIME LIMIT]', (s) => setV({ ...v, code_time_limit: s }), 'How long a delivery code lasts, e.g. 24 hours')}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -133,7 +151,10 @@ function OperationsForm({ initial }: { initial: AdminSettings }) {
         <Button type="submit" size="sm" block={false} className="self-start px-5" loading={save.isPending}>
           Save settings
         </Button>
-        <p className="m-0 text-caption text-mute">These are open decisions (PRD §13). The apps keep showing the bracket placeholders until the real values are agreed and connected.</p>
+        <p className="m-0 text-caption text-mute">
+          These are open decisions (PRD §13). The company WhatsApp number is used straight away; the other values keep showing as bracket placeholders until
+          they are agreed and connected.
+        </p>
       </form>
     </Panel>
   )
@@ -186,6 +207,7 @@ export function AdminAccount() {
   const navigate = useNavigate()
   const account = useAdminAccount()
   const logout = useLogout()
+  const [leaving, setLeaving] = useState(false)
   const a = account.data
   return (
     <AdminFrame searchPlaceholder="Search orders, customers, riders">
@@ -209,9 +231,19 @@ export function AdminAccount() {
             <ButtonLink to="/admin/password" variant="alt" size="sm" block={false} className="px-5">
               Change password
             </ButtonLink>
-            <Button variant="line-danger" size="sm" block={false} className="px-5" loading={logout.isPending} onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/admin/login', { replace: true }) })}>
+            <Button variant="line-danger" size="sm" block={false} className="px-5" onClick={() => setLeaving(true)}>
               Log out
             </Button>
+            <ConfirmDialog
+              open={leaving}
+              title="Log out of MmiriOma admin?"
+              confirmLabel="Log out"
+              loading={logout.isPending}
+              onCancel={() => setLeaving(false)}
+              onConfirm={() => logout.mutate(undefined, { onSettled: () => navigate('/admin/login', { replace: true }) })}
+            >
+              You will need your phone number and password to sign in again.
+            </ConfirmDialog>
           </div>
         </Card>
       )}
@@ -237,7 +269,7 @@ export function LiveMapPage() {
             rowKey={(o) => o.reference}
             empty="Nothing in progress."
             columns={[
-              { header: 'Order', cell: (o) => <Link to={`/admin/orders?ref=${o.reference}`} className="font-extrabold text-primary-dark no-underline">{o.reference}</Link> },
+              { header: 'Order', cell: (o) => <Link to={`/admin/orders?ref=${o.reference}`} className="font-extrabold text-primary-dark no-underline hover:underline">{o.reference}</Link> },
               { header: 'Rider', cell: (o) => (o.partner ? `${o.partner.name} · ${o.partner.code}` : 'None') },
               { header: 'From', cell: (o) => o.station_name },
               { header: 'To', cell: (o) => o.area },
