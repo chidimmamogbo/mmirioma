@@ -243,7 +243,7 @@ export function MarketingFooter({ variant }: { variant: 'full' | 'short' }) {
                 {ORDER_CTA}
               </Link>
               <Link to="/partner/signup" className={FOOT_LINK}>
-                Apply to deliver
+                Become a Rider or Driver
               </Link>
               <Link to="/admin/login" className={FOOT_LINK}>
                 Staff Login

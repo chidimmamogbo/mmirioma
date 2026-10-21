@@ -354,7 +354,7 @@ function ForDrivers() {
               Use your own keke or tanker. Take orders near you and see what you earn on every delivery.
             </p>
             <Link to="/partner/signup" className={cx(PRIMARY_BUTTON, 'min-h-[54px] self-start px-7 text-[16px]')}>
-              Apply to deliver
+              Become a Rider or Driver
               <ArrowRightIcon />
             </Link>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5 pt-2">

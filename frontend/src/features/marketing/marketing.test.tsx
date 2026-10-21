@@ -101,11 +101,11 @@ describe('routes', () => {
     resetMockDb()
     renderAt('/')
     expect(await screen.findByRole('heading', { level: 1, name: /Water at\s*your gate/ }, { timeout: 10_000 })).toBeInTheDocument()
-    const order = screen.getAllByRole('link', { name: /Get water delivered/ })
+    const order = screen.getAllByRole('link', { name: /Order Water/ })
     // Sticky header, hero and the closing button after the worries section.
     expect(order.length).toBeGreaterThanOrEqual(3)
     for (const link of order) expect(link).toHaveAttribute('href', '/order')
-    const apply = screen.getAllByRole('link', { name: /Apply to deliver/ })
+    const apply = screen.getAllByRole('link', { name: /Become a Rider or Driver/ })
     expect(apply.length).toBeGreaterThan(0)
     for (const link of apply) expect(link).toHaveAttribute('href', '/partner/signup')
   }, 20_000)
@@ -122,7 +122,7 @@ describe('routes', () => {
     expect(follows(how, worries)).toBe(true)
     expect(follows(worries, newsletter)).toBe(true)
     for (const o of OBJECTIONS) expect(screen.getByRole('heading', { level: 3, name: o.q })).toBeInTheDocument()
-    const closing = within(worries.closest('section')!).getByRole('link', { name: /Get water delivered/ })
+    const closing = within(worries.closest('section')!).getByRole('link', { name: /Order Water/ })
     expect(closing).toHaveAttribute('href', '/order')
   }, 20_000)
 
@@ -139,7 +139,7 @@ describe('routes', () => {
     resetMockDb()
     renderAt('/no-such-page')
     expect(await screen.findByRole('heading', { level: 1, name: "This page doesn't exist" }, { timeout: 10_000 })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Get water delivered' })).toHaveAttribute('href', '/order')
+    expect(screen.getByRole('link', { name: 'Order Water' })).toHaveAttribute('href', '/order')
     expect(screen.getByRole('link', { name: 'Go to the home page' })).toHaveAttribute('href', '/')
   }, 20_000)
 

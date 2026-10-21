@@ -117,8 +117,9 @@ something the app does):
   "Poured into your drums or tank", "Full price before you confirm", "Done
   only when you give your code" (replaces the unprovable "Fast & Reliable
   Delivery").
-- Every order button reads "Get water delivered" (was "Order Water"); "Become
-  a Rider or Driver" → "Apply to deliver"; "Install App" → "Install the app";
+- Order buttons keep "Order Water" and the driver button keeps "Become a
+  Rider or Driver" (the owner tried "Get water delivered" and "Apply to
+  deliver", then chose the original labels); "Install App" → "Install the app";
   "View All FAQs" → "Read all answers"; "Contact Us" under areas → "Check your
   area on WhatsApp".
 - Benefits: no more carrying water; poured in for you; no price surprises
@@ -134,7 +135,7 @@ something the app does):
 - Worries (content.ts `OBJECTIONS`): less water than paid for, price change,
   not at home, area covered. "Not at home" moved here from the landing FAQ.
 - FAQ page: shorter lead; help card offers WhatsApp and email; driver card
-  "Want to deliver with us?" with "Apply to deliver".
+  "Want to deliver with us?" with "Become a Rider or Driver".
 - 404 page redesigned (logo, 404, one line, the most useful next step for
   that part of the site, home, WhatsApp).
 

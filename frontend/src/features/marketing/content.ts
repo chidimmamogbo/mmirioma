@@ -16,8 +16,8 @@ export const CONTACT = {
   place: 'Enugu, Nigeria',
 } as const
 
-/** Label of every "order" button on the public pages: a verb and the outcome (owner's copy brief). */
-export const ORDER_CTA = 'Get water delivered'
+/** Label of every "order" button on the public pages (owner's choice, 2026-10-21). */
+export const ORDER_CTA = 'Order Water'
 
 /** Header and footer "Quick Links": sections of the landing page, plus the FAQ page. */
 export const NAV_LINKS: { label: string; to: string }[] = [

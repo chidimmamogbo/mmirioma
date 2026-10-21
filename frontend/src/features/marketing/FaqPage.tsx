@@ -157,7 +157,7 @@ export function FaqPage() {
                   <p className="m-0 font-display text-[22px] font-bold text-ink">Want to deliver with us?</p>
                   <p className="m-0 text-[15px] leading-[1.6] text-mk-lead">Use your own keke or tanker. Apply in the driver app. Once we approve you, you can take orders.</p>
                   <Link to="/partner/signup" className={cx(CARD_BUTTON, 'mt-auto self-start bg-mk-teal-button text-white hover:bg-[#0A5559] hover:text-white')}>
-                    Apply to deliver
+                    Become a Rider or Driver
                     <ArrowRightIcon size={15} />
                   </Link>
                 </div>

@@ -16,8 +16,8 @@ the legal pages. Anyone can open them, signed in or not.
   and FAQs → "Before you order" (worries, closing buttons) → newsletter →
   footer. Header links jump to sections; below 960 px they move into a menu.
   The header stays stuck to the top while scrolling.
-- "Get water delivered" → `/order` (sign-in first when signed out).
-- "Apply to deliver" → `/partner/signup`.
+- "Order Water" → `/order` (sign-in first when signed out).
+- "Become a Rider or Driver" → `/partner/signup`.
 - Every public page has a floating "Chat on WhatsApp" button (bottom right;
   icon only below 640 px) and, after 600 px of scrolling, "Back to top" above
   it. Back to top scrolls up (instantly under reduced motion) and moves focus
@@ -25,7 +25,7 @@ the legal pages. Anyone can open them, signed in or not.
 - Newsletter: one email field before the footer of every public page.
 - Unknown addresses show the 404 page (`src/app/NotFound.tsx`): the next step
   depends on where the link pointed (`/partner/...` → driver app, `/admin/...`
-  → dashboard, otherwise "Get water delivered"), plus home and WhatsApp.
+  → dashboard, otherwise "Order Water"), plus home and WhatsApp.
 - "Install Customer App" / "Install Driver App": see [pwa.md](pwa.md).
 - `/faq`: search box and category buttons over 17 questions; counts follow
   the search; "Clear search" resets both.
