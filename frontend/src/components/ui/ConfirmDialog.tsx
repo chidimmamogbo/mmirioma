@@ -70,9 +70,12 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !latest.current.loading) {
+      if (e.key === 'Escape') {
+        // Escape belongs to the dialog: stop it reaching window listeners
+        // underneath, such as the drawer menu's Escape-to-close.
         e.preventDefault()
-        latest.current.onCancel()
+        e.stopPropagation()
+        if (!latest.current.loading) latest.current.onCancel()
         return
       }
       if (e.key !== 'Tab' || !panel.current) return

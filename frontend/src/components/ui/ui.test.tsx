@@ -193,6 +193,19 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
+  it('keeps Escape to itself, so a menu underneath stays open', async () => {
+    const user = userEvent.setup()
+    const menuEscape = vi.fn()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && menuEscape()
+    window.addEventListener('keydown', onKey)
+    render(<Harness onConfirm={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Log out' }))
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(menuEscape).not.toHaveBeenCalled()
+    window.removeEventListener('keydown', onKey)
+  })
+
   it('keeps Tab inside the dialog and runs the action on confirm', async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn()

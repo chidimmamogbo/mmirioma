@@ -23,6 +23,16 @@ Newest entries first. Never put secrets, credentials, tokens or personal data
 
 ---
 
+### 2026-10-21: Escape in the log-out dialog also closed the drawer menu
+
+- **Area:** frontend
+- **Author:** chidimmamogbo + Claude Code
+- **Symptom:** Found in the PR #3 review: in the customer and driver drawer menus, Escape on the "Log out?" dialog would close the dialog and also navigate away from the menu.
+- **Cause:** `ConfirmDialog` listens on `document`; `DrawerMenu` listens on `window` for Escape. The keydown reached both.
+- **Fix / workaround:** The dialog calls `stopPropagation()` on Escape, so window listeners underneath never see it. Regression test in `ui.test.tsx`.
+- **Status:** resolved
+- **Refs:** `frontend/src/components/ui/ConfirmDialog.tsx`, `frontend/src/components/layout/DrawerMenu.tsx`, PR #3
+
 ### 2026-10-21: Logo and icon files carried "made with AI" content credentials
 
 - **Area:** frontend (assets)
