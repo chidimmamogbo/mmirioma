@@ -39,7 +39,7 @@ export function Segmented<T extends string>({ label, options, value, onChange, c
             onClick={() => onChange(o.value)}
             className={cx(
               'hit-44 h-10 cursor-pointer rounded-segment border-0 text-[14px] font-bold transition-colors duration-200',
-              on ? 'bg-primary text-white shadow-segment' : 'bg-transparent text-gray',
+              on ? 'bg-primary text-white shadow-segment' : 'bg-transparent text-gray hover:bg-white/70 hover:text-ink',
             )}
           >
             {o.label}
@@ -110,7 +110,7 @@ export function Pills<T extends string>({ label, options, value, onChange, class
             onClick={() => onChange(o.value)}
             className={cx(
               'mo-pill hit-44 shrink-0',
-              on ? 'border-0 bg-ink text-white' : 'border-[1.5px] border-line bg-white text-slate',
+              on ? 'border-0 bg-ink text-white' : 'border-[1.5px] border-line bg-white text-slate hover:border-primary hover:text-ink',
             )}
           >
             {o.label}

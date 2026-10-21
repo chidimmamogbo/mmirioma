@@ -146,7 +146,7 @@ export function AdminMap({ data, height = 330, fullMapLink = true }: { data: Liv
       {fullMapLink && (
         <Link
           to="/admin/map"
-          className="absolute right-3 bottom-3 rounded-[10px] bg-white px-3 py-2 text-[13px] font-bold text-primary no-underline shadow-[0_4px_12px_rgba(10,37,64,.15)]"
+          className="absolute right-3 bottom-3 rounded-[10px] bg-white px-3 py-2 text-[13px] font-bold text-primary no-underline shadow-[0_4px_12px_rgba(10,37,64,.15)] hover:text-primary-dark"
         >
           Open full map
         </Link>

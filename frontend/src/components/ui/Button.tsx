@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { Link, type LinkProps } from 'react-router-dom'
 import { buttonClasses, type ButtonStyleProps } from './buttonClasses'
 
@@ -8,6 +8,8 @@ interface ButtonProps extends ButtonStyleProps, Omit<ButtonHTMLAttributes<HTMLBu
    * jump), clicks are blocked and `aria-busy` is set (NFR-022).
    */
   loading?: boolean
+  /** Passed to the `<button>` (React 19 ref-as-prop), e.g. to focus it. */
+  ref?: Ref<HTMLButtonElement>
   children: ReactNode
 }
 

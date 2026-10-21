@@ -5,6 +5,7 @@ import { DataTable, MiniButton } from '../../../components/ui/Admin'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { SampleTag } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Pills } from '../../../components/ui/Controls'
 import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
@@ -38,6 +39,8 @@ export function Payments() {
   const list = usePayments(filter, customerId)
   const customer = useCustomer(customerId || null)
   const [refunding, setRefunding] = useState<string | null>(null)
+  // The payment waiting for "Mark paid" / "Confirm transfer" to be confirmed in the dialog.
+  const [marking, setMarking] = useState<AdminPayment | null>(null)
   const confirm = useAdminMutation((reference: string) => api.confirmPayment(reference))
 
   return (
@@ -46,7 +49,7 @@ export function Payments() {
       <LinkTabs className="rise-2" label="Money settings" tabs={MONEY_TABS} />
       <div className="rise-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-[20px] font-extrabold">Customer payments</h2>
-        <Link to="/admin/earnings" className="text-[14px] font-bold text-primary no-underline">
+        <Link to="/admin/earnings" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
           Rider payouts →
         </Link>
       </div>
@@ -75,7 +78,7 @@ export function Payments() {
             rowKey={(p) => p.reference}
             empty="Nothing here."
             columns={[
-              { header: 'Order', cell: (p) => <Link to={`/admin/orders?ref=${p.reference}`} className="font-extrabold text-primary-dark no-underline">{p.reference}</Link> },
+              { header: 'Order', cell: (p) => <Link to={`/admin/orders?ref=${p.reference}`} className="font-extrabold text-primary-dark no-underline hover:underline">{p.reference}</Link> },
               { header: 'Customer', cell: (p) => p.customer_name },
               { header: 'Date', cell: (p) => formatShortDate(p.created_at) },
               { header: 'Amount', cell: (p) => (p.amount_minor_units === null ? 'Quote' : formatNaira(p.amount_minor_units)) },
@@ -86,7 +89,7 @@ export function Payments() {
                 header: 'Action',
                 cell: (p) =>
                   (p.status === 'awaiting_verification' || p.status === 'unpaid') && p.order_status !== 'cancelled' ? (
-                    <MiniButton disabled={confirm.isPending} onClick={() => confirm.mutate(p.reference)}>
+                    <MiniButton disabled={confirm.isPending} onClick={() => setMarking(p)}>
                       {p.status === 'awaiting_verification' ? 'Confirm transfer' : 'Mark paid'}
                     </MiniButton>
                   ) : p.status === 'refund_due' ? (
@@ -102,6 +105,24 @@ export function Payments() {
         </Card>
       )}
       {refunding && <RefundForm reference={refunding} onDone={() => setRefunding(null)} />}
+      <ConfirmDialog
+        open={marking !== null}
+        tone="primary"
+        title={marking?.status === 'awaiting_verification' ? `Confirm the transfer for ${marking.reference}?` : `Mark ${marking?.reference ?? ''} as paid?`}
+        confirmLabel={marking?.status === 'awaiting_verification' ? 'Confirm transfer' : 'Mark as paid'}
+        loading={confirm.isPending}
+        onCancel={() => setMarking(null)}
+        onConfirm={() => marking && confirm.mutate(marking.reference, { onSettled: () => setMarking(null) })}
+      >
+        {marking && (
+          <>
+            <b className="text-ink">
+              {marking.customer_name}, {marking.amount_minor_units === null ? 'quote' : formatNaira(marking.amount_minor_units)}
+            </b>
+            . Only do this once the money has reached us. The customer is told, and it is saved in the audit log.
+          </>
+        )}
+      </ConfirmDialog>
       <p className="m-0 text-caption text-mute">
         Mark paid only after the money is received (pay on delivery collected, transfer seen in the bank). Each confirmation is saved in the audit log and the customer is told.
       </p>

@@ -5,9 +5,9 @@
  * Breakpoints: 1180, 1100, 960, 860, 700, 600, 560 px (README).
  */
 @layer components {
-  /* Sections reached by hash links stop a little below the top edge. */
+  /* Sections reached by hash links stop below the sticky 76 px header. */
   .mk-page [id] {
-    scroll-margin-top: 16px;
+    scroll-margin-top: 92px;
   }
 
   .mk-wrap {

@@ -97,7 +97,7 @@ export function SignIn() {
                 {...register('password')}
               />
               <div className="mt-2 text-right">
-                <Link to="/forgot-password" className="text-[13px] font-bold text-primary no-underline">
+                <Link to="/forgot-password" className="text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
                   Forgot password?
                 </Link>
               </div>
@@ -108,18 +108,18 @@ export function SignIn() {
           </form>
           <p className="m-0 text-center text-chip text-mute">
             By continuing you agree to our{' '}
-            <Link to="/terms" className="text-mute underline">
+            <Link to="/terms" className="text-mute underline hover:text-ink">
               Terms
             </Link>{' '}
             and{' '}
-            <Link to="/privacy" className="text-mute underline">
+            <Link to="/privacy" className="text-mute underline hover:text-ink">
               Privacy Notice
             </Link>
             .
           </p>
           <p className="m-0 text-center text-[13px] text-slate">
             Register as a driver?{' '}
-            <Link to="/partner/signup" className="font-bold text-primary no-underline">
+            <Link to="/partner/signup" className="font-bold text-primary no-underline hover:text-primary-dark">
               Click here
             </Link>
           </p>

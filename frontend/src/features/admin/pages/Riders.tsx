@@ -7,6 +7,7 @@ import { Avatar } from '../../../components/ui/Avatar'
 import { Button, ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { OptionTile } from '../../../components/ui/Choice'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField, TextField } from '../../../components/ui/Field'
@@ -109,6 +110,7 @@ export function Riders() {
 function RiderPanel({ id }: { id: string }) {
   const rider = useRider(id)
   const [reason, setReason] = useState('')
+  const [asking, setAsking] = useState(false)
   const change = useAdminMutation((action: api.ApprovalAction) => api.setRiderApproval(id, action, reason))
   const r = rider.data
   if (rider.isPending) return <Card className="p-4"><LoadingBlock label="Loading the rider" /></Card>
@@ -153,9 +155,24 @@ function RiderPanel({ id }: { id: string }) {
       )}
       {change.isError && <Notice tone="error">{errorMessage(change.error)}</Notice>}
       {change.isSuccess && <Notice tone="success">Saved. The rider sees the change in their app.</Notice>}
-      <Button variant={action === 'suspend' ? 'line-danger' : 'primary'} loading={change.isPending} onClick={() => change.mutate(action)}>
+      <Button variant={action === 'suspend' ? 'line-danger' : 'primary'} loading={change.isPending} onClick={() => setAsking(true)}>
         {action === 'approve' ? 'Approve rider' : action === 'suspend' ? 'Suspend rider' : 'Reactivate rider'}
       </Button>
+      <ConfirmDialog
+        open={asking}
+        tone={action === 'suspend' ? 'danger' : 'primary'}
+        title={action === 'approve' ? `Approve ${r.name}?` : action === 'suspend' ? `Suspend ${r.name}?` : `Reactivate ${r.name}?`}
+        confirmLabel={action === 'approve' ? 'Approve' : action === 'suspend' ? 'Suspend' : 'Reactivate'}
+        loading={change.isPending}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => change.mutate(action, { onSettled: () => setAsking(false) })}
+      >
+        {action === 'approve'
+          ? 'They can go online and accept orders straight away.'
+          : action === 'suspend'
+            ? 'They go offline and get no new orders. Orders assigned but not started go back to the pool.'
+            : 'They can go online and accept orders again.'}
+      </ConfirmDialog>
       <p className="m-0 text-caption text-mute">
         {action === 'approve'
           ? 'Check the licence and vehicle papers first. Approved riders can go online and accept orders.'

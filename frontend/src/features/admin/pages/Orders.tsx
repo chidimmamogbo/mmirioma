@@ -206,7 +206,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
       {o.payment.status === 'awaiting_verification' && (
         <Notice tone="note">
           This customer's transfer is waiting for a check.{' '}
-          <Link to="/admin/payments" className="font-bold text-primary no-underline">
+          <Link to="/admin/payments" className="font-bold text-primary no-underline hover:text-primary-dark">
             Go to payments
           </Link>
         </Notice>

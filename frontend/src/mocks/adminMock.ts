@@ -1197,14 +1197,28 @@ export async function getSettings(): Promise<{ settings: AdminSettings; staff: S
   return clone({ settings: s.admin.settings, staff: s.admin.staff })
 }
 
+/**
+ * Save the operations settings. The WhatsApp number opens the website's chat
+ * button (wa.me needs a full international number), so it must be a Nigerian
+ * mobile number and is stored as E.164; empty means "use the default".
+ *
+ * @throws ApiError 422 `validation_error` when the WhatsApp number is not a Nigerian mobile number.
+ */
 export async function saveSettings(next: AdminSettings): Promise<AdminSettings> {
   await delay(null, 300)
   const clean = (v: string | null) => (v ?? '').trim() || null
+  const whatsappInput = clean(next.support_whatsapp)
+  const whatsapp = whatsappInput && normalizeNigerianPhone(whatsappInput)
   return mutate((s) => {
     requireAdmin(s)
+    if (whatsappInput && !whatsapp) {
+      throw mockError(422, 'validation_error', 'Enter the WhatsApp number as a Nigerian mobile number, like 0813 377 4902.', [
+        { loc: ['body', 'support_whatsapp'], msg: 'Not a Nigerian mobile number', type: 'value_error' },
+      ])
+    }
     s.admin.settings = {
       support_phone: clean(next.support_phone),
-      support_whatsapp: clean(next.support_whatsapp),
+      support_whatsapp: whatsapp,
       support_hours: clean(next.support_hours),
       code_time_limit: clean(next.code_time_limit),
       safe_load: { keke: clean(next.safe_load.keke), tanker: clean(next.safe_load.tanker) },

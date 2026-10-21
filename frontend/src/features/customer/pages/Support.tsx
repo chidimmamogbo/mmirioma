@@ -80,7 +80,7 @@ export function Support() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => setType(t)}
-                  className={cx('mo-pill hit-44', on ? 'border-0 bg-ink text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate')}
+                  className={cx('mo-pill hit-44', on ? 'border-0 bg-ink text-white' : 'border-[1.5px] border-solid border-line bg-white text-slate hover:border-primary hover:text-ink')}
                 >
                   {PROBLEM_LABEL[t]}
                 </button>

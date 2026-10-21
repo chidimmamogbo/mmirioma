@@ -374,3 +374,18 @@ export function TruckIcon(props: IconProps) {
 export function TurnRightIcon(props: IconProps) {
   return <Icon {...props}><path d="M7 20V10h10M13 6l4 4-4 4" /></Icon>
 }
+
+/** Not in the handoff: drawn in the same 24 px stroke style for the password "Show" toggle. */
+export function EyeIcon(props: IconProps) {
+  return <Icon {...props}><path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" /><circle cx="12" cy="12" r="3" /></Icon>
+}
+
+/** Not in the handoff: the password "Hide" toggle (eye with a slash). */
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10.6 5.1A9.7 9.7 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.5M6.6 6.6A16.6 16.6 0 0 0 2.5 12S6 19 12 19a9.4 9.4 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+    </Icon>
+  )
+}

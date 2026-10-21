@@ -65,7 +65,7 @@ export function Earnings() {
                   {
                     header: 'Rider',
                     cell: (p) => (
-                      <Link to={`/admin/riders?id=${p.partner_id}`} className="font-extrabold text-primary-dark no-underline">
+                      <Link to={`/admin/riders?id=${p.partner_id}`} className="font-extrabold text-primary-dark no-underline hover:underline">
                         {p.name}
                       </Link>
                     ),

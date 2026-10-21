@@ -6,9 +6,10 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../../app/providers'
 import { routes } from '../../app/router'
 import { resetMockDb } from '../../mocks/db'
-import { FAQS, filterFaqs } from './content'
+import { FAQS, OBJECTIONS, filterFaqs } from './content'
 import { FaqPage } from './FaqPage'
 import { MarketingHeader } from './MarketingParts'
+import { NewsletterSignup } from './SiteExtras'
 
 beforeAll(() => {
   // jsdom has no layout, so scrolling is a no-op here.
@@ -31,8 +32,8 @@ describe('filterFaqs', () => {
   })
 
   it('keeps no question that promises what the app does not do', () => {
-    const text = FAQS.map((f) => `${f.q} ${f.a}`).join(' ').toLowerCase()
-    expect(text).not.toMatch(/sealed|track your rider live|schedule|one tap/)
+    const text = [...FAQS, ...OBJECTIONS].map((f) => `${f.q} ${f.a}`).join(' ').toLowerCase()
+    expect(text).not.toMatch(/sealed|track your rider live|schedule|one tap|safe to drink|purified|minutes/)
   })
 })
 
@@ -40,9 +41,11 @@ describe('FAQ page', () => {
   it('shows the empty state for a search with no match, and Clear search resets search and category', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter initialEntries={['/faq']}>
-        <FaqPage />
-      </MemoryRouter>,
+      <AppProviders>
+        <MemoryRouter initialEntries={['/faq']}>
+          <FaqPage />
+        </MemoryRouter>
+      </AppProviders>,
     )
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Frequently asked questions')
     await user.click(screen.getByRole('button', { name: /^Payments/ }))
@@ -98,10 +101,52 @@ describe('routes', () => {
     resetMockDb()
     renderAt('/')
     expect(await screen.findByRole('heading', { level: 1, name: /Water at\s*your gate/ }, { timeout: 10_000 })).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Order Water' })[0]).toHaveAttribute('href', '/order')
-    const become = screen.getAllByRole('link', { name: /Become a Rider or Driver/ })
-    expect(become.length).toBeGreaterThan(0)
-    for (const link of become) expect(link).toHaveAttribute('href', '/partner/signup')
+    const order = screen.getAllByRole('link', { name: /Order Water/ })
+    // Sticky header, hero and the closing button after the worries section.
+    expect(order.length).toBeGreaterThanOrEqual(3)
+    for (const link of order) expect(link).toHaveAttribute('href', '/order')
+    const apply = screen.getAllByRole('link', { name: /Become a Rider or Driver/ })
+    expect(apply.length).toBeGreaterThan(0)
+    for (const link of apply) expect(link).toHaveAttribute('href', '/partner/signup')
+  }, 20_000)
+
+  it('puts benefits before features, and the worries right before the closing button and the newsletter', async () => {
+    resetMockDb()
+    renderAt('/')
+    const benefits = await screen.findByRole('heading', { level: 2, name: 'Your water, sorted from your phone' }, { timeout: 10_000 })
+    const how = screen.getByRole('heading', { level: 2, name: /How MmiriOma works/ })
+    const worries = screen.getByRole('heading', { level: 2, name: /Worried about something/ })
+    const newsletter = screen.getByRole('heading', { level: 2, name: 'Hear first when we reach your area' })
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(benefits, how)).toBe(true)
+    expect(follows(how, worries)).toBe(true)
+    expect(follows(worries, newsletter)).toBe(true)
+    for (const o of OBJECTIONS) expect(screen.getByRole('heading', { level: 3, name: o.q })).toBeInTheDocument()
+    const closing = within(worries.closest('section')!).getByRole('link', { name: /Order Water/ })
+    expect(closing).toHaveAttribute('href', '/order')
+  }, 20_000)
+
+  it('has a floating WhatsApp chat button, the default number until admin sets one', async () => {
+    resetMockDb()
+    renderAt('/')
+    const chat = await screen.findByRole('link', { name: /Chat with MmiriOma on WhatsApp/ }, { timeout: 10_000 })
+    expect(chat).toHaveAttribute('href', expect.stringMatching(/^https:\/\/wa\.me\/2348133774902\?text=/))
+    expect(chat).toHaveAttribute('target', '_blank')
+    expect(chat).toHaveAttribute('rel', 'noopener noreferrer')
+  }, 20_000)
+
+  it('shows the 404 page with a way out for the part of the site the link was in', async () => {
+    resetMockDb()
+    renderAt('/no-such-page')
+    expect(await screen.findByRole('heading', { level: 1, name: "This page doesn't exist" }, { timeout: 10_000 })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Order Water' })).toHaveAttribute('href', '/order')
+    expect(screen.getByRole('link', { name: 'Go to the home page' })).toHaveAttribute('href', '/')
+  }, 20_000)
+
+  it('sends a broken driver-app link back to the driver app', async () => {
+    resetMockDb()
+    renderAt('/partner/no-such-page')
+    expect(await screen.findByRole('link', { name: 'Go to the driver app' }, { timeout: 10_000 })).toHaveAttribute('href', '/partner/')
   }, 20_000)
 
   // /app loads the lazy sign-in page; allow for a slow machine or CI runner.
@@ -110,4 +155,35 @@ describe('routes', () => {
     const router = renderAt('/app')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/signin'), { timeout: 10_000 })
   }, 20_000)
+})
+
+describe('NewsletterSignup', () => {
+  function renderSignup() {
+    render(
+      <AppProviders>
+        <MemoryRouter>
+          <NewsletterSignup />
+        </MemoryRouter>
+      </AppProviders>,
+    )
+  }
+
+  it('checks the email before sending and then confirms the sign-up', async () => {
+    resetMockDb()
+    const user = userEvent.setup()
+    renderSignup()
+    const email = screen.getByLabelText('Your email address')
+    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter your email address.')
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+
+    await user.type(email, 'not-an-email')
+    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email address')
+
+    await user.clear(email)
+    await user.type(email, 'Ada@Example.com')
+    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
+    expect(await screen.findByRole('status', {}, { timeout: 5000 })).toHaveTextContent("You're subscribed.")
+  })
 })

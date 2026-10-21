@@ -51,7 +51,7 @@ function Step({ n, title, action, children }: { n: number; title: string; action
   )
 }
 
-const LINK_BUTTON = 'hit-44 cursor-pointer border-0 bg-transparent p-0 text-[14px] font-bold text-primary'
+const LINK_BUTTON = 'hit-44 cursor-pointer border-0 bg-transparent p-0 text-[14px] font-bold text-primary hover:text-primary-dark'
 
 /**
  * Create an order for a customer (`a-create`): same rules and records as an
@@ -98,7 +98,7 @@ export function CreateOrder() {
     <AdminFrame searchPlaceholder="Search orders, customers, riders" onSearch={(v) => v && navigate(`/admin/orders?q=${encodeURIComponent(v)}`)}>
       <PageHead
         back={
-          <Link to="/admin/orders" className="mb-1 inline-flex min-h-11 items-center gap-1 text-[14px] font-bold text-primary no-underline">
+          <Link to="/admin/orders" className="mb-1 inline-flex min-h-11 items-center gap-1 text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
             ← Orders
           </Link>
         }
@@ -163,7 +163,7 @@ export function CreateOrder() {
                 {c && !c.phone_verified && (
                   <Notice>
                     <b>Phone not verified yet.</b> Call the customer to confirm the number (FR-003).{' '}
-                    <Link to={`/admin/customers?id=${c.id}`} className="font-bold text-primary no-underline">
+                    <Link to={`/admin/customers?id=${c.id}`} className="font-bold text-primary no-underline hover:text-primary-dark">
                       Open customer
                     </Link>
                   </Notice>

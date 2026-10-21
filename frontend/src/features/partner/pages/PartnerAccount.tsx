@@ -4,6 +4,7 @@
  * the optional email for updates and newsletters (decision 6).
  */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -30,6 +31,7 @@ import { Avatar } from '../../../components/ui/Avatar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { CountBadge, MenuItem } from '../../../components/ui/Content'
 import { Toggle } from '../../../components/ui/Controls'
 import { TextField } from '../../../components/ui/Field'
@@ -52,6 +54,7 @@ export function PartnerMenu() {
   const active = useActiveJobs()
   const notes = usePartnerNotifications()
   const logout = useLogout()
+  const [leaving, setLeaving] = useState(false)
   const p = profile.data
   const current = active.data?.find((j) => j.stage === 'accepted' || j.stage === 'collected') ?? active.data?.[0]
   const unread = notes.data?.filter((n) => !n.read).length ?? 0
@@ -83,14 +86,26 @@ export function PartnerMenu() {
         </>
       }
       footer={
-        <button
-          type="button"
-          onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/partner/login', { replace: true }) })}
-          className="flex min-h-[58px] cursor-pointer items-center gap-3.5 border-0 border-t border-solid border-hairline bg-transparent px-5 text-left text-[15px] font-extrabold text-red"
-        >
-          <LogOutIcon size={20} className="text-red" />
-          Log out
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setLeaving(true)}
+            className="flex min-h-[58px] cursor-pointer items-center gap-3.5 border-0 border-t border-solid border-hairline bg-transparent px-5 text-left text-[15px] font-extrabold text-red transition-colors duration-150 hover:bg-red-bg"
+          >
+            <LogOutIcon size={20} className="text-red" />
+            Log out
+          </button>
+          <ConfirmDialog
+            open={leaving}
+            title="Log out of the driver app?"
+            confirmLabel="Log out"
+            loading={logout.isPending}
+            onCancel={() => setLeaving(false)}
+            onConfirm={() => logout.mutate(undefined, { onSettled: () => navigate('/partner/login', { replace: true }) })}
+          >
+            You will need your phone number and password to sign in again.
+          </ConfirmDialog>
+        </>
       }
     >
       <MenuItem to={base} current tone={tanker ? 'green' : 'blue'} icon={<HomeSolidIcon size={20} filled />}>
@@ -189,7 +204,7 @@ export function PartnerProfilePage() {
                   <span className="block text-chip text-mute">Email (optional)</span>
                   <span className="block truncate font-bold">{p.email ?? 'Not added'}</span>
                 </span>
-                <Link to={`${base}/settings`} className="hit-44 text-[13px] font-bold text-primary no-underline">
+                <Link to={`${base}/settings`} className="hit-44 text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
                   {p.email ? 'Edit' : 'Add'}
                 </Link>
               </div>

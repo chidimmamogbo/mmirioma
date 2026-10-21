@@ -32,7 +32,7 @@ export function Loyalty() {
       <Card className="rise-4 flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="m-0 text-[18px] font-extrabold">Recent point changes</h2>
-          <Link to="/admin/customers" className="text-[14px] font-bold text-primary no-underline">
+          <Link to="/admin/customers" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
             Adjust a customer's points
           </Link>
         </div>

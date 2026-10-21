@@ -4,6 +4,7 @@ import { cx } from '../../lib/cx'
 import { CONTACT } from './content'
 import { ArrowLeftIcon } from './icons'
 import { BrandLogo } from './MarketingParts'
+import { FloatingActions, NewsletterSignup } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 /*
@@ -258,6 +259,7 @@ const PRIVACY: Section[] = [
           />
         </div>
         <p>We also collect basic device and usage information, such as app version, device type and error logs, to keep the apps working well.</p>
+        <p>If you sign up for our newsletter, we keep your email address to send it to you until you unsubscribe.</p>
       </>
     ),
   },
@@ -420,15 +422,15 @@ function LegalPage({
   useMarketingPage(`${title} | MmiriOma`, intro)
   const terms = kind === 'terms'
   return (
-    <div className="mk-page min-w-0 overflow-x-hidden bg-white font-marketing text-[16px] leading-normal text-ink">
-      <header className="border-0 border-b border-solid border-[#E3EDF7] bg-white">
+    <div className="mk-page min-w-0 overflow-x-clip bg-white font-marketing text-[16px] leading-normal text-ink">
+      <header className="sticky top-0 z-30 border-0 border-b border-solid border-[#E3EDF7] bg-white/95 backdrop-blur-sm">
         <div className="mx-auto box-border flex max-w-[1200px] items-center justify-between gap-6 px-6 py-3.5">
           <Link to="/" aria-label="MmiriOma home" className="flex min-h-11 min-w-0 items-center no-underline">
             <BrandLogo className="h-auto w-[190px] max-w-full" />
           </Link>
           <Link
             to="/"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[10px] border-[1.5px] border-solid border-input-line px-[18px] text-[15px] font-semibold whitespace-nowrap text-ink no-underline hover:text-ink"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-solid border-input-line px-[18px] text-center text-[15px] font-semibold whitespace-nowrap text-ink no-underline transition-colors duration-150 hover:border-primary hover:bg-mk-panel hover:text-ink"
           >
             <ArrowLeftIcon />
             Back to home
@@ -473,6 +475,7 @@ function LegalPage({
             </article>
           </div>
         </section>
+        <NewsletterSignup />
       </main>
       <footer className="bg-mk-navy text-mk-foot-text">
         <div className="mx-auto box-border flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-8 text-[14px]">
@@ -503,6 +506,7 @@ function LegalPage({
           </nav>
         </div>
       </footer>
+      <FloatingActions />
     </div>
   )
 }

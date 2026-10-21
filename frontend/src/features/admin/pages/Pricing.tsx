@@ -145,7 +145,7 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
               <span className="block font-bold">Fixed fee per area</span>
               <span className="text-chip text-mute">
                 Set each area's fee on{' '}
-                <Link to="/admin/areas" className="font-bold text-primary no-underline">
+                <Link to="/admin/areas" className="font-bold text-primary no-underline hover:text-primary-dark">
                   Service areas
                 </Link>
               </span>

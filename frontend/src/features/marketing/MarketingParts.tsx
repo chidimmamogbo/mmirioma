@@ -4,7 +4,7 @@ import { cx } from '../../lib/cx'
 import { InstallHowToSheet } from '../pwa/InstallParts'
 import { appFor, type AppKind } from '../pwa/manifest'
 import { useInstallAction } from '../pwa/useInstallAction'
-import { CONTACT, NAV_LINKS } from './content'
+import { CONTACT, NAV_LINKS, ORDER_CTA } from './content'
 import { MailIcon, MenuBarsIcon, PhoneIcon, PinIcon } from './icons'
 
 /**
@@ -88,10 +88,12 @@ export function Oma() {
 }
 
 /**
- * Site header (landing and FAQ). Below 960 px the links move into a menu
- * panel under the header; below 600 px "Order Water" moves into it too.
- * The panel closes on a link tap, on Escape and on any navigation, and the
- * page behind it does not scroll while it is open (README "Behaviour").
+ * Site header (landing and FAQ). It stays stuck to the top while the page
+ * scrolls, so the order button is always one tap away. Below 960 px the
+ * links move into a menu panel under the header; below 600 px the order
+ * button moves into it too. The panel closes on a link tap, on Escape and on
+ * any navigation, and the page behind it does not scroll while it is open
+ * (README "Behaviour").
  */
 export function MarketingHeader({ current }: { current: 'home' | 'faq' }) {
   const location = useLocation()
@@ -115,7 +117,7 @@ export function MarketingHeader({ current }: { current: 'home' | 'faq' }) {
   const isCurrent = (to: string) => (current === 'faq' ? to === '/faq' : to === '/')
 
   return (
-    <header className="relative z-[5] border-0 border-b border-solid border-[#E6EEF7] bg-white">
+    <header className="sticky top-0 z-30 border-0 border-b border-solid border-[#E6EEF7] bg-white/95 backdrop-blur-sm">
       <div className="mk-wrap flex min-h-[76px] items-center justify-between gap-6">
         <Link to="/" aria-label="MmiriOma home" className="flex shrink-0 items-center">
           <BrandLogo className="h-11" />
@@ -138,9 +140,9 @@ export function MarketingHeader({ current }: { current: 'home' | 'faq' }) {
         <div className="flex items-center gap-2.5">
           <Link
             to="/order"
-            className="inline-flex min-h-[46px] items-center rounded-[10px] bg-primary px-6 text-[15px] font-semibold whitespace-nowrap text-white no-underline hover:bg-primary-dark hover:text-white max-[600.98px]:hidden"
+            className="inline-flex min-h-[46px] items-center justify-center rounded-[10px] bg-primary px-6 text-center text-[15px] font-semibold whitespace-nowrap text-white no-underline transition-colors duration-150 hover:bg-primary-dark hover:text-white max-[600.98px]:hidden"
           >
-            Order Water
+            {ORDER_CTA}
           </Link>
           <button
             type="button"
@@ -148,14 +150,18 @@ export function MarketingHeader({ current }: { current: 'home' | 'faq' }) {
             aria-expanded={open}
             aria-controls="mk-mobile-menu"
             onClick={() => setOpenOn(open ? null : location.key)}
-            className="hidden size-[46px] cursor-pointer items-center justify-center rounded-[10px] border border-solid border-input-line bg-white text-ink max-[960.98px]:inline-flex"
+            className="hidden size-[46px] cursor-pointer items-center justify-center rounded-[10px] border border-solid border-input-line bg-white text-ink transition-colors duration-150 hover:border-primary hover:bg-mk-panel max-[960.98px]:inline-flex"
           >
             <MenuBarsIcon />
           </button>
         </div>
       </div>
       {open && (
-        <nav id="mk-mobile-menu" aria-label="Mobile" className="border-0 border-t border-solid border-[#E6EEF7] bg-white">
+        <nav
+          id="mk-mobile-menu"
+          aria-label="Mobile"
+          className="max-h-[calc(100dvh-77px)] overflow-y-auto overscroll-contain border-0 border-t border-solid border-[#E6EEF7] bg-white"
+        >
           <div className="mk-wrap flex flex-col pt-2 pb-4">
             {NAV_LINKS.map((l, i) => (
               <Link
@@ -174,9 +180,9 @@ export function MarketingHeader({ current }: { current: 'home' | 'faq' }) {
             <Link
               to="/order"
               onClick={() => setOpenOn(null)}
-              className="mt-3 flex min-h-[50px] items-center justify-center rounded-[10px] bg-primary font-bold text-white no-underline hover:bg-primary-dark hover:text-white"
+              className="mt-3 flex min-h-[50px] items-center justify-center rounded-[10px] bg-primary text-center font-bold text-white no-underline hover:bg-primary-dark hover:text-white"
             >
-              Order Water
+              {ORDER_CTA}
             </Link>
           </div>
         </nav>
@@ -209,7 +215,7 @@ export function MarketingFooter({ variant }: { variant: 'full' | 'short' }) {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-x-8 gap-y-10">
           <div className="mk-foot-brand flex max-w-[360px] min-w-0 flex-col gap-[18px]">
             <BrandLogo dark className="h-[46px] self-start" />
-            <p className="m-0 text-[15px] leading-[1.65]">MmiriOma delivers water to homes, offices and businesses across Enugu. Water at your gate.</p>
+            <p className="m-0 text-[15px] leading-[1.65]">Water delivery for homes, offices and businesses in Enugu. Poured into your drums or tank.</p>
           </div>
           <FootColumn label="Quick Links">
             {(full ? NAV_LINKS : NAV_LINKS.filter((l) => l.to === '/' || l.to === '/faq')).map((l) => (
@@ -234,7 +240,7 @@ export function MarketingFooter({ variant }: { variant: 'full' | 'short' }) {
           {full && (
             <FootColumn label="Account">
               <Link to="/order" className={FOOT_LINK}>
-                Order Water
+                {ORDER_CTA}
               </Link>
               <Link to="/partner/signup" className={FOOT_LINK}>
                 Become a Rider or Driver

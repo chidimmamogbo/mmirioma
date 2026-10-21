@@ -104,6 +104,11 @@ export interface MockState {
   jobs: StoredJob[]
   /** Admin-only records (stations, prices, issues, audit...). */
   admin: AdminData
+  /**
+   * Newsletter sign-ups from the public pages, lower-cased emails. Optional
+   * because data saved before this list existed does not have it.
+   */
+  newsletter?: { email: string; subscribed_at: string }[]
 }
 
 export const DEMO_CUSTOMER_ID = 'user-adaeze'

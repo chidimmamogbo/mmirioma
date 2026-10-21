@@ -1,6 +1,6 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
+import { useId, useState, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
 import { cx } from '../../lib/cx'
-import { AlertCircleIcon } from '../icons/icons'
+import { AlertCircleIcon, EyeIcon, EyeOffIcon } from '../icons/icons'
 
 /** Classes of the design's `.in` input. */
 export const INPUT = 'mo-in'
@@ -51,22 +51,48 @@ type TextFieldProps = FieldShellProps &
 /**
  * Labelled text input (`.lbl` + `.in`). Works with React Hook Form's
  * `register()`, which passes `ref`, `name`, `onChange` and `onBlur`.
+ *
+ * With `type="password"` it adds a Show/Hide button inside the field, so
+ * people can check what they typed. The button only switches the input type;
+ * the value, autofill and React Hook Form state are untouched.
  */
-export function TextField({ label, optional, hint, error, className, id, ref, ...input }: TextFieldProps) {
+export function TextField({ label, optional, hint, error, className, id, ref, type, ...input }: TextFieldProps) {
   const autoId = useId()
   const fieldId = id ?? autoId
   const describedBy = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined
+  const isPassword = type === 'password'
+  const [shown, setShown] = useState(false)
+  const control = (
+    <input
+      ref={ref}
+      id={fieldId}
+      type={isPassword && shown ? 'text' : type}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
+      className={cx(INPUT, isPassword && 'pr-[52px]', error && 'border-[#DC2626] bg-[#FEF2F2]')}
+      {...input}
+    />
+  )
   return (
     <div className={className}>
       <Label htmlFor={fieldId} label={label} optional={optional} />
-      <input
-        ref={ref}
-        id={fieldId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        className={cx(INPUT, error && 'border-[#DC2626] bg-[#FEF2F2]')}
-        {...input}
-      />
+      {isPassword ? (
+        <div className="relative">
+          {control}
+          <button
+            type="button"
+            aria-label={shown ? 'Hide password' : 'Show password'}
+            aria-pressed={shown}
+            aria-controls={fieldId}
+            onClick={() => setShown((v) => !v)}
+            className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent text-mute transition-colors duration-150 hover:bg-sky hover:text-primary-dark"
+          >
+            {shown ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
+          </button>
+        </div>
+      ) : (
+        control
+      )}
       <FieldMessages id={fieldId} hint={hint} error={error} />
     </div>
   )

@@ -110,6 +110,19 @@ animations stay as designed because a dashed or partial stroke has no
 transform equivalent: `route-flow` and `animate-donut`. Under
 `prefers-reduced-motion: reduce` every animation stops and confetti is hidden.
 
+Loading (2026-10-21, not in the handoff): `skeleton` (placeholder with a light
+sweep, used by `LoadingBlock`), `WaterLoader` (bobbing drop with a ripple, the
+full-screen `LoadingScreen`), and `RouteProgress` (`src/app/RouteProgress.tsx`,
+a 3 px bar along the top while the next page's chunk loads, shown only after
+150 ms so quick changes do not flash it). All transform/opacity only.
+
+Hover states live in `styles/components.css` inside `@media (hover: hover)`,
+so a tap on a phone never leaves a button looking hovered. A screen that
+overrides a component colour with a utility must add its own `hover:`
+utility, because utilities always beat the components layer. Button labels
+are centred (`justify-content` and `text-align`). Filter pills (`.mo-pill`)
+are 10 px rounded rectangles, not pills (owner request).
+
 ### Assets and icons
 
 - `public/brand/`: official logos (use `<Logo>` from `src/components/brand/Logo.tsx`,
@@ -179,7 +192,8 @@ styles, with the exact values. Each exported component has TSDoc.
 | `components/ui/Card.tsx` | `Card`, `CardLink`, `CARD` (`.card`, `.pad`) |
 | `components/ui/Chip.tsx` | `Chip` (`.chip` tones), `SampleTag` (`.sample`) |
 | `components/ui/Choice.tsx` | `OptionTile` (`.opt`, `.tick`, `.ring`), `RadioDot` (`.radio`), `RadioRow` |
-| `components/ui/Field.tsx` | `TextField`, `TextAreaField` (`.lbl`, `.in`), with hint, error (`role="alert"`, `aria-describedby`) and "(optional)" |
+| `components/ui/Field.tsx` | `TextField`, `TextAreaField` (`.lbl`, `.in`), with hint, error (`role="alert"`, `aria-describedby`) and "(optional)"; `type="password"` adds a Show/Hide password button |
+| `components/ui/ConfirmDialog.tsx` | `ConfirmDialog`: asks before log out, payments, rider approval changes, removing an address, deleting the account, resetting data. Portal on `<body>`, focus starts on Cancel and stays inside, Escape and the backdrop cancel, focus returns to the opener |
 | `components/ui/Controls.tsx` | `Segmented` (`.seg`), `PageTabs` (sign-in switch), `Pills` (`.pill`), `Toggle` (switch; knob moves with transform) |
 | `components/ui/Content.tsx` | `ScreenHeading`, `SectionTitle`, `SectionHeader`, `GroupLabel`, `TextLink`, `KeyValue` (`.kv`), `Separator` (`.sep`), `IconBadge` (`.ico`), `ActionTile` (`.tile`), `MenuItem` (`.mi`), `StepBar`, `CountBadge` |
 | `components/ui/CodeEntry.tsx` | `CodeBoxes` (`.otp`, blink, invalid shake), `Keypad` (also takes the physical keyboard) |
@@ -269,8 +283,11 @@ first chunk arrives; the service worker precaches all chunks, so pages still
 open offline. Its `errorElement` (`src/app/RouteError.tsx`) catches any route
 error: a chunk missing after a new deploy (an open tab asking for an old
 hashed file) reloads the page once, at most once a minute; anything else
-shows the app's error screen. Sizes after splitting: main bundle about 370 kB (109 kB
-gzipped), page chunks 1 to 15 kB.
+shows the app's error screen. Sizes after splitting: main bundle about 385 kB (113 kB
+gzipped), page chunks 1 to 15 kB. Public-page code that needs React Hook Form
+and Zod (the newsletter form) is loaded with `React.lazy`, so those libraries
+stay out of the main bundle; the public mock (`mocks/publicMock.ts`) is a
+dynamic import for the same reason.
 
 ## Admin
 

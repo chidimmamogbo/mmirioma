@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
 import {
@@ -15,6 +16,7 @@ import {
 import { DrawerMenu } from '../../../components/layout/DrawerMenu'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Chip } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { CountBadge, MenuItem } from '../../../components/ui/Content'
 import { isActiveStage } from '../../../domain/orders'
 import { formatPhone } from '../../../lib/format/phone'
@@ -26,6 +28,7 @@ import { useNotifications, useOrders, usePoints, useProfile } from '../queries'
 export function Menu() {
   const navigate = useNavigate()
   const logout = useLogout()
+  const [leaving, setLeaving] = useState(false)
   const profile = useProfile()
   const orders = useOrders()
   const points = usePoints()
@@ -57,14 +60,26 @@ export function Menu() {
         </>
       }
       footer={
-        <button
-          type="button"
-          onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/signin', { replace: true }) })}
-          className="flex min-h-[58px] cursor-pointer items-center gap-3.5 border-0 border-t border-solid border-hairline bg-transparent px-5 text-left text-[15px] font-extrabold text-red"
-        >
-          <LogOutIcon size={20} className="text-red" />
-          Log out
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setLeaving(true)}
+            className="flex min-h-[58px] cursor-pointer items-center gap-3.5 border-0 border-t border-solid border-hairline bg-transparent px-5 text-left text-[15px] font-extrabold text-red transition-colors duration-150 hover:bg-red-bg"
+          >
+            <LogOutIcon size={20} className="text-red" />
+            Log out
+          </button>
+          <ConfirmDialog
+            open={leaving}
+            title="Log out of MmiriOma?"
+            confirmLabel="Log out"
+            loading={logout.isPending}
+            onCancel={() => setLeaving(false)}
+            onConfirm={() => logout.mutate(undefined, { onSettled: () => navigate('/signin', { replace: true }) })}
+          >
+            You will need your phone number and password to sign in again.
+          </ConfirmDialog>
+        </>
       }
     >
       <MenuItem to="/home" current icon={<HomeSolidIcon size={20} filled />}>
