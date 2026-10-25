@@ -14,6 +14,51 @@ normative) and follow them. If a
 requirement is missing, ambiguous, or conflicts with this file, ask; do not guess
 business rules (pricing, order states, dispatch logic, payments).
 
+## Team fork workflow (read first)
+
+This repository is the team's fork, `chidimmamogbo/mmirioma`. It holds the
+new-design frontend and its own copy of the main repo's backend (copied from
+`mmiri-oma/mmirioma@adc8654` in PR #4). The current goal is **linking**: the
+new-design screens run on typed mocks, and each task swaps a mock for the real
+backend, or builds the backend piece a screen still needs. At the end, the
+supervisors choose between this fork and the main repo.
+
+- **The main repo stays read-only.** All branches, issues and PRs live in
+  this fork, and you push only to `origin`. If you add the main repo as a
+  remote, name it `upstream` and turn off pushing to it:
+  `git remote set-url --push upstream DISABLED`.
+- **One issue, one branch, one PR.** Every task is an issue in this fork, in
+  the `Linking MVP` milestone. Start one with `/work-issue <number>` (agents
+  without slash commands: follow `.claude/commands/work-issue.md` for that
+  issue). Branch from an up-to-date `main` as `feat/<issue>-<slug>` (or
+  `fix/`, `chore/`, `docs/`) and put `Closes #<issue>` in the PR.
+- **`main` is protected.** A PR merges only when both CI jobs are green
+  (`Backend (lint, migrations, tests)`, `Frontend (lint, typecheck, test,
+  build)`) and a code owner from `.github/CODEOWNERS` has approved it. Run the
+  checks in [Testing](#testing) locally before you push. @nnamdi-security
+  reviews `backend/`, @chidimmamogbo reviews `frontend/`, and each is the
+  other's backup, so an author never approves their own PR.
+- **Stay in your lane.** Lanes, owners, dependencies and the files each lane
+  owns are in [docs/process/linking-plan.md](docs/process/linking-plan.md).
+  Shared files (`frontend/src/domain/*.ts`, `docs/architecture/api-mapping.md`,
+  `docs/api/*`) change in their own small PR, announced to the team.
+- **Adapters, not screen edits.** Screens call the typed functions in
+  `frontend/src/features/*/*Api.ts`. Linking a function means replacing its
+  `notConnected(...)` branch with an adapter in that feature's `real/` folder
+  that calls the client in `frontend/src/lib/api/` and converts the response
+  using `docs/architecture/api-mapping.md`. Pages and components keep their
+  props, and `VITE_USE_MOCKS=true` still serves the full mock demo.
+- **Backend changes are allowed in this fork** under the backend rules below:
+  an agreed contract in `docs/api/` first, a migration for every schema
+  change, and review by @nnamdi-security. A field or endpoint the backend
+  lacks becomes an issue in this fork; the frontend shows its error state
+  until it exists.
+- **Gates in this fork** (see [UI-driven workflow](#ui-driven-workflow)):
+  linking an existing screen is plumbing and needs only an agreed contract
+  (G3). A new screen needs design approval (G2) from @chidimmamogbo. A
+  contract is agreed when @nnamdi-security and @chidimmamogbo have both
+  approved it.
+
 ## Architecture
 
 Modular monolith: one FastAPI service, one PostgreSQL/PostGIS database, one React app.
@@ -57,6 +102,13 @@ error handling, health checks, or the frontend API client.
   React Hook Form, Zod, lucide-react.
 - Testing: Pytest, Vitest. Lint: ruff, ESLint.
 - Infrastructure: Docker Compose. CI: GitHub Actions.
+- External services (SRS §12): Termii (SMS), Paystack (payments; its Account
+  Resolve API verifies refund bank accounts), **OSRM** (road distance for
+  pricing, with delivery-zone rates as the fallback) and a **configurable
+  transactional email provider**. Which email provider, and where OSRM runs
+  (hosting and map data), are still open: propose them, with any new
+  infrastructure they need, before adding them. Each goes behind an adapter
+  with a transparent manual fallback.
 
 **Do not introduce new frameworks, libraries, services, or infrastructure**
 (e.g. Redis, Celery, message queues, other databases, ORMs, state managers, UI
@@ -108,7 +160,9 @@ with the reason.
 - Generate with `alembic revision --autogenerate -m "..."`, then **review and edit**
   the script. Autogenerate does not catch everything (renames, data migrations,
   PostGIS specifics).
-- Import new model modules in `alembic/env.py` so autogenerate sees them.
+- Import new model modules in `alembic/env.py` so autogenerate sees them, and
+  in `app/models.py` so command-line entry points can write across modules
+  (`tests/test_command_models.py` checks it).
 - Migrations must be reversible where reasonably possible, and must not drop or
   rewrite production data without an explicit, reviewed plan.
 - Never edit a migration that has been merged to `main`; add a new one.
@@ -268,25 +322,29 @@ Rules:
   document (no invented prices, no false confirmation or tracking, no
   water-quality claims, sample data labelled).
 
-## Issue log (`LOG.md`)
+## Issue log (`docs/log/`)
 
-`LOG.md` at the repo root records every problem hit while working on the
-project. This applies to every team member and every coding agent.
+`docs/log/` records every problem hit while working on the project, one file
+per entry. `LOG.md` at the repo root is the archive of entries up to
+2026-10-23. This applies to every team member and every coding agent.
 
-- **Read `LOG.md` before starting a task.** If a known issue applies, follow its
-  recorded fix instead of rediscovering it.
+- **Read the log before starting a task:** search `docs/log/` and `LOG.md`
+  (`grep -ril "<words>" docs/log LOG.md`). If a known issue applies, follow
+  its recorded fix instead of rediscovering it.
 - **Add an entry for every issue or error you encounter**: failed commands,
   test or CI failures, tooling or dependency problems, migration problems,
   confusing framework behavior, wrong data in plans or issues, and mistakes
   you had to undo. Log it even if you fixed it in minutes.
-- Use the entry template at the top of `LOG.md`, newest entries first. Include
-  the exact error message, the cause, the fix or workaround, and a status
-  (`resolved`, `workaround`, `open`). Name the author (GitHub username, plus
-  "+ agent" when one was used).
+- Add each entry as a **new file** `docs/log/YYYY-MM-DD-short-title.md`, using
+  the template in `docs/log/README.md`; never add new entries to `LOG.md`
+  (one file per entry, so pull requests do not conflict). Include the exact
+  error message, the cause, the fix or workaround, and a status (`resolved`,
+  `workaround`, `open`). Name the author (GitHub username, plus "+ agent"
+  when one was used).
 - Add entries in the same branch and PR as the work they came from. Update the
   status of an existing entry rather than duplicating it.
-- Never put secrets, credentials, tokens or personal data in `LOG.md`.
-- Agents: mention new `LOG.md` entries in your final report to the user.
+- Never put secrets, credentials, tokens or personal data in the log.
+- Agents: mention new log entries in your final report to the user.
 
 ## Modern framework standards
 
@@ -339,8 +397,9 @@ project. This applies to every team member and every coding agent.
 - CORS uses the explicit `FRONTEND_URL` origin with credentials; never `"*"`.
 - Validate all input at the API boundary; use SQLAlchemy parameter binding, never
   string-formatted SQL.
-- Authentication is not implemented yet. When it is, it will use secure
-  HttpOnly cookie sessions signed with `SESSION_SECRET`; follow the SRS.
+- Authentication uses secure HttpOnly cookie sessions signed with
+  `SESSION_SECRET` and a CSRF header on unsafe requests
+  (`docs/features/authentication.md`); follow the SRS.
 - Do not log secrets, credentials, or personal data (phone numbers, addresses).
 
 ## Git workflow
