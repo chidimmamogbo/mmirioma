@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "assignment_not_found",
+    "message": "This order has no driver assigned",
+    "details": null
+  }
+}

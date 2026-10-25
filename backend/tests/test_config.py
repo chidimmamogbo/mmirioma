@@ -5,6 +5,12 @@ from app.core.config import Settings
 
 VALID_DB_URL = "postgresql+asyncpg://user:pass@localhost:5432/mmirioma"
 STRONG_SECRET = "x" * 40
+# Throwaway values: production requires a real SMS provider (FR-003).
+TERMII: dict[str, object] = {
+    "sms_provider": "termii",
+    "termii_api_key": "test-key-not-real",
+    "termii_sender_id": "MmiriOma",
+}
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -24,6 +30,12 @@ def clear_app_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SESSION_MAX_AGE_SECONDS",
         "SESSION_COOKIE_SECURE",
         "SESSION_COOKIE_SAMESITE",
+        "SUPPORT_PHONE",
+        "SMS_PROVIDER",
+        "TERMII_BASE_URL",
+        "TERMII_API_KEY",
+        "TERMII_SENDER_ID",
+        "TERMII_CHANNEL",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -103,6 +115,7 @@ def test_valid_production_settings() -> None:
         app_env="production",
         session_secret=STRONG_SECRET,
         frontend_url="https://app.mmirioma.example",
+        **TERMII,
     )
 
     assert settings.is_production
@@ -135,7 +148,10 @@ def test_session_cookie_defaults_outside_production() -> None:
 
 def test_session_cookie_is_secure_by_default_in_production() -> None:
     settings = make_settings(
-        app_env="production", session_secret=STRONG_SECRET, frontend_url="https://app.example"
+        app_env="production",
+        session_secret=STRONG_SECRET,
+        frontend_url="https://app.example",
+        **TERMII,
     )
 
     assert settings.cookie_secure is True
@@ -163,3 +179,41 @@ def test_samesite_none_requires_secure_cookie() -> None:
 def test_rejects_out_of_range_session_lifetime(seconds: int) -> None:
     with pytest.raises(ValidationError, match="session_max_age_seconds"):
         make_settings(session_max_age_seconds=seconds)
+
+
+def test_sms_and_support_defaults() -> None:
+    settings = make_settings()
+
+    assert settings.sms_provider == "mock"
+    assert settings.support_phone == "+2348133774902"  # official number (FR-055)
+    assert settings.termii_channel == "dnd"
+
+
+def test_production_refuses_the_mock_sms_provider() -> None:
+    with pytest.raises(ValidationError, match="SMS_PROVIDER must be termii"):
+        make_settings(
+            app_env="production", session_secret=STRONG_SECRET, frontend_url="https://app.example"
+        )
+
+
+@pytest.mark.parametrize("missing", ["termii_api_key", "termii_sender_id"])
+def test_termii_needs_key_and_sender(missing: str) -> None:
+    values = {key: value for key, value in TERMII.items() if key != missing}
+    with pytest.raises(ValidationError, match="TERMII_API_KEY and TERMII_SENDER_ID"):
+        make_settings(**values)
+
+
+def test_termii_settings_are_validated() -> None:
+    with pytest.raises(ValidationError, match="https"):
+        make_settings(**TERMII, termii_base_url="http://api.ng.termii.com")
+    with pytest.raises(ValidationError):
+        make_settings(**{**TERMII, "termii_sender_id": "AB"})  # 3-11 characters
+    settings = make_settings(**TERMII, termii_base_url="https://v3.api.termii.com/")
+    assert settings.termii_base_url == "https://v3.api.termii.com"
+    assert "test-key-not-real" not in repr(settings)
+
+
+@pytest.mark.parametrize("phone", ["08133774902", "2348133774902", "+234 813"])
+def test_support_phone_must_be_e164(phone: str) -> None:
+    with pytest.raises(ValidationError, match="SUPPORT_PHONE"):
+        make_settings(support_phone=phone)

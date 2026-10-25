@@ -1,0 +1,276 @@
+"""Water source records: add sources and manage their category activations.
+
+Used by the command-line tool (:mod:`app.modules.sources.cli`, pilot
+fallback F1); there are no admin screens for sources yet. Each change is
+written with one ``audit_logs`` row in the same transaction (NFR-004), with
+the technical lead's admin account as the actor. Audit metadata holds ids
+and statuses only: never the report reference, the reason text or the cost.
+
+Business rules (FR-012, BR-10, contract "Order confirmation endpoints"):
+
+- A source serves a category only through an activation
+  (:class:`~app.modules.sources.models.WaterSourceCategory`). Activating
+  records the laboratory report reference, the last approved date and the
+  supplier's cost per litre in kobo.
+- Suspending (after a safety concern) and revoking keep the row and record a
+  reason; eligibility then reports ``suspended`` or ``revoked``. Activating
+  again clears the reason.
+- Nothing here is removed: activations are history the reviews rely on.
+"""
+
+import uuid
+from dataclasses import dataclass
+from datetime import date
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.audit import service as audit_service
+from app.modules.auth import service as auth_service
+from app.modules.auth.models import User, UserRole
+from app.modules.sources.models import (
+    ActivationStatus,
+    WaterCategory,
+    WaterSource,
+    WaterSourceCategory,
+)
+
+AUDIT_TARGET_TYPE = "water_source"
+
+
+@dataclass(frozen=True)
+class SourceWithActivations:
+    """A source and its activations, each with its category."""
+
+    source: WaterSource
+    activations: list[tuple[WaterSourceCategory, WaterCategory]]
+
+
+async def get_acting_admin(session: AsyncSession, *, phone: str) -> User:
+    """Return the active admin account recorded as the actor of a change.
+
+    Args:
+        session: Database session.
+        phone: Normalized E.164 phone number of the admin.
+
+    Returns:
+        The admin.
+
+    Raises:
+        LookupError: No active admin account has this phone.
+    """
+    user = await auth_service.get_user_by_phone(session, phone)
+    if user is None or user.role is not UserRole.ADMIN or not user.is_active:
+        raise LookupError("no active admin account has this phone")
+    return user
+
+
+async def add_source(
+    session: AsyncSession,
+    *,
+    actor: User,
+    name: str,
+    approximate_location: str,
+    is_simulated: bool = False,
+) -> WaterSource:
+    """Add a water source (FR-011). Commits.
+
+    Args:
+        session: Database session.
+        actor: The admin making the change.
+        name: Supplier or source name (validated by the caller).
+        approximate_location: Pickup location in words.
+        is_simulated: True for demo data (BR-09).
+
+    Returns:
+        The new source, with no activations: it serves no category yet.
+    """
+    source = WaterSource(
+        name=name, approximate_location=approximate_location, is_simulated=is_simulated
+    )
+    session.add(source)
+    await session.flush()
+    _audit(session, actor=actor, action="water_source_added", source=source)
+    await session.commit()
+    await session.refresh(source)
+    return source
+
+
+async def list_categories(session: AsyncSession) -> list[WaterCategory]:
+    """Return every water category, by label."""
+    return list(await session.scalars(select(WaterCategory).order_by(WaterCategory.label)))
+
+
+async def list_sources(session: AsyncSession) -> list[SourceWithActivations]:
+    """Return every source by name, with its activations by category label."""
+    sources = list(await session.scalars(select(WaterSource).order_by(WaterSource.name)))
+    rows = (
+        await session.execute(
+            select(WaterSourceCategory, WaterCategory)
+            .join(WaterCategory, WaterCategory.id == WaterSourceCategory.water_category_id)
+            .order_by(WaterCategory.label)
+        )
+    ).all()
+    by_source: dict[uuid.UUID, list[tuple[WaterSourceCategory, WaterCategory]]] = {}
+    for activation, category in rows:
+        by_source.setdefault(activation.source_id, []).append((activation, category))
+    return [SourceWithActivations(source, by_source.get(source.id, [])) for source in sources]
+
+
+async def activate(
+    session: AsyncSession,
+    *,
+    actor: User,
+    source_id: uuid.UUID,
+    category_code: str,
+    approved_until: date,
+    report_reference: str,
+    cost_per_litre_minor_units: int,
+) -> WaterSourceCategory:
+    """Activate a source for a category, or renew its activation (FR-012). Commits.
+
+    Records the laboratory report reference (the report itself stays outside
+    the app, F1), the last approved date and the supplier's cost per litre.
+    An existing activation for the pair, in any status, is updated: renewing
+    an expired approval and reactivating after a suspension both land here.
+
+    Args:
+        session: Database session.
+        actor: The admin making the change.
+        source_id: The source.
+        category_code: ``potable`` or ``utility``.
+        approved_until: Last Lagos date the laboratory approval is valid.
+        report_reference: Laboratory report reference, e.g. "LR-0001".
+        cost_per_litre_minor_units: Supplier's cost per litre in kobo.
+
+    Returns:
+        The activation, ``activated``.
+
+    Raises:
+        LookupError: Unknown source or category.
+    """
+    source, category = await _source_and_category(session, source_id, category_code)
+    activation = await _activation(session, source.id, category.id)
+    if activation is None:
+        activation = WaterSourceCategory(source_id=source.id, water_category_id=category.id)
+        session.add(activation)
+    activation.status = ActivationStatus.ACTIVATED
+    activation.status_reason = None
+    activation.approved_until = approved_until
+    activation.report_reference = report_reference
+    activation.cost_per_litre_minor_units = cost_per_litre_minor_units
+    _audit(
+        session,
+        actor=actor,
+        action="water_source_activated",
+        source=source,
+        category=category,
+        status=ActivationStatus.ACTIVATED,
+    )
+    await session.commit()
+    await session.refresh(activation)
+    return activation
+
+
+async def set_inactive_status(
+    session: AsyncSession,
+    *,
+    actor: User,
+    source_id: uuid.UUID,
+    category_code: str,
+    status: ActivationStatus,
+    reason: str,
+) -> WaterSourceCategory:
+    """Suspend or revoke a source's activation for a category (BR-10). Commits.
+
+    From now on the source is not eligible for the category: new
+    confirmations cannot choose it and a source review cannot continue with
+    it. Orders already confirmed with it keep it; the order detail reports
+    the reason (order confirmation contract, decision 10).
+
+    Args:
+        session: Database session.
+        actor: The admin making the change.
+        source_id: The source.
+        category_code: ``potable`` or ``utility``.
+        status: ``suspended`` or ``revoked``.
+        reason: Why, kept on the activation (not in the audit metadata).
+
+    Returns:
+        The updated activation.
+
+    Raises:
+        ValueError: ``status`` is ``activated`` (use :func:`activate`).
+        LookupError: Unknown source or category, or the source has never
+            been activated for the category.
+    """
+    if status is ActivationStatus.ACTIVATED:
+        raise ValueError("use activate() to activate a source")
+    source, category = await _source_and_category(session, source_id, category_code)
+    activation = await _activation(session, source.id, category.id)
+    if activation is None:
+        raise LookupError(f"the source has no activation for {category.code}")
+    activation.status = status
+    activation.status_reason = reason
+    _audit(
+        session,
+        actor=actor,
+        action=f"water_source_{status.value}",
+        source=source,
+        category=category,
+        status=status,
+    )
+    await session.commit()
+    await session.refresh(activation)
+    return activation
+
+
+async def _source_and_category(
+    session: AsyncSession, source_id: uuid.UUID, category_code: str
+) -> tuple[WaterSource, WaterCategory]:
+    source = await session.get(WaterSource, source_id)
+    if source is None:
+        raise LookupError("no water source has this id")
+    category = await session.scalar(
+        select(WaterCategory).where(WaterCategory.code == category_code)
+    )
+    if category is None:
+        raise LookupError(f"no water category has the code {category_code!r}")
+    return source, category
+
+
+async def _activation(
+    session: AsyncSession, source_id: uuid.UUID, category_id: uuid.UUID
+) -> WaterSourceCategory | None:
+    return await session.scalar(
+        select(WaterSourceCategory)
+        .where(
+            WaterSourceCategory.source_id == source_id,
+            WaterSourceCategory.water_category_id == category_id,
+        )
+        .with_for_update()
+    )
+
+
+def _audit(
+    session: AsyncSession,
+    *,
+    actor: User,
+    action: str,
+    source: WaterSource,
+    category: WaterCategory | None = None,
+    status: ActivationStatus | None = None,
+) -> None:
+    details: dict[str, str] = {}
+    if category is not None:
+        details["water_category_id"] = str(category.id)
+    if status is not None:
+        details["status"] = status.value
+    audit_service.record(
+        session,
+        actor_id=actor.id,
+        action=action,
+        target_type=AUDIT_TARGET_TYPE,
+        target_id=source.id,
+        details=details,
+    )

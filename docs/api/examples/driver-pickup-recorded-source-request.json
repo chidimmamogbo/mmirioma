@@ -1,0 +1,8 @@
+{
+  "source": { "assigned": false, "source_id": "4b7e2a10-9c3d-4e5f-a6b7-c8d9e0f1a2b3" },
+  "source_reference": "RCPT-0042",
+  "volume_collected_litres": 1000,
+  "picked_up_at": "2026-10-19T08:20:00Z",
+  "safety_concern": false,
+  "safety_note": null
+}

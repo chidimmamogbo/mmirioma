@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "transition_requirements_unmet",
+    "message": "This step needs more information before it can be recorded.",
+    "details": {
+      "missing": [
+        "unreachable_wait_elapsed"
+      ]
+    }
+  }
+}

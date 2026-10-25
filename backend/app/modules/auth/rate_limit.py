@@ -1,4 +1,4 @@
-"""In-memory rate limits for sign-in and registration (NFR-002).
+"""In-memory rate limits for sign-in, registration and SMS codes (NFR-002).
 
 Limits (sliding windows):
 
@@ -8,7 +8,16 @@ What                        Key                            Limit
 Failed logins               phone number                   5 / 15 min
 Failed logins               client IP                      50 / 15 min
 Registrations (any result)  client IP                      20 / hour
+SMS code requests           client IP                      10 / hour
+SMS code checks             client IP                      30 / 15 min
 ==========================  =============================  ===========
+
+SMS codes also have per-phone limits (60-second cooldown, 3 per hour, 5
+attempts per code, FR-003). Those are stored in the database by
+``phone_verification.py``; the per-IP limits here stop one machine from
+sending codes to many numbers or guessing codes across accounts. The IP
+numbers are an engineering choice (the SRS asks for IP limits without values),
+kept generous for carrier NAT like the others.
 
 Why these numbers: the per-phone limit is the real brute-force defence, so it is
 strict. Many Nigerian mobile users share one public IP through carrier NAT, so
@@ -134,6 +143,13 @@ def _too_many_attempts(retry_after: int) -> APIError:
     )
 
 
+def _check_and_record(limiter: SlidingWindowLimiter, key: str) -> None:
+    wait = limiter.retry_after(key)
+    if wait is not None:
+        raise _too_many_attempts(wait)
+    limiter.hit(key)
+
+
 @dataclass
 class AuthRateLimits:
     """The limiters guarding the auth endpoints (limits in the module docstring)."""
@@ -146,6 +162,12 @@ class AuthRateLimits:
     )
     registrations_by_ip: SlidingWindowLimiter = field(
         default_factory=lambda: SlidingWindowLimiter(limit=20, window_seconds=60 * 60)
+    )
+    code_requests_by_ip: SlidingWindowLimiter = field(
+        default_factory=lambda: SlidingWindowLimiter(limit=10, window_seconds=60 * 60)
+    )
+    code_checks_by_ip: SlidingWindowLimiter = field(
+        default_factory=lambda: SlidingWindowLimiter(limit=30, window_seconds=15 * 60)
     )
 
     def begin_login(self, phone: str, ip: str) -> None:
@@ -188,16 +210,31 @@ class AuthRateLimits:
         Raises:
             APIError: 429 ``too_many_attempts`` with ``Retry-After``.
         """
-        wait = self.registrations_by_ip.retry_after(ip)
-        if wait is not None:
-            raise _too_many_attempts(wait)
-        self.registrations_by_ip.hit(ip)
+        _check_and_record(self.registrations_by_ip, ip)
+
+    def check_and_record_code_request(self, ip: str) -> None:
+        """Count a request for an SMS code, refusing it once the IP is over its limit.
+
+        Raises:
+            APIError: 429 ``too_many_attempts`` with ``Retry-After``.
+        """
+        _check_and_record(self.code_requests_by_ip, ip)
+
+    def check_and_record_code_check(self, ip: str) -> None:
+        """Count an attempt to enter an SMS code, refusing it once the IP is over its limit.
+
+        Raises:
+            APIError: 429 ``too_many_attempts`` with ``Retry-After``.
+        """
+        _check_and_record(self.code_checks_by_ip, ip)
 
     def clear(self) -> None:
         """Reset every limiter (used by tests)."""
         self.login_failures_by_phone.clear()
         self.login_failures_by_ip.clear()
         self.registrations_by_ip.clear()
+        self.code_requests_by_ip.clear()
+        self.code_checks_by_ip.clear()
 
 
 _auth_rate_limits = AuthRateLimits()

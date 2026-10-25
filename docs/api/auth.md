@@ -1,10 +1,17 @@
 # Auth contract
 
-Requirements: FR-001, FR-002, FR-003, NFR-001, NFR-002 · Acceptance tests: T-07
+Requirements: FR-001, FR-002, FR-003, FR-004, NFR-001, NFR-002 · Acceptance tests: T-07, T-15, T-16
 
 Status: agreed (G3) by @nnamdi-security (frontend and backend owner) on
 2026-10-15. Written in S1-01, implemented in S1-02, including rate limiting.
 Screens: [docs/design/authentication.md](../design/authentication.md).
+
+**Phone verification (2026-10-17, SRS v0.2 FR-003/FR-004): agreed** by
+@Cloudcrackamara (frontend, PR #45 review, 2026-10-18) and @nnamdi-security
+(backend and contract owner). Checked against the
+[phone verification design](../design/phone-verification.md): every screen
+element maps to this contract with no change. That design was approved (G2)
+on 2026-10-19; the screens are not built yet.
 
 ## Roles
 
@@ -21,19 +28,59 @@ Screens: [docs/design/authentication.md](../design/authentication.md).
 - Inactive accounts cannot sign in, and their existing sessions stop working
   immediately (FR-002).
 
-## Customer contact verification (FR-003)
+## Phone verification (FR-003, FR-004)
 
-Agreed for Sprint 1 (resolves SRS §12.4 / PRD §13.5 for the pilot):
+Replaces the Sprint 1 agreement (manual verification by a dispatcher, orders
+allowed before verification), following SRS v0.2:
 
 - Customers register with name, phone and password. `phone_verified` starts as
   `false`.
-- A dispatcher confirms possession of the phone using a documented manual pilot
-  procedure. No automated OTP exists; the UI must not claim automated
-  verification.
-- A customer with an unverified phone **can** create an order, but a dispatcher
-  **cannot confirm** it until the phone is verified (FR-003). The verification
-  endpoint is a later issue; until then `phone_verified` is always `false` for
-  customers.
+- The customer verifies the phone with a **6-digit SMS code** before placing
+  their first order. `POST /orders` from an unverified customer returns 403
+  `phone_not_verified` ([orders.md](orders.md)).
+- A code expires **5 minutes** after it is sent and allows **5 attempts**;
+  the fifth wrong code voids it. Codes work once. Requesting a new code voids
+  the previous one.
+- Per phone number: one code per **60 seconds** and **3 per rolling hour**.
+  Per IP: 10 code requests per hour and 30 code checks per 15 minutes.
+- **Phone change:** the code goes to the **new** number, after the current
+  password is checked. The account keeps its number until the new one is
+  verified; then the new number becomes the sign-in identifier and is
+  verified. Sessions stay signed in.
+- Codes are sent by Termii in production and by a mock provider in
+  development (codes appear in the backend log). If SMS fails, nothing is
+  stored and no verification is claimed (503 `sms_unavailable`).
+- Only customers use these endpoints; admins and drivers get 403 `forbidden`.
+
+| Method | Path | Auth | Body | Success | Errors |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/auth/phone-verification` | customer + CSRF | none | 202 `PhoneCodeSent` | 409 `phone_already_verified`, 429 `too_many_attempts`, 503 `sms_unavailable` |
+| POST | `/auth/phone-verification/verify` | customer + CSRF | `{code}` | 200 `User` (`phone_verified: true`) | 400 `verification_code_invalid`, 400 `verification_code_expired`, 422 `validation_error`, 429 `too_many_attempts` |
+| POST | `/auth/phone-change` | customer + CSRF | `{phone, password}` | 202 `PhoneCodeSent` (to the new number) | 403 `password_incorrect`, 409 `phone_unchanged`, 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts`, 503 `sms_unavailable` |
+| POST | `/auth/phone-change/verify` | customer + CSRF | `{code}` | 200 `User` (new `phone`, `phone_verified: true`) | 400 `verification_code_invalid`, 400 `verification_code_expired`, 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts` |
+
+`PhoneCodeSent`:
+
+```json
+{
+  "phone": "+2348000000001",
+  "expires_at": "2026-10-17T09:05:00Z",
+  "resend_available_at": "2026-10-17T09:01:00Z"
+}
+```
+
+- `code` is exactly 6 digits; surrounding spaces are trimmed. Anything else is
+  422 `validation_error` with `loc` `["body", "code"]`.
+- `verification_code_invalid` has `details: {"attempts_remaining": n}`; at 0
+  the code is void and the customer must request a new one.
+- `verification_code_expired` covers every "no usable code" case: never
+  requested, expired, replaced by a newer code, attempts used up, or already
+  used. The client shows one "request a new code" message.
+- 429 `too_many_attempts` has `Retry-After` and
+  `details: {"retry_after_seconds": n}`, as for sign-in. For the 60-second
+  cooldown the client can also use `resend_available_at`.
+- `password_incorrect` is 403, not 401: the session is still valid. Wrong
+  passwords count against the sign-in failure limits for the account's phone.
 
 ## Identifier and password rules
 
@@ -119,12 +166,19 @@ Examples: [examples/auth-session.json](examples/auth-session.json),
 
 ## Planned (not in Sprint 1)
 
-- Dispatcher marks a customer phone as verified (FR-003).
+- Dispatcher-controlled manual verification as a fallback when SMS is
+  unavailable (FR-003 allows it; it needs the written procedure first).
 - Admin activates or deactivates accounts through the API (FR-002). Sprint 1
   uses the command-line tool.
-- Rate limiting of quote, OTP and order endpoints (NFR-002).
+- Rate limiting of quote and order endpoints (NFR-002). Code endpoints are
+  limited as described above.
 
 ## Open questions
 
-1. The written manual phone-verification procedure (who checks, how, what is
-   recorded). Needed before the first real order is confirmed.
+1. The written manual phone-verification procedure, needed only for the
+   fallback above. Automated SMS verification replaces it as the normal path
+   (SRS v0.2).
+2. Customer screens for entering a code and changing a phone: designed
+   ([phone-verification.md](../design/phone-verification.md)), not yet
+   built. Until they are, a real customer cannot verify and therefore cannot
+   order.

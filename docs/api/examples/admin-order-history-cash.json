@@ -1,0 +1,79 @@
+{
+  "items": [
+    {
+      "id": "6c7d8e9f-0a1b-4c2d-9e3f-4a5b6c7d8e9f",
+      "kind": "cash_received",
+      "from_status": null,
+      "to_status": null,
+      "actor": {
+        "id": "0b8f1c5e-2a3b-4c5d-9e6f-7a8b9c0d1e2f",
+        "role": "admin",
+        "name": "Sample Administrator"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-27T16:40:00Z",
+      "assignment": null,
+      "confirmation": null,
+      "hold": null,
+      "cash": {
+        "collection_id": "4d0b7a1e-9c2f-4e3a-8b5d-6f7a8b9c0d1e",
+        "amount_minor_units": 4500000,
+        "previous_amount_minor_units": null,
+        "payment_status": "paid",
+        "outstanding_balance_minor_units": 0,
+        "sms_status": "accepted"
+      }
+    },
+    {
+      "id": "7d8e9f0a-1b2c-4d3e-8f4a-5b6c7d8e9f0a",
+      "kind": "cash_corrected",
+      "from_status": null,
+      "to_status": null,
+      "actor": {
+        "id": "0b8f1c5e-2a3b-4c5d-9e6f-7a8b9c0d1e2f",
+        "role": "admin",
+        "name": "Sample Administrator"
+      },
+      "reason_code": null,
+      "note": "Driver typed 40,000; the envelope holds 45,000.",
+      "created_at": "2026-10-27T16:30:00Z",
+      "assignment": null,
+      "confirmation": null,
+      "hold": null,
+      "cash": {
+        "collection_id": "4d0b7a1e-9c2f-4e3a-8b5d-6f7a8b9c0d1e",
+        "amount_minor_units": 4500000,
+        "previous_amount_minor_units": 4000000,
+        "payment_status": null,
+        "outstanding_balance_minor_units": null,
+        "sms_status": null
+      }
+    },
+    {
+      "id": "8e9f0a1b-2c3d-4e4f-9a5b-6c7d8e9f0a1b",
+      "kind": "cash_recorded",
+      "from_status": null,
+      "to_status": null,
+      "actor": {
+        "id": "7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "role": "driver",
+        "name": "Sample Driver"
+      },
+      "reason_code": null,
+      "note": "Customer paid N40,000 and will pay the rest to the office.",
+      "created_at": "2026-10-27T13:15:00Z",
+      "assignment": null,
+      "confirmation": null,
+      "hold": null,
+      "cash": {
+        "collection_id": "4d0b7a1e-9c2f-4e3a-8b5d-6f7a8b9c0d1e",
+        "amount_minor_units": 4000000,
+        "previous_amount_minor_units": null,
+        "payment_status": null,
+        "outstanding_balance_minor_units": null,
+        "sms_status": null
+      }
+    }
+  ]
+}

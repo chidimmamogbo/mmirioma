@@ -42,3 +42,19 @@ def normalize_nigerian_phone(raw: str) -> str:
     if not _NATIONAL_NUMBER.fullmatch(national):
         raise ValueError("Enter a Nigerian mobile number, for example 08000000001")
     return f"+234{national}"
+
+
+def format_phone_for_display(e164: str) -> str:
+    """Group a Nigerian E.164 number for messages: ``+234 813 377 4902``.
+
+    Args:
+        e164: Number such as ``+2348133774902``.
+
+    Returns:
+        The grouped number, or the input unchanged if it is not a Nigerian
+        mobile number in E.164 form.
+    """
+    if not (e164.startswith("+234") and _NATIONAL_NUMBER.fullmatch(e164[4:])):
+        return e164
+    national = e164[4:]
+    return f"+234 {national[:3]} {national[3:6]} {national[6:]}"

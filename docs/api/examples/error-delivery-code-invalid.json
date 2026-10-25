@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "delivery_code_invalid",
+    "message": "That delivery code is not correct.",
+    "details": {
+      "attempts_remaining": 3
+    }
+  }
+}

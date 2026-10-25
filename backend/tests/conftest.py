@@ -6,6 +6,9 @@ os.environ["APP_ENV"] = "test"
 os.environ["APP_DEBUG"] = "false"
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@127.0.0.1:1/mmirioma_test"
 os.environ["FRONTEND_URL"] = "http://localhost:5173"
+# Tests never send real SMS, even when a developer's .env selects Termii for
+# the live SMS test (#102); environment variables take precedence over .env.
+os.environ["SMS_PROVIDER"] = "mock"
 
 from collections.abc import Iterator  # noqa: E402
 

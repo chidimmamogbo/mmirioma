@@ -1,0 +1,56 @@
+{
+  "order_reference": "MO-3HT8VQ2LZP",
+  "section": "today",
+  "job_status": "accepted",
+  "order_status": "arrived",
+  "delivery_window_start_at": "2026-10-19T08:00:00Z",
+  "delivery_window_end_at": "2026-10-19T11:00:00Z",
+  "delivery_area": "7 Test Avenue, New Haven",
+  "quantity_litres": 1000,
+  "source_name": "Sample Borehole A",
+  "offered_at": "2026-10-18T15:10:00Z",
+  "hold": null,
+  "delivered_litres": null,
+  "ended_at": null,
+  "end_reason": null,
+  "is_simulated": true,
+  "cash": null,
+  "receiver": {
+    "display_name": "Ngozi A.",
+    "phone": "+2348000000001"
+  },
+  "delivery_address": "7 Test Avenue, New Haven, Enugu",
+  "landmark": "Behind the green church",
+  "delivery_instructions": "Tank is on the roof stand. Ring the gate bell.",
+  "source": {
+    "id": "1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "name": "Sample Borehole A",
+    "approximate_location": "Near the market gate, Trans-Ekulu"
+  },
+  "pickup": {
+    "source_id": "1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "other_source_name": null,
+    "source_reference": "RCPT-0042",
+    "volume_collected_litres": 1000,
+    "picked_up_at": "2026-10-19T08:20:00Z",
+    "safety_concern": false
+  },
+  "arrived_at": "2026-10-19T09:42:00Z",
+  "contact_attempts": [
+    {
+      "attempted_at": "2026-10-19T09:44:00Z"
+    },
+    {
+      "attempted_at": "2026-10-19T09:49:00Z"
+    }
+  ],
+  "delivery_code": null,
+  "allowed_actions": [
+    "start_unloading",
+    "record_contact_attempt",
+    "record_failed_attempt",
+    "report_incident"
+  ],
+  "unloading_completed_at": null,
+  "unreachable_allowed_at": "2026-10-19T09:52:00Z"
+}

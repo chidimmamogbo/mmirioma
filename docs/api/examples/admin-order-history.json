@@ -1,0 +1,115 @@
+{
+  "items": [
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000006",
+      "from_status": "confirmed",
+      "to_status": "assigned",
+      "actor": {
+        "id": "4e5f6a7b-8c9d-4e0f-a1b2-c3d4e5f6a7b8",
+        "name": "Sample Dispatcher",
+        "role": "admin"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-19T09:05:00Z",
+      "assignment": {
+        "id": "6a0c2f4e-1b3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "driver": {
+          "id": "7d1f4e8a-b6c9-4a1b-9c3d-4e5f0b8f1c5e",
+          "name": "Sample Driver One"
+        },
+        "decline_reason": null
+      },
+      "confirmation": null
+    },
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000005",
+      "from_status": "assigned",
+      "to_status": "confirmed",
+      "actor": {
+        "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+        "name": "Sample Driver Two",
+        "role": "driver"
+      },
+      "reason_code": "driver_declined",
+      "note": "Truck is at the mechanic.",
+      "created_at": "2026-10-19T08:50:00Z",
+      "assignment": {
+        "id": "5b9d1e3f-0a2c-4d4e-9f8a-7b6c5d4e3f2a",
+        "driver": {
+          "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+          "name": "Sample Driver Two"
+        },
+        "decline_reason": "vehicle_cannot_carry"
+      },
+      "confirmation": null
+    },
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000004",
+      "from_status": "confirmed",
+      "to_status": "assigned",
+      "actor": {
+        "id": "4e5f6a7b-8c9d-4e0f-a1b2-c3d4e5f6a7b8",
+        "name": "Sample Dispatcher",
+        "role": "admin"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-19T08:31:00Z",
+      "assignment": {
+        "id": "5b9d1e3f-0a2c-4d4e-9f8a-7b6c5d4e3f2a",
+        "driver": {
+          "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+          "name": "Sample Driver Two"
+        },
+        "decline_reason": null
+      },
+      "confirmation": null
+    },
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "from_status": "awaiting_confirmation",
+      "to_status": "confirmed",
+      "actor": {
+        "id": "4e5f6a7b-8c9d-4e0f-a1b2-c3d4e5f6a7b8",
+        "name": "Sample Dispatcher",
+        "role": "admin"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-19T08:10:00Z",
+      "assignment": null,
+      "confirmation": null
+    },
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000002",
+      "from_status": "quote_requested",
+      "to_status": "awaiting_confirmation",
+      "actor": {
+        "id": "0b8f1c5e-2a7d-4d3e-9a51-6f0c2b7e9d14",
+        "role": "customer",
+        "name": "Sample Customer"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-19T07:55:00Z",
+      "assignment": null,
+      "confirmation": null
+    },
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "from_status": null,
+      "to_status": "quote_requested",
+      "actor": {
+        "id": "0b8f1c5e-2a7d-4d3e-9a51-6f0c2b7e9d14",
+        "role": "customer",
+        "name": "Sample Customer"
+      },
+      "reason_code": null,
+      "note": null,
+      "created_at": "2026-10-19T07:40:00Z",
+      "assignment": null,
+      "confirmation": null
+    }
+  ]
+}

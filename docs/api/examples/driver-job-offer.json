@@ -1,0 +1,37 @@
+{
+  "order_reference": "MO-5KR7TB3MWY",
+  "section": "offer",
+  "job_status": "offered",
+  "order_status": "assigned",
+  "delivery_window_start_at": "2026-10-19T13:00:00Z",
+  "delivery_window_end_at": "2026-10-19T16:00:00Z",
+  "delivery_area": "9 Sample Crescent, Trans-Ekulu",
+  "quantity_litres": 800,
+  "source_name": "Sample Borehole A",
+  "offered_at": "2026-10-19T09:30:00Z",
+  "hold": null,
+  "delivered_litres": null,
+  "ended_at": null,
+  "end_reason": null,
+  "is_simulated": true,
+  "cash": null,
+  "receiver": null,
+  "delivery_address": "9 Sample Crescent, Trans-Ekulu, Enugu",
+  "landmark": "Next to the yellow kiosk",
+  "delivery_instructions": "Narrow gate. Tank is behind the house.",
+  "source": {
+    "id": "1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "name": "Sample Borehole A",
+    "approximate_location": "Near the market gate, Trans-Ekulu"
+  },
+  "pickup": null,
+  "arrived_at": null,
+  "contact_attempts": [],
+  "delivery_code": null,
+  "allowed_actions": [
+    "accept",
+    "decline"
+  ],
+  "unloading_completed_at": null,
+  "unreachable_allowed_at": null
+}

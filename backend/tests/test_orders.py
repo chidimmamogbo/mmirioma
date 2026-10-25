@@ -1,0 +1,96 @@
+"""Order model and reference rules that need no database (FR-021, FR-026, FR-027, FR-033)."""
+
+import re
+
+from sqlalchemy import CheckConstraint, UniqueConstraint
+
+from app.modules.orders.models import Order, OrderEvent, OrderStatus
+from app.modules.orders.service import (
+    IDEMPOTENCY_KEY_REUSED_MESSAGE,
+    REFERENCE_ALPHABET,
+    generate_order_reference,
+)
+
+REFERENCE_PATTERN = re.compile(r"MO-[0-9A-HJKMNP-TV-Z]{10}")
+
+
+def test_statuses_match_the_orders_contract() -> None:
+    # docs/api/deliveries.md, "Statuses" (SRS v0.2 FR-033). draft is never stored.
+    assert [status.value for status in OrderStatus] == [
+        "quote_requested",
+        "awaiting_payment",
+        "awaiting_confirmation",
+        "confirmed",
+        "assigned",
+        "accepted",
+        "departed",
+        "collected",
+        "en_route",
+        "arrived",
+        "unloading",
+        "delivered",
+        "cancelled",
+        "failed",
+        "disputed",
+    ]
+
+
+def test_reference_format_is_prefix_plus_ten_crockford_characters() -> None:
+    for _ in range(200):
+        assert REFERENCE_PATTERN.fullmatch(generate_order_reference())
+
+
+def test_reference_alphabet_excludes_ambiguous_letters() -> None:
+    assert len(REFERENCE_ALPHABET) == 32
+    assert not set("ILOU") & set(REFERENCE_ALPHABET)
+
+
+def test_references_are_random_not_sequential() -> None:
+    references = {generate_order_reference() for _ in range(1000)}
+    # 1000 draws from 2^50 values: any repeat would mean the source is broken.
+    assert len(references) == 1000
+
+
+def test_idempotency_key_is_unique_per_customer() -> None:
+    unique_column_sets = {
+        tuple(column.name for column in constraint.columns)
+        for constraint in Order.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+    assert ("customer_id", "idempotency_key") in unique_column_sets
+    assert ("reference",) in unique_column_sets
+
+
+def test_quantity_range_is_enforced_by_the_database() -> None:
+    checks = {
+        str(constraint.sqltext)
+        for constraint in Order.__table__.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    assert "quantity_litres BETWEEN 1 AND 100000" in checks
+
+
+def test_sprint_1_orders_store_no_price() -> None:
+    # The price lives in order_price_snapshots, never on the order (FR-024;
+    # docs/api/orders.md). The only money on the order is the payment balance
+    # once its cash is received (docs/api/payments.md, "Payment status").
+    money_words = ("price", "amount", "total", "kobo", "minor_units", "fee")
+    payment_balances = {"outstanding_balance_minor_units", "overpaid_minor_units"}
+    for table in (Order.__table__, OrderEvent.__table__):
+        for column in table.columns:
+            if table is Order.__table__ and column.name in payment_balances:
+                continue
+            assert not any(word in column.name for word in money_words), column.name
+
+
+def test_simulated_flag_defaults_to_false() -> None:
+    column = Order.__table__.c.is_simulated
+    assert column.server_default is not None
+    assert not column.nullable
+
+
+def test_reused_key_message_says_the_request_was_received() -> None:
+    # A 409 means an earlier send from the same form was stored
+    # (customer-ordering.md, Decision 9); the message must not invite a new order.
+    assert "already received" in IDEMPOTENCY_KEY_REUSED_MESSAGE
+    assert "new order" not in IDEMPOTENCY_KEY_REUSED_MESSAGE.lower()
