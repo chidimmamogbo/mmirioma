@@ -10,7 +10,7 @@ export interface User {
   /** E.164, e.g. `+2348000000001`. */
   phone: string
   role: UserRole
-  /** False until a dispatcher verifies the phone manually (FR-003). */
+  /** False until the customer verifies the phone with an SMS code (FR-003). */
   phone_verified: boolean
 }
 
@@ -48,7 +48,8 @@ async function storeSession(
 /**
  * Create a customer account and sign in (`POST /api/v1/auth/register`).
  *
- * @throws {ApiError} `phone_already_registered` (409) or `validation_error` (422).
+ * @throws {ApiError} `phone_already_registered` (409), `validation_error` (422)
+ *   or `too_many_attempts` (429, wait in `details.retry_after_seconds`).
  */
 export function register(input: RegisterInput, client: ApiClient = apiClient) {
   return storeSession(
@@ -64,7 +65,8 @@ export function register(input: RegisterInput, client: ApiClient = apiClient) {
  * Sign in with phone and password (`POST /api/v1/auth/login`).
  *
  * @throws {ApiError} `invalid_credentials` (401) for any wrong phone, password
- *   or inactive account.
+ *   or inactive account, or `too_many_attempts` (429, wait in
+ *   `details.retry_after_seconds`).
  */
 export function login(input: LoginInput, client: ApiClient = apiClient) {
   return storeSession(

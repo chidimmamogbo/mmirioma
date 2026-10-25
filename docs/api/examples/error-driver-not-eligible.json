@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "driver_not_eligible",
+    "message": "This driver cannot take this order.",
+    "details": {
+      "reasons": [
+        "busy"
+      ]
+    }
+  }
+}

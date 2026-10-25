@@ -12,6 +12,8 @@ Rules implemented here (docs/api/auth.md):
 """
 
 import asyncio
+import uuid
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import cache
@@ -118,6 +120,36 @@ async def authenticate(session: AsyncSession, *, phone: str, password: str) -> U
     return user
 
 
+async def check_password(user: User, password: str) -> None:
+    """Confirm the signed-in user's current password (re-authentication).
+
+    Args:
+        user: The account.
+        password: Plain-text password to check.
+
+    Raises:
+        APIError: 403 ``password_incorrect``. 403 rather than 401: the session
+            is still valid, so the client must not treat it as signed out.
+    """
+    if not await asyncio.to_thread(security.verify_password, password, user.password_hash):
+        raise APIError(HTTPStatus.FORBIDDEN, "password_incorrect", "Your password is incorrect")
+
+
+async def set_phone_verified(session: AsyncSession, user: User) -> None:
+    """Mark an account's phone as verified now and commit, without an SMS code.
+
+    Only server-side tools call this (the demo seed, whose accounts are
+    fictional and flagged as demo data). Customers verify through
+    ``phone_verification.verify_code`` (FR-003).
+
+    Args:
+        session: Database session.
+        user: The account.
+    """
+    user.phone_verified_at = datetime.now(UTC)
+    await session.commit()
+
+
 async def start_session(session: AsyncSession, user: User) -> AuthenticatedSession:
     """Create and commit a new session for a user.
 
@@ -211,3 +243,55 @@ async def set_user_active(session: AsyncSession, *, phone: str, active: bool) ->
         )
     await session.commit()
     return user
+
+
+async def get_users_by_ids(
+    session: AsyncSession, user_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, User]:
+    """Return the accounts with the given IDs, keyed by ID.
+
+    Lets other modules (for example orders, for the staff view of an order's
+    customer) read accounts without querying this module's tables.
+
+    Args:
+        session: Database session.
+        user_ids: IDs to look up. Unknown IDs are simply absent from the result.
+
+    Returns:
+        A mapping from ID to user.
+    """
+    if not user_ids:
+        return {}
+    users = await session.scalars(select(User).where(User.id.in_(set(user_ids))))
+    return {user.id: user for user in users}
+
+
+async def list_users_by_role(session: AsyncSession, role: UserRole) -> list[User]:
+    """Return every account with ``role``, active or not, by name.
+
+    Lets dispatch list driver accounts for the dispatcher (docs/api/deliveries.md,
+    ``GET /admin/orders/{reference}/drivers``) without querying this module's
+    tables.
+
+    Args:
+        session: Database session.
+        role: The role to list.
+
+    Returns:
+        The accounts, ordered by name.
+    """
+    users = await session.scalars(select(User).where(User.role == role).order_by(User.name))
+    return list(users)
+
+
+async def get_user_by_phone(session: AsyncSession, phone: str) -> User | None:
+    """Return the account with this phone, active or not.
+
+    Args:
+        session: Database session.
+        phone: Normalized E.164 phone number.
+
+    Returns:
+        The user, or None if no account has this phone.
+    """
+    return await session.scalar(select(User).where(User.phone == phone))

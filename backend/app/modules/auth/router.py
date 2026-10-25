@@ -1,4 +1,4 @@
-"""Auth endpoints: register, login, logout, me (docs/api/auth.md)."""
+"""Auth endpoints: register, login, logout, me, phone verification (docs/api/auth.md)."""
 
 from http import HTTPStatus
 from typing import Annotated
@@ -9,16 +9,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.database import get_db_session
 from app.core.errors import ErrorResponse
-from app.modules.auth import security, service
-from app.modules.auth.dependencies import SESSION_COOKIE_NAME, AuthSession
-from app.modules.auth.models import UserRole
+from app.modules.auth import phone_verification, security, service
+from app.modules.auth.dependencies import SESSION_COOKIE_NAME, AuthSession, CurrentCustomer
+from app.modules.auth.models import UserRole, VerificationPurpose
 from app.modules.auth.rate_limit import AuthRateLimits, get_auth_rate_limits
-from app.modules.auth.schemas import LoginRequest, RegisterRequest, SessionRead, UserRead
+from app.modules.auth.schemas import (
+    LoginRequest,
+    PhoneChangeRequest,
+    PhoneCodeSentRead,
+    RegisterRequest,
+    SessionRead,
+    UserRead,
+    VerifyCodeRequest,
+)
+from app.modules.messaging.sms import SmsProvider, get_sms_provider
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 RateLimits = Annotated[AuthRateLimits, Depends(get_auth_rate_limits)]
+Sms = Annotated[SmsProvider, Depends(get_sms_provider)]
 
 
 def _client_ip(request: Request) -> str:
@@ -149,3 +159,117 @@ async def me(auth: AuthSession) -> SessionRead:
         APIError: 401 ``not_authenticated``.
     """
     return _session_response(auth)
+
+
+# Errors shared by the phone verification endpoints (besides 422).
+_CODE_REQUEST_ERRORS: dict[int | str, dict[str, object]] = {
+    HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
+    HTTPStatus.FORBIDDEN: {"model": ErrorResponse},
+    HTTPStatus.CONFLICT: {"model": ErrorResponse},
+    HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    HTTPStatus.SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+}
+_CODE_CHECK_ERRORS: dict[int | str, dict[str, object]] = {
+    HTTPStatus.BAD_REQUEST: {"model": ErrorResponse},
+    HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
+    HTTPStatus.FORBIDDEN: {"model": ErrorResponse},
+    HTTPStatus.CONFLICT: {"model": ErrorResponse},
+    HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+}
+
+
+def _code_sent(sent: phone_verification.CodeSent) -> PhoneCodeSentRead:
+    return PhoneCodeSentRead(
+        phone=sent.phone, expires_at=sent.expires_at, resend_available_at=sent.resend_available_at
+    )
+
+
+@router.post("/phone-verification", status_code=HTTPStatus.ACCEPTED, responses=_CODE_REQUEST_ERRORS)
+async def request_phone_verification(
+    request: Request, customer: CurrentCustomer, db: DbSession, limits: RateLimits, sms: Sms
+) -> PhoneCodeSentRead:
+    """Send a 6-digit code by SMS to the signed-in customer's phone (FR-003).
+
+    Raises:
+        APIError: 409 ``phone_already_verified``; 429 ``too_many_attempts``
+            (60-second cooldown, 3 codes per number per hour, or the IP
+            limit); 503 ``sms_unavailable``.
+    """
+    limits.check_and_record_code_request(_client_ip(request))
+    sent = await phone_verification.send_code(
+        db, user=customer, purpose=VerificationPurpose.ACCOUNT_PHONE, sms=sms
+    )
+    return _code_sent(sent)
+
+
+@router.post("/phone-verification/verify", responses=_CODE_CHECK_ERRORS)
+async def verify_phone(
+    body: VerifyCodeRequest,
+    request: Request,
+    customer: CurrentCustomer,
+    db: DbSession,
+    limits: RateLimits,
+) -> UserRead:
+    """Check the code; on success the phone is verified (FR-003).
+
+    Raises:
+        APIError: 400 ``verification_code_expired`` or
+            ``verification_code_invalid``; 429 ``too_many_attempts``.
+    """
+    limits.check_and_record_code_check(_client_ip(request))
+    user = await phone_verification.verify_code(
+        db, user=customer, purpose=VerificationPurpose.ACCOUNT_PHONE, code=body.code
+    )
+    return UserRead.from_user(user)
+
+
+@router.post("/phone-change", status_code=HTTPStatus.ACCEPTED, responses=_CODE_REQUEST_ERRORS)
+async def request_phone_change(
+    body: PhoneChangeRequest,
+    request: Request,
+    customer: CurrentCustomer,
+    db: DbSession,
+    limits: RateLimits,
+    sms: Sms,
+) -> PhoneCodeSentRead:
+    """Send a code to a new phone number; the account keeps its number until verified (FR-004).
+
+    The current password is checked first, under the same per-phone and
+    per-IP failure limits as sign-in.
+
+    Raises:
+        APIError: 403 ``password_incorrect``; 409 ``phone_unchanged`` or
+            ``phone_already_registered``; 429 ``too_many_attempts``;
+            503 ``sms_unavailable``.
+    """
+    ip = _client_ip(request)
+    limits.begin_login(customer.phone, ip)
+    await service.check_password(customer, body.password)
+    limits.login_succeeded(customer.phone, ip)
+    limits.check_and_record_code_request(ip)
+    sent = await phone_verification.send_code(
+        db, user=customer, purpose=VerificationPurpose.PHONE_CHANGE, sms=sms, new_phone=body.phone
+    )
+    return _code_sent(sent)
+
+
+@router.post("/phone-change/verify", responses=_CODE_CHECK_ERRORS)
+async def verify_phone_change(
+    body: VerifyCodeRequest,
+    request: Request,
+    customer: CurrentCustomer,
+    db: DbSession,
+    limits: RateLimits,
+) -> UserRead:
+    """Check the code sent to the new number; on success it replaces the old one (FR-004).
+
+    Raises:
+        APIError: 400 ``verification_code_expired`` or
+            ``verification_code_invalid``; 409 ``phone_already_registered``;
+            429 ``too_many_attempts``.
+    """
+    limits.check_and_record_code_check(_client_ip(request))
+    user = await phone_verification.verify_code(
+        db, user=customer, purpose=VerificationPurpose.PHONE_CHANGE, code=body.code
+    )
+    return UserRead.from_user(user)

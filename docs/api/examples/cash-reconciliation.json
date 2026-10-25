@@ -1,0 +1,43 @@
+{
+  "collections": [
+    {
+      "id": "4d0b7a1e-9c2f-4e3a-8b5d-6f7a8b9c0d1e",
+      "order_reference": "MO-7KQ2M9XH4T",
+      "amount_minor_units": 4000000,
+      "amount_due_minor_units": 4500000,
+      "original_amount_minor_units": null,
+      "corrected_at": null,
+      "note": "Customer paid N40,000 and will pay the rest to the office.",
+      "status": "reconciled",
+      "collected_at": "2026-10-27T13:15:00Z",
+      "remittance_due_at": "2026-10-27T17:00:00Z",
+      "overdue": false,
+      "remitted_at": "2026-10-27T16:40:00Z",
+      "received_by": {
+        "id": "0b8f1c5e-2a3b-4c5d-9e6f-7a8b9c0d1e2f",
+        "name": "Sample Administrator"
+      },
+      "reconciled_at": "2026-10-27T17:20:00Z",
+      "driver": {
+        "id": "7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "name": "Sample Driver"
+      },
+      "customer": {
+        "name": "Sample Customer",
+        "phone": "+2348000000001"
+      },
+      "payment_status": "partially_paid",
+      "outstanding_balance_minor_units": 500000,
+      "overpaid_minor_units": 0,
+      "handed_over_at": null,
+      "corrected_by": null,
+      "correction_reason": null,
+      "remittance_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+      "reconciled_by": {
+        "id": "0b8f1c5e-2a3b-4c5d-9e6f-7a8b9c0d1e2f",
+        "name": "Sample Administrator"
+      },
+      "payment_sms_status": "failed"
+    }
+  ]
+}

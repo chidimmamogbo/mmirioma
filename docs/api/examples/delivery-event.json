@@ -1,0 +1,8 @@
+{
+  "from_status": "en_route",
+  "to_status": "arrived",
+  "actor": { "id": "7d1f4e8a-b6c9-4a1b-9c3d-4e5f0b8f1c5e", "role": "driver" },
+  "reason_code": null,
+  "note": null,
+  "created_at": "2026-10-19T09:41:00Z"
+}

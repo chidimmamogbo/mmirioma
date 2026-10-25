@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "cash_already_recorded",
+    "message": "Cash for this order is already recorded.",
+    "details": {
+      "amount_minor_units": 4000000
+    }
+  }
+}

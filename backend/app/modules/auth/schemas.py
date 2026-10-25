@@ -80,3 +80,39 @@ class SessionRead(BaseModel):
     user: UserRead
     csrf_token: str
     expires_at: datetime
+
+
+class PhoneCodeSentRead(BaseModel):
+    """Returned when an SMS code was sent (FR-003, FR-004).
+
+    Attributes:
+        phone: Number the code went to (E.164).
+        expires_at: When the code stops working (5 minutes after sending).
+        resend_available_at: Earliest time a new code can be requested.
+    """
+
+    phone: str
+    expires_at: datetime
+    resend_available_at: datetime
+
+
+class VerifyCodeRequest(BaseModel):
+    """A 6-digit SMS code as entered by the customer."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{6}$")]
+
+
+class PhoneChangeRequest(BaseModel):
+    """Start a phone number change (FR-004).
+
+    The current password is required because the phone is the sign-in
+    identifier: a stolen session alone must not be able to move the account to
+    another number.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    phone: PhoneNumber
+    password: Annotated[str, Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)]

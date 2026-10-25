@@ -1,0 +1,11 @@
+{
+  "delivered_litres": 1000,
+  "unloading_confirmed": true,
+  "delivery_code": null,
+  "alternative_proof": {
+    "reason": "customer_cannot_receive_code",
+    "note": "Customer's phone is off; she confirmed delivery in person."
+  },
+  "location": null,
+  "location_consent": false
+}

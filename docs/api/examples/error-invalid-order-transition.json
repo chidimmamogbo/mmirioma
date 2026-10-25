@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "invalid_order_transition",
+    "message": "This order cannot move from en_route to delivered.",
+    "details": { "from": "en_route", "to": "delivered" }
+  }
+}

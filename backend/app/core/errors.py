@@ -19,6 +19,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.request_id import REQUEST_ID_HEADER, get_request_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -145,12 +147,26 @@ async def _handle_validation_error(_: Request, exc: RequestValidationError) -> J
 
 
 async def _handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    # The log line carries the request ID, and its traceback withholds the
+    # exception message (app.core.log_config, NFR-015). Only the path is
+    # logged, never the query string.
+    logger.error(
+        "Unhandled %s on %s %s",
+        type(exc).__name__,
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+    # Starlette sends this response outside RequestIDMiddleware, so the
+    # header is added here; support can match it to the log line.
+    request_id = get_request_id()
+    headers = {REQUEST_ID_HEADER: request_id} if request_id is not None else None
     # Never expose internal exception details to clients.
     return error_response(
         HTTPStatus.INTERNAL_SERVER_ERROR,
         "internal_server_error",
         "An unexpected error occurred",
+        headers=headers,
     )
 
 

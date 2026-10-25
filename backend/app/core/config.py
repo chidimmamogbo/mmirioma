@@ -6,6 +6,7 @@ fails immediately instead of on the first request. Variables are documented in
 ``.env.example`` and docs/architecture/backend.md.
 """
 
+import re
 import secrets
 from functools import lru_cache
 from pathlib import Path
@@ -22,6 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ASYNC_DRIVER = "postgresql+asyncpg"
 SYNC_DRIVER = "postgresql+psycopg"
 MIN_SECRET_LENGTH = 32
+# Official MmiriOma customer support number (SRS v0.2 FR-055).
+OFFICIAL_SUPPORT_PHONE = "+2348133774902"
 
 
 class Settings(BaseSettings):
@@ -44,6 +47,25 @@ class Settings(BaseSettings):
         session_cookie_samesite: ``SameSite`` attribute of the session cookie.
             Use ``none`` only when the frontend and API are on different sites;
             it requires a secure cookie.
+        support_phone: Customer support number in E.164 form, used in SMS
+            templates (FR-055). Defaults to the official number.
+        sms_provider: ``mock`` (development and test: nothing is sent, the
+            message is logged locally) or ``termii``. Production requires
+            ``termii`` (FR-003).
+        termii_base_url: Termii API base URL; Termii shows the account's own
+            base URL on its dashboard.
+        termii_api_key: Termii API key. Required when ``sms_provider=termii``.
+        termii_sender_id: Sender ID registered with Termii (3-11 characters).
+            Required when ``sms_provider=termii``.
+        termii_channel: Termii route. ``dnd`` is Termii's recommended route for
+            OTPs and must be activated on the account; ``generic`` does not
+            reach numbers on the Do-Not-Disturb list.
+        sms_timeout_seconds: Timeout for one SMS provider request.
+        frontend_dist_dir: Folder of the built frontend (``npm run build``)
+            that the API serves at ``/`` so the app and ``/api`` share one
+            origin (Railway, docs/architecture/deployment.md). Unset in
+            development and tests, where Vite serves the frontend. When set it
+            must contain ``index.html``.
     """
 
     model_config = SettingsConfigDict(
@@ -65,6 +87,14 @@ class Settings(BaseSettings):
     session_max_age_seconds: int = Field(default=7 * 24 * 3600, ge=300, le=30 * 24 * 3600)
     session_cookie_secure: bool | None = None
     session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    support_phone: str = OFFICIAL_SUPPORT_PHONE
+    sms_provider: Literal["mock", "termii"] = "mock"
+    termii_base_url: str = "https://api.ng.termii.com"
+    termii_api_key: SecretStr | None = None
+    termii_sender_id: str | None = Field(default=None, min_length=3, max_length=11)
+    termii_channel: Literal["dnd", "generic"] = "dnd"
+    sms_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    frontend_dist_dir: Path | None = None
 
     @field_validator("database_url")
     @classmethod
@@ -86,6 +116,37 @@ class Settings(BaseSettings):
             raise ValueError("FRONTEND_URL must be an origin without a path")
         # CORS compares origins exactly, so normalize away any trailing slash.
         return f"{parts.scheme}://{parts.netloc}"
+
+    @field_validator("support_phone")
+    @classmethod
+    def _validate_support_phone(cls, value: str) -> str:
+        if not re.fullmatch(r"\+\d{8,15}", value):
+            raise ValueError("SUPPORT_PHONE must be in E.164 form, for example +2348133774902")
+        return value
+
+    @field_validator("termii_base_url")
+    @classmethod
+    def _validate_termii_base_url(cls, value: str) -> str:
+        parts = urlsplit(value.strip())
+        if parts.scheme != "https" or not parts.netloc:
+            raise ValueError("TERMII_BASE_URL must be an https URL")
+        return value.strip().rstrip("/")
+
+    @field_validator("frontend_dist_dir")
+    @classmethod
+    def _validate_frontend_dist_dir(cls, value: Path | None) -> Path | None:
+        # Fail at startup, not with a blank page, when the build is missing.
+        if value is not None and not (value / "index.html").is_file():
+            raise ValueError("FRONTEND_DIST_DIR must be a built frontend folder with index.html")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_sms_provider(self) -> Settings:
+        if self.sms_provider == "termii" and (
+            self.termii_api_key is None or not self.termii_sender_id
+        ):
+            raise ValueError("SMS_PROVIDER=termii requires TERMII_API_KEY and TERMII_SENDER_ID")
+        return self
 
     @model_validator(mode="after")
     def _validate_cookie_flags(self) -> Settings:
@@ -110,6 +171,10 @@ class Settings(BaseSettings):
             )
         if not self.frontend_url.startswith("https://"):
             raise ValueError("FRONTEND_URL must use https in production")
+        # The mock provider sends nothing; a production deployment must never
+        # tell customers a code was sent when it was not (FR-003).
+        if self.sms_provider == "mock":
+            raise ValueError("SMS_PROVIDER must be termii in production")
         return self
 
     @property

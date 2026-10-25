@@ -7,6 +7,8 @@ Shared contracts that backend and frontend build against. Agree changes here
 | --- | --- | --- |
 | [auth.md](auth.md) | Roles, sessions, CSRF, register/login/logout/me | S1-02 |
 | [orders.md](orders.md) | Order statuses and transitions, order create/read, admin list/detail | S1-03 |
+| [deliveries.md](deliveries.md) | Order state machine and assignments; driver job endpoints (list incl. later-day jobs, detail, decline, pickup, new delivery code, incidents; part 2: accept, steps, arrival, contact attempts, unloading complete, proof, built in #75); admin dispatch endpoints (driver list, assign, withdraw, history; built in #61); order confirmation endpoints (confirmation options, confirm; agreed in PR #111, built in #112 and #113) | S1-06, S1-07, PR #50, PR #59, #61, #75, #113 |
+| [payments.md](payments.md) | Cash collection, remittance and reconciliation for the pilot (pay on delivery only, F4): driver record and handover, admin receive and reconcile, payment status on the order. **Agreed** 2026-10-22 (#98); backend built in #123, with amendments 1-3 proposed there | #123 |
 | [examples/](examples/) | Mock JSON responses for frontend work (S1-05, S1-09) | n/a |
 | [push.md](push.md) | Push subscriptions and message payload (**proposed** by the new-design fork, not agreed) | not yet |
 | [public-site.md](public-site.md) | Company contact numbers, newsletter sign-up (**proposed** by the new-design fork, not agreed) | not yet |
@@ -18,6 +20,14 @@ the order-level statuses they must map onto.
 **Status:** proposed for review by Chidinma (orders) and Chukwuebuka (delivery).
 A contract is agreed once both reviews are done. Each document ends with its own
 open questions.
+
+### Privacy notice page: no endpoints
+
+The privacy notice page and its links ([design](../design/privacy-notice.md),
+#100) call no endpoint: the notice text is bundled with the frontend at build
+time and the page does not check the session. G3 for that slice is passed
+without a contract. Any later change that loads the notice from the server
+needs a contract here first.
 
 ## Conventions (apply to every endpoint)
 
@@ -32,7 +42,7 @@ open questions.
 
 | Thing | Format | Example |
 | --- | --- | --- |
-| Body | JSON, `snake_case` keys | `{"quantity_litres": 200}` |
+| Body | JSON, `snake_case` keys | `{"quantity_litres": 1200}` |
 | Timestamps | ISO 8601, UTC, `Z` suffix | `"2026-10-14T09:30:00Z"` |
 | Calendar dates | `YYYY-MM-DD`, meaning the date in Africa/Lagos | `"2026-10-16"` |
 | Money | Integer kobo in NGN, fields named `*_minor_units` (SRS §5, BR-01) | `200000` = ₦2,000.00 |
@@ -85,5 +95,6 @@ return:
 ### Simulated data
 
 Demo and test records are flagged `is_simulated: true` and excluded from real
-metrics (BR-09, NFR-031). The flag is set by the server (seed scripts), never by
-customer input, and only appears in staff responses.
+metrics (BR-09, NFR-031). The flag is set by the server (seed scripts, and
+orders placed by demo accounts), never by customer input, and only appears in
+staff responses.

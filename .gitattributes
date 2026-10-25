@@ -1,0 +1,4 @@
+# Shell scripts run inside Linux containers: always LF, even when checked out
+# on Windows with core.autocrlf=true (a CRLF start script fails with
+# "/bin/sh^M: not found" or "set: Illegal option -").
+*.sh text eol=lf

@@ -1,0 +1,59 @@
+{
+  "categories": [
+    {
+      "id": "3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "label": "Potable Water",
+      "sources": [
+        {
+          "id": "8e2d4c6b-1a3f-4b5c-9d7e-0f1a2b3c4d5e",
+          "name": "Sample Borehole A",
+          "approximate_location": "Ugwuaji, Enugu",
+          "report_reference": "LR-0001",
+          "approved_until": "2027-01-30",
+          "is_simulated": false,
+          "reasons": []
+        },
+        {
+          "id": "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e",
+          "name": "Sample Borehole B",
+          "approximate_location": "Abakpa Nike, Enugu",
+          "report_reference": "LR-0002",
+          "approved_until": "2026-09-30",
+          "is_simulated": false,
+          "reasons": [
+            "suspended",
+            "approval_expired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6c7d8e9f-0a1b-4c2d-9e3f-4a5b6c7d8e9f",
+      "label": "Utility Water",
+      "sources": [
+        {
+          "id": "8e2d4c6b-1a3f-4b5c-9d7e-0f1a2b3c4d5e",
+          "name": "Sample Borehole A",
+          "approximate_location": "Ugwuaji, Enugu",
+          "report_reference": null,
+          "approved_until": null,
+          "is_simulated": false,
+          "reasons": [
+            "not_activated"
+          ]
+        },
+        {
+          "id": "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e",
+          "name": "Sample Borehole B",
+          "approximate_location": "Abakpa Nike, Enugu",
+          "report_reference": null,
+          "approved_until": null,
+          "is_simulated": false,
+          "reasons": [
+            "not_activated"
+          ]
+        }
+      ]
+    }
+  ]
+}

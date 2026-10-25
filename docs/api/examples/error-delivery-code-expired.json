@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "delivery_code_expired",
+    "message": "This delivery code can no longer be used. Send a new code.",
+    "details": null
+  }
+}

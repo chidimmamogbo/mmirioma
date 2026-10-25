@@ -1,0 +1,74 @@
+{
+  "driver": {
+    "id": "7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "name": "Sample Driver"
+  },
+  "collections": [
+    {
+      "id": "9e8f7a6b-5c4d-4e3f-a2b1-c0d9e8f7a6b5",
+      "order_reference": "MO-3HF8P2LQ6D",
+      "amount_minor_units": 4750000,
+      "amount_due_minor_units": 4750000,
+      "original_amount_minor_units": null,
+      "corrected_at": null,
+      "note": null,
+      "status": "awaiting_remittance",
+      "collected_at": "2026-10-27T10:30:00Z",
+      "remittance_due_at": "2026-10-27T17:00:00Z",
+      "overdue": false,
+      "remitted_at": null,
+      "received_by": null,
+      "reconciled_at": null,
+      "driver": {
+        "id": "7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "name": "Sample Driver"
+      },
+      "customer": {
+        "name": "Sample Customer",
+        "phone": "+2348000000001"
+      },
+      "payment_status": "pending_collection",
+      "outstanding_balance_minor_units": 0,
+      "overpaid_minor_units": 0,
+      "handed_over_at": "2026-10-27T14:00:00Z",
+      "corrected_by": null,
+      "correction_reason": null,
+      "remittance_id": null,
+      "reconciled_by": null,
+      "payment_sms_status": null
+    },
+    {
+      "id": "4d0b7a1e-9c2f-4e3a-8b5d-6f7a8b9c0d1e",
+      "order_reference": "MO-7KQ2M9XH4T",
+      "amount_minor_units": 4000000,
+      "amount_due_minor_units": 4500000,
+      "original_amount_minor_units": null,
+      "corrected_at": null,
+      "note": "Customer paid N40,000 and will pay the rest to the office.",
+      "status": "collected",
+      "collected_at": "2026-10-27T13:15:00Z",
+      "remittance_due_at": "2026-10-27T17:00:00Z",
+      "overdue": false,
+      "remitted_at": null,
+      "received_by": null,
+      "reconciled_at": null,
+      "driver": {
+        "id": "7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "name": "Sample Driver"
+      },
+      "customer": {
+        "name": "Sample Customer",
+        "phone": "+2348000000001"
+      },
+      "payment_status": "pending_collection",
+      "outstanding_balance_minor_units": 0,
+      "overpaid_minor_units": 0,
+      "handed_over_at": null,
+      "corrected_by": null,
+      "correction_reason": null,
+      "remittance_id": null,
+      "reconciled_by": null,
+      "payment_sms_status": null
+    }
+  ]
+}

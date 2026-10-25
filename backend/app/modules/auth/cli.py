@@ -17,6 +17,7 @@ import asyncio
 import getpass
 import sys
 
+import app.models  # noqa: F401  (registers every model: commands write across modules)
 from app.core.database import dispose_engine, get_sessionmaker
 from app.core.errors import APIError
 from app.modules.auth import service
