@@ -10,6 +10,13 @@ picks the zone (FR-020); nothing here matches addresses to zones. Points are
 PostGIS ``geography`` in WGS 84 (SRID 4326, CLAUDE.md) with no spatial
 index, because nothing searches zones by location yet.
 
+**Price lists** (FR-022, #37; contract: docs/api/admin-directory.md, "Price
+lists", agreed 2026-10-26). The admin-configured rates other than the
+supplier's cost per litre: base delivery fee, distance rate, additional-trip
+charge, handling (per order) and margin, by zone, water category and quantity
+band. Saving creates a new version; versions are never edited, so a quote
+keeps the version it used (FR-024, T-09).
+
 **Price snapshots:** the price frozen on an order when it is confirmed (FR-024).
 
 For the pilot the only price is a **manual quote** (pilot fallback F2,
@@ -27,6 +34,7 @@ snapshot holds the total only and ``is_manual`` is true.
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 from geoalchemy2 import Geography, WKBElement
 from sqlalchemy import (
@@ -40,6 +48,7 @@ from sqlalchemy import (
     func,
     true,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.models import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -199,3 +208,122 @@ class ServiceZoneDeliveryFee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("water_categories.id", ondelete="RESTRICT"), index=True
     )
     fee_minor_units: Mapped[int] = mapped_column(BigInteger)
+
+
+#: FR-021: no order is smaller than 600 litres, so no band starts below it.
+MIN_BAND_LITRES = 600
+#: A percentage margin in basis points: 1 % = 100, so 0-10,000 (no fractions sent).
+MAX_MARGIN_BASIS_POINTS = 10_000
+PRICE_LIST_REASON_MAX_LENGTH = 500
+
+
+class MarginType(StrEnum):
+    """How a rule's MmiriOma margin is given (FR-022)."""
+
+    #: A fixed amount in kobo per order.
+    FIXED = "fixed"
+    #: A percentage of water + delivery + handling cost, in basis points.
+    PERCENTAGE = "percentage"
+
+
+class PriceListVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One saved price list (FR-022). Never edited; saving adds a new version.
+
+    Decided for #37 (open question 16): a version takes effect when it is
+    saved, so ``effective_from`` is the save time and the highest version is
+    the current one.
+
+    Attributes:
+        version: 1, 2, 3 ... Unique: two concurrent saves cannot both create
+            the same version (the loser gets 409 ``price_list_changed``).
+        effective_from: When it took effect (UTC).
+        created_by: The administrator who saved it.
+        reason: Optional, why it was saved.
+        changes: What changed from the previous version, by field path,
+            worked out once at save (``[{"path", "from", "to"}]``).
+    """
+
+    __tablename__ = "price_list_versions"
+    __table_args__ = (CheckConstraint("version >= 1", name="version_positive"),)
+
+    version: Mapped[int] = mapped_column(unique=True)
+    effective_from: Mapped[datetime]
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    reason: Mapped[str | None] = mapped_column(String(PRICE_LIST_REASON_MAX_LENGTH))
+    changes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+
+
+class PriceRule(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One rule of a price list: the rates for a zone, category and band.
+
+    ``zone_id`` / ``water_category_id`` ``NULL`` mean "every zone (category)
+    without a rule of its own". Rules of one version with the same zone and
+    category never overlap in litres; the service refuses that on save (422
+    ``price_rules_overlap``), so matching is never ambiguous. Amounts are
+    integer kobo, 0 or more (BR-01). Handling is per order (open question 18).
+
+    Attributes:
+        price_list_version_id: The version the rule belongs to.
+        position: The rule's index in the saved list (``rules[n]``).
+        zone_id, water_category_id: What the rule applies to, or ``NULL``.
+        min_litres, max_litres: The band, inclusive; ``max_litres`` ``NULL``
+            for no upper end.
+        base_delivery_fee_minor_units: Per order.
+        distance_rate_minor_units_per_km: Per km of OSRM road distance
+            (unused until OSRM exists, SRS §12.1).
+        additional_trip_minor_units: For each trip beyond the first (FR-013).
+        handling_minor_units: Per order.
+        margin_type: :class:`MarginType`.
+        margin_amount_minor_units: The fixed margin, or ``NULL``.
+        margin_basis_points: The percentage margin, or ``NULL``.
+    """
+
+    __tablename__ = "price_rules"
+    __table_args__ = (
+        UniqueConstraint("price_list_version_id", "position"),
+        CheckConstraint(f"min_litres >= {MIN_BAND_LITRES}", name="min_litres_floor"),
+        CheckConstraint("max_litres IS NULL OR max_litres >= min_litres", name="band_order"),
+        CheckConstraint(
+            "base_delivery_fee_minor_units >= 0 AND distance_rate_minor_units_per_km >= 0"
+            " AND additional_trip_minor_units >= 0 AND handling_minor_units >= 0",
+            name="amounts_not_negative",
+        ),
+        CheckConstraint(
+            "(margin_type = 'fixed' AND margin_amount_minor_units >= 0"
+            " AND margin_basis_points IS NULL)"
+            " OR (margin_type = 'percentage' AND margin_amount_minor_units IS NULL"
+            f" AND margin_basis_points BETWEEN 0 AND {MAX_MARGIN_BASIS_POINTS})",
+            name="margin_shape",
+        ),
+    )
+
+    price_list_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("price_list_versions.id", ondelete="RESTRICT")
+    )
+    position: Mapped[int]
+    zone_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("service_zones.id", ondelete="RESTRICT"), index=True
+    )
+    water_category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("water_categories.id", ondelete="RESTRICT"), index=True
+    )
+    min_litres: Mapped[int]
+    max_litres: Mapped[int | None]
+    base_delivery_fee_minor_units: Mapped[int] = mapped_column(BigInteger)
+    distance_rate_minor_units_per_km: Mapped[int] = mapped_column(BigInteger)
+    additional_trip_minor_units: Mapped[int] = mapped_column(BigInteger)
+    handling_minor_units: Mapped[int] = mapped_column(BigInteger)
+    margin_type: Mapped[MarginType] = mapped_column(
+        Enum(
+            MarginType,
+            name="margin_type",
+            native_enum=False,
+            create_constraint=True,
+            length=10,
+            values_callable=lambda types: [t.value for t in types],
+        )
+    )
+    margin_amount_minor_units: Mapped[int | None] = mapped_column(BigInteger)
+    margin_basis_points: Mapped[int | None]
