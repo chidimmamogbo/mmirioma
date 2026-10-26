@@ -25,6 +25,7 @@ from app.modules.orders.schemas import (
     OrderRead,
     PageParams,
 )
+from app.modules.pricing import service as pricing
 from app.shared.demo_accounts import is_demo_identity
 
 router = APIRouter(tags=["orders"])
@@ -74,7 +75,7 @@ async def create_order(
     )
     if not created:
         response.status_code = HTTPStatus.OK
-    return OrderRead.model_validate(order)
+    return OrderRead.from_order(order, await pricing.zone_names(db, [order.service_zone_id]))
 
 
 @router.get("/orders", responses=_AUTH_ERRORS)
@@ -85,8 +86,9 @@ async def list_my_orders(
     orders, total = await service.list_customer_orders(
         db, customer_id=customer.id, limit=page.limit, offset=page.offset
     )
+    names = await pricing.zone_names(db, (order.service_zone_id for order in orders))
     return OrderPage(
-        items=[OrderRead.model_validate(order) for order in orders],
+        items=[OrderRead.from_order(order, names) for order in orders],
         total=total,
         limit=page.limit,
         offset=page.offset,
@@ -102,4 +104,4 @@ async def get_my_order(reference: str, customer: CurrentCustomer, db: DbSession)
             (T-07).
     """
     order = await service.get_customer_order(db, customer_id=customer.id, reference=reference)
-    return OrderRead.model_validate(order)
+    return OrderRead.from_order(order, await pricing.zone_names(db, [order.service_zone_id]))

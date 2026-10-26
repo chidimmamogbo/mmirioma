@@ -23,6 +23,7 @@ ids and field names only.
 
 import json
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from http import HTTPStatus
@@ -224,6 +225,40 @@ async def delivery_cost_from_zone(
     if fee is None:
         return ZoneDeliveryCost(None, ZoneCostUnavailable.DELIVERY_COST_UNAVAILABLE)
     return ZoneDeliveryCost(fee, None)
+
+
+async def zone_names(
+    session: AsyncSession, zone_ids: Iterable[uuid.UUID | None]
+) -> dict[uuid.UUID, str]:
+    """Return the current name of each zone, for the order views (``service_zone``).
+
+    Other modules show a zone's ``{id, name}`` through this function rather
+    than reading the zones table themselves.
+
+    Args:
+        session: Database session.
+        zone_ids: Zone ids; ``None`` entries are skipped.
+
+    Returns:
+        Name by id, for the zones that exist.
+    """
+    ids = {zone_id for zone_id in zone_ids if zone_id is not None}
+    if not ids:
+        return {}
+    rows = await session.execute(
+        select(ServiceZone.id, ServiceZone.name).where(ServiceZone.id.in_(ids))
+    )
+    return {zone_id: name for zone_id, name in rows}
+
+
+async def ensure_zone_exists(session: AsyncSession, zone_id: uuid.UUID) -> None:
+    """Refuse an unknown zone id sent by a client; an inactive zone is accepted.
+
+    Raises:
+        APIError: 404 ``service_zone_not_found``.
+    """
+    if await session.get(ServiceZone, zone_id) is None:
+        raise _zone_not_found()
 
 
 # --- Writes ---------------------------------------------------------------------------

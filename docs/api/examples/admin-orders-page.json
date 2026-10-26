@@ -20,7 +20,12 @@
         "phone_verified": false
       },
       "is_simulated": true,
-      "hold": null
+      "hold": null,
+      "delivery_type": null,
+      "keke": null,
+      "tanker": null,
+      "water_source": null,
+      "service_zone": null
     },
     {
       "id": "9a7e2b14-5c3d-4e6f-8a1b-2c3d4e5f6a7b",
@@ -42,7 +47,12 @@
         "phone_verified": false
       },
       "is_simulated": true,
-      "hold": null
+      "hold": null,
+      "delivery_type": null,
+      "keke": null,
+      "tanker": null,
+      "water_source": null,
+      "service_zone": null
     }
   ],
   "total": 2,

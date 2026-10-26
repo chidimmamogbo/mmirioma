@@ -82,5 +82,10 @@
     "cash_collection": null,
     "remittance_difference": null,
     "sms_status": null
-  }
+  },
+  "delivery_type": null,
+  "keke": null,
+  "tanker": null,
+  "water_source": null,
+  "service_zone": null
 }
