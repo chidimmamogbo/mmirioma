@@ -1,80 +1,89 @@
 # Public website endpoints (v1)
 
-**Status: proposed** by the new-design fork (2026-10-21), not agreed. The
-frontend uses a mock of these (`frontend/src/mocks/publicMock.ts`); with the
-real API it reports "not connected yet" until they exist. Conventions
-(errors, formats, phone numbers) are in [README.md](README.md).
+Requirements: FR-055, NFR-002 · Issue: #8 · Built in: not yet
 
-Both endpoints are **public**: no session cookie, no CSRF token (no session
-to protect). Both must be rate limited per IP.
+**Status: proposed** on 2026-10-21 by the new-design fork, **revised
+2026-10-26 in #8** after decisions by @chidimmamogbo (see
+[Changes](#changes)). Not agreed. It becomes `Status: agreed` when
+@nnamdi-security and @chidimmamogbo have both approved it (CLAUDE.md, "Team
+fork workflow").
+
+The frontend uses a mock (`frontend/src/mocks/publicMock.ts`); with the real
+API it reports "not connected yet" until the endpoint exists. Conventions
+(errors, formats, phone numbers) are in [README.md](README.md).
 
 ## GET /public/contact
 
-The company contact numbers admin sets in Settings ("Company WhatsApp",
-"Support phone"). The website's floating "Chat on WhatsApp" button, the FAQ
-help card, the 404 page and the customer app's Contact us page open
-`https://wa.me/<number>` with this number.
+The company's support contact, for the website's floating "Chat on WhatsApp"
+button, the FAQ help card, the 404 page and the customer app's Contact us
+page. FR-055: the official support number is **+234 813 377 4902**, used
+consistently in every customer-facing contact interface, and it "SHALL come
+from one central configuration value rather than being repeated in code".
 
-**200**
+**Public:** no session cookie, no CSRF token. Rate limited per IP (NFR-002).
+
+**200** ([examples/public-contact.json](examples/public-contact.json))
 
 ```json
-{ "whatsapp": "+2348133774902", "phone": null }
+{ "phone": "+2348133774902", "whatsapp": "+2348133774902" }
 ```
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `whatsapp` | E.164 string or `null` | `null` until admin saves one; the frontend then uses the interim number `+2348133774902` (owner decision 2026-10-21, `frontend/src/lib/whatsapp.ts`). |
-| `phone` | E.164 string or `null` | Support phone line, not used by the website yet. |
+| `phone` | E.164 string | The backend's `SUPPORT_PHONE` setting (`backend/app/core/config.py`, default the official number), the same value the SMS templates use. Always present |
+| `whatsapp` | E.164 string or `null` | The number for `https://wa.me/` links: the support number when WhatsApp support is switched on, else `null`, and the website then hides its WhatsApp buttons and shows the phone number |
 
-Cacheable for a few minutes (`Cache-Control: public, max-age=300`).
+Rules:
 
-### Admin side (existing settings save)
+- **One central value (FR-055).** Both numbers come from backend settings
+  read through `get_settings()`, never from the database or an admin screen.
+  Changing the number is a configuration change by the technical lead.
+- **WhatsApp is on** (FR-055 requires it to be confirmed active first):
+  confirmed by @chidimmamogbo on 2026-10-26 that WhatsApp is active on
+  +234 813 377 4902. The build adds a setting `SUPPORT_WHATSAPP_ENABLED`
+  (default `false`; set to `true` for the pilot), so it can be switched off
+  without a code change.
+- Cacheable for a few minutes (`Cache-Control: public, max-age=300`).
 
-Saving settings must validate `support_whatsapp` as a Nigerian mobile number
-(the auth contract's phone rules) and store it as E.164; an empty value means
-"use the default". Invalid: **422** `validation_error`, details
-`[{ "loc": ["body", "support_whatsapp"], "msg": "...", "type": "value_error" }]`.
-
-## POST /newsletter/subscriptions
-
-Newsletter sign-up from the form before the footer of every public page.
-
-**Request**
-
-```json
-{ "email": "ada@example.com" }
-```
-
-- Trimmed and lower-cased before storing; at most 254 characters; must look
-  like `name@domain.tld`.
-
-**202** (the same body for a new address and for one already on the list, so
-the form cannot be used to find out who is subscribed)
-
-```json
-{ "status": "subscribed" }
-```
-
-**Errors**
+Removed in #8: the admin Settings field "Support WhatsApp" that saved another
+number. An admin-edited number would be a second source next to
+`SUPPORT_PHONE`, which FR-055 rules out. The frontend's
+`DEFAULT_WHATSAPP` in `frontend/src/lib/whatsapp.ts` stays only as the
+fallback while the endpoint cannot be read; the link issue keeps it equal to
+the official number.
 
 | Status | `code` | When |
 | --- | --- | --- |
-| 422 | `validation_error` | Not an email; details `[{ "loc": ["body", "email"], ... }]` |
-| 429 | `too_many_attempts` | Rate limit hit; `details.retry_after_seconds` |
+| 429 | `too_many_attempts` | Per-IP limit; `Retry-After` and `details.retry_after_seconds` |
+| 503 | `service_unavailable` | Shared ([README](README.md#errors)) |
 
-**Rules for the backend**
+## Newsletter: not in the pilot
 
-- Every email sent must carry a working one-click unsubscribe link: the form
-  promises "Unsubscribe any time".
-- Use the address only for the newsletter (the form says so, and the Privacy
-  Policy section 2 says it is kept until the person unsubscribes).
-- Store `email` and `subscribed_at` (UTC); a later unsubscribe sets
-  `unsubscribed_at` rather than deleting, so a re-subscribe is a new consent.
+**Decided** (@chidimmamogbo, 2026-10-26): the newsletter sign-up is **left
+out of the pilot**. No endpoint is proposed. Reasons:
+
+- There is no email provider (SRS §12), so no newsletter can be sent and the
+  form's promise "Unsubscribe any time" cannot be kept.
+- The pilot collects no email addresses: decided for customers and partners
+  in #48 and #47, as the privacy notice says ("We do not collect your email
+  address", `PRIVACY_NOTICE.md` §3).
+
+The form before the footer of the public pages is removed or hidden in the
+link issue, and the website's Privacy page loses its newsletter line. The
+earlier proposal (`POST /newsletter/subscriptions`, single opt-in) is in the
+git history of this file, for when an email provider is approved.
 
 ## Open questions
 
-1. Single opt-in (as proposed) or a confirmation email first (double opt-in)?
-   Double opt-in needs an email provider, which is not in the approved stack.
-2. Who sends the newsletter, and from which tool? Not decided; no admin page
-   lists subscribers yet.
-3. Should `GET /public/contact` also return support hours once they are agreed?
+1. ~~Single or double opt-in for the newsletter?~~ Not needed: newsletter
+   out of the pilot.
+2. ~~Who sends the newsletter?~~ Not needed, as above.
+3. Should `GET /public/contact` also return support hours once they are
+   agreed? No SRS rule yet; not proposed.
+
+## Changes
+
+| Date | Change | Agreed by |
+| --- | --- | --- |
+| 2026-10-26 | Revised in #8: contact read from backend settings only (FR-055), `phone` always set, `whatsapp` on by a setting (WhatsApp confirmed active); admin "Support WhatsApp" field removed; newsletter left out of the pilot | Decisions by @chidimmamogbo; contract not yet agreed |
+| 2026-10-21 | Proposed: contact numbers from admin Settings, newsletter sign-up | Superseded |

@@ -17,6 +17,10 @@ on 2026-10-19; the screens are not built yet.
 (technical lead, #36). Partner self sign-up and driver phone verification,
 from [partners.md](partners.md). See [Changes](#changes).
 
+**Change password (2026-10-26, #8): proposed amendment**, not agreed. See
+[Change password](#change-password-proposed-8). It becomes agreed when
+@nnamdi-security and @chidimmamogbo have both approved it.
+
 ## Roles
 
 | Role | Who | Can |
@@ -111,7 +115,7 @@ allowed before verification), following SRS v0.2:
 | Contents | Random opaque token (not the user ID); only its keyed hash is stored |
 | Flags | `HttpOnly`; `Secure` (configurable, forced on in production); `SameSite=Lax` (configurable); `Path=/` |
 | Lifetime | Absolute, `SESSION_MAX_AGE_SECONDS` (default 7 days). No sliding renewal |
-| Revocation | Server-side: logout, account deactivation |
+| Revocation | Server-side: logout, account deactivation; a password change ends every other session of the account (proposed, #8) |
 
 A new session is created at every login and registration. Old sessions are not
 reused.
@@ -177,6 +181,50 @@ Only the signed-in user's own object is returned by these endpoints.
 Examples: [examples/auth-session.json](examples/auth-session.json),
 [examples/error-invalid-credentials.json](examples/error-invalid-credentials.json).
 
+## Change password (proposed, #8)
+
+The fork's Change password screen (`/profile/password` for customers, and the
+same screen in the partner and admin apps) has no endpoint. Proposed:
+
+| Method | Path | Auth | Body | Success | Errors |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/auth/password` | session + CSRF, any role | `{current_password, new_password}` | 204 | 401 `not_authenticated`, 403 `csrf_failed`, 403 `password_incorrect`, 422 `validation_error`, 429 `too_many_attempts` |
+
+Request ([examples/change-password-request.json](examples/change-password-request.json)):
+
+```json
+{ "current_password": "sample-current-password", "new_password": "sample-new-password" }
+```
+
+Rules:
+
+- `current_password` must be the account's password. A wrong one is 403
+  `password_incorrect` (not 401: the session is still valid), as for
+  `POST /auth/phone-change`, and counts against the **sign-in failure
+  limits** for the account's phone (5 per 15 minutes). While that phone is
+  limited, even the right password gets 429 `too_many_attempts`, so this
+  endpoint cannot be used to guess passwords faster than login
+  (NFR-002). Example:
+  [examples/error-password-incorrect.json](examples/error-password-incorrect.json).
+- `new_password` follows the [password rules](#identifier-and-password-rules)
+  (8-128 characters, no composition rules); otherwise 422 `validation_error`
+  with `loc` `["body", "new_password"]`. It is stored only as a salted scrypt
+  hash. Whether it may equal the current one is not checked (no SRS rule).
+- **Other sessions end** (decided by @chidimmamogbo, 2026-10-26): on success,
+  every other session of the account is revoked server-side
+  (`user_sessions`); this session stays signed in and keeps its CSRF token.
+  A device signed in with a leaked password is signed out.
+- An audit row (NFR-004) records `password_changed` with the actor and no
+  password, hash or session data.
+- Confirming the new password ("New password again") is done on the screen
+  only; the server receives it once.
+- No SMS or email is sent about the change (no email provider; FR-050 lists
+  no such message).
+
+Frontend note: the mock (`mockChangePassword`) answers 400
+`invalid_current_password`; the link issue changes it to 403
+`password_incorrect`, as here.
+
 ## Planned (not in Sprint 1)
 
 - Dispatcher-controlled manual verification as a fallback when SMS is
@@ -191,15 +239,18 @@ Examples: [examples/auth-session.json](examples/auth-session.json),
 1. The written manual phone-verification procedure, needed only for the
    fallback above. Automated SMS verification replaces it as the normal path
    (SRS v0.2).
-2. Customer screens for entering a code and changing a phone: designed
-   ([phone-verification.md](../design/phone-verification.md)), not yet
-   built. Until they are, a real customer cannot verify and therefore cannot
-   order.
+2. ~~Customer screens for entering a code and changing a phone~~: built in
+   the fork in #6 (PR #52,
+   [phone-verification.md](../design/phone-verification.md)).
+3. Password reset when the password is forgotten. Not proposed in #8: it
+   needs an SMS reset code flow and its limits. The screen
+   (`/forgot-password`) tells people to call the support number.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Change password proposed (#8): `POST /auth/password`; a change ends the account's other sessions | Not yet |
 | 2026-10-26 | Partner amendment (#47, [partners.md](partners.md)): partners sign up with `POST /auth/partner-register`, the one exception to "no self-registration for staff"; drivers may use the phone-verification endpoints (not phone change); admins still come only from the command-line tool | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #47 |
 | 2026-10-17 | Phone verification (SRS v0.2 FR-003, FR-004) | @Cloudcrackamara (2026-10-18), @nnamdi-security |
 | 2026-10-15 | Agreed (G3), S1-01 | @nnamdi-security |
