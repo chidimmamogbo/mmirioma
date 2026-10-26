@@ -12,7 +12,9 @@ See [Changes](#changes).
 
 **[Service zones](#service-zones): `Status: agreed`** on 2026-10-26 by
 @nnamdi-security (technical lead, sole approver under PR #36), so #30 can
-build it. The rest of this contract is still proposed.
+build it. **[Price lists](#price-lists): `Status: agreed`** on 2026-10-26 by
+@nnamdi-security (technical lead, #36), so #37 can build it. The rest of this
+contract is still proposed.
 
 The fork's admin Customers, Riders, Service areas and Pricing screens run on
 mocks (`frontend/src/mocks/adminMock.ts`) and show "not connected yet" against
@@ -533,6 +535,10 @@ SRS §5 `pricing_rules`: version, zone, quantity band, source/category, base
 delivery fee, distance rate, additional-trip charge, handling rates, margin
 type and value, zone fallback rates, effective dates.
 
+**Status: agreed** (2026-10-26, @nnamdi-security, technical lead; #36).
+Built in #37. Open questions 16 and 18 decided; 17 stays open until OSRM
+exists (no road distance is priced before then).
+
 Saving creates a new **version**; versions are never edited. A quote records
 the version it used and orders keep their quote (FR-024, T-09).
 
@@ -569,7 +575,7 @@ the version it used and orders keep their quote (FR-024, T-09).
 | Field | Rule |
 | --- | --- |
 | `version` | 1, 2, 3 …, set by the server |
-| `effective_from` | When the version took effect (UTC): the time it was saved. Scheduling a future version is [open question 16](#open-questions) |
+| `effective_from` | When the version took effect (UTC): the time it was saved. No future dating ([open question 16](#open-questions), decided) |
 | `created_by`, `reason` | Who saved it and why. `reason` is optional, trimmed, up to 500 characters |
 | `rules` | At least one. A quote uses the **one** rule that matches its zone, category and litres ([Matching](#matching-a-quote-to-a-rule)) |
 | `rules[].zone_id` | A service zone, or `null` for every zone without a rule of its own (SRS §5 "zone") |
@@ -578,7 +584,7 @@ the version it used and orders keep their quote (FR-024, T-09).
 | `rules[].base_delivery_fee_minor_units` | FR-022 base delivery fee, per order |
 | `rules[].distance_rate_minor_units_per_km` | FR-022 distance charge per km of OSRM road distance. How the distance is rounded is [open question 17](#open-questions) |
 | `rules[].additional_trip_minor_units` | FR-022 charge for each trip beyond the first (FR-013, at most two trips) |
-| `rules[].handling_minor_units` | FR-022 handling cost per order. Whether handling is per order, per litre or per trip is [open question 18](#open-questions) |
+| `rules[].handling_minor_units` | FR-022 handling cost, **per order** ([open question 18](#open-questions), decided) |
 | `rules[].margin` | FR-022 margin: `{"type": "fixed", "amount_minor_units": n}` or `{"type": "percentage", "basis_points": n}` (1 % = 100 basis points, so no fractions are sent). A percentage applies to water + delivery + handling cost |
 | `changes` | What changed from the previous version, by field: `path`, `from`, `to`, with `from` `null` for an added rule. Empty on version 1. The client words them; the mock's `note` sentence is not sent |
 
@@ -711,7 +717,7 @@ migration):
 
 | # | Question | Source of the gap |
 | --- | --- | --- |
-| 1 | Which issue builds these endpoints? **Zones: #30** (lane E). Customers, drivers and price lists still need build issues | Process |
+| 1 | Which issue builds these endpoints? **Zones: #30**, **price lists: #37** (lane E). Customers and drivers still need build issues | Process |
 | 2 | How does a customer or driver created by staff sign in? There is no password reset or invite in the backend; `auth.md` says staff accounts come from the command-line tool | Mock says "Forgot password" later; no SRS rule |
 | 3 | May staff send the FR-003 SMS code to a customer who phoned in, and enter the code the customer reads back? Or must the customer verify in the app? | FR-003 says the customer verifies possession; silent on staff help. `auth.md` "Planned" lists a dispatcher fallback needing a written procedure |
 | 4 | Does "ordered this week" mean the last 7 days or the calendar week (Monday to Sunday, Lagos)? | Design wording |
@@ -726,15 +732,16 @@ migration):
 | 13 | ~~Is a zone's fallback rate per order or per trip, and does it differ by water category or vehicle type?~~ **Decided** (@nnamdi-security, 2026-10-26): one fee per zone and water category, **per order**; not by vehicle type | FR-010, FR-022 |
 | 14 | ~~May an admin-entered road distance per zone (decision 10a) stand in for OSRM?~~ **Decided** (@nnamdi-security, 2026-10-26): no. The zone fee is the fallback; `distance_km` and `station_id` are dropped | FR-022, SRS §12.1 |
 | 15 | ~~What does FR-010's zone "eligibility" hold?~~ **Decided** (@nnamdi-security, 2026-10-26): no separate field; in the pilot a zone delivers a category when it has a fee for it. Revisit with OSRM. SRS §5's "default pricing zone" is not stored either: a `zone_id: null` price rule does that job | FR-010 wording |
-| 16 | Should a price list be scheduled for a future date (SRS §5 "effective dates"), or take effect when saved (proposed)? | SRS §5 |
-| 17 | How is the OSRM distance rounded before the per-km rate (to 0.1 km, to whole km, up or nearest)? | FR-022 |
-| 18 | Are FR-022 "handling rates" per order (proposed), per litre or per trip? | FR-022 |
+| 16 | ~~Should a price list be scheduled for a future date?~~ **Decided** (@nnamdi-security, 2026-10-26): no; it takes effect when saved. Future dating can be added later | SRS §5 |
+| 17 | How is the OSRM distance rounded before the per-km rate (to 0.1 km, to whole km, up or nearest)? **Open until OSRM exists** (@nnamdi-security, 2026-10-26): the pilot prices delivery from zone fees, so no distance is rounded yet | FR-022 |
+| 18 | ~~Are FR-022 "handling rates" per order, per litre or per trip?~~ **Decided** (@nnamdi-security, 2026-10-26): per order | FR-022 |
 | 19 | Should delivery rates differ for Keke and tanker beyond what quantity bands give? SRS §5 keys rules by zone, band and category, not vehicle type | SRS §5, design a-pricing |
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | `GET /service-zones` needs no session (any caller), for partner sign-up ([partners.md](partners.md) open question 2) | @nnamdi-security (technical lead) |
 | 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Service zones section: @nnamdi-security (technical lead, PR #36). Rest: not yet |
 | 2026-10-26 | Proposed (#18, PR #34) | Not yet |
