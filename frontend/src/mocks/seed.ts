@@ -162,7 +162,7 @@ export function seedState(now = new Date()): MockState {
         timeline: [
           { label: 'Order placed', at: activeCreated },
           { label: 'Chinedu Okafor accepted', at: lagosToday(11, 2, now), detail: 'Keke ENU 482 KK' },
-          { label: 'Collected at GRA Refill Station', at: lagosToday(11, 20, now), detail: '600 L' },
+          { label: 'Collected at GRA Refill Station', at: lagosToday(11, 20, now), detail: '600 L · 150 gal' },
         ],
       },
       25,
@@ -188,11 +188,11 @@ export function seedState(now = new Date()): MockState {
       timeline: [
         { label: 'Order placed', at: lagos('2026-10-02', 8, 10) },
         { label: 'Emeka David accepted', at: lagos('2026-10-02', 8, 14), detail: 'Tanker ENU 115 XA' },
-        { label: 'Loaded at Ogui Station', at: lagos('2026-10-02', 8, 52), detail: '750 gal confirmed' },
+        { label: 'Loaded at Ogui Station', at: lagos('2026-10-02', 8, 52), detail: '750 gal (3,000 L) confirmed' },
         { label: 'Delivered, code verified', at: lagos('2026-10-02', 9, 31), detail: 'On time' },
       ],
       delivered_at: lagos('2026-10-02', 9, 31),
-      delivered_quantity: '750 gallons',
+      delivered_quantity: '750 gallons (3,000 litres)',
       points_earned: 60,
       feedback: { rating: 5, poured_by_partner: true },
     },
@@ -202,7 +202,7 @@ export function seedState(now = new Date()): MockState {
         created_at: lagos('2026-09-24', 14, 15),
         stage: 'delivered',
         delivered_at: lagos('2026-09-24', 15, 2),
-        delivered_quantity: '300 L',
+        delivered_quantity: '300 L · 75 gal',
         points_earned: 20,
         timeline: [
           { label: 'Order placed', at: lagos('2026-09-24', 14, 15) },
@@ -237,7 +237,7 @@ export function seedState(now = new Date()): MockState {
         created_at: lagos('2026-08-30', 13, 5),
         stage: 'delivered',
         delivered_at: lagos('2026-08-30', 13, 50),
-        delivered_quantity: '600 L',
+        delivered_quantity: '600 L · 150 gal',
         points_earned: 30,
         timeline: [
           { label: 'Order placed', at: lagos('2026-08-30', 13, 5) },
@@ -287,7 +287,7 @@ export function seedState(now = new Date()): MockState {
         ],
         orders,
         notifications: [
-          { id: 'n1', kind: 'on_the_way', title: 'Your water is on the way', body: 'Chinedu collected 600 L and is heading to Home.', at: lagosToday(11, 20, now), read: false, reference: 'MO-7KQ2M9XH4T' },
+          { id: 'n1', kind: 'on_the_way', title: 'Your water is on the way', body: 'Chinedu collected 600 L (150 gal) and is heading to Home.', at: lagosToday(11, 20, now), read: false, reference: 'MO-7KQ2M9XH4T' },
           { id: 'n2', kind: 'rider_assigned', title: 'Rider assigned', body: 'Chinedu Okafor (Keke, ENU 482 KK) accepted MO-7KQ2.', at: lagosToday(11, 2, now), read: false, reference: 'MO-7KQ2M9XH4T' },
           { id: 'n3', kind: 'order_received', title: 'Order received', body: 'We are finding a rider for MO-7KQ2.', at: activeCreated, read: true, reference: 'MO-7KQ2M9XH4T' },
           { id: 'n4', kind: 'points', title: 'You earned 60 points', body: 'Thanks for ordering MO-5KL2.', at: lagos('2026-10-02', 9, 35), read: true, reference: 'MO-5KL2ZT8QWD' },

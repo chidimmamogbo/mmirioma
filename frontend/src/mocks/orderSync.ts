@@ -3,7 +3,7 @@
  * the mock backend, as one database would. Pure functions over MockState;
  * callers wrap them in `mutate`.
  */
-import type { CustomerOrder, DeliveryPartner } from '../domain/orders'
+import { describeChoice, type CustomerOrder, type DeliveryPartner } from '../domain/orders'
 import type { PartnerJob } from '../domain/partner'
 import type { CustomerData, MockState, PartnerData, StoredJob } from './seed'
 import { eligible } from './eligibility'
@@ -52,7 +52,7 @@ export function applyCollected(s: MockState, job: PartnerJob, now = new Date().t
   const found = findCustomerOrder(s, job.reference)
   if (!found) return
   const { order, data } = found
-  const qty = order.choice.delivery_type === 'keke' ? `${order.choice.can_size_litres * order.choice.can_count} L` : `${order.choice.tank_size_gallons?.toLocaleString('en-NG')} gal`
+  const qty = describeChoice(order.choice, 'short')
   order.stage = 'on_the_way'
   order.station_name = job.station.name
   // The partner's estimate for the drive to the customer (decision 14: only shown when one exists).
@@ -181,7 +181,7 @@ export function completeDelivery(s: MockState, job: StoredJob, partner: PartnerD
     at: now,
     amount_minor_units: job.earning_minor_units,
     status: 'pending',
-    label: job.choice.delivery_type === 'keke' ? `${job.choice.can_size_litres} L × ${job.choice.can_count}` : `${job.choice.tank_size_gallons?.toLocaleString('en-NG')} gal`,
+    label: describeChoice(job.choice, 'short'),
   })
   applyDelivered(s, job.reference, now)
 }

@@ -13,7 +13,8 @@ import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminOrder, AdminOrderFilter } from '../../../domain/admin'
-import { describeChoice } from '../../../domain/orders'
+import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
+import { describeQuantity } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
@@ -116,7 +117,7 @@ export function Orders() {
                     { header: 'Customer', cell: (o) => o.customer_name },
                     { header: 'Area', cell: (o) => o.area },
                     { header: 'Type', cell: (o) => (o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'), className: 'font-bold' },
-                    { header: 'Quantity', cell: (o) => o.quantity },
+                    { header: 'Quantity', cell: (o) => <QuantityCell choice={o.choice} /> },
                     { header: 'Payment', cell: (o) => <PaymentChip status={o.payment.status} /> },
                     { header: 'Status', cell: (o) => <StatusChip status={o.status} /> },
                     { header: 'Rider', cell: (o) => o.partner?.code ?? <span className="text-mute">None yet</span> },
@@ -138,6 +139,24 @@ export function Orders() {
  * order in the address first, so the panel stays on it after the list
  * changes (otherwise it would jump to the next waiting order).
  */
+/** Quantity on two short lines so the table stays narrow: "25 L × 24" over "600 L · 150 gal". */
+function QuantityCell({ choice }: { choice: WaterChoice }) {
+  const litres = choiceLitres(choice)
+  const main =
+    choice.delivery_type === 'keke'
+      ? `${choice.can_size_litres} L × ${choice.can_count}`
+      : choice.tank_size_gallons === null
+        ? 'Custom size'
+        : `${choice.tank_size_gallons.toLocaleString('en-NG')} gal`
+  const units = litres === null ? null : choice.delivery_type === 'keke' ? describeQuantity(litres, 'litres', 'short') : `${litres.toLocaleString('en-NG')} L`
+  return (
+    <>
+      <div className="whitespace-nowrap">{main}</div>
+      {units && <div className="text-chip whitespace-nowrap text-mute">{units}</div>}
+    </>
+  )
+}
+
 function OrderPanel({ reference, onChange }: { reference: string; onChange: () => void }) {
   const order = useAdminOrder(reference)
   const o = order.data

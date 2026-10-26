@@ -18,6 +18,7 @@ import { IconBadge, ScreenHeading } from '../../../components/ui/Content'
 import { IconLink } from '../../../components/ui/IconButton'
 import { Notice } from '../../../components/ui/Notice'
 import { shortReference } from '../../../domain/orders'
+import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import type { PartnerJob } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { JobStep } from '../components/JobStep'
@@ -76,7 +77,7 @@ export function DriverRefill() {
                 <div className="text-chip font-bold text-[#15803D]">GO TO REFILL STATION · STEP 1 OF 2</div>
                 <h1 className="m-0 text-[19px] font-extrabold">{j.station.name}</h1>
                 <div className="text-caption text-mute">
-                  Load {targetGallons(j, null).toLocaleString('en-NG')} gallons for {shortReference(j.reference)}
+                  Load {describeQuantity(litresFromGallons(targetGallons(j, null)), 'gallons')} for {shortReference(j.reference)}
                 </div>
               </div>
               <div className="text-right">
@@ -146,7 +147,7 @@ function LoadingForm({ job: j }: { job: PartnerJob }) {
         <ScreenHeading
           className="rise-1"
           title="Confirm loading"
-          sub={`${shortReference(j.reference)} · ${j.station.name} · needs ${target.toLocaleString('en-NG')} gallons`}
+          sub={`${shortReference(j.reference)} · ${j.station.name} · needs ${describeQuantity(litresFromGallons(target), 'gallons', 'short')}`}
         />
         <Card pad className="rise-2 flex items-center gap-4">
           <TankGauge fraction={gallons / capacity} target={target / capacity} targetLabel={target.toLocaleString('en-NG')} />
@@ -154,10 +155,10 @@ function LoadingForm({ job: j }: { job: PartnerJob }) {
             <div className="text-caption text-mute">Loaded so far</div>
             <div className="text-[32px] font-extrabold tracking-[-1px]" aria-live="polite">
               {gallons.toLocaleString('en-NG')}
-              <span className="text-[15px] text-mute"> gal</span>
+              <span className="text-[15px] text-mute"> gal · {litresFromGallons(gallons).toLocaleString('en-NG')} L</span>
             </div>
             <Chip tone={full ? 'green' : 'amber'} className="mt-1">
-              {full ? 'Full load' : `${toGo.toLocaleString('en-NG')} gal to go`}
+              {full ? 'Full load' : `${describeQuantity(litresFromGallons(toGo), 'gallons', 'short')} to go`}
             </Chip>
             <div className="mt-2.5 flex gap-2">
               <button
@@ -255,7 +256,7 @@ export function DriverCustomer() {
             <ScrollArea className="gap-3">
               <ScreenHeading
                 className="rise-1"
-                title={`Deliver ${targetGallons(j, null).toLocaleString('en-NG')} gallons`}
+                title={`Deliver ${describeQuantity(litresFromGallons(targetGallons(j, null)), 'gallons')}`}
                 sub={`Loaded at ${j.station.name} · head to ${j.customer.area}`}
               />
               <MapFrame height={330} className="rise-2">

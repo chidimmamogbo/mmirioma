@@ -10,6 +10,7 @@ import { Chip } from '../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../components/ui/Content'
 import { formatDateTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
+import { describeQuantity } from '../../../domain/quantity'
 import { PAYMENT_LABEL } from '../../customer/orderHelpers'
 import { jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
@@ -65,7 +66,7 @@ export function RiderDone() {
                   <div className="font-extrabold">{j.reference}</div>
                   <div className="text-caption text-mute">
                     {jobQuantity(j)}
-                    {litres ? ` · ${litres.toLocaleString('en-NG')} L poured` : ''}
+                    {litres ? ` · ${describeQuantity(litres, 'litres', 'short')} poured` : ''}
                   </div>
                 </div>
               </div>

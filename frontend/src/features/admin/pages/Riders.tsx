@@ -14,6 +14,7 @@ import { TextAreaField, TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminRider } from '../../../domain/admin'
 import type { DeliveryType } from '../../../domain/orders'
+import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { parseGallons } from '../../../domain/tankCapacity'
 import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -130,7 +131,7 @@ function RiderPanel({ id }: { id: string }) {
         <Illustration name={r.vehicle.type} className="w-40" />
         <div className="font-extrabold">
           {r.vehicle.type === 'keke' ? 'Keke' : 'Tanker'} · {r.vehicle.plate}
-          {r.vehicle.tank_gallons && ` · ${r.vehicle.tank_gallons.toLocaleString('en-NG')} gal`}
+          {r.vehicle.tank_gallons && ` · ${describeQuantity(litresFromGallons(r.vehicle.tank_gallons), 'gallons', 'short')}`}
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -244,7 +245,11 @@ export function NewRider() {
                 value={gallons}
                 onChange={(e) => setGallons(e.target.value)}
                 placeholder="e.g. 4,000"
-                hint="Most tankers carry about 4,000 gallons."
+                hint={
+                  parseGallons(gallons) !== null
+                    ? `That is ${litresFromGallons(parseGallons(gallons) ?? 0).toLocaleString('en-NG')} litres.`
+                    : 'For example 4,000 gallons (16,000 litres).'
+                }
                 error={err('tank_gallons')}
               />
             )}

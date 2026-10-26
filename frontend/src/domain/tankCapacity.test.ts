@@ -39,7 +39,7 @@ describe('tanker sign-up (mock)', () => {
     await partnerSignup({ ...base, phone: '0809 000 0201', tank_gallons: 4000 })
     const p = await getPartnerProfile()
     expect(p.vehicle.tank_gallons).toBe(4000)
-    expect(p.vehicle.description).toBe('4,000 gal tank')
+    expect(p.vehicle.description).toBe('4,000 gal (16,000 L) tank')
   })
 
   it('rejects a capacity below the smallest order', async () => {

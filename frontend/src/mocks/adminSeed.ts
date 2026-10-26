@@ -74,8 +74,8 @@ export function seedAdmin(now = new Date()): AdminData {
       loading_now: 3,
       today: 22,
       loading_log: [
-        { at: lagosToday(11, 20, now), reference: 'MO-7KQ2M9XH4T', partner: 'Chinedu Okafor', quantity: '25 L × 24' },
-        { at: lagosToday(9, 5, now), reference: 'MO-1QW8ZR5KTD', partner: 'Chinedu Okafor', quantity: '50 L × 12' },
+        { at: lagosToday(11, 20, now), reference: 'MO-7KQ2M9XH4T', partner: 'Chinedu Okafor', quantity: '25 L × 24 (600 L · 150 gal)' },
+        { at: lagosToday(9, 5, now), reference: 'MO-1QW8ZR5KTD', partner: 'Chinedu Okafor', quantity: '50 L × 12 (600 L · 150 gal)' },
       ],
     },
     {
@@ -104,7 +104,7 @@ export function seedAdmin(now = new Date()): AdminData {
       papers: { verified_on: '2026-09-28', valid_until: null, file_name: 'independence-water-source-2026.pdf' },
       loading_now: 4,
       today: 19,
-      loading_log: [{ at: lagosToday(7, 15, now), reference: 'MO-6TPB4WX9LR', partner: 'Emeka David', quantity: '500 gal' }],
+      loading_log: [{ at: lagosToday(7, 15, now), reference: 'MO-6TPB4WX9LR', partner: 'Emeka David', quantity: '500 gal · 2,000 L' }],
     },
     {
       id: 'st-ekulu',
@@ -227,7 +227,7 @@ export function seedAdmin(now = new Date()): AdminData {
 
   const notifications: AdminNotification[] = [
     { id: 'an1', at: minutesAgo(now, 4), title: 'Urgent: delivery code not working', body: 'Chinedu Okafor reported MO-7KQ2. Customer is with the rider.', read: false, link: '/admin/support' },
-    { id: 'an2', at: minutesAgo(now, 5), title: 'New order waiting for a rider', body: 'MO-3HT8 · 50 L × 12 cans · Independence Layout.', read: false, link: '/admin/orders' },
+    { id: 'an2', at: minutesAgo(now, 5), title: 'New order waiting for a rider', body: 'MO-3HT8 · 50 L × 12 cans (600 L · 150 gal) · Independence Layout.', read: false, link: '/admin/orders' },
     { id: 'an3', at: minutesAgo(now, 40), title: 'Driver waiting for approval', body: 'Sunday Bello (Tanker, ENU 330 XB) uploaded his papers.', read: false, link: '/admin/riders' },
     { id: 'an4', at: lagosToday(8, 0, now), title: 'Station papers expire soon', body: 'Trans-Ekulu Station papers expire in 9 days.', read: true, link: '/admin/stations' },
     { id: 'an5', at: lagosToday(9, 30, now), title: 'Payment to verify', body: 'Obinna Agu sent a bank transfer for MO-8ZRW.', read: true, link: '/admin/payments' },

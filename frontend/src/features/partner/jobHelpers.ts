@@ -1,10 +1,18 @@
-import { describeChoice, shortReference } from '../../domain/orders'
+import { choiceLitres, describeChoice, shortReference } from '../../domain/orders'
 import type { PartnerJob } from '../../domain/partner'
 import { formatDate, formatDayDate, formatTime } from '../../lib/format/datetime'
 
-/** Quantity line for a job: "25 L × 24 cans" or "750 gallons". */
-export function jobQuantity(job: PartnerJob): string {
-  return describeChoice(job.choice)
+/**
+ * Total litres across jobs. Every job counts in litres (tankers: gallons × 4,
+ * FR-021), so Keke and Tanker trips never add up in mixed units.
+ */
+export function totalLitres(jobs: PartnerJob[]): number {
+  return jobs.reduce((sum, job) => sum + (choiceLitres(job.choice) ?? 0), 0)
+}
+
+/** Quantity line for a job, in both units: "25 L × 24 cans (600 L · 150 gal)" or "750 gallons (3,000 litres)". */
+export function jobQuantity(job: PartnerJob, style: 'long' | 'short' = 'long'): string {
+  return describeChoice(job.choice, style)
 }
 
 /** Total trip time: station leg plus customer leg (sample estimates). */

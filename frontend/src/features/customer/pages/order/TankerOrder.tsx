@@ -8,7 +8,9 @@ import { SampleTag } from '../../../../components/ui/Chip'
 import { OptionTile } from '../../../../components/ui/Choice'
 import { KeyValue, SectionHeader, Separator } from '../../../../components/ui/Content'
 import { TextField } from '../../../../components/ui/Field'
-import { TANK_SIZES, WATER_SOURCE_LABEL, describeTankLitres, type TankType } from '../../../../domain/orders'
+import { TANK_SIZES, WATER_SOURCE_LABEL, describeTankSize, type TankType } from '../../../../domain/orders'
+import { litresFromGallons } from '../../../../domain/quantity'
+import { parseGallons } from '../../../../domain/tankCapacity'
 import { formatNaira } from '../../../../lib/format/money'
 import { OptionGroup, OrderStepHeading, SummaryTotal, WaterSourcePicker } from '../../components/OrderParts'
 import { draftChoice } from '../../order/draft'
@@ -23,8 +25,9 @@ const TANK_TYPES: { value: TankType; title: string; sub: string }[] = [
 
 /**
  * Tanker order: tank type, capacity and water source (`c-tanker`). Sizes are
- * in gallons as designed, with the approximate litres shown once chosen
- * (decision 11). "Custom" sizes need a quote from the team (FR-021).
+ * in gallons as designed, always shown with their exact litres (1 local
+ * gallon = 4 L, FR-021; decision of 2026-10-26). "Custom" sizes need a quote
+ * from the team (FR-021).
  */
 export function TankerOrder() {
   const { draft, update } = useOrderDraft()
@@ -34,6 +37,8 @@ export function TankerOrder() {
   const q = quote.data?.status === 'quote_available' ? quote.data : undefined
   const size = draft.tanker.tank_size_gallons
   const customMissing = size === null && draft.tanker.custom_gallons.trim() === ''
+  const customGallons = size === null ? parseGallons(draft.tanker.custom_gallons) : null
+  const sizeText = describeTankSize(size, draft.tanker.custom_gallons)
 
   return (
     <MobileShell>
@@ -68,6 +73,7 @@ export function TankerOrder() {
               >
                 <span className="text-[16px] font-extrabold">{g.toLocaleString('en-NG')}</span>
                 <span className="text-[11px] text-mute">gallons</span>
+                <span className="text-[11px] text-mute">{litresFromGallons(g).toLocaleString('en-NG')} L</span>
               </OptionTile>
             ))}
             <OptionTile
@@ -82,7 +88,7 @@ export function TankerOrder() {
           </div>
           {size !== null ? (
             <p className="mt-2 mb-0 text-caption text-mute" aria-live="polite">
-              {size.toLocaleString('en-NG')} gallons is {describeTankLitres(size)}.
+              {size.toLocaleString('en-NG')} gallons is {litresFromGallons(size).toLocaleString('en-NG')} litres.
             </p>
           ) : (
             <TextField
@@ -90,7 +96,11 @@ export function TankerOrder() {
               label="Your tank size in gallons"
               inputMode="numeric"
               placeholder="e.g. 2,000"
-              hint="Our team will call you with a price for this size."
+              hint={
+                customGallons !== null
+                  ? `That is ${litresFromGallons(customGallons).toLocaleString('en-NG')} litres. Our team will call you with a price for this size.`
+                  : 'Our team will call you with a price for this size.'
+              }
               value={draft.tanker.custom_gallons}
               onChange={(e) => update((d) => ({ tanker: { ...d.tanker, custom_gallons: e.target.value.replace(/[^\d,]/g, '') } }))}
             />
@@ -106,11 +116,7 @@ export function TankerOrder() {
               <Illustration name="tanker" className="animate-drive h-auto w-[124px] shrink-0" />
               <div className="flex-1">
                 <KeyValue label="Tank" value={draft.tanker.tank_type === 'ground' ? 'Ground tank' : 'Overhead tank'} />
-                <KeyValue
-                  label="Capacity"
-                  value={size === null ? (draft.tanker.custom_gallons ? `${draft.tanker.custom_gallons} gallons` : 'Custom') : `${size.toLocaleString('en-NG')} gallons`}
-                />
-                {size !== null && <KeyValue label="In litres" value={describeTankLitres(size)} />}
+                <KeyValue label="Capacity" value={sizeText ?? 'Custom'} />
                 <KeyValue label="Source" value={WATER_SOURCE_LABEL[draft.source]} />
                 {q && <KeyValue label="Water" value={formatNaira(q.water.amount_minor_units)} />}
                 <KeyValue label="Delivery" value={<span className="font-semibold text-mute">After address</span>} />
