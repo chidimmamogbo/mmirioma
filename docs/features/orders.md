@@ -88,7 +88,7 @@ users 1 ──< orders 1 ──< order_events >── 0..1 users (actor)
 | `created_at`, `updated_at` | timestamptz | Database `now()` |
 | `source_id` | UUID FK `water_sources.id`, nullable | Since `0007`, for driver jobs ([driver-jobs.md](driver-jobs.md)) |
 | `delivery_window_start_at`, `delivery_window_end_at` | timestamptz, nullable | Since `0007`. Confirmed window; both or neither, end after start. Stands in for a slot until FR-025 |
-| `delivery_type` | varchar(10) + CHECK, nullable | Since `0016` (#21): `keke` or `tanker`; null on quantity-only requests |
+| `delivery_type` | varchar(10) + CHECK, nullable | Since `0017` (#21): `keke` or `tanker`; null on quantity-only requests |
 | `keke_can_size_litres`, `keke_can_count` | integer, nullable | Keke only: 25 or 50 litres, and the number of jerrycans |
 | `tanker_tank_type`, `tanker_quantity_local_gallons` | varchar(10) + CHECK / integer, nullable | Tanker only: `ground` or `overhead`, and the gallons sent |
 | `water_source` | varchar(12) + CHECK, nullable | Tanker only: `ninth_mile` or `borehole`, a **preference** |
@@ -97,7 +97,7 @@ users 1 ──< orders 1 ──< order_events >── 0..1 users (actor)
 Indexes: `(customer_id, created_at)` for a customer's list, `(status,
 created_at)` for the dispatcher queue, `source_id`, `service_zone_id`.
 
-CHECK `ck_orders_delivery_details_shape` (since `0016`) allows three shapes:
+CHECK `ck_orders_delivery_details_shape` (since `0017`) allows three shapes:
 no details (quantity-only), Keke details with `quantity_litres` = size x
 count, or Tanker details with `quantity_litres` = gallons x 4 and a source
 preference. No code path can store details that disagree with the litres.
