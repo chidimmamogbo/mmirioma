@@ -8,8 +8,12 @@
   earlier the same day (issues #30 and #21).
 - **Cause:** the agent's automatic permission check judged this edit risky;
   it gave no reason.
-- **Fix / workaround:** the owner edits the issue in the browser, or allows
-  the command for the agent. The intended change (#21's capacity bullet,
-  after #40) is in the PR that records this entry.
-- **Status:** workaround
-- **Refs:** #21, #40
+- **Fix / workaround:** the owner added an allow rule to their own Claude
+  Code user settings (`~/.claude/settings.json`, not committed):
+  `"permissions": {"allow": ["Bash(gh api -X PATCH repos/chidimmamogbo/mmirioma/issues/*)"]}`.
+  The rule covers only issue edits on this fork. Run the `gh api` command on
+  its own, not chained after other commands, so it matches the rule. The #21
+  capacity bullet (after #40) was then updated. Without the rule, edit the
+  issue in the browser.
+- **Status:** resolved
+- **Refs:** #21, #40, PR #49
