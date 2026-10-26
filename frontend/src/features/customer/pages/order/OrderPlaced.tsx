@@ -12,9 +12,8 @@ import { KeyValue, Separator } from '../../../../components/ui/Content'
 import { IconButton } from '../../../../components/ui/IconButton'
 import { STAGE_LABEL, describeChoice } from '../../../../domain/orders'
 import { formatNaira } from '../../../../lib/format/money'
-import { formatPhone } from '../../../../lib/format/phone'
 import { StageChip } from '../../components/OrderBits'
-import { useOrder, useProfile } from '../../queries'
+import { useOrder } from '../../queries'
 
 const CONFETTI = [
   { left: 40, top: 10, color: '#1570D8', delay: 0 },
@@ -33,7 +32,6 @@ const CONFETTI = [
 export function OrderPlaced() {
   const { reference } = useParams()
   const order = useOrder(reference)
-  const profile = useProfile()
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -62,11 +60,6 @@ export function OrderPlaced() {
         <p className="rise-2 m-0 max-w-[290px] text-sub text-mute">
           We are finding a rider near you. You will see them here the moment one accepts.
         </p>
-        {profile.data && !profile.data.phone_verified && (
-          <p className="m-0 max-w-[300px] text-caption font-bold text-amber">
-            Our team will call {formatPhone(profile.data.phone)} to confirm your number before a rider is sent.
-          </p>
-        )}
         {order.isPending && <LoadingBlock lines={1} label="Loading your order" />}
         {order.isError && <ErrorBlock error={order.error} onRetry={() => order.refetch()} />}
         {o && (

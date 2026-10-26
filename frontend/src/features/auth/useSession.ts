@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api/client'
-import type { LoginInput, RegisterInput, Session } from '../../lib/api/auth'
-import { getMe, login, logout, register } from './authApi'
+import type { LoginInput, RegisterInput, Session, User } from '../../lib/api/auth'
+import type { PhoneChangeInput } from '../../lib/api/phoneVerification'
+import { getMe, login, logout, register, requestPhoneChange, requestPhoneVerification, verifyPhone, verifyPhoneChange } from './authApi'
 
 export const SESSION_KEY = ['session'] as const
 
@@ -65,4 +66,39 @@ export function useLogout() {
       qc.setQueryData(SESSION_KEY, null)
     },
   })
+}
+
+/**
+ * Put the updated user from a phone verification or change into the session,
+ * and refetch everything else, since screens such as the profile show the
+ * phone and its status too.
+ */
+function useApplyUser() {
+  const qc = useQueryClient()
+  return (user: User) => {
+    qc.setQueryData<Session | null>(SESSION_KEY, (s) => (s ? { ...s, user } : s))
+    void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== SESSION_KEY[0] })
+  }
+}
+
+/** Send an SMS code to the account's phone (FR-003, docs/api/auth.md). */
+export function useRequestPhoneVerification() {
+  return useMutation({ mutationFn: () => requestPhoneVerification() })
+}
+
+/** Check the SMS code; on success the session shows the phone as verified. */
+export function useVerifyPhone() {
+  const apply = useApplyUser()
+  return useMutation({ mutationFn: (code: string) => verifyPhone(code), onSuccess: apply })
+}
+
+/** Send an SMS code to a new number (FR-004). The account keeps its number until verified. */
+export function useRequestPhoneChange() {
+  return useMutation({ mutationFn: (input: PhoneChangeInput) => requestPhoneChange(input) })
+}
+
+/** Check the code sent to the new number; on success the session has the new number. */
+export function useVerifyPhoneChange() {
+  const apply = useApplyUser()
+  return useMutation({ mutationFn: (code: string) => verifyPhoneChange(code), onSuccess: apply })
 }

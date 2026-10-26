@@ -9,6 +9,7 @@ import { HomeAppCard } from '../../pwa/PushParts'
 import { ButtonLink } from '../../../components/ui/Button'
 import { CustomerTabs, CustomerTopBar } from '../components/CustomerChrome'
 import { RecentOrderCard } from '../components/OrderBits'
+import { VerifyPhoneBanner } from '../components/VerifyPhoneBanner'
 import { useOrderDraft } from '../order/orderDraftContext'
 import { draftFromOrder } from '../order/reorder'
 import { useAddresses, useOrders, usePoints, useProfile } from '../queries'
@@ -44,6 +45,7 @@ export function Home() {
     <MobileShell>
       <CustomerTopBar />
       <ScrollArea className="gap-3.5">
+        <VerifyPhoneBanner from="/home" />
         {defaultAddress ? (
           <CardLink to="/order/details" className="rise-1 flex items-center gap-3 px-3.5 py-2.5">
             <IconBadge tone="blue" size={36} radius={11}>

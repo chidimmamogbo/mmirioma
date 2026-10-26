@@ -109,6 +109,24 @@ export interface MockState {
    * because data saved before this list existed does not have it.
    */
   newsletter?: { email: string; subscribed_at: string }[]
+  /**
+   * The open SMS code per user (auth.md, phone verification), mock only.
+   * Optional because data saved before phone verification does not have it.
+   */
+  phoneCodes?: Record<string, MockPhoneCode>
+  /** When codes were sent, per phone number (E.164), for the hourly limit. */
+  phoneCodeSends?: Record<string, string[]>
+}
+
+/** One SMS code: for the account's own phone, or for a new number (phone change). */
+export interface MockPhoneCode {
+  purpose: 'verify' | 'change'
+  /** Where the code went, E.164. For a change, the new number. */
+  phone: string
+  code: string
+  sent_at: string
+  expires_at: string
+  attempts_left: number
 }
 
 export const DEMO_CUSTOMER_ID = 'user-adaeze'

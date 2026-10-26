@@ -36,7 +36,7 @@ Screens added from existing patterns (not in the handoff) are listed under
 | 1 | Handoff files | Keep `design/` untracked; added to `.gitignore` |
 | 3 | Gates | CLAUDE.md design/contract gates do not block frontend work in this fork |
 | 6 | Sign in and sign up | Phone number and password only, as in [auth.md](../api/auth.md). Google sign-in and the sign-up email field are removed. Customers and drivers can add an **optional email** later in their account settings, for updates, newsletters and promo alerts |
-| 7 | Verify phone (`c-verify`) | Not used. Sign-up goes straight to home. Phone verification stays manual by admin (FR-003); the UI never claims automated verification |
+| 7 | Verify phone (`c-verify`) | **Superseded** (2026-10-26) by [phone-verification.md](phone-verification.md): SRS v0.2 FR-003 requires an SMS code before the first order. Was: not used, sign-up straight to home, manual verification by admin |
 | 8 | Admin login | No design; built from the rider login pattern |
 | 9 | Drivers | One `driver` role. Drivers choose a vehicle type (Keke or Tanker) when they sign up; available orders are grouped by vehicle type |
 | 10 | Prices | All naira amounts are SAMPLE. Water price is per jerrycan (Keke) or per tank size (Tanker). The final price adds a delivery fee once the address is known, based on distance from the refill source to the customer, configured by admin. The **Tanker** quantity screen also asks for the **water source**: "Ninth Mile water" or "Any Bore hole water". **Changed 2026-10-16: Keke orders do not ask for a source**; jerrycans have one price per size |

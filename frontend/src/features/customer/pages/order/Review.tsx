@@ -5,17 +5,20 @@ import { Illustration } from '../../../../components/brand/Illustration'
 import { BanknoteIcon, MapPinIcon } from '../../../../components/icons/icons'
 import { BackLink, Footer, MobileShell, ScrollArea, TopBar } from '../../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../../components/layout/StateScreens'
-import { Button } from '../../../../components/ui/Button'
+import { Button, ButtonLink } from '../../../../components/ui/Button'
 import { Card } from '../../../../components/ui/Card'
-import { Chip, SampleTag } from '../../../../components/ui/Chip'
+import { SampleTag } from '../../../../components/ui/Chip'
 import { IconBadge, KeyValue, SectionHeader, TextLink } from '../../../../components/ui/Content'
 import { Notice } from '../../../../components/ui/Notice'
 import { WATER_SOURCE_LABEL, describeTankSize, kekeTotalLitres } from '../../../../domain/orders'
 import { describeQuantity } from '../../../../domain/quantity'
+import { ApiError } from '../../../../lib/api/client'
 import { errorMessage } from '../../../../lib/api/errorMessage'
 import { formatNaira } from '../../../../lib/format/money'
 import { formatPhone, normalizeNigerianPhone } from '../../../../lib/format/phone'
+import { useSession } from '../../../auth/useSession'
 import { OrderStepHeading } from '../../components/OrderParts'
+import { VerifyPhoneBanner } from '../../components/VerifyPhoneBanner'
 import { draftChoice } from '../../order/draft'
 import { useOrderDraft } from '../../order/orderDraftContext'
 import { useAddresses, useCreateOrder, useCreateTicket, useProfile, useQuote } from '../../queries'
@@ -25,6 +28,9 @@ export function Review() {
   const navigate = useNavigate()
   const { draft, reset } = useOrderDraft()
   const profile = useProfile()
+  const session = useSession()
+  // FR-003: no water request until the phone is verified (docs/design/phone-verification.md, E3).
+  const unverified = Boolean(session.data && !session.data.user.phone_verified)
   const addresses = useAddresses()
   const createOrder = useCreateOrder()
   const requestQuote = useCreateTicket()
@@ -95,6 +101,7 @@ export function Review() {
       <TopBar left={<BackLink to={saved ? '/order/address' : '/order/save-address'} />} />
       <ScrollArea className="gap-3">
         <OrderStepHeading step={4} title="Review your order" sub="Check everything before you place it." />
+        <VerifyPhoneBanner from="/order/review" className="rise-1" />
         <Card pad className="rise-2">
           <SectionHeader
             title={choice.delivery_type === 'keke' ? 'Keke delivery' : 'Tanker delivery'}
@@ -175,28 +182,38 @@ export function Review() {
           </div>
         )}
         {quote.isPending && <LoadingBlock lines={1} label="Getting your price" />}
-        {(createOrder.isError || requestQuote.isError) && (
-          <Notice tone="error">
-            {errorMessage(createOrder.error ?? requestQuote.error)} Your details are kept; you can try again.
-          </Notice>
-        )}
-        {profile.data && !profile.data.phone_verified && (
-          <Chip tone="amber" className="self-start whitespace-normal">
-            Our team will call {formatPhone(profile.data.phone)} to confirm your number before a rider is sent.
-          </Chip>
-        )}
+        {(createOrder.isError || requestQuote.isError) &&
+          (notVerifiedError(createOrder.error ?? requestQuote.error) ? (
+            <Notice tone="error">
+              <b>Verify your phone number first.</b> You need a verified number to send a water request. Your details are kept.
+              <span className="mt-2 block">
+                <ButtonLink to="/verify-phone" state={{ from: '/order/review' }} size="sm" block={false}>
+                  Verify phone
+                </ButtonLink>
+              </span>
+            </Notice>
+          ) : (
+            <Notice tone="error">
+              {errorMessage(createOrder.error ?? requestQuote.error)} Your details are kept; you can try again.
+            </Notice>
+          ))}
       </ScrollArea>
       <Footer>
         {needsQuote ? (
-          <Button onClick={sendQuoteRequest} loading={requestQuote.isPending} disabled={!address}>
+          <Button onClick={sendQuoteRequest} loading={requestQuote.isPending} disabled={!address || unverified}>
             Request a quote
           </Button>
         ) : (
-          <Button onClick={place} loading={createOrder.isPending} disabled={!q || !address}>
+          <Button onClick={place} loading={createOrder.isPending} disabled={!q || !address || unverified}>
             {q ? `Place order · ${formatNaira(q.total_minor_units)}` : 'Place order'}
           </Button>
         )}
       </Footer>
     </MobileShell>
   )
+}
+
+/** The server refused the order because the phone is not verified (403 `phone_not_verified`, orders.md). */
+function notVerifiedError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'phone_not_verified'
 }

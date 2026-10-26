@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Wave } from '../../../components/art/Art'
-import { CameraBodyIcon, ChevronLeftIcon, ChevronRightIcon } from '../../../components/icons/icons'
+import { AlertCircleIcon, CameraBodyIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from '../../../components/icons/icons'
 import { MobileShell, ScrollArea, TopBarSpacer } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Avatar } from '../../../components/ui/Avatar'
@@ -14,7 +14,7 @@ import { Notice } from '../../../components/ui/Notice'
 import type { CustomerProfile } from '../../../domain/orders'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatPhone } from '../../../lib/format/phone'
-import { useLogout } from '../../auth/useSession'
+import { useLogout, useSession } from '../../auth/useSession'
 import { PushSettingRows } from '../../pwa/PushParts'
 import { useProfile, useUpdateProfile } from '../queries'
 
@@ -33,6 +33,9 @@ export function Profile() {
   const profile = useProfile()
   const update = useUpdateProfile()
   const logout = useLogout()
+  // Phone and its status come from the session (`GET /auth/me`), so this card
+  // works with the real API even before the rest of the profile is linked.
+  const user = useSession().data?.user
   const [leaving, setLeaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [photoError, setPhotoError] = useState<string | null>(null)
@@ -105,18 +108,41 @@ export function Profile() {
                 </div>
                 <Stat value={p.stats.addresses} label="Addresses" />
               </Card>
-              <Card className="rise-3 px-4 py-1">
-                <div className="mo-li">
+            </>
+          )}
+          {user && (
+            <Card className="rise-3 px-4 py-1">
+              <div className="mo-li">
+                <span className="flex-1">
+                  <span className="block text-chip text-mute">Phone</span>
+                  <span className="font-bold">{formatPhone(user.phone)}</span>
+                </span>
+                {/* Icon and words, never colour alone (phone-verification.md, decision 8). */}
+                {user.phone_verified ? (
+                  <Chip tone="green" icon={<CheckIcon size={14} strokeWidth={3} />} className="px-2 py-[3px]">
+                    Verified
+                  </Chip>
+                ) : (
+                  <Chip tone="amber" icon={<AlertCircleIcon size={14} />} className="px-2 py-[3px]">
+                    Not verified yet
+                  </Chip>
+                )}
+              </div>
+              {!user.phone_verified && (
+                <Link to="/verify-phone" state={{ from: '/profile' }} className="mo-li hover:text-ink">
                   <span className="flex-1">
-                    <span className="block text-chip text-mute">Phone</span>
-                    <span className="font-bold">{formatPhone(p.phone)}</span>
+                    <span className="block font-bold">Verify your phone number</span>
+                    <span className="text-chip text-mute">Needed before your first water request.</span>
                   </span>
-                  {p.phone_verified ? (
-                    <Chip tone="green" className="px-2 py-[3px]">Verified</Chip>
-                  ) : (
-                    <Chip tone="amber" className="px-2 py-[3px]">Not verified yet</Chip>
-                  )}
-                </div>
+                  <span className="text-[13px] font-bold text-primary">Verify</span>
+                </Link>
+              )}
+              <SettingLink to="/profile/phone">Change phone number</SettingLink>
+            </Card>
+          )}
+          {p && (
+            <>
+              <Card className="rise-3 px-4 py-1">
                 <div className="mo-li">
                   <span className="min-w-0 flex-1">
                     <span className="block text-chip text-mute">Email (optional)</span>

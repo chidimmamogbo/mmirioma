@@ -4,7 +4,8 @@ Requirements: FR-003, FR-004, FR-055 (SMS template), NFR-002, NFR-003, NFR-004 �
 Acceptance tests: T-15, T-16 · Contract:
 [docs/api/auth.md](../api/auth.md#phone-verification-fr-003-fr-004)
 (agreed) · Design: [phone-verification.md](../design/phone-verification.md)
-(approved 2026-10-19)
+(the fork's placement of the main repo design approved 2026-10-19; approved
+for the fork 2026-10-26, #6)
 
 ## 1. Overview and purpose
 
@@ -16,8 +17,10 @@ limits that stop abuse, and blocks orders from unverified customers.
 
 The customer screens follow the approved design: V1 Send a code, V2 Enter
 the code, V3 Verified (`/verify-phone`) and P1 New number, P2 Enter the code
-for the new number, P3 Number changed (`/change-phone`), reached from Create
-account, the My orders banner, Request water and the account menu.
+for the new number, P3 Number changed (`/profile/phone`), reached from Create
+account, the Home banner, the order Review screen and My profile. The backend
+part below was copied from the main repo (PR #4); the frontend part is the
+fork's (#6).
 
 ## 2. Feature workflow
 
@@ -72,14 +75,16 @@ P1 ─> 202 ─> P2 ─> 200 ─> session updated (new phone) ─> P3 ─> Done
 | `backend/app/shared/phone.py` | `format_phone_for_display` for the support number in SMS |
 | `backend/alembic/versions/20261017_0004_add_phone_verifications.py` | Migration `0004` |
 | `frontend/src/lib/api/phoneVerification.ts` | Typed `requestPhoneVerification`, `verifyPhone`, `requestPhoneChange`, `verifyPhoneChange` |
-| `frontend/src/features/phone-verification/VerifyPhonePage.tsx` | `/verify-phone`: V1, V3; `PhoneDisplay` and `SuccessStep` (design system additions) |
-| `frontend/src/features/phone-verification/ChangePhonePage.tsx` | `/change-phone`: P1 form, P3 |
-| `frontend/src/features/phone-verification/CodeStep.tsx` | V2 and P2: code entry, tries left, resend countdown, slow-SMS hint, banners, toast |
-| `frontend/src/features/phone-verification/logic.ts` | Texts, `cleanCode`, `resendWaitSeconds`, countdown and tries wording, error-to-banner mapping, safe return path |
-| `frontend/src/features/phone-verification/useCountdown.ts` | Resend countdown hook |
-| `frontend/src/features/phone-verification/VerifyPhoneBanner.tsx` | Entry banner on My orders and Request water (replaces X6) |
-| `frontend/src/components/ui/CodeField.tsx` | Design-system code field: one numeric input, one-time-code autofill, no `maxlength` |
-| `frontend/src/features/auth/components/CustomerHeader.tsx` | Account menu: "Verified" / "Not verified yet" badge, "Change phone number" |
+| `frontend/src/features/auth/authApi.ts` | The same four functions for screens: real API, or the mock in mock mode |
+| `frontend/src/features/auth/useSession.ts` | Mutations; a verified or changed user replaces the session's user |
+| `frontend/src/features/auth/PhoneCodeParts.tsx` | `CodeStep` (V2 and P2: code field, tries left, resend countdown, slow-SMS hint), `SuccessStep`, `PhoneDisplay`, `ProblemNotice` |
+| `frontend/src/features/auth/phoneCode.ts` | `cleanCode`, `resendWaitMs` (countdown from server times), `waitText` |
+| `frontend/src/features/customer/pages/VerifyPhone.tsx` | `/verify-phone`: V1, V2, V3; "Do this later" after Create account |
+| `frontend/src/features/customer/pages/ChangePhone.tsx` | `/profile/phone`: P1, P2, P3 |
+| `frontend/src/features/customer/components/VerifyPhoneBanner.tsx` | Banner on Home and Review while unverified |
+| `frontend/src/features/customer/pages/order/Review.tsx` | Send buttons off while unverified; 403 `phone_not_verified` keeps the details |
+| `frontend/src/features/customer/pages/Profile.tsx` | Phone with "Verified" / "Not verified yet", "Verify", "Change phone number" |
+| `frontend/src/mocks/phoneVerificationMock.ts` | Mock of the four endpoints (code printed to the browser console) |
 
 ## 4. Database models and relationships
 
@@ -210,22 +215,19 @@ TEST_DATABASE_URL=postgresql+asyncpg://mmirioma:<password>@localhost:5432/mmirio
 
 Frontend (`cd frontend && npm test`):
 
-- `src/features/phone-verification/logic.test.ts`: code clean-up for pasted
-  codes, countdown from server times (clock-independent), tries wording,
-  rate-limit texts kept from the server, banner actions, safe return path.
-- `src/features/phone-verification/phoneVerification.test.tsx` (jsdom, the
-  real routes and session with the API mocked): V1 (sent only after 202, too
-  many codes with wait, SMS failed with Retry, already verified as success);
-  V2 (single numeric field with autofill and focus, paste, incomplete code,
-  wrong code with tries left, last try, expired, countdown end announced,
-  slow hint, new code toast, too many attempts on Verify, no connection with
-  Retry); V3 (focus, return to My orders without the banner, return to
-  Request water with the draft kept); account menu status; P1 checks, wrong
-  password, same number; full change with resend reusing the input; number
-  taken on P2 with Change number.
-- `src/features/customer-orders/customerOrders.test.tsx`: My orders banner
-  leads to V1; Request water blocked while unverified; 403
-  `phone_not_verified`.
+- `src/lib/api/phoneVerification.test.ts`: each endpoint with a mocked
+  `fetch`: success and its error codes (429 with the wait, 503, wrong code
+  with tries left, wrong password, number taken).
+- `src/features/auth/phoneCode.test.ts`: pasted codes, countdown from server
+  times only, wait wording.
+- `src/mocks/phoneVerificationMock.test.ts`: the mock keeps the contract's
+  limits (60 s, 5 tries, one use, already verified, number kept until the
+  change is verified).
+- `src/features/customer/pages/VerifyPhone.test.tsx` (jsdom, mock mode): "Do
+  this later" after sign-up; wrong code with tries left, then verified and
+  back to Review; paste; incomplete code; no tries left; wait after too many
+  codes; already verified; P1 wrong password; full change with the old number
+  kept until verified.
 
 Manual check in development: request a code, then read it in the backend
 console line `MOCK SMS (not sent) to +234800****001: Your MmiriOma code is …`.
