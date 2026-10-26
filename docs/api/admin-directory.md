@@ -81,7 +81,7 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
 
 - Every endpoint requires a signed-in, active `admin` ([auth.md](auth.md)).
   Customers and drivers get 403 `forbidden` (FR-001). The one exception is
-  [`GET /service-zones`](#get-service-zones), which is for customers only.
+  [`GET /service-zones`](#get-service-zones), which needs no session.
 - Unsafe requests (`POST`, `PATCH`) need the `X-CSRF-Token` header (403
   `csrf_failed`).
 - Every write records an audit row (NFR-004) with the actor, the action, the
@@ -488,7 +488,7 @@ estimates", FR-022).
 | GET | `/admin/service-zones` | none | 200 `{ "items": [ServiceZone] }` | none beyond shared |
 | POST | `/admin/service-zones` | `ServiceZoneWrite` | 201 `ServiceZone` | 404 `water_category_not_found`, 409 `service_zone_name_taken`, 422 `validation_error` |
 | PATCH | `/admin/service-zones/{id}` | `ServiceZoneWrite`, fields optional | 200 `ServiceZone` | 404 `service_zone_not_found`, 404 `water_category_not_found`, 409 `service_zone_name_taken`, 422 `validation_error` |
-| GET | `/service-zones` | none | 200 `{ "items": [ServiceZoneOption] }` | none beyond shared |
+| GET | `/service-zones` | none | 200 `{ "items": [ServiceZoneOption] }` | 503 `service_unavailable` only (no session) |
 
 `GET /admin/service-zones` returns every zone, active or not, by name, with
 no pagination: a pilot has a handful of zones. `ServiceZoneWrite` is the
@@ -506,9 +506,11 @@ The mock's 409 `area_exists` becomes `service_zone_name_taken`.
 #### GET /service-zones
 
 The zones a customer can pick for an address (FR-020,
-[Which zone an address is in](#which-zone-an-address-is-in)). Signed-in
-`customer` only; staff and drivers get 403 `forbidden` (they use
-`GET /admin/service-zones`). Active zones only, by name, no pagination
+[Which zone an address is in](#which-zone-an-address-is-in)), and a partner
+at sign-up ([partners.md](partners.md#post-authpartner-register), open
+question 2). **No session needed** (amended 2026-10-26): partner sign-up runs
+before there is one. Any role may call it, and it needs no CSRF token (a
+`GET`). Active zones only, by name, no pagination
 ([service-zones.json](examples/service-zones.json)):
 
 ```json
@@ -517,7 +519,8 @@ The zones a customer can pick for an address (FR-020,
 
 `ServiceZoneOption` is `id` and `name` only: no fees (customers see the
 total only, [order-details-and-price.md](order-details-and-price.md#response-200-quoteread)),
-no coordinates or boundary.
+no coordinates or boundary, so nothing in it needs a session to protect.
+Inactive zones are never listed.
 
 ## Price lists
 
@@ -732,5 +735,6 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | `GET /service-zones` needs no session (any caller), for partner sign-up ([partners.md](partners.md) open question 2) | @nnamdi-security (technical lead) |
 | 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Service zones section: @nnamdi-security (technical lead, PR #36). Rest: not yet |
 | 2026-10-26 | Proposed (#18, PR #34) | Not yet |
