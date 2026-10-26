@@ -2,19 +2,29 @@
   "id": "4a2e8c1d-6b3f-4e7a-9c15-2d8f0b6a7e31",
   "name": "Sample Rider",
   "phone": "+2348000000301",
-  "email": null,
+  "phone_verified": true,
   "approval_status": "approved",
   "is_available": true,
   "partner_since": "2026-08-14",
   "vehicle": {
-    "kind": "keke",
+    "delivery_type": "keke",
     "plate": "ENU-123-AB",
     "description": "Tricycle with 1,000 L tank",
     "declared_capacity_gallons": null,
     "declared_capacity_litres": null,
     "safe_payload_litres": 1000,
-    "transfer_methods": ["ground"]
+    "transfer_methods": [
+      "ground"
+    ]
   },
-  "service_zones": [{ "id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10", "name": "GRA" }],
-  "preferences": { "new_order_alerts": true, "sms_updates": true, "offers_and_news": false }
+  "service_zones": [
+    {
+      "id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10",
+      "name": "GRA"
+    }
+  ],
+  "preferences": {
+    "new_order_alerts": true,
+    "sms_updates": true
+  }
 }

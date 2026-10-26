@@ -2,12 +2,12 @@
   "id": "7b5d3f9a-2e8c-4a1b-b6d4-9c0e1f2a3b45",
   "name": "Sample Driver",
   "phone": "+2348000000302",
-  "email": null,
+  "phone_verified": false,
   "approval_status": "pending",
   "is_available": false,
   "partner_since": "2026-10-26",
   "vehicle": {
-    "kind": "tanker",
+    "delivery_type": "tanker",
     "plate": "ENU 456 CD",
     "description": null,
     "declared_capacity_gallons": 4000,
@@ -15,6 +15,14 @@
     "safe_payload_litres": null,
     "transfer_methods": []
   },
-  "service_zones": [{ "id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10", "name": "GRA" }],
-  "preferences": { "new_order_alerts": true, "sms_updates": true, "offers_and_news": false }
+  "service_zones": [
+    {
+      "id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10",
+      "name": "GRA"
+    }
+  ],
+  "preferences": {
+    "new_order_alerts": true,
+    "sms_updates": true
+  }
 }

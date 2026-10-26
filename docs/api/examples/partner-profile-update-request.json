@@ -1,1 +1,1 @@
-{ "email": "rider@example.com", "preferences": { "offers_and_news": true } }
+{ "preferences": { "sms_updates": false } }
