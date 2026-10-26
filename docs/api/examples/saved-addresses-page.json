@@ -5,6 +5,7 @@
       "label": "Home",
       "address": "12 Sample Close, Independence Layout, Enugu",
       "landmark": "Opposite the blue gate",
+      "zone": { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout", "is_active": true },
       "is_default": true,
       "created_at": "2026-10-14T09:31:00Z",
       "updated_at": "2026-10-14T09:31:00Z"
@@ -14,6 +15,7 @@
       "label": "Office",
       "address": "4 Sample Road, GRA, Enugu",
       "landmark": null,
+      "zone": { "id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10", "name": "GRA", "is_active": true },
       "is_default": false,
       "created_at": "2026-10-20T15:02:00Z",
       "updated_at": "2026-10-20T15:02:00Z"

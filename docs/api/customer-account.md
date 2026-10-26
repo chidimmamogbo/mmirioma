@@ -114,6 +114,7 @@ the order's inputs).
   "label": "Home",
   "address": "12 Sample Close, Independence Layout, Enugu",
   "landmark": "Opposite the blue gate",
+  "zone": { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout", "is_active": true },
   "is_default": true,
   "created_at": "2026-10-14T09:31:00Z",
   "updated_at": "2026-10-14T09:31:00Z"
@@ -125,29 +126,38 @@ the order's inputs).
 | `label` | Trimmed, 1–40 characters ("Home", "Office", "Mum's house"); mock limit |
 | `address` | Trimmed, 5–500 characters, free text; same rule as `OrderCreate.delivery_address` |
 | `landmark` | Optional, up to 200 characters; same as `OrderCreate.landmark`. Empty becomes `null` |
+| `zone` | The service zone the customer picked for this address (FR-020), from [`GET /service-zones`](admin-directory.md#get-service-zones). `is_active` is read live: an address in a zone switched off stays saved, and its quote answers `outside_service_zone` (FR-010) |
 | `is_default` | Exactly one address is the default whenever the customer has any |
 
-Service zones (FR-010, #30) are not stored on an address yet: the zone is
-worked out when a quote is asked for.
+Every saved address has a service zone, as on the admin side
+([admin-directory.md](admin-directory.md#customers) `Address`, SRS §5
+`addresses.zone_id`, FR-020). The customer picks it; the server never works it
+out from the address text
+([Which zone an address is in](admin-directory.md#which-zone-an-address-is-in),
+agreed for #30). A customer whose area is not listed can still order with no
+zone (a quote request), but cannot save that address.
 
 ### Endpoints
 
 | Method | Path | Body | Success | Errors |
 | --- | --- | --- | --- | --- |
 | GET | `/me/addresses` | none | 200 page of addresses, default first, then newest | 422 `validation_error` (query) |
-| POST | `/me/addresses` | `AddressInput` | 201 address | 409 `address_limit_reached`, 422 `validation_error` |
-| PATCH | `/me/addresses/{id}` | `AddressInput` | 200 address | 404 `address_not_found`, 422 `validation_error` |
+| POST | `/me/addresses` | `AddressInput` | 201 address | 404 `service_zone_not_found`, 409 `address_limit_reached`, 422 `validation_error` |
+| PATCH | `/me/addresses/{id}` | `AddressInput` | 200 address | 404 `address_not_found`, 404 `service_zone_not_found`, 422 `validation_error` |
 | POST | `/me/addresses/{id}/default` | none | 200 address | 404 `address_not_found` |
 | DELETE | `/me/addresses/{id}` | none | 204 | 404 `address_not_found`, 409 `default_address` |
 
 `AddressInput` ([address-create-request.json](examples/address-create-request.json)):
 
 ```json
-{ "label": "Office", "address": "4 Sample Road, GRA, Enugu", "landmark": null, "make_default": false }
+{ "label": "Office", "address": "4 Sample Road, GRA, Enugu", "landmark": null, "zone_id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10", "make_default": false }
 ```
 
-Rules (from the mock):
+Rules (from the mock, plus the zone):
 
+- `zone_id` is required; an unknown zone is 404 `service_zone_not_found`.
+  As on the admin side, an inactive zone is not refused here: the quote
+  checks the zone (`outside_service_zone`).
 - The **first** address is always the default, whatever `make_default` says.
 - `make_default: true` makes this address the default and clears the old
   one, in one transaction (on create or update).
@@ -394,9 +404,13 @@ Example: [error-default-address.json](examples/error-default-address.json).
 
 ## Data needed (for the build issue)
 
-- `customer_addresses`: `user_id` (RESTRICT), `label`, `address`, `landmark`,
-  `is_default`, timestamps; a partial unique index on (`user_id`) where
-  `is_default`, so a customer can never have two defaults.
+- `customer_addresses`: **the same table** as
+  [admin-directory.md](admin-directory.md#data-needed) (one table, two sets
+  of endpoints): the customer's user (RESTRICT), `zone_id` (required, foreign
+  key to `service_zones`), `label`, `address`, `landmark`, `is_default`,
+  timestamps; a partial unique index on the customer where `is_default`, so a
+  customer can never have two defaults. The label length differs between the
+  two contracts ([open question 13](#open-questions)).
 - `feedback` (SRS §5): `order_id` (unique), `rating`, `poured_by_partner`,
   `on_time`, `quantity_as_ordered`, `would_reorder`, `message`, timestamps.
 - `notifications` (SRS §5) with channel `in_app` and a `read_at`.
@@ -419,7 +433,7 @@ For the linking adapters (`frontend/src/features/customer/real/`):
 | Backend | Design (`domain/orders.ts`) |
 | --- | --- |
 | `CustomerProfile` | `CustomerProfile`: `email` `null`, `photo_url` `null`; `preferences` and `stats.points` have no backend value. The design type requires them, so linking needs a small type and screen change (switches and the points stat hidden), never a filled-in `false` or `0` that would look real |
-| Address object | `SavedAddress`: same fields; `created_at` / `updated_at` dropped |
+| Address object | `SavedAddress`: same fields; `created_at` / `updated_at` dropped; `zone` dropped until the screen shows it. Adding and editing an address needs a zone picker on the screen (G2) |
 | `Feedback` | `CustomerOrder.feedback` `{rating, poured_by_partner}` |
 | Notification object | `CustomerNotification`: `created_at` → `at`; `order_confirmed`, `cancelled`, `delivery_failed` are new kinds for the design to give icons |
 | Support request object | `SupportTicket`: `reference` → `number`, `PROBLEM_LABEL[type]` → `title`, `status` same, `kind` `problem` |
@@ -477,9 +491,14 @@ Recommendations are proposals, not decisions.
 12. **Points.** Needs business rules in the SRS before any contract (earning,
     value, rounding, expiry, redemption, refunds of points on cancellation).
     For the technical lead.
+13. **Address label length.** This contract allows 1–40 characters (the
+    mock); [admin-directory.md](admin-directory.md#customers) allows 2–50.
+    Both write the same `customer_addresses` table, so one rule must win.
+    **Recommended:** 1–50, which accepts every label either screen allows.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Saved addresses carry the zone the customer picked (`zone`, required `zone_id`), one `customer_addresses` table shared with admin-directory.md, as agreed for #30; open question 13 added | Not yet |
 | 2026-10-26 | Proposed: profile read, saved addresses, order feedback, in-app notifications, support requests, account deletion request; no points endpoint | Not yet |
