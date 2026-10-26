@@ -5,7 +5,7 @@
  *
  * No contract exists yet; served by mocks. Money in kobo, times in UTC.
  */
-import type { PaymentStatus, WaterChoice } from './orders'
+import type { WaterChoice } from './orders'
 
 export type VehicleType = 'keke' | 'tanker'
 export type ApprovalStatus = 'pending' | 'approved' | 'suspended'
@@ -20,34 +20,68 @@ export type ApprovalStatus = 'pending' | 'approved' | 'suspended'
  * - `collected`: water collected, heading to the customer.
  * - `delivered`: completed with the customer's code.
  * - `cancelled`: cancelled by admin.
+ * - `failed`: a delivery attempt failed, e.g. the customer was unreachable
+ *   (FR-038). Shown as "Delivery failed".
+ * - `under_review`: the order is disputed and staff are reviewing it.
+ *   Shown as "Under review".
+ *
+ * `failed` and `under_review` follow the customer stages (api-mapping.md,
+ * decision 3; @chidimmamogbo on #12). History shows them; they are never
+ * hidden.
  */
-export type JobStage = 'available' | 'assigned' | 'accepted' | 'collected' | 'delivered' | 'cancelled'
+export type JobStage = 'available' | 'assigned' | 'accepted' | 'collected' | 'delivered' | 'cancelled' | 'failed' | 'under_review'
+
+/** Words for the stages a job can end in, for history lists. */
+export const ENDED_STAGE_LABEL: Partial<Record<JobStage, string>> = {
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+  failed: 'Delivery failed',
+  under_review: 'Under review',
+}
 
 export interface JobPlace {
   name: string
   address: string
   /** Area name for lists ("GRA", "Independence Layout"). */
   area: string
-  /** Distance and time from the previous point. Sample estimates. */
-  distance_km: number
-  minutes: number
+  /**
+   * Distance and time from the previous point. Sample estimates in mock
+   * mode; `null` with the real API, which has no road distance (no OSRM,
+   * SRS §12.1). Screens hide them when `null`.
+   */
+  distance_km: number | null
+  minutes: number | null
   landmark?: string | null
 }
 
+/**
+ * One job as the partner sees it. There is no payment status: partners must
+ * not see an order's payment status (FR-040, BR-13; docs/design/driver-cash.md,
+ * decision 3). The K1 Cash card (#20) takes its place on the done screens.
+ */
 export interface PartnerJob {
   reference: string
-  choice: WaterChoice
+  /** Ordered litres. Always known; the server stores litres (FR-021). */
+  quantity_litres: number
+  /**
+   * The cans or tank the customer chose. `null` until the backend sends
+   * them (#21); screens then show `quantity_litres` in litres and gallons.
+   */
+  choice: WaterChoice | null
   /** Ground or overhead details for tanker jobs ("Overhead tank on a 3 m stand..."). */
   tank_note: string | null
   station: JobPlace
   customer: JobPlace & { contact_name: string; phone: string }
   instructions: string | null
-  /** What the partner earns for the trip. SAMPLE rider pay (decision 16). */
-  earning_minor_units: number
+  /**
+   * What the partner earns for the trip. SAMPLE rider pay (decision 16) in
+   * mock mode; `null` with the real API, since partner pay is out of the MVP
+   * (docs/api/partners.md, decision 7). Screens hide the line when `null`.
+   */
+  earning_minor_units: number | null
   stage: JobStage
-  /** Admin who assigned it, when stage is `assigned`. */
+  /** Admin who assigned it, when stage is `assigned`; `null` when unknown. */
   assigned_by: string | null
-  payment_status: PaymentStatus
   /** Code tries left before admin must confirm the delivery. */
   code_tries_left: number
   /** When a new code may be requested again (UTC ISO). */

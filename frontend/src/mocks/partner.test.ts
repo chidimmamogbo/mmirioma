@@ -27,12 +27,12 @@ describe('partner pool', () => {
     await mockLogin(RIDER)
     const keke = await listAvailableJobs()
     expect(keke.length).toBeGreaterThan(0)
-    expect(keke.every((j) => j.choice.delivery_type === 'keke')).toBe(true)
+    expect(keke.every((j) => j.choice?.delivery_type === 'keke')).toBe(true)
     await mockLogout()
     await mockLogin(DRIVER)
     const tank = await listAvailableJobs()
     expect(tank.length).toBeGreaterThan(0)
-    expect(tank.every((j) => j.choice.delivery_type === 'tanker' && (j.choice.tank_size_gallons ?? 0) <= 1000)).toBe(true)
+    expect(tank.every((j) => j.choice?.delivery_type === 'tanker' && (j.choice.tank_size_gallons ?? 0) <= 1000)).toBe(true)
   })
 
   it('is empty while offline', async () => {
@@ -86,7 +86,7 @@ describe('accept, decline, pickup, code', () => {
 
   it('needs the full gallons loaded for a tanker', async () => {
     await mockLogin(DRIVER)
-    const job = (await listAvailableJobs()).find((j) => j.choice.delivery_type === 'tanker' && j.choice.tank_size_gallons === 750)!
+    const job = (await listAvailableJobs()).find((j) => j.choice?.delivery_type === 'tanker' && j.choice.tank_size_gallons === 750)!
     await acceptJob(job.reference)
     await expect(confirmPickup(job.reference, { ...loaded, gallons_loaded: 600 })).rejects.toMatchObject({ code: 'load_not_confirmed' })
     expect((await confirmPickup(job.reference, { ...loaded, gallons_loaded: 750 })).stage).toBe('collected')
@@ -106,7 +106,7 @@ describe('accept, decline, pickup, code', () => {
     const before = (await getEarnings()).wallet_minor_units
     const done = await verifyCode('MO-7KQ2M9XH4T', '482791')
     expect(done.stage).toBe('delivered')
-    expect((await getEarnings()).wallet_minor_units).toBe(before + done.earning_minor_units)
+    expect((await getEarnings()).wallet_minor_units).toBe(before + (done.earning_minor_units ?? 0))
     await mockLogout()
     await mockLogin({ phone: '0803 123 4567', password: DEMO_PASSWORD })
     const order = await getOrder('MO-7KQ2M9XH4T')

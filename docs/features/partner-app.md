@@ -91,8 +91,15 @@ Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 - Only approved partners can go online and accept (FR-002, FR-012 analogue).
 - Pickup must confirm the full load (FR-034). Delivery completes only with
   the customer's code (FR-035); after 3 wrong codes admin must confirm.
-- Earnings and payouts are SAMPLES (decision 16). Payment is shown apart from
-  delivery and is "Awaiting check" until staff confirm (BR-07).
+- Earnings and payouts are SAMPLES (decision 16). Partners never see an
+  order's payment status (FR-040, BR-13; driver-cash decision 3): the done
+  screens have no payment row, and the K1 Cash card (#20) goes there.
+- A job may come without the cans or tank (until #21), road distances and
+  times (no OSRM) or pay (out of the MVP). Screens show the ordered litres in
+  litres and gallons, and leave the rest out
+  ([api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send)).
+- Failed and disputed jobs show in history as "Delivery failed" and "Under
+  review"; they are never hidden.
 - No invented turn-by-turn directions: the map badge says where to head;
   "Start navigation" hands the address to the phone's maps app.
 

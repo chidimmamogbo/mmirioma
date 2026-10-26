@@ -56,6 +56,8 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   delete copy.partner_id
   delete copy.declined_by
   delete copy.mock_code
+  // Partners never see the order's payment status (FR-040, BR-13).
+  delete copy.payment_status
   const code = job.stage === 'collected' ? codeFor(s, job) : null
   if (code) copy.demo_code = code
   return copy
@@ -285,7 +287,8 @@ export async function confirmPickup(
     job.stage = 'collected'
     job.collected_at = now
     job.pickup = pickup
-    job.remaining = { distance_km: job.customer.distance_km, minutes: job.customer.minutes }
+    job.remaining =
+      job.customer.distance_km !== null && job.customer.minutes !== null ? { distance_km: job.customer.distance_km, minutes: job.customer.minutes } : null
     job.code_resend_at = new Date(Date.now() + RESEND_SECONDS * 1000).toISOString()
     if (!findCustomerOrder(s, reference)) job.mock_code ??= newDeliveryCode()
     applyCollected(s, job, now)
