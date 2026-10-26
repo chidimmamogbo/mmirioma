@@ -12,6 +12,7 @@ from app.modules.deliveries import router as deliveries
 from app.modules.dispatch import router as dispatch
 from app.modules.orders import router as orders
 from app.modules.payments import router as payments
+from app.modules.pricing import router as pricing
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router)
@@ -21,3 +22,4 @@ api_router.include_router(deliveries.router)
 api_router.include_router(dispatch.router)
 api_router.include_router(admin_orders.router)
 api_router.include_router(payments.router)
+api_router.include_router(pricing.router)
