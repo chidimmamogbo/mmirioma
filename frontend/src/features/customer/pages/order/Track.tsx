@@ -8,7 +8,7 @@ import { Avatar } from '../../../../components/ui/Avatar'
 import { Card } from '../../../../components/ui/Card'
 import { IconBadge, ScreenHeading } from '../../../../components/ui/Content'
 import { IconLink } from '../../../../components/ui/IconButton'
-import { describeChoice, type CustomerOrder } from '../../../../domain/orders'
+import { describeChoice, isActiveStage, type CustomerOrder } from '../../../../domain/orders'
 import { USE_MOCKS } from '../../../../lib/api/mode'
 import { cx } from '../../../../lib/cx'
 import { useDemoAdvance, useOrder } from '../../queries'
@@ -59,7 +59,8 @@ export function Track() {
   const o = order.data
 
   if (o?.stage === 'delivered') return <Navigate to={`/orders/${reference}/delivered`} replace />
-  if (o?.stage === 'cancelled') return <Navigate to={`/orders/${reference}`} replace />
+  // Cancelled, failed or under review: nothing to track, so show the order detail.
+  if (o && !isActiveStage(o.stage)) return <Navigate to={`/orders/${reference}`} replace />
 
   const step = o ? currentStep(o) : -1
   const h = o ? headline(o) : null

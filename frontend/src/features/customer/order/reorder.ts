@@ -1,4 +1,4 @@
-import type { CustomerOrder, SavedAddress } from '../../../domain/orders'
+import { fitCanCount, type CustomerOrder, type SavedAddress } from '../../../domain/orders'
 import { formatPhone } from '../../../lib/format/phone'
 import type { OrderDraft } from './draft'
 
@@ -21,7 +21,8 @@ export function draftFromOrder(order: CustomerOrder, addresses: SavedAddress[]):
       : { address: order.address, landmark: order.landmark ?? '', label: order.address_label, save: 'once' },
   }
   if (order.choice.delivery_type === 'keke') {
-    base.keke = { can_size_litres: order.choice.can_size_litres, can_count: order.choice.can_count }
+    // An older order may be below today's minimum (12 × 25 L): reorder the smallest size that is offered.
+    base.keke = { can_size_litres: order.choice.can_size_litres, can_count: fitCanCount(order.choice.can_size_litres, order.choice.can_count) }
   } else {
     base.tanker = { tank_type: order.choice.tank_type, tank_size_gallons: order.choice.tank_size_gallons, custom_gallons: '' }
   }

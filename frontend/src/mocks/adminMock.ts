@@ -132,6 +132,11 @@ function statusFromOrder(o: CustomerOrder): AdminOrderStatus {
     case 'picked_up':
     case 'on_the_way':
       return 'on_the_way'
+    case 'failed':
+    case 'under_review':
+      // The admin design has no status for these yet (api-mapping.md, open
+      // question 5), and no mock order reaches them; fail loudly, never guess.
+      throw new Error(`Admin mock has no status for customer stage "${o.stage}"`)
     default:
       return o.stage
   }

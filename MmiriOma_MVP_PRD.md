@@ -174,7 +174,7 @@ Customers see **one all-inclusive price** and any disclosed exceptions. Prices m
 - Quote before commitment, with delivery date/window and clear payment state.
 - Show understandable order status; no false live tracking claims.
 - Accessible design, keyboard operation, error messages and visible loading/empty states.
-- Support call/WhatsApp fallback when a service area is unavailable or an order is delayed.
+- Support call fallback (the official support number, SRS FR-055) when a service area is unavailable or an order is delayed; WhatsApp only once it is confirmed active on that number.
 
 ## 10. Dependencies and risks
 
@@ -219,3 +219,13 @@ The **hackathon live pilot requirement is a separate completion criterion**: it 
 8. Whether subscription preference is realistic within the pilot.
 
 These must be settled through team decisions and field evidence, not invented as facts by developers.
+
+**Update, 17 October 2026:** decisions 2 (category "Domestic water"; no potable claim without evidence), 3 (quantity presets), 5 (SMS phone verification) and 6 (Paystack, verified bank transfer and pay on delivery) are now recorded in SRS v0.2 (FR-003, FR-014, FR-021, FR-040); see its §13 Change history. The others remain open.
+
+**Update, 19 October 2026 (#55):** recorded in SRS v0.3; see its §12 and §13.
+
+- **1 (coverage):** administrators configure service zones by name, coordinates and optional polygon, and customers order only in active zones (FR-010). Which neighbourhoods form the pilot is configuration data, entered when the pilot is set up.
+- **2 (category):** two categories, **Potable Water** and **Utility Water**; Utility Water replaces "Domestic water"; a supplier is activated for a category only after independent laboratory verification; no unsupported potable claims (FR-012, FR-014).
+- **3 (vehicle limits):** administrators configure vehicles and verified payloads; at most two trips per vehicle per order; larger orders need a larger vehicle or a manual quote (FR-013).
+- **4 (quote strategy):** server-computed quotes from supplier water cost, base delivery fee, OSRM road-distance charge, additional-trip charges, handling and a fixed margin or a percentage of water + delivery + handling, rounded up to whole naira, with delivery-zone rates as the fallback and a manual quote for what no plan fits (FR-022).
+- **Still open:** 7 (minimum contribution policy and discounts) and 8 (whether a subscription preference is realistic); and, in SRS §12, the narrow open points listed there, including when the delivery code is activated (#67).

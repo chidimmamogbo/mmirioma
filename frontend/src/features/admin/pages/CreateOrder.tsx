@@ -14,9 +14,10 @@ import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminCustomer } from '../../../domain/admin'
 import {
-  CAN_COUNTS,
   CAN_SIZES,
   TANK_SIZES,
+  canCountsFor,
+  fitCanCount,
   WATER_SOURCE_LABEL,
   describeChoice,
   type CanSizeLitres,
@@ -189,8 +190,17 @@ export function CreateOrder() {
           <Step n={3} title="Order details">
             {type === 'keke' ? (
               <div className="flex flex-wrap gap-6">
-                <ChoiceGroup label="Jerrycan size" value={String(can)} options={CAN_SIZES.map((v) => ({ value: String(v), label: `${v} L` }))} onChange={(v) => setCan(Number(v) as CanSizeLitres)} />
-                <ChoiceGroup label="Quantity (cans)" value={String(count)} options={CAN_COUNTS.map((v) => ({ value: String(v), label: String(v) }))} onChange={(v) => setCount(Number(v))} />
+                <ChoiceGroup
+                  label="Jerrycan size"
+                  value={String(can)}
+                  options={CAN_SIZES.map((v) => ({ value: String(v), label: `${v} L` }))}
+                  onChange={(v) => {
+                    const next = Number(v) as CanSizeLitres
+                    setCan(next)
+                    setCount((c) => fitCanCount(next, c))
+                  }}
+                />
+                <ChoiceGroup label="Quantity (cans)" value={String(count)} options={canCountsFor(can).map((v) => ({ value: String(v), label: String(v) }))} onChange={(v) => setCount(Number(v))} />
               </div>
             ) : (
               <div className="flex flex-wrap gap-6">
