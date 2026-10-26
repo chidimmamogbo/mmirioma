@@ -81,7 +81,7 @@ Migration `0011` (revises `0010`):
 - `orders.water_category_id` → `water_categories` (nullable, RESTRICT,
   indexed). Set at confirmation (#113); null on every order until then.
 
-Migration `0017` (#21) adds `water_sources.kind` (`ninth_mile` or
+Migration `0018` (#21) adds `water_sources.kind` (`ninth_mile` or
 `borehole`, VARCHAR + CHECK, nullable until the technical lead sets it).
 
 Audit rows: `audit_logs` with `target_type` `water_source`, `target_id` the
@@ -181,7 +181,7 @@ shows each activation.
   except in the database.
 - **Approvals do not expire on their own** beyond the date check: nothing
   notifies anyone before `approved_until`.
-- **Existing sources have no kind** after migration `0017`: the technical
+- **Existing sources have no kind** after migration `0018`: the technical
   lead sets each with `set-kind` before Tanker orders can be quoted.
 - **A suspended source does not block orders already confirmed with it**
   (contract decision 10); the order detail will report it (#113).

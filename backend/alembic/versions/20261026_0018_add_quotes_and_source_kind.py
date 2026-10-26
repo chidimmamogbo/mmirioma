@@ -24,8 +24,8 @@ Downgrade drops ``orders.quote_id``, the quotes and the source kinds: every
 order loses the link to its quote. Run it only on a database without real
 quoted orders.
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0018
+Revises: 0017
 Create Date: 2026-10-26 23:30:00+00:00
 
 """
@@ -35,8 +35,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0017"
-down_revision: str | Sequence[str] | None = "0016"
+revision: str = "0018"
+down_revision: str | Sequence[str] | None = "0017"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

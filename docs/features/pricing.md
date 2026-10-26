@@ -64,7 +64,7 @@ reliable price exists (SRS §6). Customers see the total only.
 | `backend/app/modules/pricing/rate_limit.py` | The quote rate limits (NFR-002) |
 | `backend/app/modules/dispatch/vehicles.py` | `plan_for`: the vehicle plan (FR-013), outside the dispatch service to avoid an import cycle |
 | `backend/app/modules/sources/service.py` | `eligible_costs_per_litre`, `has_activation`, `set_kind` |
-| `backend/alembic/versions/20261026_0017_add_quotes_and_source_kind.py` | `quotes`, `orders.quote_id`, `water_sources.kind` |
+| `backend/alembic/versions/20261026_0018_add_quotes_and_source_kind.py` | `quotes`, `orders.quote_id`, `water_sources.kind` |
 | `backend/tests/test_quotes_api.py` | Arithmetic, schemas, limits, endpoint; no database |
 | `backend/tests/test_quotes_integration.py` | Quotes, ordering and confirming against PostGIS |
 
@@ -239,7 +239,7 @@ TEST_DATABASE_URL=... pytest tests/test_price_lists_integration.py
   every manual reason in order with nothing stored; a suspended source; an
   order with a quote (rows 1 and 3, `OrderRead.quote`, replay after expiry);
   each order refusal writing nothing; confirming a quoted order; `set_kind`.
-  Migration 0017 checked the same way (2026-10-26).
+  Migration 0018 checked the same way (2026-10-27).
 
 ## 10. Known limitations
 

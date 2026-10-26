@@ -100,7 +100,7 @@ users 1 ──< orders 1 ──< order_events >── 0..1 users (actor)
 | `tanker_tank_type`, `tanker_quantity_local_gallons` | varchar(10) + CHECK / integer, nullable | Tanker only: `ground` or `overhead`, and the gallons sent |
 | `water_source` | varchar(12) + CHECK, nullable | Tanker only: `ninth_mile` or `borehole`, a **preference** |
 | `service_zone_id` | UUID FK `service_zones.id` RESTRICT, nullable, indexed | The zone the customer picked (FR-020) |
-| `quote_id` | UUID FK `quotes.id` RESTRICT, nullable, indexed | Since `0017` (#21): the quote the order was placed with, frozen (FR-024) |
+| `quote_id` | UUID FK `quotes.id` RESTRICT, nullable, indexed | Since `0018` (#21): the quote the order was placed with, frozen (FR-024) |
 
 Indexes: `(customer_id, created_at)` for a customer's list, `(status,
 created_at)` for the dispatcher queue, `source_id`, `service_zone_id`.
