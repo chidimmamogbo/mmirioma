@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { CustomerOrder } from '../../../domain/orders'
-import { describeChoice, describeTankLitres, shortReference } from '../../../domain/orders'
+import { choiceLitres, describeChoice, shortReference } from '../../../domain/orders'
 import { clearDraft, draftChoice, loadDraft, newDraft, saveDraft } from './draft'
 import { addressStepPath } from './flow'
 import { draftFromOrder } from './reorder'
@@ -35,11 +35,16 @@ describe('flow helpers', () => {
     expect(addressStepPath([{ id: 'a', label: 'Home', address: 'x', landmark: null, is_default: true }])).toBe('/order/address')
   })
 
-  it('describes quantities the way the design writes them', () => {
-    expect(describeChoice({ delivery_type: 'keke', can_size_litres: 25, can_count: 24 })).toBe('25 L × 24 cans')
-    expect(describeChoice({ delivery_type: 'tanker', tank_type: 'ground', tank_size_gallons: 1000, source: 'borehole' })).toBe('1,000 gallons')
-    expect(describeTankLitres(500)).toBe('about 2,000 to 2,500 L')
-    expect(describeTankLitres(750)).toBe('about 3,000 L')
+  it('describes quantities in exact litres and gallons, with no estimates (FR-021)', () => {
+    const keke = { delivery_type: 'keke', can_size_litres: 25, can_count: 24 } as const
+    const tanker = { delivery_type: 'tanker', tank_type: 'ground', tank_size_gallons: 1000, source: 'borehole' } as const
+    expect(describeChoice(keke)).toBe('25 L × 24 cans (600 L · 150 gal)')
+    expect(describeChoice(keke, 'short')).toBe('25 L × 24 (600 L · 150 gal)')
+    expect(describeChoice(tanker)).toBe('1,000 gallons (4,000 litres)')
+    expect(describeChoice(tanker, 'short')).toBe('1,000 gal · 4,000 L')
+    expect(describeChoice({ ...tanker, tank_size_gallons: null })).toBe('Custom size')
+    expect(choiceLitres({ ...tanker, tank_size_gallons: 500 })).toBe(2000)
+    expect(choiceLitres({ ...tanker, tank_size_gallons: null })).toBeNull()
     expect(shortReference('MO-7KQ2M9XH4T')).toBe('MO-7KQ2')
   })
 })

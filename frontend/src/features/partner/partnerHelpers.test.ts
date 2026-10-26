@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PartnerJob } from '../../domain/partner'
 import { greeting } from './greeting'
-import { tankerTripLine } from './jobHelpers'
+import { tankerTripLine, totalLitres } from './jobHelpers'
 import { jobStepPath, PARTNER_APPS } from './partnerContext'
 
 function job(over: Partial<PartnerJob>): PartnerJob {
@@ -45,5 +45,19 @@ describe('tanker helpers', () => {
     expect(greeting(new Date('2026-10-16T10:30:00Z'))).toBe('Good morning')
     expect(greeting(new Date('2026-10-16T11:30:00Z'))).toBe('Good afternoon')
     expect(greeting(new Date('2026-10-16T16:30:00Z'))).toBe('Good evening')
+  })
+})
+
+describe('totalLitres', () => {
+  it('adds Keke and Tanker trips in litres, never mixing litres with gallons', () => {
+    // Regression: the earnings card added Keke litres to tanker gallons (600 + 750 = 1,350).
+    const keke = job({ choice: { delivery_type: 'keke', can_size_litres: 25, can_count: 24 } })
+    const tanker = job({})
+    expect(totalLitres([keke, tanker])).toBe(600 + 3000)
+  })
+
+  it('counts a custom tank size as zero until it is quoted', () => {
+    const custom = job({ choice: { delivery_type: 'tanker', tank_type: 'ground', tank_size_gallons: null, source: 'borehole' } })
+    expect(totalLitres([custom])).toBe(0)
   })
 })

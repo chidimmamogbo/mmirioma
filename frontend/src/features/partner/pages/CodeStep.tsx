@@ -89,7 +89,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           <JobMiniCard
             className="rise-2"
             job={j}
-            sub={keke ? `${jobQuantity(j)} · ${j.customer.contact_name}` : `${jobQuantity(j).replace('gallons', 'gal')} · ${j.choice.delivery_type === 'tanker' ? j.choice.tank_type : ''} tank`}
+            sub={keke ? `${jobQuantity(j)} · ${j.customer.contact_name}` : `${jobQuantity(j, 'short')} · ${j.choice.delivery_type === 'tanker' ? j.choice.tank_type : ''} tank`}
             trailing={<Chip tone="amber">{formatNaira(j.earning_minor_units)}</Chip>}
           />
         )}

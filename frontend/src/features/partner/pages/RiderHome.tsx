@@ -111,7 +111,7 @@ export function RiderHome() {
                 <span className="flex flex-1 flex-col">
                   <span className="text-chip font-bold text-[#CFE3FB]">ACTIVE DELIVERY</span>
                   <span className="font-extrabold">
-                    {inProgress.reference} · {jobQuantity(inProgress).replace(' cans', '')}
+                    {inProgress.reference} · {jobQuantity(inProgress, 'short')}
                   </span>
                   <span className="text-caption text-[#DCEBFD]">
                     {inProgress.stage === 'accepted' ? `Go to ${inProgress.station.name}` : `Head to ${inProgress.customer.address.split(',')[0]}`}
