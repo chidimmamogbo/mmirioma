@@ -10,6 +10,10 @@ and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee
 per water category; customers list active zones with `GET /service-zones`.
 See [Changes](#changes).
 
+**[Service zones](#service-zones): `Status: agreed`** on 2026-10-26 by
+@nnamdi-security (technical lead, sole approver under PR #36), so #30 can
+build it. The rest of this contract is still proposed.
+
 The fork's admin Customers, Riders, Service areas and Pricing screens run on
 mocks (`frontend/src/mocks/adminMock.ts`) and show "not connected yet" against
 the real API. This contract proposes the endpoints that would let them leave
@@ -399,6 +403,9 @@ order only inside an active zone; each zone carries delivery-zone rates used
 as the FR-022 fallback when road distance is unavailable. The design calls
 them "service areas".
 
+**Status: agreed** (2026-10-26, @nnamdi-security, technical lead; PR #36).
+Built in #30.
+
 ### Object
 
 `ServiceZone`:
@@ -725,5 +732,5 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Decisions by @nnamdi-security; contract not yet agreed |
+| 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Service zones section: @nnamdi-security (technical lead, PR #36). Rest: not yet |
 | 2026-10-26 | Proposed (#18, PR #34) | Not yet |
