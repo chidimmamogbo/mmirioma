@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "default_address",
+    "message": "Choose another default address before removing this one",
+    "details": null
+  }
+}

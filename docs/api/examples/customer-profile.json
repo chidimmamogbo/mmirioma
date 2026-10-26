@@ -1,0 +1,7 @@
+{
+  "name": "Sample Customer",
+  "phone": "+2348000000001",
+  "phone_verified": true,
+  "customer_since": "2026-10-14T09:30:00Z",
+  "stats": { "orders": 3, "addresses": 2 }
+}

@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "id": "9b1c2d3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e",
+      "kind": "order_received",
+      "title": "Request received",
+      "body": "We have your request MO-7KQ2. We will confirm the price and time with you.",
+      "reference": "MO-7KQ2M9XH4T",
+      "created_at": "2026-10-26T12:35:00Z",
+      "read": false
+    },
+    {
+      "id": "2a3b4c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d",
+      "kind": "delivered",
+      "title": "Delivered",
+      "body": "Order MO-3HF8 was delivered. Thank you for ordering with MmiriOma.",
+      "reference": "MO-3HF8P2LQ6D",
+      "created_at": "2026-10-22T11:05:00Z",
+      "read": true
+    }
+  ],
+  "total": 2,
+  "limit": 50,
+  "offset": 0,
+  "unread_count": 1
+}
