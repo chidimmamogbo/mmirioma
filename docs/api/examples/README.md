@@ -85,16 +85,19 @@ default; each address has the zone the customer picked) and
 and `support-requests-page.json`; `deletion-request.json` (requested on a
 Monday, to be acknowledged by the Thursday); `error-default-address.json`.
 
-Partner account samples (**proposed**, [../partners.md](../partners.md), #14):
-`partner-register-request.json` is a tanker driver signing up with a declared
-4,000 gallons; `partner-profile-pending.json` is that driver just after,
-`pending` and offline, with 16,000 declared litres and no verified payload
+Partner account samples (**proposed**, [../partners.md](../partners.md), #14,
+revised in #47): `partner-register-request.json` is a tanker driver signing
+up with a declared 4,000 gallons; `partner-profile-pending.json` is that
+driver just after, `pending`, offline and with the phone not yet verified,
+with 16,000 declared litres and no verified payload
 (`safe_payload_litres: null`). `partner-profile.json` is an approved Keke
-rider whose payload admin has verified. `partner-profile-update-request.json`
-adds an email and turns on offers; `partner-availability-request.json` goes
-online, and `error-partner-not-approved.json` is the refusal for a pending
-partner. `partner-notifications.json` holds one unread job offer and one read
-approval message. The zone id and name stand in for #30's zones.
+rider whose phone and payload are verified. `partner-profile-update-request.json`
+turns SMS updates off; `partner-availability-request.json` goes online, and
+`error-partner-not-approved.json` is the refusal for a pending partner.
+`partner-notifications.json` holds one unread job offer and one read approval
+message (`unread_count: 1`); `partner-notifications-read-request.json` marks
+the offer read by id. The zone id and name are samples, not #30's seeded
+zones.
 
 If a contract changes, update these files in the same PR.
 
