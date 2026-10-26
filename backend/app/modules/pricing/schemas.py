@@ -1,4 +1,4 @@
-"""Service zone request and response bodies (docs/api/admin-directory.md).
+"""Service zone and price list request and response bodies (docs/api/admin-directory.md).
 
 Agreed 2026-10-26 for #30 (PR #38, PR #41). Coordinates are WGS 84 decimal
 degrees (SRID 4326); a boundary is a GeoJSON ``Polygon`` whose positions are
@@ -7,7 +7,7 @@ degrees (SRID 4326); a boundary is a GeoJSON ``Polygon`` whose positions are
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -18,7 +18,15 @@ from pydantic import (
     model_validator,
 )
 
-from app.modules.pricing.models import ZONE_NAME_MAX_LENGTH, ZONE_NAME_MIN_LENGTH
+from app.modules.pricing.models import (
+    MAX_MARGIN_BASIS_POINTS,
+    MIN_BAND_LITRES,
+    PRICE_LIST_REASON_MAX_LENGTH,
+    ZONE_NAME_MAX_LENGTH,
+    ZONE_NAME_MIN_LENGTH,
+    MarginType,
+)
+from app.modules.pricing.price_lists import PriceListView, RuleInput
 from app.modules.pricing.service import (
     Coordinates,
     FeeInput,
@@ -269,3 +277,182 @@ class ServiceZoneOptionList(BaseModel):
     """Body of ``GET /service-zones``: active zones only, by name."""
 
     items: list[ServiceZoneOption]
+
+
+# --- Price lists (#37) ----------------------------------------------------------------
+
+#: Litres are whole numbers; the upper bound is the INTEGER column's range, not a business limit.
+Litres = Annotated[int, Field(strict=True, ge=MIN_BAND_LITRES, le=1_000_000_000)]
+#: Rules per price list; the bound only stops abuse.
+MAX_RULES = 100
+PAGE_LIMIT_DEFAULT = 50
+PAGE_LIMIT_MAX = 100
+
+
+class FixedMarginWrite(_Request):
+    """A fixed MmiriOma margin in kobo per order (FR-022)."""
+
+    type: Literal["fixed"]
+    amount_minor_units: FeeMinorUnits
+
+
+class PercentageMarginWrite(_Request):
+    """A percentage margin of water + delivery + handling, in basis points (1 % = 100)."""
+
+    type: Literal["percentage"]
+    basis_points: Annotated[int, Field(strict=True, ge=0, le=MAX_MARGIN_BASIS_POINTS)]
+
+
+MarginWrite = Annotated[FixedMarginWrite | PercentageMarginWrite, Field(discriminator="type")]
+
+
+class PriceRuleWrite(_Request):
+    """One rule of ``PriceListCreate`` (the contract's rule without ``id``)."""
+
+    zone_id: uuid.UUID | None
+    water_category_id: uuid.UUID | None
+    min_litres: Litres
+    max_litres: Litres | None
+    base_delivery_fee_minor_units: FeeMinorUnits
+    distance_rate_minor_units_per_km: FeeMinorUnits
+    additional_trip_minor_units: FeeMinorUnits
+    handling_minor_units: FeeMinorUnits
+    margin: MarginWrite
+
+    @model_validator(mode="after")
+    def _band_in_order(self) -> Self:
+        if self.max_litres is not None and self.max_litres < self.min_litres:
+            raise ValueError("max_litres must be at least min_litres")
+        return self
+
+    def to_input(self) -> RuleInput:
+        """The service's input."""
+        fixed = isinstance(self.margin, FixedMarginWrite)
+        return RuleInput(
+            zone_id=self.zone_id,
+            water_category_id=self.water_category_id,
+            min_litres=self.min_litres,
+            max_litres=self.max_litres,
+            base_delivery_fee_minor_units=self.base_delivery_fee_minor_units,
+            distance_rate_minor_units_per_km=self.distance_rate_minor_units_per_km,
+            additional_trip_minor_units=self.additional_trip_minor_units,
+            handling_minor_units=self.handling_minor_units,
+            margin_type=MarginType.FIXED if fixed else MarginType.PERCENTAGE,
+            margin_amount_minor_units=self.margin.amount_minor_units
+            if isinstance(self.margin, FixedMarginWrite)
+            else None,
+            margin_basis_points=self.margin.basis_points
+            if isinstance(self.margin, PercentageMarginWrite)
+            else None,
+        )
+
+
+class PriceListCreate(_Request):
+    """Body of ``POST /admin/price-lists``: the whole new set of rules.
+
+    ``base_version`` is required (``null`` only for the first list), so a
+    client cannot save over a version it did not see.
+    """
+
+    base_version: Annotated[int, Field(strict=True, ge=1)] | None
+    reason: (
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, max_length=PRICE_LIST_REASON_MAX_LENGTH)
+        ]
+        | None
+    ) = None
+    rules: Annotated[list[PriceRuleWrite], Field(min_length=1, max_length=MAX_RULES)]
+
+    @field_validator("reason")
+    @classmethod
+    def _blank_reason_is_none(cls, reason: str | None) -> str | None:
+        return reason or None
+
+
+class PriceListPageParams(BaseModel):
+    """``limit`` (1-100, default 50) and ``offset`` query parameters."""
+
+    limit: int = Field(PAGE_LIMIT_DEFAULT, ge=1, le=PAGE_LIMIT_MAX)
+    offset: int = Field(0, ge=0)
+
+
+class PersonRead(BaseModel):
+    """An administrator's id and name."""
+
+    id: uuid.UUID
+    name: str
+
+
+class PriceRuleRead(BaseModel):
+    """A saved rule (the contract's ``rules[]``)."""
+
+    id: uuid.UUID
+    zone_id: uuid.UUID | None
+    water_category_id: uuid.UUID | None
+    min_litres: int
+    max_litres: int | None
+    base_delivery_fee_minor_units: int
+    distance_rate_minor_units_per_km: int
+    additional_trip_minor_units: int
+    handling_minor_units: int
+    margin: dict[str, Any]
+
+
+class PriceChangeRead(BaseModel):
+    """One changed field from the previous version; ``from`` is ``null`` for an added rule."""
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    path: str
+    from_: Any = Field(alias="from")
+    to: Any
+
+
+class PriceListRead(BaseModel):
+    """``PriceList``: one saved version."""
+
+    version: int
+    effective_from: datetime
+    created_by: PersonRead
+    reason: str | None
+    rules: list[PriceRuleRead]
+    changes: list[PriceChangeRead]
+
+    @classmethod
+    def from_view(cls, view: PriceListView) -> Self:
+        """Build the response from the service's view of a version."""
+        return cls(
+            version=view.version.version,
+            effective_from=view.version.effective_from,
+            created_by=PersonRead(id=view.created_by.id, name=view.created_by.name),
+            reason=view.version.reason,
+            rules=[
+                PriceRuleRead(
+                    id=rule.id,
+                    zone_id=rule.zone_id,
+                    water_category_id=rule.water_category_id,
+                    min_litres=rule.min_litres,
+                    max_litres=rule.max_litres,
+                    base_delivery_fee_minor_units=rule.base_delivery_fee_minor_units,
+                    distance_rate_minor_units_per_km=rule.distance_rate_minor_units_per_km,
+                    additional_trip_minor_units=rule.additional_trip_minor_units,
+                    handling_minor_units=rule.handling_minor_units,
+                    margin=(
+                        {"type": "fixed", "amount_minor_units": rule.margin_amount_minor_units}
+                        if rule.margin_type == MarginType.FIXED
+                        else {"type": "percentage", "basis_points": rule.margin_basis_points}
+                    ),
+                )
+                for rule in view.rules
+            ],
+            changes=[PriceChangeRead.model_validate(change) for change in view.version.changes],
+        )
+
+
+class PriceListPage(BaseModel):
+    """A page of price lists, newest first (shared page shape)."""
+
+    items: list[PriceListRead]
+    total: int
+    limit: int
+    offset: int
