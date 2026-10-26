@@ -5,6 +5,7 @@
  * Demo sign-in (mock mode only): phone 0800 000 0101 (Keke) or
  * 0800 000 0102 (Tanker), password DEMO_PASSWORD from seed.ts.
  */
+import { choiceLitres } from '../domain/orders'
 import type { PartnerData, StoredJob } from './seed'
 import type { MockUser } from './seed'
 import { lagosToday } from './time'
@@ -20,6 +21,7 @@ type JobSeed = Partial<StoredJob> & Pick<StoredJob, 'reference' | 'choice' | 'st
 
 function job(j: JobSeed): StoredJob {
   return {
+    quantity_litres: choiceLitres(j.choice) ?? 0,
     tank_note: null,
     instructions: null,
     stage: 'available',

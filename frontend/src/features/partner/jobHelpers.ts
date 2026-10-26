@@ -1,5 +1,6 @@
-import { choiceLitres, describeChoice, shortReference } from '../../domain/orders'
-import type { PartnerJob } from '../../domain/partner'
+import { describeChoice, shortReference } from '../../domain/orders'
+import type { PartnerJob, VehicleType } from '../../domain/partner'
+import { describeQuantity } from '../../domain/quantity'
 import { formatDate, formatDayDate, formatTime } from '../../lib/format/datetime'
 
 /**
@@ -7,23 +8,58 @@ import { formatDate, formatDayDate, formatTime } from '../../lib/format/datetime
  * FR-021), so Keke and Tanker trips never add up in mixed units.
  */
 export function totalLitres(jobs: PartnerJob[]): number {
-  return jobs.reduce((sum, job) => sum + (choiceLitres(job.choice) ?? 0), 0)
+  return jobs.reduce((sum, job) => sum + job.quantity_litres, 0)
 }
 
-/** Quantity line for a job, in both units: "25 L × 24 cans (600 L · 150 gal)" or "750 gallons (3,000 litres)". */
+/**
+ * Quantity line for a job, in both units: "25 L × 24 cans (600 L · 150 gal)"
+ * or "750 gallons (3,000 litres)". Until the backend sends the cans or tank
+ * (#21, `choice` is `null`), the ordered litres: "600 litres (150 gallons)".
+ */
 export function jobQuantity(job: PartnerJob, style: 'long' | 'short' = 'long'): string {
+  if (job.choice === null) return describeQuantity(job.quantity_litres, 'litres', style)
   return describeChoice(job.choice, style)
 }
 
-/** Total trip time: station leg plus customer leg (sample estimates). */
-export function tripMinutes(job: PartnerJob): number {
+/**
+ * Keke or tanker. From the customer's choice when known; otherwise the app's
+ * own vehicle, since a partner is only offered jobs for their vehicle type
+ * (decision 9).
+ */
+export function jobDeliveryType(job: PartnerJob, appVehicle: VehicleType): VehicleType {
+  return job.choice?.delivery_type ?? appVehicle
+}
+
+/** Whether the customer has an overhead tank, which needs the pump hose. */
+export function needsPump(job: PartnerJob): boolean {
+  return job.choice?.delivery_type === 'tanker' && job.choice.tank_type === 'overhead'
+}
+
+/** " · 2.1 km" after a place, or nothing when the distance is unknown (no OSRM, SRS §12.1). */
+export function kmSuffix(km: number | null): string {
+  return km === null ? '' : ` · ${km} km`
+}
+
+/** " · 6 min" after a place, or nothing when the time is unknown. */
+export function minutesSuffix(minutes: number | null): string {
+  return minutes === null ? '' : ` · ${minutes} min`
+}
+
+/** Total trip time: station leg plus customer leg (sample estimates), or `null` if either is unknown. */
+export function tripMinutes(job: PartnerJob): number | null {
+  if (job.station.minutes === null || job.customer.minutes === null) return null
   return job.station.minutes + job.customer.minutes
 }
 
-/** "About 40 min · pump needed" for tanker cards: overhead tanks need the pump hose. */
+/**
+ * "About 40 min · pump needed" for tanker cards: overhead tanks need the pump
+ * hose. Without a trip time, only "Pump needed", or nothing.
+ */
 export function tankerTripLine(job: PartnerJob): string {
-  const pump = job.choice.delivery_type === 'tanker' && job.choice.tank_type === 'overhead'
-  return `About ${tripMinutes(job)} min${pump ? ' · pump needed' : ''}`
+  const minutes = tripMinutes(job)
+  const pump = needsPump(job)
+  if (minutes === null) return pump ? 'Pump needed' : ''
+  return `About ${minutes} min${pump ? ' · pump needed' : ''}`
 }
 
 /** "MO-7KQ2 · GRA" for history lists. */

@@ -88,7 +88,7 @@ Admin endpoints (assign, withdraw, driver list, detail, history): see
 | 404 | `order_not_found` | No such order, or (accept/decline) not offered to this driver (T-07) |
 | 404 | `driver_not_found` | The driver account does not exist |
 | 404 | `assignment_not_found` | Withdraw with no live assignment |
-| 409 | `driver_not_eligible` | `details.reasons`: `not_a_driver`, `inactive`, `no_driver_profile`, `unavailable`, `vehicle_inactive`, `over_payload`, `busy` |
+| 409 | `driver_not_eligible` | `details.reasons`: `not_a_driver`, `inactive`, `not_approved` (a partner who is `pending` or `suspended`, [partners.md](partners.md)), `no_driver_profile` (no profile, or no verified vehicle yet), `unavailable`, `vehicle_inactive`, `over_payload`, `busy` |
 | 409 | `invalid_order_transition` | Order not `confirmed` (assign), already departed or not in `expected_status` (withdraw), or held by another driver |
 | 403 | `forbidden` | The acting account's role may not make the change, including a driver declining a job they already accepted (row 11 is the dispatcher's) |
 

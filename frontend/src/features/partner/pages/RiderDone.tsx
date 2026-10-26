@@ -6,12 +6,10 @@ import { MobileShell, ScrollArea } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
-import { Chip } from '../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../components/ui/Content'
 import { formatDateTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { describeQuantity } from '../../../domain/quantity'
-import { PAYMENT_LABEL } from '../../customer/orderHelpers'
 import { jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, usePartnerProfile } from '../queries'
@@ -35,7 +33,8 @@ export function RiderDone() {
   const profile = usePartnerProfile()
   const j = job.data
   if (j && j.stage !== 'delivered') return <Navigate to={jobStepPath(base, j)} replace />
-  const litres = j && j.choice.delivery_type === 'keke' ? j.choice.can_size_litres * j.choice.can_count : null
+  // Cans poured, when the choice is known; without it the quantity line already shows the litres.
+  const litres = j?.choice?.delivery_type === 'keke' ? j.choice.can_size_litres * j.choice.can_count : null
 
   return (
     <MobileShell className="bg-[linear-gradient(180deg,#E7F9EE_0%,#F4F7FB_45%)]">
@@ -53,12 +52,15 @@ export function RiderDone() {
             </div>
             <h1 className="rise-1 m-0 text-[26px] font-extrabold tracking-[-0.5px] text-green">Delivery successful!</h1>
             <p className="rise-2 m-0 text-sub text-mute">Code verified. Great job{profile.data ? `, ${profile.data.name.split(' ')[0]}` : ''}.</p>
-            <div className="rise-3 relative box-border w-full overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#0B4FA8,#1570D8)] p-[18px] text-left text-white">
-              <div className="text-[13px] font-bold text-[#CFE3FB]">YOU EARNED</div>
-              <div className="animate-pop text-[38px] font-extrabold tracking-[-1px] [animation-delay:.3s]">{formatNaira(j.earning_minor_units)}</div>
-              <div className="text-caption text-[#DCEBFD]">Added to your wallet · sample amount</div>
-              <Wave fill="#FFFFFF" variant="low" height={34} className="bottom-[-10px] opacity-20" />
-            </div>
+            {/* Partner pay is out of the MVP (partners.md, decision 7): no card without an amount. */}
+            {j.earning_minor_units !== null && (
+              <div className="rise-3 relative box-border w-full overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#0B4FA8,#1570D8)] p-[18px] text-left text-white">
+                <div className="text-[13px] font-bold text-[#CFE3FB]">YOU EARNED</div>
+                <div className="animate-pop text-[38px] font-extrabold tracking-[-1px] [animation-delay:.3s]">{formatNaira(j.earning_minor_units)}</div>
+                <div className="text-caption text-[#DCEBFD]">Added to your wallet · sample amount</div>
+                <Wave fill="#FFFFFF" variant="low" height={34} className="bottom-[-10px] opacity-20" />
+              </div>
+            )}
             <Card pad className="rise-4 box-border w-full text-left">
               <div className="flex items-center gap-3">
                 <Illustration name="keke" className="w-[86px]" />
@@ -73,12 +75,7 @@ export function RiderDone() {
               <Separator />
               <KeyValue label="Customer" value={j.customer.contact_name} />
               {j.delivered_at && <KeyValue label="Delivered at" value={formatDateTime(j.delivered_at)} />}
-              <div className="mo-kv items-center">
-                <span className="text-mute">Payment</span>
-                <Chip tone={j.payment_status === 'paid' ? 'green' : 'amber'} className="px-2 py-[3px]">
-                  {j.payment_status === 'unpaid' ? 'Awaiting check' : PAYMENT_LABEL[j.payment_status]}
-                </Chip>
-              </div>
+              {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>
             <div className="rise-5 flex w-full flex-col gap-2">
               <ButtonLink to={base}>Back to dashboard</ButtonLink>

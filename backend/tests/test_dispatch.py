@@ -6,7 +6,12 @@ import pytest
 
 from app.modules.auth.models import User, UserRole
 from app.modules.dispatch.cli import build_parser
-from app.modules.dispatch.models import DriverProfile, VehicleProfile
+from app.modules.dispatch.models import (
+    ApprovalStatus,
+    DeliveryType,
+    DriverProfile,
+    VehicleProfile,
+)
 from app.modules.dispatch.service import Ineligibility, eligibility_problems
 
 
@@ -34,6 +39,8 @@ def profile(**changes: object) -> DriverProfile:
         "user_id": uuid.uuid4(),
         "vehicle_profile_id": VEHICLE.id,
         "is_available": True,
+        # Drivers set up before partner sign-up were backfilled approved.
+        "approval_status": ApprovalStatus.APPROVED,
     }
     fields.update(changes)
     return DriverProfile(**fields)
@@ -58,6 +65,20 @@ def test_an_available_driver_with_enough_payload_is_eligible() -> None:
 def test_payload_must_cover_the_order_in_one_trip() -> None:
     # BR-03: never allocate more than the verified payload.
     assert problems(order_litres=1201) == [Ineligibility.OVER_PAYLOAD]
+
+
+@pytest.mark.parametrize("status", [ApprovalStatus.PENDING, ApprovalStatus.SUSPENDED])
+def test_a_partner_who_is_not_approved_is_never_offered_a_job(status: ApprovalStatus) -> None:
+    # docs/api/partners.md, "Approval status": row 8 reason not_approved.
+    assert problems(profile=profile(approval_status=status)) == [Ineligibility.NOT_APPROVED]
+
+
+def test_a_partner_awaiting_a_verified_vehicle_has_no_vehicle_recorded() -> None:
+    # partners.md, decision 8: no vehicle profile until an admin approves.
+    assert problems(
+        profile=profile(vehicle_profile_id=None, approval_status=ApprovalStatus.PENDING),
+        vehicle=None,
+    ) == [Ineligibility.NOT_APPROVED, Ineligibility.NO_DRIVER_PROFILE]
 
 
 def test_every_problem_is_reported_at_once() -> None:
@@ -93,6 +114,16 @@ def test_accounts_that_are_not_drivers_or_have_no_profile() -> None:
         ["set-driver", "--phone", "12345", "--vehicle", str(uuid.uuid4())],
         ["set-driver", "--phone", "08090000002", "--vehicle", "not-a-uuid"],
         ["set-availability", "--phone", "08090000002"],
+        ["set-driver", "--phone", "08090000002", "--vehicle", str(uuid.uuid4()), "--plate", "AB1"],
+        [
+            "set-driver",
+            "--phone",
+            "08090000002",
+            "--vehicle",
+            str(uuid.uuid4()),
+            "--delivery-type",
+            "bicycle",
+        ],
     ],
 )
 def test_cli_rejects_bad_arguments(argv: list[str]) -> None:
@@ -109,3 +140,21 @@ def test_cli_normalizes_phone_and_parses_availability() -> None:
         ["add-vehicle", "--type", " Truck ", "--payload-litres", "5000"]
     )
     assert (vehicle.type, vehicle.payload_litres) == ("Truck", 5000)
+
+
+def test_cli_set_driver_takes_the_declared_vehicle() -> None:
+    # partners.md: the partner app shows the delivery type and plate.
+    args = build_parser().parse_args(
+        [
+            "set-driver",
+            "--phone",
+            "08090000002",
+            "--vehicle",
+            str(uuid.uuid4()),
+            "--delivery-type",
+            "keke",
+            "--plate",
+            " enu-123-ab ",
+        ]
+    )
+    assert (args.delivery_type, args.plate) == (DeliveryType.KEKE, "ENU-123-AB")

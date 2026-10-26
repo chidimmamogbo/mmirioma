@@ -98,3 +98,7 @@ CurrentUser = Annotated[User, Depends(require_roles(*UserRole))]
 CurrentCustomer = Annotated[User, Depends(require_roles(UserRole.CUSTOMER))]
 CurrentAdmin = Annotated[User, Depends(require_roles(UserRole.ADMIN))]
 CurrentDriver = Annotated[User, Depends(require_roles(UserRole.DRIVER))]
+# Phone verification: customers, and partners before approval (partners.md, decision 9).
+CurrentCustomerOrDriver = Annotated[
+    User, Depends(require_roles(UserRole.CUSTOMER, UserRole.DRIVER))
+]

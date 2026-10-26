@@ -7,7 +7,7 @@ import { Notice } from '../../../components/ui/Notice'
 import type { PartnerJob } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatNaira } from '../../../lib/format/money'
-import { jobQuantity } from '../jobHelpers'
+import { jobDeliveryType, jobQuantity } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useAcceptJob } from '../queries'
 
@@ -18,7 +18,7 @@ import { useAcceptJob } from '../queries'
  */
 export function AssignedSheet({ job }: { job: PartnerJob }) {
   const navigate = useNavigate()
-  const { base } = usePartnerApp()
+  const { base, vehicle } = usePartnerApp()
   const accept = useAcceptJob()
   const sheetRef = useRef<HTMLDivElement>(null)
 
@@ -56,15 +56,20 @@ export function AssignedSheet({ job }: { job: PartnerJob }) {
             <div className="text-[16px] font-extrabold">{jobQuantity(job)}</div>
             <div className="text-caption text-slate">{job.reference}</div>
             <div className="mt-1.5 text-caption text-slate">
-              {job.station.name.replace(' Refill', '')} {job.station.distance_km} km → {job.customer.area} {job.customer.distance_km} km
+              {job.station.name.replace(' Refill', '')}
+              {job.station.distance_km === null ? '' : ` ${job.station.distance_km} km`} → {job.customer.area}
+              {job.customer.distance_km === null ? '' : ` ${job.customer.distance_km} km`}
             </div>
           </div>
-          <Illustration name={job.choice.delivery_type === 'keke' ? 'keke' : 'tanker'} className="animate-drive w-28" />
+          <Illustration name={jobDeliveryType(job, vehicle)} className="animate-drive w-28" />
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-mute">You will earn</span>
-          <span className="text-[20px] font-extrabold text-green">{formatNaira(job.earning_minor_units)}</span>
-        </div>
+        {/* Partner pay is out of the MVP: no line rather than "not known yet". */}
+        {job.earning_minor_units !== null && (
+          <div className="flex items-center justify-between">
+            <span className="text-mute">You will earn</span>
+            <span className="text-[20px] font-extrabold text-green">{formatNaira(job.earning_minor_units)}</span>
+          </div>
+        )}
         {accept.isError && <Notice tone="error">{errorMessage(accept.error)}</Notice>}
         <Button
           loading={accept.isPending}

@@ -84,16 +84,19 @@ def test_request_code_returns_202_with_times(client: TestClient, calls: list) ->
 
 
 @pytest.mark.parametrize(
-    "path",
+    ("path", "role"),
     [
-        "/api/v1/auth/phone-verification",
-        "/api/v1/auth/phone-verification/verify",
-        "/api/v1/auth/phone-change",
-        "/api/v1/auth/phone-change/verify",
+        ("/api/v1/auth/phone-verification", UserRole.ADMIN),
+        ("/api/v1/auth/phone-verification/verify", UserRole.ADMIN),
+        ("/api/v1/auth/phone-change", UserRole.ADMIN),
+        ("/api/v1/auth/phone-change/verify", UserRole.ADMIN),
+        # Partners verify their phone before approval, but never change it
+        # here (docs/api/auth.md, partner amendment).
+        ("/api/v1/auth/phone-change", UserRole.DRIVER),
+        ("/api/v1/auth/phone-change/verify", UserRole.DRIVER),
     ],
 )
-@pytest.mark.parametrize("role", [UserRole.ADMIN, UserRole.DRIVER])
-def test_only_customers_verify_phones(
+def test_staff_verify_no_phones_and_partners_change_none(
     client: TestClient, calls: list, path: str, role: UserRole
 ) -> None:
     response = client.post(path, json={}, headers=headers(client, role))
