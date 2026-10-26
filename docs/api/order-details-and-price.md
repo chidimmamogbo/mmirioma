@@ -19,8 +19,11 @@ delivery cost ([admin-directory.md](admin-directory.md#delivery-cost-from-the-zo
 
 **Brought to agreement (#42, 2026-10-26):** no price without the address,
 the FR-023 disclosure, the pilot category (Utility Water), and the technical
-lead's answers to open questions 3, 4, 5, 7, 8, 9 and 11 recorded. Two new
-open questions (12, 13) remain for @nnamdi-security. See [Changes](#changes).
+lead's answers to open questions 3, 4, 5, 7, 8, 9 and 11 recorded. Open
+questions 12 and 13 are resolved by the agreed pilot fallbacks F3 and F5
+(order confirmation, [deliveries.md](deliveries.md#order-confirmation-endpoints)),
+for @nnamdi-security to confirm; question 14 is a gap for #21. See
+[Changes](#changes).
 
 Decision behind it (2026-10-26, @chidimmamogbo,
 [api-mapping.md](../architecture/api-mapping.md#decisions-2026-10-26-chidimmamogbo)):
@@ -289,8 +292,8 @@ FR-038) before confirming." How each item is covered:
 | Water category and use description | `water_category.label` and `supported_uses` |
 | Price validity | `price_valid_until` |
 | Payment method | **No field.** Every pilot order is pay on delivery (F4), so the screen shows the fixed line "Pay on delivery", as the agreed `orders.md` already does for confirmed orders ("Pay cash after unloading") |
-| Delivery time window | **Open: [question 12](#open-questions).** Until it is decided, the screen says the office confirms the delivery window with the customer; it never shows a window as booked (`preferred_delivery_date` stays a preference) |
-| Potential cancellation and redelivery charges | **Open: [question 13](#open-questions).** Until it is decided, the screen shows the rules as text, with no amounts: free cancellation before the driver departs; after departure, only delivery costs actually incurred, never more than the delivery charge (FR-044); a redelivery after a failed attempt the customer caused may carry a delivery fee for the extra trip, agreed with them first (FR-038). No invented amounts |
+| Delivery time window | **Agreed with the customer on the confirmation call** (pilot fallback F3, [question 12](#open-questions)). Placing the order does not book a window: the order is `awaiting_confirmation` until the dispatcher agrees the window and confirms (row 7), and the agreed confirmation already requires the window to be told to the customer (`customer_agreement.disclosures_confirmed`). The checkout screen says the office calls to agree the delivery window; it never shows a window as booked (`preferred_delivery_date` stays a preference). After confirmation the customer sees it in `OrderRead.delivery_window` ([orders.md](orders.md#customer-pilot-changes-99)) |
+| Potential cancellation and redelivery charges | **None in the pilot** (pilot fallback F5, [question 13](#open-questions)): the dispatcher tells the customer there is no cancellation or redelivery charge, and the agreed confirmation records that they did (`disclosures_confirmed`). The checkout screen states the same, with no amounts. FR-044's cap and FR-038's redelivery fee apply only once charges are introduced, with a contract change |
 
 ## `POST /orders` changes
 
@@ -370,6 +373,10 @@ delivery, a check needs a dispatcher". Every pilot order is pay on delivery
   in `awaiting_confirmation`. No new state is added. Rows 2 (prepaid) and 4
   (straight to `confirmed`, needs slots, FR-025) stay unused in the pilot;
 - an order **without** one is created by row 1 alone, in `quote_requested`.
+
+The dispatcher then confirms a quoted order from `awaiting_confirmation`,
+which the agreed confirm endpoint does not accept yet:
+[open question 14](#open-questions).
 
 Row 3's "Built in" column in `deliveries.md` points here, so both documents
 are agreed together. The technical lead confirmed this approach
@@ -463,9 +470,11 @@ For #9 (adapters) and `docs/architecture/api-mapping.md`:
 ## Open questions
 
 Numbering is kept so review comments still match. Questions 1-11 are
-decided; 12 and 13 are open for @nnamdi-security and must be answered before
-this contract is agreed. The technical lead's answers are from his comment on
-#42 (@nnamdi-security, 2026-10-26).
+decided; the technical lead's answers are from his comment on #42
+(@nnamdi-security, 2026-10-26). Questions 12 and 13 are **resolved by pilot
+fallbacks he already agreed** (F3 and F5, order confirmation contract,
+2026-10-22); he confirms that reading when he approves. Question 14 is open
+for him and #21.
 
 1. ~~Flat prices per can or per tank, or FR-022 only?~~ **Decided**
    (@chidimmamogbo, 2026-10-26): FR-022 only. The admin Pricing screen is
@@ -505,35 +514,51 @@ this contract is agreed. The technical lead's answers are from his comment on
     creation-time quote in a separate `quotes` table with the FR-024
     components and the frozen category label; `order_price_snapshots` keeps
     meaning the confirmed price.
-12. **Delivery time window before confirming (FR-023).** FR-023 asks for the
-    delivery time window before the customer confirms, but slots (FR-025)
-    are not built: in the pilot the dispatcher sets the window at
-    confirmation (row 7, [deliveries.md](deliveries.md#order-confirmation-endpoints)).
-    Options: (a) the customer confirms with "the office confirms the window"
-    and agrees the window by phone at confirmation, recorded with it; (b) the
-    quote carries an earliest-window text set by the server. **Recommended:**
-    (a) for the pilot, since the window is agreed with the customer before the
-    order is `confirmed` (FR-023 is met at the confirmation call). For
-    @nnamdi-security.
-13. **Cancellation and redelivery charges before confirming (FR-023, FR-044,
-    FR-038).** FR-044 caps a charge after departure at "the delivery charge
-    disclosed in the quote", and FR-038's redelivery fee is "disclosed before
-    confirmation". But customers see the **total only** (question 6), so no
-    delivery charge amount is ever disclosed. Options: (a) disclose the
-    delivery charge as a separate amount **only** in the cancellation and
-    redelivery text (not as a price line); (b) cap at the total's delivery
-    component without showing it, and show the rules as text. **Recommended:**
-    (a): FR-044's cap needs a disclosed number to mean anything, and the
-    delivery charge alone does not reveal the supplier's cost per litre. If
-    (a) is chosen, `QuoteRead` and `OrderRead.quote` gain
-    `delivery_charge_minor_units` (additive), labelled as the cancellation
-    and redelivery cap. For @nnamdi-security, with @chidimmamogbo for the
-    screen.
+12. ~~Delivery time window before confirming (FR-023)~~ **Resolved by pilot
+    fallback F3** (agreed 2026-10-22 by the technical lead, order
+    confirmation contract in [deliveries.md](deliveries.md#order-confirmation-endpoints)):
+    the dispatcher agrees the delivery window with the customer on the
+    confirmation call, and `customer_agreement.disclosures_confirmed` must
+    say the window was told to them. Slots (FR-025) are not built, and the
+    order is only `awaiting_confirmation` until then, so the customer has
+    not been promised a window (FR-027). No new field: the checkout screen
+    says the office calls to agree the window. Slots replace F3 later
+    (C4). *For @nnamdi-security to confirm.*
+13. ~~Cancellation and redelivery charges before confirming (FR-023,
+    FR-044, FR-038)~~ **Resolved by pilot fallback F5** (agreed with F3):
+    there is **no cancellation or redelivery charge in the pilot**. The
+    dispatcher tells the customer so on the confirmation call
+    (`disclosures_confirmed`), and the checkout screen states it with no
+    amounts. So no delivery charge needs disclosing, and no
+    `delivery_charge_minor_units` field is added (this replaces the earlier
+    recommendation). FR-044's cap ("the delivery charge disclosed in the
+    quote") and FR-038's redelivery fee come back when charges are
+    introduced; that change must then disclose the delivery charge, which
+    the total-only rule (question 6) does not, so it needs a contract
+    change. *For @nnamdi-security to confirm.*
+14. **Confirming an order placed with a quote (gap for #21).** Row 3 puts a
+    quoted order in `awaiting_confirmation` ([Status at
+    creation](#status-at-creation)). But the agreed confirm endpoint,
+    `POST /admin/orders/{reference}/transition` with `to: confirmed`,
+    requires `expected_status: quote_requested` and returns 409
+    `invalid_order_transition` for an `awaiting_confirmation` order ("design
+    ahead (C4)", [deliveries.md](deliveries.md#confirmation-rules)). Once #21
+    is built, a dispatcher could not confirm any quoted order.
+    **Recommended:** #21 extends that endpoint (additive) to accept
+    `expected_status: awaiting_confirmation`. Then row 7 runs alone (no row
+    26), there is no `manual_quote_total_minor_units`, and the price
+    snapshot copies the quote's total, with `is_manual` false. Its other
+    inputs (category, source, window, `customer_agreement`) stay as agreed,
+    and the source must be one of the preferred kind. A changed price is a
+    repricing and needs the customer's documented agreement (BR-05, FR-036),
+    so it stays out of this step. For @nnamdi-security, with the change
+    written into `deliveries.md` in #21.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Open questions 12 and 13 resolved by the agreed pilot fallbacks F3 (window agreed on the confirmation call) and F5 (no cancellation or redelivery charge); FR-023 table updated; the proposed `delivery_charge_minor_units` dropped; new question 14 (quoted orders cannot be confirmed with the agreed confirm endpoint; #21 extends it) | Applies agreed fallbacks; @nnamdi-security to confirm on PR #59 |
 | 2026-10-26 | Brought to agreement (#42): `delivery_address` required on `POST /quotes`, water-only answer and `includes_delivery` removed; FR-023 disclosure table (payment method fixed "Pay on delivery"); pilot category Utility Water; technical lead's answers to questions 3, 4, 5, 7, 8, 9, 11 recorded; driver cash label reference fixed (payments.md amendment 3 is agreed); #18 → #37 for price lists; quote rate limit numbers set in #21; new open questions 12 (window) and 13 (cancellation and redelivery charges) | Decisions by @chidimmamogbo and @nnamdi-security; contract not yet agreed (questions 12, 13) |
 | 2026-10-26 | Amended for #30: `service_zone_id` on `POST /quotes` and `POST /orders` (compared for `quote_mismatch`), `service_zone` on `OrderRead`, `service_zone_not_found`; `outside_service_zone` and `delivery_cost_unavailable` defined by the zone; open question 10 decided | Decisions by @nnamdi-security; contract not yet agreed |
 | 2026-10-26 | Revised after review (PR #28): FR-022 only; one fixed pilot category set by the server (no category field in requests); customers see the total only (breakdown fields removed, `includes_delivery` added); `quote.water_category` on `OrderRead`; idempotent replay before quote checks; address normalization for `quote_mismatch`; driver cash label `quote`; creation status through existing row 3 | Not yet |
