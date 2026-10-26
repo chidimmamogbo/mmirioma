@@ -60,6 +60,17 @@ confirmation entries (row 7 with its `confirmation` line, then row 26 with
 `manual_quote` only after #114. Amounts are integer kobo:
 `4500000` is ₦45,000.00.
 
+Order details and price samples (**proposed**,
+[../order-details-and-price.md](../order-details-and-price.md), #10):
+`quote-create-request.json` asks for a 750-gallon Tanker of borehole water;
+`quote-available.json` is the server's answer (3,000 L; water, delivery and
+other add up to the total); `quote-manual.json` is a manual-quote answer
+(`no_vehicle_plan`); `order-create-with-quote-request.json` places the order
+with that `quote_id`; `order-with-details.json` is the order just after,
+`awaiting_confirmation` with its frozen quote; `error-quote-expired.json` is
+the refusal after `price_valid_until`. Every amount is illustrative, not a
+real price: `2000000` is ₦20,000.00.
+
 If a contract changes, update these files in the same PR.
 
 The cash samples ([../payments.md](../payments.md), agreed; the history entry

@@ -1,0 +1,6 @@
+{
+  "status": "manual_quote_required",
+  "quote_id": null,
+  "quantity_litres": 6000,
+  "reason": "no_vehicle_plan"
+}

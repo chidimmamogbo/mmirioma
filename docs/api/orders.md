@@ -17,6 +17,11 @@ technical lead, 2026-10-19):** `POST /orders` accepts the quantity in litres
 **or** local gallons, the minimum order is 600 litres, and an unverified
 customer gets 403 `phone_not_verified`. See [Changes](#changes).
 
+**Proposed 2026-10-26 (#10, not agreed):** delivery type, jerrycan and tank
+details, water source preference, `POST /quotes` and `quote_id` on
+`POST /orders`, all additive. See
+[order-details-and-price.md](order-details-and-price.md).
+
 ## Why Sprint 1 orders have no price
 
 Pricing rules, service zones and water categories were open decisions in
