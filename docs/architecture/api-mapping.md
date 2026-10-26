@@ -137,8 +137,10 @@ Source: SRS v0.3 FR-021 and `backend/app/modules/orders/quantities.py`.
   `quantity_litres`.
 - **Tanker:** sent as `quantity_local_gallons`; the server stores gallons × 4
   (500 gal = 2,000 L, 750 gal = 3,000 L, 1,000 gal = 4,000 L).
-- **Tanker capacity:** the gallons a driver types at sign-up × 4 =
-  `safe_payload_litres`, so assignment compares litres with litres (FR-013).
+- **Tanker capacity:** the gallons a driver types at sign-up × 4 is a
+  *declared* capacity in litres, never `safe_payload_litres`. An
+  administrator verifies it and records the vehicle's safe payload in litres
+  (FR-013); assignment compares that verified value, litres with litres.
 - **Minimum order: 600 litres.** The server rejects less (`validation_error`).
 - **Display:** both units together, exactly, with the gallon value to at most
   two decimal places (601 L = 150.25 gal). Client-side conversion is display

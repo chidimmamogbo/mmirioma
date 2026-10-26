@@ -57,7 +57,10 @@ supervisors choose between this fork and the main repo.
   linking an existing screen is plumbing and needs only an agreed contract
   (G3). A new screen needs design approval (G2) from @chidimmamogbo. A
   contract is agreed when @nnamdi-security and @chidimmamogbo have both
-  approved it.
+  approved it. The technical lead (@nnamdi-security) may also approve a
+  design (G2) or agree a contract (G3) alone; the document then names them
+  as the only approver. GitHub still needs a code owner other than the
+  author to approve the pull request that records it.
 
 ## Architecture
 

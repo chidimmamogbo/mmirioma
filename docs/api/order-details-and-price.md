@@ -13,6 +13,10 @@ agreed, not built. It becomes `Status: agreed` when both have approved it
 1, 2 and 6 decided (FR-022 only, one fixed pilot category, customers see the
 total only), and five requested changes applied. See [Changes](#changes).
 
+**Amended 2026-10-26 for #30:** the customer sends the service zone they
+picked (`service_zone_id`, FR-020) with the address; zone fees give the
+delivery cost ([admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)).
+
 Decision behind it (2026-10-26, @chidimmamogbo,
 [api-mapping.md](../architecture/api-mapping.md#decisions-2026-10-26-chidimmamogbo)):
 the fork's backend is extended to match the new design. Orders gain a delivery
@@ -150,7 +154,8 @@ Prices a choice on the server (FR-022, SRS §6). Customer only. Rate-limited
   "keke": null,
   "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
   "water_source": "borehole",
-  "delivery_address": "12 Sample Close, Independence Layout, Enugu"
+  "delivery_address": "12 Sample Close, Independence Layout, Enugu",
+  "service_zone_id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b"
 }
 ```
 
@@ -158,6 +163,7 @@ Prices a choice on the server (FR-022, SRS §6). Customer only. Rate-limited
 | --- | --- |
 | `delivery_type`, `keke`, `tanker`, `water_source` | As in [Delivery details](#delivery-details) |
 | `delivery_address` | Optional, as `OrderCreate.delivery_address` (5–500 characters). Without it, the response prices the water only (design decision 10: the delivery fee is shown once the address is known) |
+| `service_zone_id` | The zone the customer picked from [`GET /service-zones`](admin-directory.md#get-service-zones) (FR-020), or `null` / absent when their address is in no listed zone. Allowed only with `delivery_address` (else 422 `validation_error`). An unknown id is 404 `service_zone_not_found`. With an address and no zone, or an inactive zone, the quote is `manual_quote_required` / `outside_service_zone` |
 
 No category field: the server uses the pilot category
 ([Water source and category](#water-source-and-category), point 3). Unknown
@@ -221,30 +227,31 @@ belong to #11).
 
 | `reason` | When | Source |
 | --- | --- | --- |
-| `outside_service_zone` | The address is in no active service zone | FR-010, T-02 |
+| `outside_service_zone` | An address was sent with no `service_zone_id`, or with an inactive zone | FR-010, T-02 |
 | `no_eligible_source` | No source of the preferred kind is eligible for the category today | FR-012, BR-02, T-04 |
 | `category_unavailable` | No source is activated for the category | FR-014 |
 | `no_vehicle_plan` | No configured vehicle can carry the quantity in at most two trips | FR-013, FR-021, T-03 |
-| `delivery_cost_unavailable` | No road distance and no zone rate | FR-022, T-18 |
+| `delivery_cost_unavailable` | No road distance, and the zone has no fee for the category | FR-022, T-18 |
 
 The client shows its own wording per `reason` (clients branch on codes, not
 messages, [README](README.md#errors)). An unknown `reason` gets the generic
 manual-quote wording. The order can still be sent without a `quote_id` as a
 quote request (`quote_requested`), as today.
 
-**Pilot note:** the backend has no service zones and no OSRM yet (SRS §12.1:
-OSRM hosting is open). Until zones and their fixed delivery rates exist
-(**#30**, a dependency of #21), every quote with an address answers
-`manual_quote_required` with `delivery_cost_unavailable`, never an estimated
-delivery fee ("No fabricated route estimates", FR-022). With #30, an in-zone
-address is priced from the zone rate and an out-of-zone one answers
-`outside_service_zone` (FR-010, T-02).
+**Pilot note:** the backend has no OSRM yet (SRS §12.1: OSRM hosting is
+open). The delivery cost is the picked zone's fee for the category, once per
+order (built in **#30**; rules in
+[admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)). No fee
+for the category answers `delivery_cost_unavailable`; no zone or an inactive
+one answers `outside_service_zone` (FR-010, T-02). Never an estimated
+delivery fee ("No fabricated route estimates", FR-022).
 
 ### Errors
 
 | Status | `code` | When |
 | --- | --- | --- |
-| 422 | `validation_error` | Invalid body; below 600 litres; both or neither of `keke` and `tanker`; a `water_source` on a Keke choice or missing on a Tanker choice |
+| 404 | `service_zone_not_found` | Unknown `service_zone_id` ([admin-directory.md](admin-directory.md#error-codes-added-by-this-contract)) |
+| 422 | `validation_error` | Invalid body; below 600 litres; both or neither of `keke` and `tanker`; a `water_source` on a Keke choice or missing on a Tanker choice; a `service_zone_id` without a `delivery_address` |
 | 429 | `too_many_attempts` | Rate limit (NFR-002); `Retry-After` header, as in [auth.md](auth.md) |
 
 Plus the shared 401, 403 (`forbidden` for staff and drivers, `csrf_failed`)
@@ -268,6 +275,7 @@ required to ask for a price; it is required to order (FR-003, unchanged).
   "contact_name": "Sample Customer",
   "contact_phone": "08000000001",
   "delivery_address": "12 Sample Close, Independence Layout, Enugu",
+  "service_zone_id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b",
   "landmark": "Opposite the blue gate",
   "delivery_instructions": "Tank is behind the house",
   "preferred_delivery_date": "2026-10-27"
@@ -293,6 +301,12 @@ required to ask for a price; it is required to order (FR-003, unchanged).
   BR-01).
 - **Without a `quote_id`:** the order is a quote request in `quote_requested`,
   as today (FR-021, FR-022 manual fallback).
+- **`service_zone_id`** (FR-020): optional, as in `POST /quotes`, and stored
+  on the order. An unknown id is 404 `service_zone_not_found`. With a
+  `quote_id` it must equal the quote's zone ([When a quote matches the
+  order](#when-a-quote-matches-the-order)). Without one, no zone or an
+  inactive zone is accepted: the order is a quote request, which is FR-010's
+  request-assistance path for an out-of-zone address.
 
 ### When a quote matches the order
 
@@ -302,7 +316,7 @@ quote request.
 
 | Field | Comparison |
 | --- | --- |
-| `delivery_type`, `keke.can_size_litres`, `keke.can_count`, `tanker.tank_type`, `tanker.quantity_local_gallons`, `water_source` | Exact |
+| `delivery_type`, `keke.can_size_litres`, `keke.can_count`, `tanker.tank_type`, `tanker.quantity_local_gallons`, `water_source`, `service_zone_id` | Exact |
 | `delivery_address` | Normalized on both sides: trimmed, every run of whitespace (spaces, tabs, line breaks) collapsed to one space, compared case-insensitively (Unicode case folding). `"12 Sample Close,  Enugu "` matches `"12 sample close, enugu"`. Nothing else is rewritten: a changed comma or word is a mismatch, because the delivery cost was priced for that address |
 
 The category is not compared: the quote carries the pilot category, and the
@@ -333,6 +347,7 @@ New errors (in addition to those in [orders.md](orders.md#endpoints-sprint-1)):
 | Status | `code` | When |
 | --- | --- | --- |
 | 404 | `quote_not_found` | Unknown `quote_id`, or another customer's (not probeable, as `order_not_found`) |
+| 404 | `service_zone_not_found` | Unknown `service_zone_id` |
 | 409 | `quote_expired` | `price_valid_until` has passed (SRS §8: "customer must requote"). Never on an idempotent replay |
 | 422 | `quote_mismatch` | A field in [When a quote matches the order](#when-a-quote-matches-the-order) differs; `details` names the fields (`[{"loc": ["body", "delivery_address"], ...}]`) |
 | 409 | `no_eligible_source` | Between quote and order, no source of the preferred kind is eligible any more (FR-012, BR-02) |
@@ -352,6 +367,7 @@ Every endpoint that returns `OrderRead` gains
   "keke": null,
   "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
   "water_source": "borehole",
+  "service_zone": { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout" },
   "quote": {
     "currency": "NGN",
     "total_minor_units": 2000000,
@@ -364,6 +380,7 @@ Every endpoint that returns `OrderRead` gains
 | --- | --- |
 | `delivery_type`, `keke`, `tanker`, `water_source` | As sent. `null` on orders created in the old shape (before #21) |
 | `tanker.quantity_local_gallons` | As sent; `quantity_litres` remains the stored value |
+| `service_zone` | The zone sent with the order (`id`, current `name`), or `null` when none was sent |
 | `quote` | The quote frozen at creation (FR-024), or `null` for a quote request. A later change to the pricing rules never changes it (T-09). **Total only** for customers (open question 6) |
 | `quote.water_category` | What the customer accepted (FR-023): `label` frozen with the quote, so a later label change does not alter the order (FR-014, FR-024); `supported_uses` read live, as decided for `water_category` in [orders.md](orders.md#decided-questions) (question 2) |
 
@@ -387,10 +404,9 @@ adds **`quote`** for a server quote. For an order created with a `quote_id`
 and confirmed without repricing, `amount_due_label` is `quote`. If the
 dispatcher repriced it as a manual quote, it stays `manual_quote`.
 
-The wording the card shows for `quote` is a design decision for the driver
-cash design ([driver-cash.md](../design/driver-cash.md), open questions;
-@chidimmamogbo). It must not read "Manual quote", which would misstate how
-the price was set.
+For `quote` the card shows "Pay on delivery: cash after unloading", never
+"Manual quote", which would misstate how the price was set
+([driver-cash.md](../design/driver-cash.md), decision 8, @chidimmamogbo).
 
 ## Mapping to the design types
 
@@ -402,6 +418,7 @@ For #9 (adapters) and `docs/architecture/api-mapping.md`:
 | `delivery_type` + `tanker` + `water_source` | `{ delivery_type: 'tanker', tank_type, tank_size_gallons, source }`: `tank_size_gallons` is `quantity_local_gallons` when it is 500, 750 or 1000, else `null` (custom) |
 | `QuoteRead` `quote_available` | `Quote` `quote_available`: `total_minor_units` and `price_valid_until` only. The design's `water` and `delivery` lines have no source (total only, open question 6), so the Keke and Tanker summaries lose those lines in #9. `points_estimate` and `is_sample` have no source either ([open question 9](#open-questions)) |
 | `QuoteRead` `manual_quote_required` | `Quote` `manual_quote_required`: `reason` text chosen by the client from the code |
+| `service_zone_id` (request), `service_zone` (`OrderRead`) | No design field yet. The customer's address step needs a zone picker with a "my area is not listed" choice (sent as no zone), a screen change that needs G2 in #9 |
 
 ## Open questions
 
@@ -448,11 +465,11 @@ Recommendations are proposals, not decisions.
 9. **Points.** The mock's `points_estimate` has no SRS basis.
    **Recommended**, and supported by @chidimmamogbo: leave it out; the
    adapter shows no estimate until #11 settles loyalty points.
-10. **Service zones and OSRM.** Neither exists in the backend; OSRM hosting
-    is open (SRS §12.1). **#30** (service zones and fixed delivery rates,
-    FR-010, @nnamdi-security) now gives the pilot a delivery cost from zone
-    rates and is a dependency of #21. Until #30 merges, the
-    [Pilot note](#response-200-quoteread) applies. For @nnamdi-security.
+10. ~~**Service zones and OSRM.**~~ **Decided** (@nnamdi-security,
+    2026-10-26): the customer picks the zone (`service_zone_id`, FR-020);
+    the delivery cost is the zone's fee per category, per order, built in
+    **#30** ([admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)).
+    OSRM stays open (SRS §12.1); see the [Pilot note](#response-200-quoteread).
 11. **Snapshot storage.** The agreed `order_price_snapshots` table holds the
     confirmed (manual) price. **Recommended:** #21 stores the creation-time
     quote in a separate `quotes` table (SRS §5) with the FR-024 components
@@ -463,5 +480,6 @@ Recommendations are proposals, not decisions.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Amended for #30: `service_zone_id` on `POST /quotes` and `POST /orders` (compared for `quote_mismatch`), `service_zone` on `OrderRead`, `service_zone_not_found`; `outside_service_zone` and `delivery_cost_unavailable` defined by the zone; open question 10 decided | Decisions by @nnamdi-security; contract not yet agreed |
 | 2026-10-26 | Revised after review (PR #28): FR-022 only; one fixed pilot category set by the server (no category field in requests); customers see the total only (breakdown fields removed, `includes_delivery` added); `quote.water_category` on `OrderRead`; idempotent replay before quote checks; address normalization for `quote_mismatch`; driver cash label `quote`; creation status through existing row 3 | Not yet |
 | 2026-10-26 | Proposed: delivery details, `POST /quotes`, `quote_id` on `POST /orders`, details and quote on `OrderRead` | Superseded by the revision above |

@@ -1,0 +1,7 @@
+{
+  "name": "Sample Driver Three",
+  "phone": "08000000013",
+  "delivery_type": "tanker",
+  "tank_capacity_local_gallons": 3000,
+  "zone_ids": ["9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b"]
+}
