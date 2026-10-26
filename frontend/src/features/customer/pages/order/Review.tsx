@@ -10,7 +10,8 @@ import { Card } from '../../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../../components/ui/Chip'
 import { IconBadge, KeyValue, SectionHeader, TextLink } from '../../../../components/ui/Content'
 import { Notice } from '../../../../components/ui/Notice'
-import { WATER_SOURCE_LABEL, describeTankLitres, kekeTotalLitres } from '../../../../domain/orders'
+import { WATER_SOURCE_LABEL, describeTankSize, kekeTotalLitres } from '../../../../domain/orders'
+import { describeQuantity } from '../../../../domain/quantity'
 import { errorMessage } from '../../../../lib/api/errorMessage'
 import { formatNaira } from '../../../../lib/format/money'
 import { formatPhone, normalizeNigerianPhone } from '../../../../lib/format/phone'
@@ -104,18 +105,14 @@ export function Review() {
             <div className="flex-1">
               {choice.delivery_type === 'keke' ? (
                 <>
-                  <KeyValue label="Water size" value={`${choice.can_size_litres} litres`} />
+                  <KeyValue label="Water size" value={`${choice.can_size_litres} litres per can`} />
                   <KeyValue label="Quantity" value={`${choice.can_count} cans`} />
-                  <KeyValue label="Total water" value={`${kekeTotalLitres(choice).toLocaleString('en-NG')} L`} />
+                  <KeyValue label="Total water" value={describeQuantity(kekeTotalLitres(choice))} />
                 </>
               ) : (
                 <>
                   <KeyValue label="Tank" value={choice.tank_type === 'ground' ? 'Ground tank' : 'Overhead tank'} />
-                  <KeyValue
-                    label="Capacity"
-                    value={choice.tank_size_gallons === null ? `${draft.tanker.custom_gallons || 'Custom'} gallons` : `${choice.tank_size_gallons.toLocaleString('en-NG')} gallons`}
-                  />
-                  {choice.tank_size_gallons !== null && <KeyValue label="In litres" value={describeTankLitres(choice.tank_size_gallons)} />}
+                  <KeyValue label="Capacity" value={describeTankSize(choice.tank_size_gallons, draft.tanker.custom_gallons) ?? 'Custom size'} />
                 </>
               )}
               {choice.delivery_type === 'tanker' && <KeyValue label="Source" value={WATER_SOURCE_LABEL[choice.source]} />}

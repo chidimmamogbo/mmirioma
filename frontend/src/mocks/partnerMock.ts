@@ -24,6 +24,7 @@ import type {
 import type { IssueType } from '../domain/admin'
 import { ISSUE_LABEL } from '../domain/partner'
 import type { Session } from '../lib/api/auth'
+import { litresFromGallons } from '../domain/quantity'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { normalizeNigerianPhone } from '../lib/format/phone'
 import { requireUserId, startSession } from './authMock'
@@ -139,7 +140,7 @@ export function newPartnerData(s: MockState, input: Pick<PartnerSignupInput, 've
       vehicle: {
         type: input.vehicle_type,
         plate: input.plate.trim().toUpperCase(),
-        description: input.vehicle_type === 'keke' ? 'Tricycle' : `${input.tank_gallons?.toLocaleString('en-NG')} gal tank`,
+        description: input.vehicle_type === 'keke' ? 'Tricycle' : `${input.tank_gallons?.toLocaleString('en-NG')} gal (${litresFromGallons(input.tank_gallons ?? 0).toLocaleString('en-NG')} L) tank`,
         tank_gallons: input.vehicle_type === 'tanker' ? input.tank_gallons : null,
         safe_load_litres: null,
         can_pour_into: input.vehicle_type === 'keke' ? 'Drums, ground tanks' : 'Ground and overhead tanks (pump)',

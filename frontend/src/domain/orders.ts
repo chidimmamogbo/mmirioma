@@ -8,6 +8,8 @@
  * until a contract exists. JSON field names follow the API conventions:
  * snake_case, money as integer kobo in `*_minor_units`, UTC ISO timestamps.
  */
+import { describeQuantity, litresFromGallons } from './quantity'
+import { parseGallons } from './tankCapacity'
 
 export type DeliveryType = 'keke' | 'tanker'
 export type CanSizeLitres = 25 | 50
@@ -43,19 +45,11 @@ export function fitCanCount(size: CanSizeLitres, count: number): number {
   return offered.includes(count) ? count : (offered[0] ?? CAN_COUNTS[CAN_COUNTS.length - 1])
 }
 
-/** Standard tank sizes (design `c-tanker`). "Custom" needs a manual quote (FR-021). */
-export const TANK_SIZES: TankSizeGallons[] = [500, 750, 1000]
-
 /**
- * Approximate litres per tank size, from the owner (GeePee tank sizes). These
- * are tank-maker sizes, not a unit conversion, so they are shown as "about"
- * and litres are never computed from gallons.
+ * Standard tank sizes in local gallons (design `c-tanker`): exactly 2,000,
+ * 3,000 and 4,000 litres (FR-021). "Custom" needs a manual quote (FR-021).
  */
-export const TANK_LITRES: Record<TankSizeGallons, { min: number; max: number }> = {
-  500: { min: 2000, max: 2500 },
-  750: { min: 3000, max: 3000 },
-  1000: { min: 4000, max: 5000 },
-}
+export const TANK_SIZES: TankSizeGallons[] = [500, 750, 1000]
 
 /** What the customer chose on the quantity screen. */
 export type WaterChoice =
@@ -188,28 +182,39 @@ export function shortReference(reference: string): string {
   return reference.slice(0, 7)
 }
 
-/** Quantity as the design writes it: "25 L × 24 cans", "750 gallons", "Custom size". */
+/**
+ * Quantity in both units (FR-021, decision of 2026-10-26): "25 L × 24 cans
+ * (600 L · 150 gal)", "750 gallons (3,000 litres)", "Custom size". Tankers
+ * lead with gallons, the size customers pick.
+ */
 export function describeChoice(choice: WaterChoice, style: 'long' | 'short' = 'long'): string {
   if (choice.delivery_type === 'keke') {
-    return style === 'long'
-      ? `${choice.can_size_litres} L × ${choice.can_count} cans`
-      : `${choice.can_size_litres} L × ${choice.can_count}`
+    const cans = style === 'long' ? `${choice.can_size_litres} L × ${choice.can_count} cans` : `${choice.can_size_litres} L × ${choice.can_count}`
+    return `${cans} (${describeQuantity(kekeTotalLitres(choice), 'litres', 'short')})`
   }
   if (choice.tank_size_gallons === null) return 'Custom size'
-  const size = choice.tank_size_gallons.toLocaleString('en-NG')
-  return style === 'long' ? `${size} gallons` : `${size} gal`
+  return describeQuantity(litresFromGallons(choice.tank_size_gallons), 'gallons', style)
 }
 
-/** Total litres for a Keke order (cans × size). Not used for tankers (see TANK_LITRES). */
+/** Total litres for a Keke order (cans × size). */
 export function kekeTotalLitres(choice: Extract<WaterChoice, { delivery_type: 'keke' }>): number {
   return choice.can_size_litres * choice.can_count
 }
 
-/** "about 2,000 to 2,500 L" for a tank size. */
-export function describeTankLitres(size: TankSizeGallons): string {
-  const { min, max } = TANK_LITRES[size]
-  const f = (n: number) => n.toLocaleString('en-NG')
-  return min === max ? `about ${f(min)} L` : `about ${f(min)} to ${f(max)} L`
+/**
+ * A tank size in both units while ordering: a standard size, or the custom
+ * gallons the customer typed. Null while a custom size is empty or not a
+ * whole number.
+ */
+export function describeTankSize(size: TankSizeGallons | null, customTyped: string): string | null {
+  const gallons = size ?? parseGallons(customTyped)
+  return gallons === null ? null : describeQuantity(litresFromGallons(gallons), 'gallons')
+}
+
+/** Total litres for any order, or null for a custom tank size (not known until the team quotes it). */
+export function choiceLitres(choice: WaterChoice): number | null {
+  if (choice.delivery_type === 'keke') return kekeTotalLitres(choice)
+  return choice.tank_size_gallons === null ? null : litresFromGallons(choice.tank_size_gallons)
 }
 
 export interface SavedAddress {

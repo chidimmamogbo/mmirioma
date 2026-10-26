@@ -140,13 +140,13 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       today_minor_units: 1_250_000,
       deliveries_today: 5,
       earnings: [
-        { reference: 'MO-1QW8ZR5KTD', at: lagosToday(9, 15, now), amount_minor_units: 300_000, status: 'completed', label: '50 L × 12' },
-        { reference: 'MO-9PXD4R7MNE', at: lagosToday(17, 20, now, 1), amount_minor_units: 200_000, status: 'completed', label: '25 L × 30' },
-        { reference: 'MO-2BQ7TV9HXA', at: lagosToday(13, 5, now, 1), amount_minor_units: 280_000, status: 'completed', label: '25 L × 12' },
+        { reference: 'MO-1QW8ZR5KTD', at: lagosToday(9, 15, now), amount_minor_units: 300_000, status: 'completed', label: '50 L × 12 (600 L · 150 gal)' },
+        { reference: 'MO-9PXD4R7MNE', at: lagosToday(17, 20, now, 1), amount_minor_units: 200_000, status: 'completed', label: '25 L × 30 (750 L · 187.5 gal)' },
+        { reference: 'MO-2BQ7TV9HXA', at: lagosToday(13, 5, now, 1), amount_minor_units: 280_000, status: 'completed', label: '25 L × 12 (300 L · 75 gal)' },
       ],
       payouts: [{ id: 'po1', at: lagosToday(18, 0, now, 1), amount_minor_units: 4_520_000, status: 'paid' }],
       notifications: [
-        { id: 'rn1', kind: 'assigned', title: 'Admin assigned you an order', body: 'MO-3HT8 · 50 L × 12 cans · Independence Layout', at: new Date(now.getTime() - 2 * 60_000).toISOString(), read: false, reference: 'MO-3HT8WQ2KZP' },
+        { id: 'rn1', kind: 'assigned', title: 'Admin assigned you an order', body: 'MO-3HT8 · 50 L × 12 cans (600 L · 150 gal) · Independence Layout', at: new Date(now.getTime() - 2 * 60_000).toISOString(), read: false, reference: 'MO-3HT8WQ2KZP' },
         { id: 'rn2', kind: 'new_orders', title: '3 new orders near you', body: 'GRA and Ogui. No timer, accept when ready.', at: new Date(now.getTime() - 15 * 60_000).toISOString(), read: false, reference: null },
         { id: 'rn3', kind: 'payout', title: 'Payout sent', body: '₦45,200 sent to your bank account ending 2214.', at: lagosToday(18, 5, now, 1), read: false, reference: null },
         { id: 'rn4', kind: 'station_closed', title: 'Station closed', body: 'New Haven Station is closed today. Use GRA or Ogui.', at: lagosToday(8, 0, now, 1), read: true, reference: null },
@@ -162,7 +162,7 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
         approval: 'approved',
         online: true,
         partner_since: '2026-08-10',
-        vehicle: { type: 'tanker', plate: 'ENU 115 XA', description: '1,000 gal tank', tank_gallons: 1000, safe_load_litres: null, can_pour_into: 'Ground and overhead tanks (pump)' },
+        vehicle: { type: 'tanker', plate: 'ENU 115 XA', description: '1,000 gal (4,000 L) tank', tank_gallons: 1000, safe_load_litres: null, can_pour_into: 'Ground and overhead tanks (pump)' },
         service_areas: ['Ogui', 'New Haven'],
         documents: [
           { id: 'd1', name: "Driver's licence", status: 'valid', note: 'Checked 12 Aug 2026', can_upload: false },
@@ -177,8 +177,8 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       today_minor_units: 2_400_000,
       deliveries_today: 3,
       earnings: [
-        { reference: 'MO-6TPB4WX9LR', at: lagosToday(7, 40, now), amount_minor_units: 650_000, status: 'completed', label: '500 gal' },
-        { reference: 'MO-8ZRX3KTM6D', at: lagosToday(16, 10, now, 1), amount_minor_units: 950_000, status: 'completed', label: '1,000 gal' },
+        { reference: 'MO-6TPB4WX9LR', at: lagosToday(7, 40, now), amount_minor_units: 650_000, status: 'completed', label: '500 gal · 2,000 L' },
+        { reference: 'MO-8ZRX3KTM6D', at: lagosToday(16, 10, now, 1), amount_minor_units: 950_000, status: 'completed', label: '1,000 gal · 4,000 L' },
       ],
       payouts: [{ id: 'po2', at: lagosToday(18, 0, now, 3), amount_minor_units: 5_000_000, status: 'paid' }],
       notifications: [
@@ -205,7 +205,7 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       approval: 'pending',
       online: false,
       since: lagosToday(9, 0, now).slice(0, 10),
-      vehicle: { type: 'tanker', plate: 'ENU 330 XB', description: '4,000 gal tank', tank_gallons: 4000, safe_load_litres: null, can_pour_into: 'Ground and overhead tanks (pump)' },
+      vehicle: { type: 'tanker', plate: 'ENU 330 XB', description: '4,000 gal (16,000 L) tank', tank_gallons: 4000, safe_load_litres: null, can_pour_into: 'Ground and overhead tanks (pump)' },
       areas: ['Trans-Ekulu'],
       today: 0,
       wallet: 0,

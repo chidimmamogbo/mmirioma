@@ -8,7 +8,8 @@ import { Avatar } from '../../../../components/ui/Avatar'
 import { Card } from '../../../../components/ui/Card'
 import { IconBadge, ScreenHeading } from '../../../../components/ui/Content'
 import { IconLink } from '../../../../components/ui/IconButton'
-import { describeChoice, isActiveStage, type CustomerOrder } from '../../../../domain/orders'
+import { choiceLitres, describeChoice, isActiveStage, type CustomerOrder } from '../../../../domain/orders'
+import { describeQuantity } from '../../../../domain/quantity'
 import { USE_MOCKS } from '../../../../lib/api/mode'
 import { cx } from '../../../../lib/cx'
 import { useDemoAdvance, useOrder } from '../../queries'
@@ -35,7 +36,10 @@ function currentStep(o: CustomerOrder): number {
 
 function headline(o: CustomerOrder): { title: string; sub: string } {
   const first = o.partner?.name.split(' ')[0]
-  const qty = o.delivered_quantity ?? (o.choice.delivery_type === 'keke' ? `${o.choice.can_size_litres * o.choice.can_count} L` : describeChoice(o.choice))
+  const litres = choiceLitres(o.choice)
+  const qty =
+    o.delivered_quantity ??
+    (litres !== null ? describeQuantity(litres, o.choice.delivery_type === 'tanker' ? 'gallons' : 'litres', 'short') : describeChoice(o.choice))
   switch (o.stage) {
     case 'waiting_rider':
       return { title: 'Finding a rider', sub: 'You will see them here the moment one accepts.' }

@@ -87,7 +87,7 @@ export interface PartnerProfile {
   vehicle: {
     type: VehicleType
     plate: string
-    /** "Blue tricycle", "1,000 gal tank". */
+    /** "Blue tricycle", "1,000 gal (4,000 L) tank". */
     description: string
     /** Tank size for tanker drivers; null for Keke. */
     tank_gallons: number | null

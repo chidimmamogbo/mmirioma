@@ -10,6 +10,8 @@ import { Notice } from '../../../components/ui/Notice'
 import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
+import { kekeTotalLitres } from '../../../domain/orders'
+import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { formatNaira } from '../../../lib/format/money'
 import { RouteCard } from '../components/JobParts'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
@@ -58,18 +60,19 @@ export function JobDetail() {
                 </div>
                 {j.choice.delivery_type === 'keke' ? (
                   <>
-                    <KeyValue label="Water size" value={`${j.choice.can_size_litres} litres`} />
+                    <KeyValue label="Water size" value={`${j.choice.can_size_litres} litres per can`} />
                     <KeyValue label="Quantity" value={`${j.choice.can_count} cans`} />
+                    <KeyValue label="Total water" value={describeQuantity(kekeTotalLitres(j.choice))} />
                     <KeyValue label="Delivery" value="Keke" />
                   </>
                 ) : (
                   <>
                     <KeyValue label="Tank type" value={j.choice.tank_type === 'overhead' ? 'Overhead' : 'Ground'} />
-                    <KeyValue label="Capacity" value={`${j.choice.tank_size_gallons?.toLocaleString('en-NG')} gallons`} />
+                    <KeyValue label="Capacity" value={j.choice.tank_size_gallons ? describeQuantity(litresFromGallons(j.choice.tank_size_gallons), 'gallons') : 'Custom size'} />
                     {fits && (
                       <KeyValue
                         label="Fits your tank"
-                        value={<span className="text-[#15803D]">Yes · {profile.data?.vehicle.tank_gallons?.toLocaleString('en-NG')} gal</span>}
+                        value={<span className="text-[#15803D]">Yes · {describeQuantity(litresFromGallons(profile.data?.vehicle.tank_gallons ?? 0), 'gallons', 'short')}</span>}
                       />
                     )}
                   </>

@@ -25,6 +25,7 @@ import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
 import { IconBadge, ScreenHeading } from '../../../components/ui/Content'
 import type { PartnerJob } from '../../../domain/partner'
+import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { Notice } from '../../../components/ui/Notice'
@@ -50,7 +51,7 @@ export function RefillStep() {
               sub={
                 j.choice.delivery_type === 'keke'
                   ? `Collect ${j.choice.can_count} cans of ${j.choice.can_size_litres} L for ${j.reference}.`
-                  : `Load ${j.choice.tank_size_gallons?.toLocaleString('en-NG')} gallons for ${j.reference}.`
+                  : `Load ${describeQuantity(litresFromGallons(j.choice.tank_size_gallons ?? 0), 'gallons')} for ${j.reference}.`
               }
             />
             <Card className="rise-2 flex items-center gap-3 px-3.5 py-3">
@@ -148,7 +149,7 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
             <div className="text-[20px] font-extrabold">
               {j.choice.can_size_litres} L × {count} cans
             </div>
-            <div className="text-caption text-[#6B5210]">{litres.toLocaleString('en-NG')} litres in total</div>
+            <div className="text-caption text-[#6B5210]">{describeQuantity(litres)} in total</div>
           </div>
           <Illustration name="keke" className="animate-drive w-[118px]" />
         </div>

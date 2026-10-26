@@ -28,6 +28,7 @@ import {
   type WaterChoice,
   type WaterSource,
 } from '../../../domain/orders'
+import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatNaira } from '../../../lib/format/money'
@@ -180,7 +181,7 @@ export function CreateOrder() {
                   <Illustration name={t} className="w-28 shrink-0" />
                   <span>
                     <span className="block text-[17px] font-extrabold">{t === 'keke' ? 'Keke' : 'Tanker'}</span>
-                    <span className="block text-caption text-mute">{t === 'keke' ? '25 L or 50 L cans' : '500 to 1,000 gallons'}</span>
+                    <span className="block text-caption text-mute">{t === 'keke' ? '25 L or 50 L cans' : '500 to 1,000 gal (2,000 to 4,000 L)'}</span>
                   </span>
                 </OptionTile>
               ))}
@@ -205,7 +206,7 @@ export function CreateOrder() {
             ) : (
               <div className="flex flex-wrap gap-6">
                 <ChoiceGroup label="Tank type" value={tankType} options={[{ value: 'ground', label: 'Ground' }, { value: 'overhead', label: 'Overhead' }]} onChange={(v) => setTankType(v as TankType)} />
-                <ChoiceGroup label="Tank size" value={String(size)} options={TANK_SIZES.map((v) => ({ value: String(v), label: `${v.toLocaleString('en-NG')} gal` }))} onChange={(v) => setSize(Number(v) as TankSizeGallons)} />
+                <ChoiceGroup label="Tank size" value={String(size)} options={TANK_SIZES.map((v) => ({ value: String(v), label: describeQuantity(litresFromGallons(v), 'gallons', 'short') }))} onChange={(v) => setSize(Number(v) as TankSizeGallons)} />
                 <ChoiceGroup
                   label="Water source"
                   value={source}

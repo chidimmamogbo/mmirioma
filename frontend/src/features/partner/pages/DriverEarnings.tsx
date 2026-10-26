@@ -7,6 +7,7 @@ import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { IconBadge, SectionTitle } from '../../../components/ui/Content'
 import { shortReference } from '../../../domain/orders'
+import { litresFromGallons } from '../../../domain/quantity'
 import type { PartnerEarnings } from '../../../domain/partner'
 import { formatNaira } from '../../../lib/format/money'
 import { relativeWhen } from '../jobHelpers'
@@ -68,7 +69,7 @@ export function DriverEarnings() {
             <div className="rise-2 grid grid-cols-3 gap-2">
               <Stat label="This week" value={formatNaira(e.week_minor_units)} />
               <Stat label="Trips" value={String(e.trips_this_week)} />
-              <Stat label="Gallons" value={e.gallons_this_week.toLocaleString('en-NG')} />
+              <Stat label={`Gallons · ${litresFromGallons(e.gallons_this_week).toLocaleString('en-NG')} L`} value={e.gallons_this_week.toLocaleString('en-NG')} />
             </div>
             <SectionTitle className="rise-3">Recent trips</SectionTitle>
             {rows.length === 0 ? (

@@ -95,7 +95,7 @@ export function Home() {
           <VehicleCard
             onClick={() => startOrder('tanker')}
             title="Order with Tanker"
-            sub="500 to 1,000 gallons or custom"
+            sub="500 to 1,000 gallons (2,000 to 4,000 litres) or custom"
             illustration="tanker"
             alt="MmiriOma water tanker truck"
             gradient="bg-[linear-gradient(160deg,#E6F8EE_0%,#CDEFDC_100%)]"

@@ -9,6 +9,7 @@ import { Toggle } from '../../../components/ui/Controls'
 import { Notice } from '../../../components/ui/Notice'
 import type { PriceList, PriceListInput } from '../../../domain/admin'
 import { TANK_SIZES, WATER_SOURCE_LABEL } from '../../../domain/orders'
+import { litresFromGallons } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatShortDate } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
@@ -104,7 +105,7 @@ function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMuta
           {TANK_SIZES.map((size) => {
             const g = size.toLocaleString('en-NG')
             return (
-              <PriceRow key={size} cols={TANKER_COLS} title={`${g} gal`}>
+              <PriceRow key={size} cols={TANKER_COLS} title={`${g} gal · ${litresFromGallons(size).toLocaleString('en-NG')} L`}>
                 <Cell label={`${WATER_SOURCE_LABEL.borehole} (₦)`}>
                   <NairaInput label={`${g} gal borehole water`} value={draft.tanker[size].water_minor_units.borehole} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.borehole = v ?? 0))} />
                 </Cell>

@@ -27,7 +27,7 @@ const schema = z
     password: newPasswordField,
     vehicle_type: z.enum(['keke', 'tanker']),
     plate: z.string().trim().min(4, 'Enter the plate number, e.g. ENU 482 KK.').max(20, 'Use 20 characters or fewer.'),
-    /** Typed capacity, tankers only (custom answer: most carry about 4,000 gal). */
+    /** Typed capacity in gallons, tankers only; stored as litres × 4 by the server (FR-013, FR-021). */
     tank_gallons: z.string(),
     service_area: z.string().trim().min(2, 'Enter the area you work in, e.g. GRA.').max(60, 'Use 60 characters or fewer.'),
   })
@@ -149,7 +149,7 @@ export function PartnerSignup() {
               inputMode="numeric"
               autoComplete="off"
               placeholder="e.g. 4,000"
-              hint="Type the full load in gallons. Most tankers carry about 4,000 (four 1,000 gallon tanks)."
+              hint="Type the full load in gallons, for example 4,000 gallons (16,000 litres)."
               error={errors.tank_gallons?.message}
               {...register('tank_gallons')}
             />

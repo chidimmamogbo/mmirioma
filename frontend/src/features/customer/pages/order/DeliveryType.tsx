@@ -52,7 +52,7 @@ export function DeliveryType() {
               />
             }
             title="Tanker delivery"
-            text="500, 750, 1,000 gallons or a custom size. For big tanks, businesses and estates."
+            text="500, 750 or 1,000 gallons (2,000, 3,000 or 4,000 litres) or a custom size. For big tanks, businesses and estates."
             chips={<Chip tone="green">Ground or overhead tank</Chip>}
           />
         </div>

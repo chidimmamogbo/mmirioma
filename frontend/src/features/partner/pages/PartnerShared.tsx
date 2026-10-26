@@ -32,12 +32,13 @@ import { IconBadge, SectionTitle, type IconBadgeTone } from '../../../components
 import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
+import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../../domain/quantity'
 import { DECLINE_LABEL, ISSUE_LABEL, type DeclineReason, type PartnerIssueType, type PartnerJob, type PartnerNotification } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatNaira } from '../../../lib/format/money'
 import { JobMiniCard } from '../components/JobParts'
-import { jobQuantity, jobShort, relativeWhen } from '../jobHelpers'
+import { jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useDeclineJob, useHistory, useJob, useMarkPartnerNotificationsRead, usePartnerNotifications, usePartnerProfile, useReportIssue, useUploadDocument } from '../queries'
 
@@ -64,10 +65,7 @@ export function PartnerHistory() {
   const list = (history.data ?? []).filter((j) => inPeriod(j, period))
   const delivered = list.filter((j) => j.stage === 'delivered')
   const amount = delivered.reduce((a, j) => a + j.earning_minor_units, 0)
-  const volume = delivered.reduce(
-    (a, j) => a + (j.choice.delivery_type === 'keke' ? j.choice.can_size_litres * j.choice.can_count : (j.choice.tank_size_gallons ?? 0)),
-    0,
-  )
+  const volume = totalLitres(delivered)
   const short = amount >= 1_000_000 ? `₦${Math.round(amount / 100_000)}k` : formatNaira(amount)
 
   return (
@@ -92,8 +90,12 @@ export function PartnerHistory() {
             <div className="text-chip text-mute">Trips</div>
           </Card>
           <Card className="p-3 text-center">
-            <div className="text-[20px] font-extrabold">{volume.toLocaleString('en-NG')}</div>
-            <div className="text-chip text-mute">{vehicle === 'keke' ? 'Litres' : 'Gallons'}</div>
+            <div className="text-[20px] font-extrabold">{(vehicle === 'keke' ? volume : gallonsFromLitres(volume)).toLocaleString('en-NG')}</div>
+            <div className="text-chip text-mute">
+              {vehicle === 'keke'
+                ? `Litres · ${gallonsFromLitres(volume).toLocaleString('en-NG')} gal`
+                : `Gallons · ${volume.toLocaleString('en-NG')} L`}
+            </div>
           </Card>
           <Card className="border-[#C8F0D6] bg-[#E7F9EE] p-3 text-center">
             <div className="text-[20px] font-extrabold text-green">{short}</div>
@@ -260,7 +262,7 @@ export function PartnerVehicle() {
             <Card className="rise-2 px-4 py-1">
               <div className="mo-li">
                 <span className="flex-1 text-mute">Delivery type</span>
-                <b>{vehicle === 'keke' ? 'Keke (jerrycans)' : `Tanker (${p.vehicle.tank_gallons?.toLocaleString('en-NG')} gal)`}</b>
+                <b>{vehicle === 'keke' ? 'Keke (jerrycans)' : `Tanker (${p.vehicle.tank_gallons ? describeQuantity(litresFromGallons(p.vehicle.tank_gallons), 'gallons', 'short') : 'size not set'})`}</b>
               </div>
               <div className="mo-li">
                 <span className="flex-1 text-mute">Verified safe load</span>
