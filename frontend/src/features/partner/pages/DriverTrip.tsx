@@ -18,7 +18,7 @@ import { IconBadge, ScreenHeading } from '../../../components/ui/Content'
 import { IconLink } from '../../../components/ui/IconButton'
 import { Notice } from '../../../components/ui/Notice'
 import { shortReference } from '../../../domain/orders'
-import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
+import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../../domain/quantity'
 import type { PartnerJob } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { JobStep } from '../components/JobStep'
@@ -31,8 +31,13 @@ import { useConfirmPickup, usePartnerProfile } from '../queries'
 const GREEN_BUTTON = 'bg-[#15803D] shadow-[0_10px_22px_rgba(21,128,61,0.3)] hover:bg-[#14532D]'
 const GREEN_ALT = 'h-[46px] bg-[#E7F7EE] text-[#14532D] hover:text-[#14532D]'
 
-/** Gallons the order needs: its tank size, or the driver's tank for a custom quote. */
+/**
+ * Gallons the order needs: its tank size; the ordered litres when the backend
+ * does not send the tank yet (#21; 1 local gallon = 4 L exactly); or the
+ * driver's tank for a custom quote.
+ */
 function targetGallons(job: PartnerJob, tank: number | null | undefined): number {
+  if (job.choice === null) return gallonsFromLitres(job.quantity_litres)
   return (job.choice.delivery_type === 'tanker' ? job.choice.tank_size_gallons : null) ?? tank ?? 1000
 }
 
@@ -80,10 +85,13 @@ export function DriverRefill() {
                   Load {describeQuantity(litresFromGallons(targetGallons(j, null)), 'gallons')} for {shortReference(j.reference)}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-[20px] font-extrabold text-[#15803D]">{j.station.minutes} min</div>
-                <div className="text-chip text-mute">{j.station.distance_km} km</div>
-              </div>
+              {/* No road distance yet (no OSRM, SRS §12.1): nothing rather than a guess. */}
+              {j.station.minutes !== null && j.station.distance_km !== null && (
+                <div className="text-right">
+                  <div className="text-[20px] font-extrabold text-[#15803D]">{j.station.minutes} min</div>
+                  <div className="text-chip text-mute">{j.station.distance_km} km</div>
+                </div>
+              )}
             </div>
             <ExternalButton href={directionsUrl(j.station.address)} className={GREEN_BUTTON}>
               <NavigationIcon size={20} filled />
@@ -248,7 +256,7 @@ export function DriverCustomer() {
   return (
     <JobStep stage="collected">
       {(j) => {
-        const eta = j.remaining ?? { distance_km: j.customer.distance_km, minutes: j.customer.minutes }
+        const eta = j.remaining ?? (j.customer.distance_km !== null && j.customer.minutes !== null ? { distance_km: j.customer.distance_km, minutes: j.customer.minutes } : null)
         const [lead, ...rest] = (j.tank_note ?? '').split('. ')
         return (
           <MobileShell>
@@ -267,9 +275,11 @@ export function DriverCustomer() {
                   className="animate-drive absolute top-[58.2%] left-[31.6%] w-[108px] drop-shadow-[0_6px_8px_rgba(10,37,64,0.25)]"
                 />
                 <MapPin color="#DC2626" ringColor="rgba(220,38,38,.35)" ringSize={20} className="absolute top-[15.2%] left-[74.6%]" />
-                <MapBadge className="right-3 bottom-3.5 text-[14px]">
-                  {eta.minutes} min · {eta.distance_km} km
-                </MapBadge>
+                {eta && (
+                  <MapBadge className="right-3 bottom-3.5 text-[14px]">
+                    {eta.minutes} min · {eta.distance_km} km
+                  </MapBadge>
+                )}
               </MapFrame>
               {j.tank_note && (
                 <div className="rise-3 flex items-start gap-2.5 rounded-option bg-[#EDE9FE] px-3.5 py-3 text-[13px] text-[#3B1F7A]">

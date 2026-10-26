@@ -33,12 +33,12 @@ import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../../domain/quantity'
-import { DECLINE_LABEL, ISSUE_LABEL, type DeclineReason, type PartnerIssueType, type PartnerJob, type PartnerNotification } from '../../../domain/partner'
+import { DECLINE_LABEL, ENDED_STAGE_LABEL, ISSUE_LABEL, type DeclineReason, type PartnerIssueType, type PartnerJob, type PartnerNotification } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatNaira } from '../../../lib/format/money'
 import { JobMiniCard } from '../components/JobParts'
-import { jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
+import { jobDeliveryType, jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useDeclineJob, useHistory, useJob, useMarkPartnerNotificationsRead, usePartnerNotifications, usePartnerProfile, useReportIssue, useUploadDocument } from '../queries'
 
@@ -64,7 +64,11 @@ export function PartnerHistory() {
   const [period, setPeriod] = useState<Period>('week')
   const list = (history.data ?? []).filter((j) => inPeriod(j, period))
   const delivered = list.filter((j) => j.stage === 'delivered')
-  const amount = delivered.reduce((a, j) => a + j.earning_minor_units, 0)
+  // Partner pay is out of the MVP (partners.md, decision 7): with the real
+  // API no job carries an amount, so the "Earned" figure is left out rather
+  // than shown as ₦0.
+  const known = list.every((j) => j.earning_minor_units !== null)
+  const amount = delivered.reduce((a, j) => a + (j.earning_minor_units ?? 0), 0)
   const volume = totalLitres(delivered)
   const short = amount >= 1_000_000 ? `₦${Math.round(amount / 100_000)}k` : formatNaira(amount)
 
@@ -84,7 +88,7 @@ export function PartnerHistory() {
             { value: 'month', label: 'This month' },
           ]}
         />
-        <div className="rise-2 grid grid-cols-3 gap-2">
+        <div className={cx('rise-2 grid gap-2', known ? 'grid-cols-3' : 'grid-cols-2')}>
           <Card className="p-3 text-center">
             <div className="text-[20px] font-extrabold">{delivered.length}</div>
             <div className="text-chip text-mute">Trips</div>
@@ -97,10 +101,12 @@ export function PartnerHistory() {
                 : `Gallons · ${volume.toLocaleString('en-NG')} L`}
             </div>
           </Card>
-          <Card className="border-[#C8F0D6] bg-[#E7F9EE] p-3 text-center">
-            <div className="text-[20px] font-extrabold text-green">{short}</div>
-            <div className="text-chip text-slate">Earned</div>
-          </Card>
+          {known && (
+            <Card className="border-[#C8F0D6] bg-[#E7F9EE] p-3 text-center">
+              <div className="text-[20px] font-extrabold text-green">{short}</div>
+              <div className="text-chip text-slate">Earned</div>
+            </Card>
+          )}
         </div>
         {history.isPending && <LoadingBlock />}
         {history.isError && <ErrorBlock error={history.error} onRetry={() => history.refetch()} />}
@@ -108,7 +114,7 @@ export function PartnerHistory() {
         {list.map((j) => (
           <Card key={j.reference} className="rise-3 flex items-center gap-3 p-3">
             <span className="flex h-[52px] w-16 shrink-0 items-center justify-center rounded-icon bg-sky">
-              <Illustration name={j.choice.delivery_type === 'keke' ? 'keke' : 'tanker'} className="w-14" />
+              <Illustration name={jobDeliveryType(j, vehicle)} className="w-14" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-extrabold">{jobQuantity(j)}</div>
@@ -116,14 +122,17 @@ export function PartnerHistory() {
               <div className="text-chip text-mute">{j.delivered_at ? relativeWhen(j.delivered_at) : ''}</div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className="font-extrabold">{formatNaira(j.stage === 'cancelled' ? 0 : j.earning_minor_units)}</span>
-              <Chip tone={j.stage === 'delivered' ? 'green' : 'red'} className="px-2 py-0.5 text-[11px]">
-                {j.stage === 'delivered' ? 'Delivered' : 'Cancelled'}
+              {j.earning_minor_units !== null && (
+                <span className="font-extrabold">{formatNaira(j.stage === 'delivered' ? j.earning_minor_units : 0)}</span>
+              )}
+              {/* Failed and disputed jobs are shown, never hidden (@chidimmamogbo on #12). */}
+              <Chip tone={j.stage === 'delivered' ? 'green' : j.stage === 'under_review' ? 'amber' : 'red'} className="px-2 py-0.5 text-[11px]">
+                {ENDED_STAGE_LABEL[j.stage] ?? 'Ended'}
               </Chip>
             </div>
           </Card>
         ))}
-        {list.length > 0 && <p className="m-0 text-center text-chip text-mute">Sample amounts.</p>}
+        {list.length > 0 && known && <p className="m-0 text-center text-chip text-mute">Sample amounts.</p>}
       </ScrollArea>
     </MobileShell>
   )

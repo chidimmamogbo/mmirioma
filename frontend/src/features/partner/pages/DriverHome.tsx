@@ -16,7 +16,7 @@ import { AssignedSheet } from '../components/AssignedSheet'
 import { TankTypeChip } from '../components/JobParts'
 import { PartnerTabs } from '../components/PartnerChrome'
 import { greeting } from '../greeting'
-import { jobQuantity, tankerTripLine } from '../jobHelpers'
+import { jobQuantity, kmSuffix, tankerTripLine } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useAvailableJobs, useEarnings, usePartnerProfile, useSetOnline } from '../queries'
 
@@ -162,14 +162,18 @@ export function DriverHome() {
                     <TankTypeChip job={j} />
                   </div>
                   <div className="mt-1 text-caption text-mute">
-                    {j.station.name} {j.station.distance_km} km → {j.customer.area} {j.customer.distance_km} km
+                    {j.station.name}
+                    {kmSuffix(j.station.distance_km)} → {j.customer.area}
+                    {kmSuffix(j.customer.distance_km)}
                   </div>
-                  <div className="text-caption text-mute">{tankerTripLine(j)}</div>
+                  {tankerTripLine(j) && <div className="text-caption text-mute">{tankerTripLine(j)}</div>}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
-                  <Chip tone="amber" className="text-[13px]">
-                    {formatNaira(j.earning_minor_units)}
-                  </Chip>
+                  {j.earning_minor_units !== null && (
+                    <Chip tone="amber" className="text-[13px]">
+                      {formatNaira(j.earning_minor_units)}
+                    </Chip>
+                  )}
                   <Illustration name="tanker" className="w-[92px]" />
                 </div>
               </CardLink>

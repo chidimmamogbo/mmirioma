@@ -14,6 +14,7 @@ import { kekeTotalLitres } from '../../../domain/orders'
 import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { formatNaira } from '../../../lib/format/money'
 import { RouteCard } from '../components/JobParts'
+import { jobDeliveryType } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useAcceptJob, useJob, usePartnerProfile } from '../queries'
 
@@ -21,7 +22,7 @@ import { useAcceptJob, useJob, usePartnerProfile } from '../queries'
 export function JobDetail() {
   const { reference = '' } = useParams()
   const navigate = useNavigate()
-  const { base, role } = usePartnerApp()
+  const { base, role, vehicle } = usePartnerApp()
   const job = useJob(reference)
   const profile = usePartnerProfile()
   const accept = useAcceptJob()
@@ -31,8 +32,8 @@ export function JobDetail() {
   if (j && j.stage !== 'available' && j.stage !== 'assigned') return <Navigate to={jobStepPath(base, j)} replace />
 
   const taken = accept.error instanceof ApiError && accept.error.code === 'order_taken'
-  const keke = j?.choice.delivery_type === 'keke'
-  const fits = j && j.choice.delivery_type === 'tanker' && profile.data?.vehicle.tank_gallons
+  const keke = j ? jobDeliveryType(j, vehicle) === 'keke' : false
+  const fits = j && j.choice?.delivery_type === 'tanker' && profile.data?.vehicle.tank_gallons
 
   return (
     <MobileShell>
@@ -44,9 +45,11 @@ export function JobDetail() {
           <>
             <div className="rise-1 flex items-start justify-between gap-2.5">
               <ScreenHeading title="Order details" sub={<span className="font-bold text-slate">{j.reference}</span>} />
-              <Chip tone="amber" className="px-3 py-2 text-[15px]">
-                {formatNaira(j.earning_minor_units)}
-              </Chip>
+              {j.earning_minor_units !== null && (
+                <Chip tone="amber" className="px-3 py-2 text-[15px]">
+                  {formatNaira(j.earning_minor_units)}
+                </Chip>
+              )}
             </div>
             <div
               className={cx(
@@ -58,7 +61,13 @@ export function JobDetail() {
                 <div className={cx('text-chip font-extrabold tracking-[0.4px]', keke ? 'text-primary-dark' : 'text-[#15803D]')}>
                   {keke ? 'WATER ORDER' : 'TANKER ORDER'}
                 </div>
-                {j.choice.delivery_type === 'keke' ? (
+                {j.choice === null ? (
+                  // The cans or tank come with #21; until then the ordered litres.
+                  <>
+                    <KeyValue label="Total water" value={describeQuantity(j.quantity_litres)} />
+                    <KeyValue label="Delivery" value={keke ? 'Keke' : 'Tanker'} />
+                  </>
+                ) : j.choice.delivery_type === 'keke' ? (
                   <>
                     <KeyValue label="Water size" value={`${j.choice.can_size_litres} litres per can`} />
                     <KeyValue label="Quantity" value={`${j.choice.can_count} cans`} />
@@ -81,18 +90,25 @@ export function JobDetail() {
               <Illustration name={keke ? 'keke' : 'tanker'} className={cx('animate-drive', keke ? 'w-[132px]' : 'mr-[-26px] w-[150px]')} />
             </div>
             <RouteCard job={j} className="rise-3" />
-            <Card pad className="rise-4 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold">You will earn</span>
-                <span className="text-[18px] font-extrabold text-green">{formatNaira(j.earning_minor_units)}</span>
-              </div>
-              {j.instructions && (
-                <div className="rounded-input bg-canvas px-3 py-2.5 text-[13px]">
-                  <b>Instructions:</b> {j.instructions}
-                </div>
-              )}
-              <span className="text-chip text-mute">Sample amount. {keke ? 'Rider' : 'Driver'} pay rules are not final.</span>
-            </Card>
+            {(j.earning_minor_units !== null || j.instructions) && (
+              <Card pad className="rise-4 flex flex-col gap-2">
+                {/* Partner pay is out of the MVP (partners.md, decision 7): no line without an amount. */}
+                {j.earning_minor_units !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">You will earn</span>
+                    <span className="text-[18px] font-extrabold text-green">{formatNaira(j.earning_minor_units)}</span>
+                  </div>
+                )}
+                {j.instructions && (
+                  <div className="rounded-input bg-canvas px-3 py-2.5 text-[13px]">
+                    <b>Instructions:</b> {j.instructions}
+                  </div>
+                )}
+                {j.earning_minor_units !== null && (
+                  <span className="text-chip text-mute">Sample amount. {keke ? 'Rider' : 'Driver'} pay rules are not final.</span>
+                )}
+              </Card>
+            )}
             {accept.isError && (
               <Notice tone="error">
                 {taken ? `Another ${role} already took this order. Pick another one.` : errorMessage(accept.error)}

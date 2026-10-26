@@ -7,10 +7,13 @@ import { Chip } from '../../../components/ui/Chip'
 import type { PartnerJob } from '../../../domain/partner'
 import { cx } from '../../../lib/cx'
 import { formatNaira } from '../../../lib/format/money'
-import { jobQuantity, tankerTripLine, tripMinutes } from '../jobHelpers'
+import { jobDeliveryType, jobQuantity, kmSuffix, minutesSuffix, tankerTripLine, tripMinutes } from '../jobHelpers'
+import { usePartnerApp } from '../partnerContext'
 
 /** Pool card of the available orders list (`r-available`). */
 export function AvailableJobCard({ job, to, className }: { job: PartnerJob; to: string; className?: string }) {
+  const { vehicle } = usePartnerApp()
+  const minutes = tripMinutes(job)
   return (
     <Card className={`p-3.5 ${className ?? ''}`}>
       <div className="flex items-center justify-between gap-2.5">
@@ -18,26 +21,33 @@ export function AvailableJobCard({ job, to, className }: { job: PartnerJob; to: 
           <div className="text-chip font-semibold text-mute">{job.reference}</div>
           <div className="text-[16px] font-extrabold">{jobQuantity(job)}</div>
         </div>
-        <Chip tone="amber" className="text-sub">
-          {formatNaira(job.earning_minor_units)}
-        </Chip>
+        {/* Partner pay is out of the MVP: no line rather than "not known yet". */}
+        {job.earning_minor_units !== null && (
+          <Chip tone="amber" className="text-sub">
+            {formatNaira(job.earning_minor_units)}
+          </Chip>
+        )}
       </div>
       <div className="mt-2 flex items-center gap-2.5">
         <div className="flex flex-1 flex-col gap-[5px] text-caption text-slate">
           <span className="flex items-center gap-1.5">
             <PinOutlineIcon size={14} strokeWidth={2.4} color="#1570D8" />
-            {job.station.name} · {job.station.distance_km} km
+            {job.station.name}
+            {kmSuffix(job.station.distance_km)}
           </span>
           <span className="flex items-center gap-1.5">
             <PinOutlineIcon size={14} strokeWidth={2.4} color="#DC2626" />
-            Customer in {job.customer.area} · {job.customer.distance_km} km
+            Customer in {job.customer.area}
+            {kmSuffix(job.customer.distance_km)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <ClockIcon size={14} strokeWidth={2.4} color="#56677D" roundJoin={false} />
-            About {tripMinutes(job)} min in total
-          </span>
+          {minutes !== null && (
+            <span className="flex items-center gap-1.5">
+              <ClockIcon size={14} strokeWidth={2.4} color="#56677D" roundJoin={false} />
+              About {minutes} min in total
+            </span>
+          )}
         </div>
-        <Illustration name={job.choice.delivery_type === 'keke' ? 'keke' : 'tanker'} className="w-[104px]" />
+        <Illustration name={jobDeliveryType(job, vehicle)} className="w-[104px]" />
       </div>
       <ButtonLink to={to} size="sm" className="mt-2.5">
         View and accept
@@ -48,7 +58,7 @@ export function AvailableJobCard({ job, to, className }: { job: PartnerJob; to: 
 
 /** Route card with station and customer stops (`r-order`). */
 export function RouteCard({ job, className }: { job: PartnerJob; className?: string }) {
-  const keke = job.choice.delivery_type === 'keke'
+  const keke = jobDeliveryType(job, usePartnerApp().vehicle) === 'keke'
   return (
     <Card pad className={className}>
       <h2 className="m-0 mb-2.5 text-section font-extrabold">Route</h2>
@@ -71,15 +81,18 @@ export function RouteCard({ job, className }: { job: PartnerJob; className?: str
             <div className="text-chip font-bold text-mute">{keke ? 'REFILL STATION' : 'LOAD AT'}</div>
             <div className="font-extrabold">{job.station.name}</div>
             <div className="text-caption text-mute">
-              {job.station.address} · {job.station.distance_km} km · {job.station.minutes} min
+              {job.station.address}
+              {kmSuffix(job.station.distance_km)}
+              {minutesSuffix(job.station.minutes)}
             </div>
           </div>
           <div>
             <div className="text-chip font-bold text-mute">{keke ? 'CUSTOMER' : 'DELIVER TO'}</div>
             <div className="font-extrabold">{keke ? job.customer.name : `${job.customer.contact_name}, ${job.customer.area}`}</div>
             <div className="text-caption text-mute">
-              {keke ? (job.customer.landmark ?? job.customer.area) : job.customer.address.split(',')[0]} · {job.customer.distance_km} km ·{' '}
-              {job.customer.minutes} min
+              {keke ? (job.customer.landmark ?? job.customer.area) : job.customer.address.split(',')[0]}
+              {kmSuffix(job.customer.distance_km)}
+              {minutesSuffix(job.customer.minutes)}
             </div>
           </div>
         </div>
@@ -90,7 +103,7 @@ export function RouteCard({ job, className }: { job: PartnerJob; className?: str
 
 /** Small card naming the order (`r-otp`, `r-issue`): illustration, reference, quantity. */
 export function JobMiniCard({ job, sub, trailing, className }: { job: PartnerJob; sub?: string; trailing?: ReactNode; className?: string }) {
-  const keke = job.choice.delivery_type === 'keke'
+  const keke = jobDeliveryType(job, usePartnerApp().vehicle) === 'keke'
   return (
     <Card className={cx('flex items-center gap-3 px-3.5', keke ? 'py-3' : 'py-2.5', className)}>
       <Illustration name={keke ? 'keke' : 'tanker'} className={keke ? 'w-[76px]' : 'w-[86px]'} />
@@ -106,7 +119,8 @@ export function JobMiniCard({ job, sub, trailing, className }: { job: PartnerJob
 
 /** "Ground" (green) or "Overhead" (violet) chip for a tanker job (`t-home`, `t-available`). */
 export function TankTypeChip({ job }: { job: PartnerJob }) {
-  if (job.choice.delivery_type !== 'tanker') return null
+  // Unknown until the backend sends the tank (#21): no chip.
+  if (job.choice?.delivery_type !== 'tanker') return null
   const overhead = job.choice.tank_type === 'overhead'
   return (
     <Chip tone={overhead ? 'violet' : 'green'} className="px-2 py-0.5">
@@ -127,19 +141,23 @@ export function TankerJobCard({ job, to, className }: { job: PartnerJob; to: str
             <TankTypeChip job={job} />
           </div>
         </div>
-        <Chip tone="amber" className="text-[14px]">
-          {formatNaira(job.earning_minor_units)}
-        </Chip>
+        {job.earning_minor_units !== null && (
+          <Chip tone="amber" className="text-[14px]">
+            {formatNaira(job.earning_minor_units)}
+          </Chip>
+        )}
       </div>
       <div className="mt-2 flex items-center gap-2.5">
         <div className="flex flex-1 flex-col gap-1 text-caption text-slate">
           <span>
-            Station: {job.station.area} · {job.station.distance_km} km
+            Station: {job.station.area}
+            {kmSuffix(job.station.distance_km)}
           </span>
           <span>
-            Customer: {job.customer.area} · {job.customer.distance_km} km
+            Customer: {job.customer.area}
+            {kmSuffix(job.customer.distance_km)}
           </span>
-          <span className="text-mute">{tankerTripLine(job)}</span>
+          {tankerTripLine(job) && <span className="text-mute">{tankerTripLine(job)}</span>}
         </div>
         <Illustration name="tanker" className="w-[118px]" />
       </div>

@@ -197,7 +197,48 @@ Backend driver job (`lib/api/driverJobs.ts`: `status` plus the order
 | order `collected`, `en_route`, `arrived`, `unloading` | `collected` |
 | order `delivered` | `delivered` |
 | order `cancelled` | `cancelled` |
-| order `failed`, `disputed` | see open question 4 |
+| order `failed` | `failed` ("Delivery failed") |
+| order `disputed` | `under_review` ("Under review") |
+
+Decided by @chidimmamogbo on #12 (2026-10-26), following decision 3 for
+customers: history shows failed and disputed jobs; it never hides them.
+
+### Partner job fields the backend does not send
+
+Decided by @chidimmamogbo on #12 (2026-10-26). The design's `PartnerJob`
+(`domain/partner.ts`) allows `null` for these, and the screens leave them
+out rather than fill them in:
+
+| Design field | Rule |
+| --- | --- |
+| `choice` | `null` until #21 adds the cans or tank. The screens show `quantity_litres` (always sent) in litres and gallons, and take Keke or tanker from the partner's own app |
+| `station.distance_km`, `station.minutes`, `customer.distance_km`, `customer.minutes` | `null`: no road distance without OSRM (SRS §12.1). Hidden |
+| `earning_minor_units` | `null`: partner pay is out of the MVP (docs/api/partners.md, decision 7). The earning line is hidden, not shown as "not known yet" |
+| `assigned_by` | `null`: the job does not name the dispatcher |
+| payment status | Not in `PartnerJob`: partners never see an order's payment status (FR-040, BR-13; docs/design/driver-cash.md, decision 3). The K1 Cash card (#20) takes its place |
+
+### Available orders and declining
+
+Decided by @chidimmamogbo on #12 (2026-10-26):
+
+- **No job pool in the MVP.** In real mode `listAvailableJobs` returns `[]`
+  and the screen shows its normal empty state. Offers reach the partner
+  through `GET /driver/jobs` (`offers`) as stage `assigned` (FR-031,
+  FR-032).
+- **Decline reasons.** The design's reasons map to the backend's agreed
+  ones (docs/api/deliveries.md):
+
+  | Design `DeclineReason` | Backend `reason` | `note` sent |
+  | --- | --- | --- |
+  | `not_available` | `not_available` | the driver's note |
+  | `too_large` | `vehicle_cannot_carry` | the driver's note |
+  | `outside_area` | `too_far` | the driver's note |
+  | `vehicle_problem` | `other` | the design's label, then the driver's note |
+  | `station_unavailable` | `other` | the design's label, then the driver's note |
+
+  For `other`, the label comes first and the driver's note is cut so the
+  whole text fits in 300 characters (`DECLINE_NOTE_MAX_LENGTH`). The adapter
+  never sends `unsafe_access`, which has no design reason.
 
 ## Admin order status
 
@@ -220,6 +261,6 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 | 1 | The design's water sources (Ninth Mile, borehole) against the SRS water categories (Potable, Utility) and supplier activation (FR-012, FR-014) | #10 |
 | 2 | ~~Keke 25 L × 12 cans is 300 L, below the 600 L minimum~~ Decided: removed (decision 4) | done |
 | 3 | A customer stage for a status the app does not know: the contract asks for a neutral "Order update" fallback, which the design has no stage for | #9 |
-| 4 | Partner stages for `failed` and `disputed` | #13 |
+| 4 | ~~Partner stages for `failed` and `disputed`~~ Decided: `failed` and `under_review` ([Partner job stage](#partner-job-stage)) | done |
 | 5 | Admin statuses for `failed` and `disputed`. Staff may need the backend's own staff labels (docs/api/orders.md) rather than six design statuses, for example to confirm orders before dispatch | #15 |
-| 6 | The design's "available" job pool, which any eligible partner may accept, has no backend endpoint: the backend offers each job to one driver (docs/api/deliveries.md) | #12 |
+| 6 | ~~The design's "available" job pool has no backend endpoint~~ Decided: no pool in the MVP; `listAvailableJobs` returns `[]` ([Available orders and declining](#available-orders-and-declining)) | done |

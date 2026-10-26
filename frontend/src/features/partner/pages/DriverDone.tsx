@@ -6,11 +6,9 @@ import { MobileShell, ScrollArea } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
-import { Chip } from '../../../components/ui/Chip'
 import { KeyValue } from '../../../components/ui/Content'
 import { formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
-import { PAYMENT_LABEL } from '../../customer/orderHelpers'
 import { jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, usePartnerProfile } from '../queries'
@@ -53,22 +51,20 @@ export function DriverDone() {
             <p className="rise-2 m-0 text-sub text-mute">
               Code verified{j.delivered_at ? ` at ${formatTime(j.delivered_at)}` : ''}. Nice work{profile.data ? `, ${profile.data.name.split(' ')[0]}` : ''}.
             </p>
-            <div className="rise-3 relative box-border w-full overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#14532D,#15803D)] p-[18px] text-left text-white">
-              <div className="text-[13px] font-bold text-[#BBF7D0]">YOU EARNED</div>
-              <div className="animate-pop text-[38px] font-extrabold tracking-[-1px] [animation-delay:.4s]">{formatNaira(j.earning_minor_units)}</div>
-              <div className="text-caption text-[#DCFCE7]">Added to your wallet · sample amount</div>
-              <Wave fill="#FFFFFF" variant="low" height={34} className="bottom-[-10px] opacity-20" />
-            </div>
+            {/* Partner pay is out of the MVP (partners.md, decision 7): no card without an amount. */}
+            {j.earning_minor_units !== null && (
+              <div className="rise-3 relative box-border w-full overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#14532D,#15803D)] p-[18px] text-left text-white">
+                <div className="text-[13px] font-bold text-[#BBF7D0]">YOU EARNED</div>
+                <div className="animate-pop text-[38px] font-extrabold tracking-[-1px] [animation-delay:.4s]">{formatNaira(j.earning_minor_units)}</div>
+                <div className="text-caption text-[#DCFCE7]">Added to your wallet · sample amount</div>
+                <Wave fill="#FFFFFF" variant="low" height={34} className="bottom-[-10px] opacity-20" />
+              </div>
+            )}
             <Card pad className="rise-4 box-border w-full text-left">
               <KeyValue label="Order" value={j.reference} />
               <KeyValue label="Loaded at" value={`${j.station.name}${j.collected_at ? ` · ${formatTime(j.collected_at)}` : ''}`} />
               <KeyValue label="Delivered to" value={j.customer.contact_name} />
-              <div className="mo-kv items-center">
-                <span className="text-mute">Payment</span>
-                <Chip tone={j.payment_status === 'paid' ? 'green' : 'amber'} className="px-2 py-[3px]">
-                  {j.payment_status === 'unpaid' ? 'Awaiting check' : PAYMENT_LABEL[j.payment_status]}
-                </Chip>
-              </div>
+              {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>
             <div className="rise-5 flex w-full flex-col gap-2">
               <ButtonLink to={base}>Back to dashboard</ButtonLink>

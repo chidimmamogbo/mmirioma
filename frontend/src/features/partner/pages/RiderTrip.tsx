@@ -32,6 +32,7 @@ import { Notice } from '../../../components/ui/Notice'
 import { StepChip } from '../components/PartnerChrome'
 import { directionsUrl } from '../maps'
 import { readPickupPhoto } from '../photo'
+import { jobDeliveryType } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useConfirmPickup } from '../queries'
 import { JobStep } from '../components/JobStep'
@@ -49,9 +50,11 @@ export function RefillStep() {
               className="rise-1"
               title="Go to refill station"
               sub={
-                j.choice.delivery_type === 'keke'
-                  ? `Collect ${j.choice.can_count} cans of ${j.choice.can_size_litres} L for ${j.reference}.`
-                  : `Load ${describeQuantity(litresFromGallons(j.choice.tank_size_gallons ?? 0), 'gallons')} for ${j.reference}.`
+                j.choice === null
+                  ? `Collect ${describeQuantity(j.quantity_litres)} for ${j.reference}.`
+                  : j.choice.delivery_type === 'keke'
+                    ? `Collect ${j.choice.can_count} cans of ${j.choice.can_size_litres} L for ${j.reference}.`
+                    : `Load ${describeQuantity(litresFromGallons(j.choice.tank_size_gallons ?? 0), 'gallons')} for ${j.reference}.`
               }
             />
             <Card className="rise-2 flex items-center gap-3 px-3.5 py-3">
@@ -62,10 +65,13 @@ export function RefillStep() {
                 <div className="font-extrabold">{j.station.name}</div>
                 <div className="text-caption text-mute">{j.station.address}</div>
               </div>
-              <div className="text-right">
-                <div className="font-extrabold text-primary">{j.station.minutes} min</div>
-                <div className="text-chip text-mute">{j.station.distance_km} km</div>
-              </div>
+              {/* No road distance yet (no OSRM, SRS §12.1): nothing rather than a guess. */}
+              {j.station.minutes !== null && j.station.distance_km !== null && (
+                <div className="text-right">
+                  <div className="font-extrabold text-primary">{j.station.minutes} min</div>
+                  <div className="text-chip text-mute">{j.station.distance_km} km</div>
+                </div>
+              )}
             </Card>
             <MapFrame height={400} className="rise-3">
               <RefillMapArt />
@@ -109,22 +115,26 @@ export function PickupStep() {
 }
 
 function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
+  const { vehicle } = usePartnerApp()
   const navigate = useNavigate()
   const confirm = useConfirmPickup(j.reference)
   const fileRef = useRef<HTMLInputElement>(null)
   const [checks, setChecks] = useState({ loaded: false, closed: false, receipt: false })
   const [photo, setPhoto] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  if (j.choice.delivery_type !== 'keke') return <Navigate to={`${base}/jobs/${j.reference}/loading`} replace />
-  const count = j.choice.can_count
-  const litres = j.choice.can_size_litres * count
+  if (jobDeliveryType(j, vehicle) !== 'keke') return <Navigate to={`${base}/jobs/${j.reference}/loading`} replace />
+  // The cans are unknown until the backend sends them (#21); then only the litres show.
+  const cans = j.choice?.delivery_type === 'keke' ? j.choice : null
+  const count = cans?.can_count ?? null
+  const litres = cans ? cans.can_size_litres * cans.can_count : j.quantity_litres
+  const allLoaded = count === null ? 'All the cans are loaded' : `All ${count} cans are loaded`
 
   function pick(file: File | undefined) {
     setProblem(file ? readPickupPhoto(file, setPhoto) : null)
   }
 
   function submit() {
-    if (!checks.loaded) return setProblem(`Tick "All ${count} cans are loaded" before you leave the station.`)
+    if (!checks.loaded) return setProblem(`Tick "${allLoaded}" before you leave the station.`)
     confirm.mutate(
       { loaded: true, receipt: checks.receipt, photo_url: photo, gallons_loaded: null },
       { onSuccess: () => navigate(`${base}/jobs/${j.reference}/customer`) },
@@ -132,7 +142,7 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
   }
 
   const rows: { key: keyof typeof checks; label: string }[] = [
-    { key: 'loaded', label: `All ${count} cans are loaded` },
+    { key: 'loaded', label: allLoaded },
     // Design said "Cans are clean and sealed": no sealed cans yet and no quality claims (decision 15).
     { key: 'closed', label: 'Cans are closed for the trip' },
     { key: 'receipt', label: 'Station gave me the water receipt' },
@@ -146,10 +156,12 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
         <div className="rise-2 flex items-center gap-3 rounded-card border-[1.5px] border-solid border-[#F7D98B] bg-[#FFF7E2] p-3.5">
           <div className="flex-1">
             <div className="text-[13px] font-bold text-[#6B5210]">Have you collected the water?</div>
-            <div className="text-[20px] font-extrabold">
-              {j.choice.can_size_litres} L × {count} cans
-            </div>
-            <div className="text-caption text-[#6B5210]">{describeQuantity(litres)} in total</div>
+            {cans && (
+              <div className="text-[20px] font-extrabold">
+                {cans.can_size_litres} L × {cans.can_count} cans
+              </div>
+            )}
+            <div className={cans ? 'text-caption text-[#6B5210]' : 'text-[20px] font-extrabold'}>{describeQuantity(litres)}{cans ? ' in total' : ''}</div>
           </div>
           <Illustration name="keke" className="animate-drive w-[118px]" />
         </div>
@@ -226,11 +238,11 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
 
 /** Step 2: go to the customer (`r-customer`). */
 export function CustomerStep() {
-  const { base } = usePartnerApp()
+  const { base, vehicle } = usePartnerApp()
   return (
     <JobStep stage="collected">
       {(j) => {
-        const eta = j.remaining ?? { distance_km: j.customer.distance_km, minutes: j.customer.minutes }
+        const eta = j.remaining ?? (j.customer.distance_km !== null && j.customer.minutes !== null ? { distance_km: j.customer.distance_km, minutes: j.customer.minutes } : null)
         return (
           <MobileShell>
             <TopBar left={<BackLink to={base} />} right={<StepChip>Step 2 of 2</StepChip>} />
@@ -244,10 +256,12 @@ export function CustomerStep() {
                   <div className="font-extrabold">{j.customer.name}</div>
                   {j.customer.landmark && <div className="text-caption text-mute">{j.customer.landmark}</div>}
                 </div>
-                <div className="text-right">
-                  <div className="font-extrabold text-primary">{eta.minutes} min</div>
-                  <div className="text-chip text-mute">{eta.distance_km} km</div>
-                </div>
+                {eta && (
+                  <div className="text-right">
+                    <div className="font-extrabold text-primary">{eta.minutes} min</div>
+                    <div className="text-chip text-mute">{eta.distance_km} km</div>
+                  </div>
+                )}
               </Card>
               <MapFrame height={330} className="rise-3">
                 <CustomerMapArt />
@@ -257,7 +271,7 @@ export function CustomerStep() {
                   className="animate-drive absolute top-[57%] left-[32.8%] w-[82px] drop-shadow-[0_6px_8px_rgba(10,37,64,0.25)]"
                 />
                 <MapPin color="#DC2626" ringColor="rgba(220,38,38,.35)" ringSize={20} className="absolute top-[15%] left-[71%]" />
-                <MapBadge className="right-3 bottom-3.5 text-[14px]">{eta.minutes} min away</MapBadge>
+                {eta && <MapBadge className="right-3 bottom-3.5 text-[14px]">{eta.minutes} min away</MapBadge>}
               </MapFrame>
               <Card className="rise-4 flex items-center gap-3 px-3.5 py-3">
                 <Avatar name={j.customer.contact_name} tone="plain" />
@@ -279,7 +293,7 @@ export function CustomerStep() {
                 Start navigation
               </ExternalButton>
               <ButtonLink to={`${base}/jobs/${j.reference}/code`} variant="alt" className="h-[46px]">
-                {j.choice.delivery_type === 'keke' ? 'I have arrived · pour the water' : 'Arrived · water pumped in'}
+                {jobDeliveryType(j, vehicle) === 'keke' ? 'I have arrived · pour the water' : 'Arrived · water pumped in'}
               </ButtonLink>
             </Footer>
           </MobileShell>

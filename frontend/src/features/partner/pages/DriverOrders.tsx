@@ -21,7 +21,8 @@ export function DriverOrders() {
   const profile = usePartnerProfile()
   const [filter, setFilter] = useState<Filter>('all')
   const all = jobs.data ?? []
-  const list = all.filter((j) => filter === 'all' || (j.choice.delivery_type === 'tanker' && j.choice.tank_type === filter))
+  // A job whose tank type is unknown (#21) only shows under "all".
+  const list = all.filter((j) => filter === 'all' || (j.choice?.delivery_type === 'tanker' && j.choice.tank_type === filter))
   const offline = profile.data && (!profile.data.online || profile.data.approval !== 'approved')
 
   return (

@@ -145,18 +145,23 @@ export function RiderHome() {
                     <Chip className="px-2 py-[3px]">Keke</Chip>
                   </div>
                   <div className="mt-1.5 flex flex-col gap-[3px] text-caption text-mute">
+                    {first.station.distance_km !== null && first.customer.distance_km !== null && (
+                      <span>
+                        Station {first.station.distance_km} km · Customer {first.customer.distance_km} km
+                      </span>
+                    )}
                     <span>
-                      Station {first.station.distance_km} km · Customer {first.customer.distance_km} km
-                    </span>
-                    <span>
-                      About {tripMinutes(first)} min · {first.customer.area}, Enugu
+                      {tripMinutes(first) !== null ? `About ${tripMinutes(first)} min · ` : ''}
+                      {first.customer.area}, Enugu
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end justify-between">
-                  <Chip tone="amber" className="text-[13px]">
-                    {formatNaira(first.earning_minor_units)}
-                  </Chip>
+                  {first.earning_minor_units !== null && (
+                    <Chip tone="amber" className="text-[13px]">
+                      {formatNaira(first.earning_minor_units)}
+                    </Chip>
+                  )}
                   <Illustration name="keke" className="w-[86px]" />
                 </div>
               </CardLink>
