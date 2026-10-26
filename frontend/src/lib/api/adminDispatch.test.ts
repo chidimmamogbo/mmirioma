@@ -80,6 +80,13 @@ describe('admin dispatch API functions (docs/api/deliveries.md, "Admin dispatch 
     expect(drivers.map((driver) => driver.reasons)).toEqual([[], ['over_payload'], ['unavailable', 'busy'], ['no_driver_profile']])
   })
 
+  it('lists a partner awaiting approval with not_approved (docs/api/partners.md)', async () => {
+    const reasons = ['not_approved', 'no_driver_profile', 'unavailable']
+    const { client } = setup({ items: [{ ...dispatchDrivers.items[0], reasons }] })
+    const drivers = await listDispatchDrivers('MO-7KQ2M9XH4T', undefined, client)
+    expect(drivers[0].reasons).toEqual(reasons)
+  })
+
   it('rejects an unknown eligibility reason', async () => {
     const { client } = setup({ items: [{ ...dispatchDrivers.items[0], reasons: ['tired'] }] })
     await expect(listDispatchDrivers('MO-7KQ2M9XH4T', undefined, client)).rejects.toMatchObject({ code: 'invalid_response' })

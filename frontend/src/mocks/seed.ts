@@ -15,12 +15,15 @@ import type {
   CustomerNotification,
   CustomerOrder,
   CustomerProfile,
+  PaymentStatus,
   PointsEntry,
   SavedAddress,
   SupportTicket,
+  WaterChoice,
 } from '../domain/orders'
 import type {
   EarningEntry,
+  JobStage,
   PartnerJob,
   PartnerNotification,
   PartnerProfile,
@@ -48,8 +51,21 @@ export interface CustomerData {
   tickets: SupportTicket[]
 }
 
-/** A job in the shared pool, with the server-side fields partners never see. */
+/**
+ * A job in the shared pool, with the server-side fields partners never see.
+ * The mock always knows the customer's choice and a sample rider pay, so
+ * those are never `null` here.
+ */
 export interface StoredJob extends PartnerJob {
+  choice: WaterChoice
+  earning_minor_units: number
+  /**
+   * The mocks never fail or dispute a job; the admin statuses for those are
+   * still open (api-mapping.md, open question 5, #15).
+   */
+  stage: Exclude<JobStage, 'failed' | 'under_review'>
+  /** Staff only (admin screens); partners never see it (FR-040, BR-13). */
+  payment_status: PaymentStatus
   /** Partner who has (or is assigned) the job. */
   partner_id: string | null
   /** Partners who declined it, so it is not offered to them again. */

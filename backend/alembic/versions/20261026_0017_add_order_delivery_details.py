@@ -26,8 +26,8 @@ Downgrade drops the seven columns and their CHECKs: the details of every
 order placed in the new shape are lost (``quantity_litres`` stays). Run it
 only on a database without real orders in the new shape.
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0017
+Revises: 0016
 Create Date: 2026-10-26 22:30:00+00:00
 
 """
@@ -37,8 +37,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0016"
-down_revision: str | Sequence[str] | None = "0015"
+revision: str = "0017"
+down_revision: str | Sequence[str] | None = "0016"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

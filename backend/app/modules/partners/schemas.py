@@ -1,0 +1,169 @@
+"""Request and response bodies for the partner account (docs/api/partners.md)."""
+
+import uuid
+from datetime import date, datetime
+from typing import Annotated
+
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    ValidationInfo,
+    field_validator,
+)
+
+from app.modules.auth.schemas import Password, PersonName, PhoneNumber
+from app.modules.dispatch.models import (
+    MAX_DECLARED_GALLONS,
+    MIN_DECLARED_GALLONS,
+    PLATE_MAX_LENGTH,
+    ApprovalStatus,
+    DeliveryType,
+)
+from app.modules.dispatch.plates import normalize_plate
+from app.modules.notifications.service import MARK_READ_MAX_IDS
+
+#: Local gallons to litres, exactly (FR-021; docs/architecture/api-mapping.md).
+LITRES_PER_LOCAL_GALLON = 4
+
+# Generous before trimming; normalize_plate enforces 4-15 after it.
+Plate = Annotated[str, Field(max_length=PLATE_MAX_LENGTH + 20), AfterValidator(normalize_plate)]
+
+
+class PartnerRegisterRequest(BaseModel):
+    """``POST /auth/partner-register``: partner self sign-up (design decision 9).
+
+    Unknown fields (such as ``role`` or ``approval_status``) are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: PersonName
+    phone: PhoneNumber
+    password: Password
+    delivery_type: DeliveryType
+    plate: Plate
+    # Validated even when absent, so a tanker without it is refused with
+    # this field's ``loc`` (the contract names the field).
+    declared_capacity_gallons: int | None = Field(default=None, validate_default=True)
+    service_zone_id: uuid.UUID
+
+    @field_validator("declared_capacity_gallons")
+    @classmethod
+    def _capacity_matches_vehicle(cls, value: int | None, info: ValidationInfo) -> int | None:
+        delivery_type = info.data.get("delivery_type")
+        if delivery_type is DeliveryType.KEKE:
+            if value is not None:
+                raise ValueError("Leave the capacity empty for a keke")
+            return None
+        if delivery_type is DeliveryType.TANKER:
+            if value is None:
+                raise ValueError("Enter how many gallons your tanker carries")
+            if not MIN_DECLARED_GALLONS <= value <= MAX_DECLARED_GALLONS:
+                raise ValueError(
+                    f"Use {MIN_DECLARED_GALLONS:,} to {MAX_DECLARED_GALLONS:,} gallons"
+                )
+        return value
+
+
+class PreferencesRead(BaseModel):
+    """Partner preferences, stored only (partners.md, decision 5)."""
+
+    new_order_alerts: bool
+    sms_updates: bool
+
+
+class PreferencesUpdate(BaseModel):
+    """Any subset of the preferences; absent ones keep their value."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    new_order_alerts: StrictBool | None = None
+    sms_updates: StrictBool | None = None
+
+
+class PartnerProfileUpdate(BaseModel):
+    """``PATCH /driver/profile``. Only the preferences can change."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    preferences: PreferencesUpdate | None = None
+
+
+class AvailabilityUpdate(BaseModel):
+    """``PUT /driver/availability``: going online or offline (FR-031)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Strict: "yes" or 1 is refused, not read as true (contract: a boolean).
+    is_available: StrictBool
+
+
+class ZoneRead(BaseModel):
+    """A service zone the partner works in."""
+
+    id: uuid.UUID
+    name: str
+
+
+class PartnerVehicleRead(BaseModel):
+    """The partner's vehicle: declared at sign-up, verified by an admin.
+
+    ``delivery_type`` and ``plate`` are null only for drivers created with
+    the command-line tool before it asked for them.
+    """
+
+    delivery_type: DeliveryType | None
+    plate: str | None
+    description: str | None
+    declared_capacity_gallons: int | None
+    declared_capacity_litres: int | None
+    safe_payload_litres: int | None
+    transfer_methods: list[str]
+
+
+class PartnerProfileRead(BaseModel):
+    """``PartnerProfileRead`` (docs/api/partners.md, "Partner object")."""
+
+    id: uuid.UUID
+    name: str
+    phone: str
+    phone_verified: bool
+    approval_status: ApprovalStatus
+    is_available: bool
+    partner_since: date
+    vehicle: PartnerVehicleRead
+    service_zones: list[ZoneRead]
+    preferences: PreferencesRead
+
+
+class NotificationRead(BaseModel):
+    """One in-app message (partners.md, "Notifications")."""
+
+    id: uuid.UUID
+    kind: str
+    title: str
+    body: str
+    reference: str | None
+    created_at: datetime
+    read_at: datetime | None
+
+
+class NotificationPageRead(BaseModel):
+    """A page of notifications plus the unread count across all pages."""
+
+    items: list[NotificationRead]
+    unread_count: int
+    total: int
+    limit: int
+    offset: int
+
+
+class MarkReadRequest(BaseModel):
+    """``POST /driver/notifications/read``. No ``ids`` marks every one read."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[uuid.UUID] | None = Field(default=None, max_length=MARK_READ_MAX_IDS)

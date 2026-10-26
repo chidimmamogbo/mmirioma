@@ -30,7 +30,7 @@ from app.modules.confirmation import service as confirmation
 from app.modules.confirmation.schemas import ConfirmationLineRead, OrderConfirmationFields
 from app.modules.deliveries import holds
 from app.modules.dispatch import service as dispatch_service
-from app.modules.dispatch.models import DriverProfile, VehicleProfile
+from app.modules.dispatch.models import ApprovalStatus, DriverProfile, VehicleProfile
 from app.modules.dispatch.schemas import AdminOrderEvent
 from app.modules.messaging.sms import MockSmsProvider
 from app.modules.orders.models import (
@@ -623,6 +623,13 @@ async def give_vehicle(sessions: Sessions, driver: User) -> uuid.UUID:
     async with sessions() as session:
         session.add(vehicle)
         await session.flush()
-        session.add(DriverProfile(user_id=driver.id, vehicle_profile_id=vehicle.id))
+        # A driver the technical lead set up: approved (docs/api/partners.md).
+        session.add(
+            DriverProfile(
+                user_id=driver.id,
+                vehicle_profile_id=vehicle.id,
+                approval_status=ApprovalStatus.APPROVED,
+            )
+        )
         await session.commit()
     return vehicle.id

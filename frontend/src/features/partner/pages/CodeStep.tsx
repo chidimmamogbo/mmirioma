@@ -17,7 +17,7 @@ import { formatNaira } from '../../../lib/format/money'
 import { phoneEnding } from '../../../lib/format/phone'
 import { mmss, useSecondsUntil } from '../../../lib/useNow'
 import { JobMiniCard } from '../components/JobParts'
-import { jobQuantity } from '../jobHelpers'
+import { jobDeliveryType, jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, useResendCode, useVerifyCode } from '../queries'
 
@@ -42,7 +42,7 @@ export function CodeStep() {
 
 function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
   const navigate = useNavigate()
-  const { base } = usePartnerApp()
+  const { base, vehicle } = usePartnerApp()
   const verify = useVerifyCode(j.reference)
   const resend = useResendCode(j.reference)
   const [code, setCode] = useState('')
@@ -51,7 +51,8 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
   const resendAt = j.code_resend_at ? Date.parse(j.code_resend_at) : 0
   const wait = useSecondsUntil(resendAt)
   const locked = j.code_tries_left <= 0 || (verify.error instanceof ApiError && verify.error.code === 'code_locked')
-  const keke = j.choice.delivery_type === 'keke'
+  const keke = jobDeliveryType(j, vehicle) === 'keke'
+  const tankType = j.choice?.delivery_type === 'tanker' ? j.choice.tank_type : null
   const issueLink = `${base}/issue?ref=${j.reference}&type=code_not_working`
 
   function submit() {
@@ -89,8 +90,8 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           <JobMiniCard
             className="rise-2"
             job={j}
-            sub={keke ? `${jobQuantity(j)} · ${j.customer.contact_name}` : `${jobQuantity(j, 'short')} · ${j.choice.delivery_type === 'tanker' ? j.choice.tank_type : ''} tank`}
-            trailing={<Chip tone="amber">{formatNaira(j.earning_minor_units)}</Chip>}
+            sub={keke ? `${jobQuantity(j)} · ${j.customer.contact_name}` : `${jobQuantity(j, 'short')}${tankType ? ` · ${tankType} tank` : ''}`}
+            trailing={j.earning_minor_units !== null ? <Chip tone="amber">{formatNaira(j.earning_minor_units)}</Chip> : undefined}
           />
         )}
         <CodeBoxes className="rise-3" value={showError ? (wrong ?? '') : code} invalid={showError} />

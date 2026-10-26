@@ -88,7 +88,7 @@ export function AvailableOrders({ header }: { header?: ReactNode }) {
                       <span className="block font-bold">{jobQuantity(j)}</span>
                       <span className="text-chip text-mute">Customer in {j.customer.area}</span>
                     </span>
-                    <span className="font-extrabold">{formatNaira(j.earning_minor_units)}</span>
+                    {j.earning_minor_units !== null && <span className="font-extrabold">{formatNaira(j.earning_minor_units)}</span>}
                   </Link>
                 </li>
               ))}

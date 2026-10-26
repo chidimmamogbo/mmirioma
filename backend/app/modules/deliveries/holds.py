@@ -1102,6 +1102,10 @@ async def transition_with_holds(
                 attempt.outcome = DeliveryOutcome.FAILED
         else:
             assignment.status = AssignmentStatus.WITHDRAWN
+            # The driver loses a job they held (docs/api/partners.md, "reassigned").
+            dispatch_service.notify_job_taken_back(
+                session, driver_id=assignment.driver_user_id, order=order, cancelled=True
+            )
     _close(
         holds,
         admin=admin,

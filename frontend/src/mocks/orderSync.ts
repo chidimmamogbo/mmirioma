@@ -3,7 +3,7 @@
  * the mock backend, as one database would. Pure functions over MockState;
  * callers wrap them in `mutate`.
  */
-import { describeChoice, type CustomerOrder, type DeliveryPartner } from '../domain/orders'
+import { choiceLitres, describeChoice, type CustomerOrder, type DeliveryPartner } from '../domain/orders'
 import type { PartnerJob } from '../domain/partner'
 import type { CustomerData, MockState, PartnerData, StoredJob } from './seed'
 import { eligible } from './eligibility'
@@ -131,6 +131,7 @@ export function jobForNewOrder(s: MockState, order: CustomerOrder, customerName:
   return {
     reference: order.reference,
     created_at: order.created_at,
+    quantity_litres: choiceLitres(order.choice) ?? 0,
     choice: order.choice,
     tank_note: order.choice.delivery_type === 'tanker' ? (order.choice.tank_type === 'overhead' ? 'Overhead tank. Bring the pump hose.' : 'Ground tank.') : null,
     station: { name: station.name, address: station.address, area: station.area, distance_km: 1.5, minutes: 6 },
