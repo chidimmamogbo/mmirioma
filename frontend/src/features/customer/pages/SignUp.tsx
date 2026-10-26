@@ -23,10 +23,9 @@ type Values = z.infer<typeof schema>
 
 /**
  * Create a customer account (`c-signup`): name, phone and password only.
- * Google sign-up and the email field are removed (decision 6); email can be
- * added later in the profile. The design's "Verify phone" step is skipped
- * (decision 7): new accounts go straight to home, and staff verify the phone
- * manually before confirming an order (FR-003).
+ * Google sign-up and the email field are removed (decision 6). A new account
+ * goes straight to verifying its phone by SMS code, with "Do this later"
+ * (FR-003; docs/design/phone-verification.md, which supersedes decision 7).
  */
 export function SignUp() {
   const navigate = useNavigate()
@@ -40,7 +39,7 @@ export function SignUp() {
 
   const onSubmit = handleSubmit((values) =>
     registerMutation.mutate(values, {
-      onSuccess: () => navigate('/home', { replace: true }),
+      onSuccess: () => navigate('/verify-phone', { replace: true, state: { afterSignup: true, from: '/home' } }),
       onError: (error) => {
         if (error instanceof ApiError && error.code === 'phone_already_registered') {
           setError('phone', { message: 'This number already has an account. Sign in instead.' })

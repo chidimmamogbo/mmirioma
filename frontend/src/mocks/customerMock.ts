@@ -186,6 +186,11 @@ export interface CreateOrderInput {
 
 export async function createOrder(input: CreateOrderInput): Promise<CustomerOrder> {
   await delay(null, 500)
+  // FR-003: the phone must be verified by SMS code before the first order (orders.md).
+  const customerId = requireUserId()
+  if (!read().users.find((u) => u.id === customerId)?.phone_verified) {
+    throw mockError(403, 'phone_not_verified', 'Verify your phone number before placing an order')
+  }
   const phone = normalizeNigerianPhone(input.receiver_phone)
   if (!phone) {
     throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'receiver_phone'], msg: 'Enter a Nigerian mobile number', type: 'value_error' }])
