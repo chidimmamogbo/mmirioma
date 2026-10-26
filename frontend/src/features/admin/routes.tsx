@@ -44,6 +44,8 @@ export const adminRoutes: RouteObject[] = [
       { path: 'pricing', ...page(() => import('./pages/Pricing').then((m) => ({ Component: m.Pricing }))) }, // a-pricing
       { path: 'loyalty', ...page(() => import('./pages/Loyalty').then((m) => ({ Component: m.Loyalty }))) }, // added (a-pricing tab)
       { path: 'payments', ...page(() => import('./pages/Payments').then((m) => ({ Component: m.Payments }))) }, // added (a-pricing tab)
+      { path: 'cash', ...page(() => import('./pages/Cash').then((m) => ({ Component: m.Cash }))) }, // K3, K5 (docs/design/admin-cash.md)
+      { path: 'cash/drivers/:driverId', ...page(() => import('./pages/CashDriver').then((m) => ({ Component: m.CashDriver }))) }, // K4
       { path: 'earnings', ...page(() => import('./pages/Earnings').then((m) => ({ Component: m.Earnings }))) }, // added
       { path: 'reports', ...page(() => import('./pages/Reports').then((m) => ({ Component: m.Reports }))) }, // added
       { path: 'support', ...page(() => import('./pages/Support').then((m) => ({ Component: m.Support }))) }, // a-support
