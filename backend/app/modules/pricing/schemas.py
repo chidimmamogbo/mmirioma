@@ -1,6 +1,8 @@
-"""Service zone and price list request and response bodies (docs/api/admin-directory.md).
+"""Service zone, price list and quote request and response bodies.
 
-Agreed 2026-10-26 for #30 (PR #38, PR #41). Coordinates are WGS 84 decimal
+Zones and price lists: docs/api/admin-directory.md, agreed 2026-10-26 for
+#30 (PR #38, PR #41) and #37. Quotes: docs/api/order-details-and-price.md
+(``POST /quotes``, agreed 2026-10-26, #42). Coordinates are WGS 84 decimal
 degrees (SRID 4326); a boundary is a GeoJSON ``Polygon`` whose positions are
 ``[longitude, latitude]``. Fees are integer kobo (``*_minor_units``, SRS §5).
 """
@@ -18,6 +20,15 @@ from pydantic import (
     model_validator,
 )
 
+from app.modules.orders.models import DeliveryType, WaterSourcePreference
+from app.modules.orders.schemas import (
+    DeliveryAddress,
+    KekeDetails,
+    TankerDetails,
+    details_litres,
+    details_problem,
+)
+from app.modules.pricing import quotes
 from app.modules.pricing.models import (
     MAX_MARGIN_BASIS_POINTS,
     MIN_BAND_LITRES,
@@ -456,3 +467,96 @@ class PriceListPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# --- Quotes (#21) ----------------------------------------------------------------------
+
+
+class QuoteCreate(_Request):
+    """Body of ``POST /quotes``: the choice to price (order details contract).
+
+    The same delivery details as ``OrderCreate``, with the address required:
+    there is no price without it (#42). There is no category field: the
+    server prices the pilot category, and an unknown field (such as
+    ``water_category_id``) is 422, so a client cannot believe it chose one.
+    """
+
+    delivery_type: DeliveryType
+    keke: KekeDetails | None = None
+    tanker: TankerDetails | None = None
+    water_source: WaterSourcePreference | None = None
+    delivery_address: DeliveryAddress
+    service_zone_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        problem = details_problem(self.delivery_type, self.keke, self.tanker, self.water_source)
+        if problem:
+            raise ValueError(problem)
+        return self
+
+    def to_choice(self) -> quotes.Choice:
+        """Convert to the service's input, with the quantity in litres (FR-021)."""
+        return quotes.Choice(
+            delivery_type=str(self.delivery_type),
+            keke_can_size_litres=self.keke.can_size_litres if self.keke else None,
+            keke_can_count=self.keke.can_count if self.keke else None,
+            tanker_tank_type=str(self.tanker.tank_type) if self.tanker else None,
+            tanker_quantity_local_gallons=(
+                self.tanker.quantity_local_gallons if self.tanker else None
+            ),
+            water_source=str(self.water_source) if self.water_source else None,
+            quantity_litres=details_litres(self.keke, self.tanker),
+            delivery_address=self.delivery_address,
+            service_zone_id=self.service_zone_id,
+        )
+
+
+class QuoteCategory(BaseModel):
+    """The pilot category's label and supported uses (FR-023)."""
+
+    label: str
+    supported_uses: str | None
+
+
+class QuoteAvailable(BaseModel):
+    """A server price: the payable total only (decision 6), valid until a time."""
+
+    status: Literal["quote_available"] = "quote_available"
+    quote_id: uuid.UUID
+    currency: Literal["NGN"] = "NGN"
+    quantity_litres: int
+    water_category: QuoteCategory
+    #: Kobo, a whole number of naira (rounded up, decision C).
+    total_minor_units: int
+    price_valid_until: datetime
+
+
+class QuoteManual(BaseModel):
+    """No reliable price (SRS §6): the reason code, never a number."""
+
+    status: Literal["manual_quote_required"] = "manual_quote_required"
+    quote_id: None = None
+    quantity_litres: int
+    reason: quotes.ManualReason
+
+
+QuoteRead = Annotated[QuoteAvailable | QuoteManual, Field(discriminator="status")]
+
+
+def quote_read(answer: quotes.QuoteAnswer) -> QuoteAvailable | QuoteManual:
+    """Shape the service's answer for the customer: total only, never the components."""
+    if answer.reason is not None:
+        return QuoteManual(quantity_litres=answer.quantity_litres, reason=answer.reason)
+    if answer.quote is None or answer.category is None:
+        raise ValueError("A quote answer without a reason must carry the quote")
+    return QuoteAvailable(
+        quote_id=answer.quote.id,
+        quantity_litres=answer.quantity_litres,
+        water_category=QuoteCategory(
+            label=answer.quote.water_category_label,
+            supported_uses=answer.category.supported_uses,
+        ),
+        total_minor_units=answer.quote.total_minor_units,
+        price_valid_until=answer.quote.price_valid_until,
+    )

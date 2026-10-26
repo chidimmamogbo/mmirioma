@@ -25,7 +25,8 @@
       "keke": null,
       "tanker": null,
       "water_source": null,
-      "service_zone": null
+      "service_zone": null,
+      "quote": null
     },
     {
       "id": "9a7e2b14-5c3d-4e6f-8a1b-2c3d4e5f6a7b",
@@ -52,7 +53,8 @@
       "keke": null,
       "tanker": null,
       "water_source": null,
-      "service_zone": null
+      "service_zone": null,
+      "quote": null
     }
   ],
   "total": 2,

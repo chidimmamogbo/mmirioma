@@ -29,7 +29,6 @@ from app.modules.orders.models import (
 )
 from app.modules.orders.schemas import OrderRead
 from app.modules.orders.service import NewOrder
-from app.modules.pricing import service as pricing
 from tests import test_deliveries_integration as part1
 from tests import test_service_zones_integration as zones_part
 from tests.test_deliveries_integration import (
@@ -114,8 +113,8 @@ def test_keke_and_tanker_details_are_stored_and_read_with_the_zone(
             order, _ = await service.create_order(
                 session, customer_id=customer.id, request=tanker(zone.zone.id)
             )
-            names = await pricing.zone_names(session, [order.service_zone_id])
-        read = OrderRead.from_order(order, names)
+            lookups = await service.read_lookups(session, [order])
+        read = OrderRead.from_order(order, lookups)
         assert read.tanker is not None and read.tanker.quantity_local_gallons == 750
         assert read.water_source == WaterSourcePreference.BOREHOLE
         assert read.service_zone is not None and read.service_zone.name == zone.zone.name

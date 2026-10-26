@@ -8,7 +8,9 @@ from ``backend/`` with the virtualenv active and ``DATABASE_URL`` configured::
 
     python -m app.modules.sources.cli list-categories
     python -m app.modules.sources.cli add-source --by 08000000009 \\
-        --name "Sample Borehole A" --location "Ugwuaji, Enugu"
+        --name "Sample Borehole A" --location "Ugwuaji, Enugu" --kind borehole
+    python -m app.modules.sources.cli set-kind --by 08000000009 --source <source id> \\
+        --kind ninth_mile
     python -m app.modules.sources.cli activate --by 08000000009 --source <source id> \\
         --category potable --report LR-0001 --approved-until 2027-01-30 \\
         --cost-per-litre-kobo 150
@@ -39,6 +41,7 @@ from app.modules.sources.models import (
     SOURCE_NAME_MAX_LENGTH,
     STATUS_REASON_MAX_LENGTH,
     ActivationStatus,
+    WaterSourceKind,
 )
 from app.shared.phone import normalize_nigerian_phone
 
@@ -66,8 +69,14 @@ async def _run(args: argparse.Namespace) -> str:
                 name=args.name,
                 approximate_location=args.location,
                 is_simulated=args.simulated,
+                kind=args.kind,
             )
             return f"Added water source {source.id}: {source.name}. It serves no category yet."
+        if args.command == "set-kind":
+            source = await service.set_kind(
+                session, actor=actor, source_id=args.source, kind=args.kind
+            )
+            return f"Source {source.id} is now {args.kind.value}."
         if args.command == "activate":
             activation = await service.activate(
                 session,
@@ -98,7 +107,10 @@ def _format_sources(rows: list[service.SourceWithActivations]) -> str:
     lines: list[str] = []
     for row in rows:
         tag = "  [simulated]" if row.source.is_simulated else ""
-        lines.append(f"{row.source.id}  {row.source.name} ({row.source.approximate_location}){tag}")
+        kind = row.source.kind.value if row.source.kind else "kind not set"
+        lines.append(
+            f"{row.source.id}  {row.source.name} ({row.source.approximate_location})  {kind}{tag}"
+        )
         if not row.activations:
             lines.append("    no category activations")
         for activation, category in row.activations:
@@ -166,6 +178,17 @@ def build_parser() -> argparse.ArgumentParser:
     add.add_argument("--name", required=True, type=_text(SOURCE_NAME_MAX_LENGTH))
     add.add_argument("--location", required=True, type=_text(APPROXIMATE_LOCATION_MAX_LENGTH))
     add.add_argument("--simulated", action="store_true", help="demo data (BR-09)")
+    add.add_argument(
+        "--kind",
+        type=WaterSourceKind,
+        choices=list(WaterSourceKind),
+        help="ninth_mile or borehole; Tanker preferences match it (can be set later)",
+    )
+
+    kind = commands.add_parser("set-kind", help="set where a source collects water")
+    kind.add_argument("--by", required=True, type=_phone, help="your admin account's phone")
+    kind.add_argument("--source", required=True, type=uuid.UUID)
+    kind.add_argument("--kind", required=True, type=WaterSourceKind, choices=list(WaterSourceKind))
 
     activate = commands.add_parser("activate", help="activate or renew a source for a category")
     activate.add_argument("--by", required=True, type=_phone, help="your admin account's phone")

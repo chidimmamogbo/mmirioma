@@ -18,7 +18,12 @@ water category (FR-012). This feature records:
   report reference and the supplier's cost per litre (F1);
 - one **eligibility check** that says whether a source may serve a category
   today, and why not. Order confirmation (#113) and the hold review's source
-  review (R2) both use it.
+  review (R2) both use it;
+- each source's **kind** (#21): `ninth_mile` or `borehole`, where it
+  collects water. A Tanker customer's source preference (`water_source`)
+  is matched against it when quoting, ordering and confirming
+  ([pricing.md](pricing.md); [order-details-and-price.md](../api/order-details-and-price.md#water-source-and-category),
+  point 2).
 
 There are no admin screens for sources before the pilot: the technical lead
 manages them with a command-line tool (F1). A record here says the technical
@@ -29,7 +34,8 @@ verify that, and a database flag is not legal compliance (FR-012).
 
 ```
 technical lead (command line, --by <admin phone>)
-  add-source ─────────────> water_sources            + audit "water_source_added"
+  add-source [--kind] ─────> water_sources            + audit "water_source_added"
+  set-kind ───────────────> water_sources.kind       + audit "water_source_kind_set"
   activate ───────────────> water_source_categories  + audit "water_source_activated"
      (category, report reference, approved until, cost per litre)
   suspend / revoke ───────> status + reason          + audit "water_source_suspended" / "_revoked"
@@ -53,7 +59,7 @@ R2 source review (holds.source_eligibility)
 | --- | --- |
 | `backend/app/modules/sources/models.py` | `WaterSource`, `WaterCategory`, `WaterSourceCategory`, `ActivationStatus` |
 | `backend/app/modules/sources/eligibility.py` | `EligibilityReason`, `REASON_ORDER`, `eligibility_reasons` (pure), `source_reasons` (loads the activation) |
-| `backend/app/modules/sources/service.py` | Add sources, activate, suspend, revoke, list; one audit row per change; `get_acting_admin` |
+| `backend/app/modules/sources/service.py` | Add sources, set the kind, activate, suspend, revoke, list; one audit row per change; `get_acting_admin`; for quotes, `eligible_costs_per_litre` and `has_activation` |
 | `backend/app/modules/sources/cli.py` | The command-line tool |
 | `backend/app/modules/deliveries/holds.py` | `source_eligibility`: R2's answer from the shared check |
 | `backend/app/modules/orders/models.py` | `Order.water_category_id` |
@@ -75,8 +81,12 @@ Migration `0011` (revises `0010`):
 - `orders.water_category_id` → `water_categories` (nullable, RESTRICT,
   indexed). Set at confirmation (#113); null on every order until then.
 
+Migration `0017` (#21) adds `water_sources.kind` (`ninth_mile` or
+`borehole`, VARCHAR + CHECK, nullable until the technical lead sets it).
+
 Audit rows: `audit_logs` with `target_type` `water_source`, `target_id` the
-source, `metadata` `{water_category_id, status}` (none for `water_source_added`).
+source, `metadata` `{water_category_id, status}` (none for `water_source_added`;
+`{kind}` for `water_source_kind_set`).
 
 ## 5. API endpoints and request/response behavior
 
@@ -102,6 +112,10 @@ options read and the order fields come with #113.
   supplier's cost, not the customer's price). Only the command line shows it.
 - **Laboratory reports stay outside the app:** only the reference is stored
   (F1).
+- **Kind** (#21): a source with no kind matches no Tanker preference, so it
+  never prices a Tanker quote and cannot be chosen when confirming a quoted
+  Tanker order. Keke orders take any kind. Quotes price the water with the
+  **highest** cost per litre among eligible sources of the preferred kind.
 - **Simulated sources** may serve a real order for now (contract decision
   9); `water_sources.is_simulated` still marks them.
 - **A free-text source at pickup is never eligible** (hold review decision
@@ -121,6 +135,7 @@ endpoints are admin-only, as before.
 | --- | --- |
 | `--by` is not an active admin | `Error: no active admin account has this phone`, exit 1, nothing written |
 | Unknown source id or category code | `Error: ...`, exit 1 |
+| `set-kind` or `add-source --kind` with a kind other than `ninth_mile` or `borehole` | argparse usage error, exit 2 |
 | `suspend` or `revoke` with no activation for the category | `Error: the source has no activation for <code>`, exit 1 |
 | Bad argument (phone, UUID, date not `YYYY-MM-DD`, negative or fractional cost, empty or too long text, unknown category) | argparse usage error, exit 2 |
 | A second activation row for the same source and category | Refused by the unique constraint; the service updates the existing row instead |
@@ -138,7 +153,10 @@ TEST_DATABASE_URL=... pytest tests/test_water_sources_integration.py tests/test_
 ```
 
 - `test_water_sources.py` (no database): every reason, several reasons in
-  order, the inclusive Lagos date (T-04), and the command-line arguments.
+  order, the inclusive Lagos date (T-04), and the command-line arguments,
+  including `--kind` and `set-kind`.
+- `test_quotes_integration.py`: `set_kind` and its audit row, and an unknown
+  source refused.
 - `test_water_sources_integration.py`: the seeded categories; the command
   lifecycle (add, activate, suspend, renew, revoke) and its audit rows with
   no cost, reference or reason in the metadata; the database rules; R2
@@ -163,5 +181,7 @@ shows each activation.
   except in the database.
 - **Approvals do not expire on their own** beyond the date check: nothing
   notifies anyone before `approved_until`.
+- **Existing sources have no kind** after migration `0017`: the technical
+  lead sets each with `set-kind` before Tanker orders can be quoted.
 - **A suspended source does not block orders already confirmed with it**
   (contract decision 10); the order detail will report it (#113).

@@ -16,7 +16,8 @@
       "keke": null,
       "tanker": null,
       "water_source": null,
-      "service_zone": null
+      "service_zone": null,
+      "quote": null
     },
     {
       "reference": "MO-3HV8RZ1N6D",
@@ -34,7 +35,8 @@
       "keke": null,
       "tanker": null,
       "water_source": null,
-      "service_zone": null
+      "service_zone": null,
+      "quote": null
     }
   ],
   "total": 2,

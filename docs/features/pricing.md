@@ -1,10 +1,14 @@
-# Pricing: price lists
+# Pricing: price lists and quotes
 
-Requirements: FR-021, FR-022, FR-024, BR-01, NFR-004 · Acceptance tests:
-T-09 (a later price change never changes an order) · Contract:
+Requirements: FR-010, FR-012, FR-013, FR-021, FR-022, FR-023, FR-024,
+BR-01, BR-02, NFR-002, NFR-004 · Acceptance tests: T-02, T-03, T-04, T-09
+(a later price change never changes an order), T-18 · Contracts:
 [admin-directory.md](../api/admin-directory.md#price-lists), "Price lists"
-(agreed 2026-10-26) · Issue: #37 · Related:
-[service-zones.md](service-zones.md) (#30, the zone delivery fee)
+(agreed 2026-10-26); [order-details-and-price.md](../api/order-details-and-price.md),
+`POST /quotes` (agreed 2026-10-26) · Issues: #37 (price lists), #21
+(quotes) · Related: [service-zones.md](service-zones.md) (#30, the zone
+delivery fee), [orders.md](orders.md) (ordering with a quote),
+[order-confirmation.md](order-confirmation.md) (confirming a quoted order)
 
 ## 1. Overview and purpose
 
@@ -15,9 +19,11 @@ Every other rate is admin-configured and lives in a **price list**: base
 delivery fee, distance rate, additional-trip charge, handling and margin, by
 zone, water category and quantity band.
 
-This feature stores price lists as versions, lets administrators read and
-save them, and gives the quote (#21) a function that picks the one rule that
-prices a quote. It computes no quote itself.
+This feature stores price lists as versions and lets administrators read
+and save them (#37). **Quotes** (#21): `POST /quotes` prices a customer's
+Keke or Tanker choice on the server and stores the quote with every FR-024
+component, or answers `manual_quote_required` with a reason code when no
+reliable price exists (SRS §6). Customers see the total only.
 
 ## 2. Feature workflow
 
@@ -29,9 +35,19 @@ prices a quote. It computes no quote itself.
    (open question 16: no future dating).
 3. If another administrator saved first, nothing is saved (409
    `price_list_changed`, `details.current_version`); the screen reloads.
-4. When #21 prices a quote, it calls
-   `pricing.price_lists.match_price_rule(zone_id, water_category_id, litres)`
-   and keeps the version it used on the quote (FR-024).
+4. A customer asks for a price after the address step (`POST /quotes`). The
+   server checks, in order: an active picked zone; the pilot category
+   (setting `PILOT_WATER_CATEGORY`, Utility Water) active with an activated
+   source; a source of the preferred kind eligible today; a vehicle plan; the
+   zone's fee; a matching price rule
+   (`price_lists.match_price_rule`). The first that fails is the manual
+   reason; otherwise the quote is computed, stored and answered with its
+   total and `price_valid_until` (`QUOTE_VALIDITY_MINUTES`, default 60).
+5. The customer places the order with `quote_id` ([orders.md](orders.md)):
+   the server checks the quote again and the order goes straight to
+   `awaiting_confirmation` (row 3) with the quote frozen on it.
+6. The dispatcher confirms it from `awaiting_confirmation` with the quote's
+   total ([order-confirmation.md](order-confirmation.md)).
 
 ## 3. Important files
 
@@ -44,6 +60,13 @@ prices a quote. It computes no quote itself.
 | `backend/alembic/versions/20261026_0015_add_price_lists.py` | The two tables |
 | `backend/tests/test_price_lists_api.py` | Endpoint tests, no database |
 | `backend/tests/test_price_lists_integration.py` | Service tests against PostGIS |
+| `backend/app/modules/pricing/quotes.py` | `create_quote`, `compute_price`, `check_quote_for_order`, `quote_summaries`; the rules below |
+| `backend/app/modules/pricing/rate_limit.py` | The quote rate limits (NFR-002) |
+| `backend/app/modules/dispatch/vehicles.py` | `plan_for`: the vehicle plan (FR-013), outside the dispatch service to avoid an import cycle |
+| `backend/app/modules/sources/service.py` | `eligible_costs_per_litre`, `has_activation`, `set_kind` |
+| `backend/alembic/versions/20261026_0017_add_quotes_and_source_kind.py` | `quotes`, `orders.quote_id`, `water_sources.kind` |
+| `backend/tests/test_quotes_api.py` | Arithmetic, schemas, limits, endpoint; no database |
+| `backend/tests/test_quotes_integration.py` | Quotes, ordering and confirming against PostGIS |
 
 ## 4. Database models and relationships
 
@@ -61,6 +84,23 @@ prices a quote. It computes no quote itself.
 
 Versions are never edited or deleted.
 
+- `quotes` (#21): `customer_id` → `users`; the choice that was priced
+  (`delivery_type`, Keke or Tanker details, `water_source`,
+  `delivery_address`, `service_zone_id` → `service_zones`,
+  `quantity_litres`); `water_category_id` → `water_categories` and the
+  frozen `water_category_label`; the components in kobo
+  (`cost_per_litre_minor_units`, `water_`, `delivery_`, `handling_`,
+  `margin_minor_units`, `rounding_minor_units`, `total_minor_units`) with
+  the margin type and amount or basis points; `price_list_version_id`,
+  `price_rule_id`, `vehicle_profile_id`, `safe_payload_litres`, `trips`;
+  `price_valid_until`. CHECKs: components not negative, rounding 0-99, the
+  total equals the components plus rounding, the total is whole naira,
+  trips 1-2. All foreign keys RESTRICT. Only available quotes are stored.
+- `orders.quote_id` → `quotes` (nullable, indexed, RESTRICT): the quote the
+  order was placed with.
+- `water_sources.kind` (`ninth_mile` or `borehole`, nullable until set with
+  `set-kind`, [water-sources.md](water-sources.md)).
+
 ## 5. API endpoints and request/response behavior
 
 | Method | Path | Success | Errors |
@@ -76,6 +116,22 @@ Versions are never edited or deleted.
 `null` for a removed one; empty on version 1). Examples:
 [admin-price-list.json](../api/examples/admin-price-list.json),
 [admin-price-list-create-request.json](../api/examples/admin-price-list-create-request.json).
+
+**`POST /api/v1/quotes`** (customer + CSRF): body `QuoteCreate`
+(`delivery_type`, `keke` or `tanker`, `water_source` for Tanker,
+`delivery_address` required, optional `service_zone_id`; no category, unknown
+fields 422). 200 with either:
+
+- `quote_available`: `quote_id`, `currency`, `quantity_litres`,
+  `water_category {label, supported_uses}`, `total_minor_units`,
+  `price_valid_until`
+  ([quote-available.json](../api/examples/quote-available.json));
+- `manual_quote_required`: `quote_id: null`, `quantity_litres`, `reason`
+  ([quote-manual.json](../api/examples/quote-manual.json)).
+
+Errors: 401, 403 (`forbidden` for staff and drivers, `csrf_failed`), 404
+`service_zone_not_found`, 422 `validation_error`, 429 `too_many_attempts`
+(`Retry-After`). Phone verification is not needed to ask for a price.
 
 ## 6. Important business rules
 
@@ -98,11 +154,41 @@ Versions are never edited or deleted.
 - Inactive zones and categories may have rules; whether they are offered is
   checked when quoting.
 
+Quotes (#21, technical lead's decisions A-F, recorded in the contract):
+
+- **The price** is water + delivery + handling + margin (FR-022). Water: the
+  **highest** cost per litre among sources eligible today for the category
+  and of the preferred kind (Keke: any kind), so the source confirmed later
+  never costs more than the quote. Delivery: the zone's fee, which replaces
+  the whole FR-022 delivery cost while there is no OSRM (base, distance and
+  extra trips). Handling and margin: the matched rule.
+- **Rounding:** every amount is exact kobo except a percentage margin,
+  computed with `Decimal` and rounded half-up to whole kobo. The total is
+  then rounded **up** to whole naira and the adjustment stored (BR-01).
+- **Vehicle plan:** any active vehicle carrying the litres in at most two
+  trips; the fewest trips, then the smallest payload (FR-013).
+  `tank_type` has no effect (recorded only).
+- **Manual reasons**, first that applies: `outside_service_zone`,
+  `category_unavailable`, `no_eligible_source`, `no_vehicle_plan`,
+  `delivery_cost_unavailable`, `no_price_rule`. Never a guessed number
+  (SRS §6, FR-022).
+- **Total only for customers:** the components, cost per litre, vehicle and
+  trips stay on the server (open question 6). `OrderRead.quote` shows the
+  total and the category accepted (label frozen, supported uses live).
+- **Validity:** `price_valid_until` = quote time + `QUOTE_VALIDITY_MINUTES`.
+- **Rate limits** (NFR-002): 30 quotes per customer per 10 minutes, 120 per
+  client IP per hour; every request counts.
+
 ## 7. Authentication and authorization requirements
 
-Admin only (`CurrentAdmin`): customers and drivers get 403 `forbidden`
-(FR-001). `POST` needs the `X-CSRF-Token` header. Each save records an audit
-row `price_list_saved` (NFR-004) with the version number and rule count only.
+Price lists: admin only (`CurrentAdmin`): customers and drivers get 403
+`forbidden` (FR-001). `POST` needs the `X-CSRF-Token` header. Each save
+records an audit row `price_list_saved` (NFR-004) with the version number
+and rule count only.
+
+Quotes: customers only (`CurrentCustomer`) with CSRF. A quote belongs to the
+customer who asked for it; another customer's `quote_id` on an order is the
+same 404 `quote_not_found` as an unknown one.
 
 ## 8. Error handling and edge cases
 
@@ -116,7 +202,12 @@ row `price_list_saved` (NFR-004) with the version number and rule count only.
   field, no rules, more than 100 rules, a reason over 500 characters,
   unknown fields (including a rule `id`).
 - **Before the first save:** `current` is 404 and `match_price_rule`
-  returns no match.
+  returns no match, so quotes answer `no_price_rule`.
+- **Quotes:** an unknown zone id is 404, but no zone or an inactive one is a
+  manual quote (`outside_service_zone`, FR-010). A suspended, revoked or
+  expired activation does not price (FR-012, T-04). A manual answer stores
+  nothing. Over the rate limit: 429 with `Retry-After`; a refused request
+  is not counted.
 
 ## 9. Testing instructions
 
@@ -138,10 +229,29 @@ TEST_DATABASE_URL=... pytest tests/test_price_lists_integration.py
   category and band; no list or no band gives no match.
 - Migration: `alembic upgrade head`, `alembic downgrade -1`, `alembic upgrade
   head` and `alembic check` run on a local PostGIS database (2026-10-26).
+- `test_quotes_api.py`: `compute_price` (fixed and percentage margins,
+  half-up then round up), address normalization, the source kinds matching
+  the preferences, the settings' defaults, both rate limits, the two answers
+  against the examples, never a breakdown, the reason order, the Keke
+  conversion, every validation rule, roles and CSRF, the 31st quote is 429.
+- `test_quotes_integration.py` (clears price lists): a stored quote and its
+  components (highest cost of the preferred kind); Keke's vehicle plan;
+  every manual reason in order with nothing stored; a suspended source; an
+  order with a quote (rows 1 and 3, `OrderRead.quote`, replay after expiry);
+  each order refusal writing nothing; confirming a quoted order; `set_kind`.
+  Migration 0017 checked the same way (2026-10-26).
 
 ## 10. Known limitations
 
-- No quote uses price lists yet: `POST /quotes` is #21.
+- No road distance (OSRM, SRS §12.1): the distance rate, base delivery fee
+  and additional-trip charge in price rules are stored but unused; the zone
+  fee is the delivery cost.
+- The customer screens (#9) do not call `POST /quotes` yet.
+- Rate-limit counters live in the process (cleared on restart, separate per
+  worker), like the auth limits.
+- The quote validity is a server setting; an admin screen for it is #22.
+- A quote's total of ₦0 (all components zero) could be stored but not
+  confirmed, because the confirmation snapshot requires at least ₦1.00.
 - No screen: the fork's admin Pricing page still shows the old flat prices
   on mocks and needs a redesign around FR-022 rates (G2) before it can link
   to these endpoints.

@@ -12,9 +12,11 @@ Order details (delivery type, details, source preference, zone; FR-010, FR-020, 
 Customers submit water order requests and read their own orders. Admins
 (dispatchers) see every order, filter the queue, and see who placed each one.
 
-An order is still a **price-less request**: pricing, zones and water
-categories are decided (SRS v0.3, #55) but not built yet, so every order starts in
-`quote_requested` and holds no amount.
+An order sent **without** a quote is a price-less request: it starts in
+`quote_requested` and holds no amount until a dispatcher confirms it with a
+manual total. An order sent **with** a server quote (`quote_id`, #21; see
+[pricing.md](pricing.md)) goes straight to `awaiting_confirmation` with the
+quote frozen on it; the dispatcher then confirms the quote's total.
 
 Part 1 (#28) added persistence: tables, statuses, the public reference,
 database-enforced idempotency and ownership rules. Part 2 adds the five HTTP
@@ -29,8 +31,13 @@ POST /api/v1/orders            (customer, X-CSRF-Token)
     look up (customer_id, idempotency_key)
       found, same details       -> 200 existing order
       found, different details  -> 409 idempotency_key_reused
-      not found -> insert order (quote_requested, MO-XXXXXXXXXX)
-                   + order_events row, commit -> 201
+      not found -> unknown zone? 404
+                   quote_id? check it (404 / 409 expired / 422 mismatch /
+                   409 no_eligible_source)
+                   insert order (quote_requested, MO-XXXXXXXXXX)
+                   + order_events row
+                   + with a quote: row 3 -> awaiting_confirmation
+                     (second event), commit -> 201
       IntegrityError (concurrent retry won / reference collision)
                    -> rollback, look up again (max 3 attempts)
 
@@ -93,6 +100,7 @@ users 1 ──< orders 1 ──< order_events >── 0..1 users (actor)
 | `tanker_tank_type`, `tanker_quantity_local_gallons` | varchar(10) + CHECK / integer, nullable | Tanker only: `ground` or `overhead`, and the gallons sent |
 | `water_source` | varchar(12) + CHECK, nullable | Tanker only: `ninth_mile` or `borehole`, a **preference** |
 | `service_zone_id` | UUID FK `service_zones.id` RESTRICT, nullable, indexed | The zone the customer picked (FR-020) |
+| `quote_id` | UUID FK `quotes.id` RESTRICT, nullable, indexed | Since `0017` (#21): the quote the order was placed with, frozen (FR-024) |
 
 Indexes: `(customer_id, created_at)` for a customer's list, `(status,
 created_at)` for the dispatcher queue, `source_id`, `service_zone_id`.
@@ -119,7 +127,7 @@ All under `/api/v1`; full contract in [docs/api/orders.md](../api/orders.md).
 
 | Method | Path | Role | Success | Errors |
 | --- | --- | --- | --- | --- |
-| POST | `/orders` | customer | 201 `OrderRead`; 200 on idempotent retry | 409 `idempotency_key_reused`, 422 |
+| POST | `/orders` | customer | 201 `OrderRead`; 200 on idempotent retry | 404 `service_zone_not_found`, 404 `quote_not_found`, 409 `idempotency_key_reused`, 409 `quote_expired`, 409 `no_eligible_source`, 422 `quote_mismatch`, 422 |
 | GET | `/orders` | customer | 200 `{items: OrderRead[], total, limit, offset}` | 422 |
 | GET | `/orders/{reference}` | customer | 200 `OrderRead` | 404 `order_not_found` |
 | GET | `/admin/orders` | admin | 200 `{items: AdminOrderRead[], total, limit, offset}`; filter `on_hold` | 422 |
@@ -150,10 +158,16 @@ Every endpoint also returns 401 `not_authenticated` and 403 `forbidden`;
   stored as `null`.
   - Either shape may send `service_zone_id` (FR-020): an unknown id is 404
     `service_zone_not_found`; an inactive zone is accepted.
+  - The details shape may send `quote_id` (#21), the quote from
+    `POST /quotes`. Without `delivery_type` it is 422.
 - **`OrderRead`**: `reference`, `status`, the request fields, `created_at`,
   `updated_at`, and (since #21) `delivery_type`, `keke`, `tanker`,
   `water_source` as sent and `service_zone` (`id`, current `name`); all
-  null on quantity-only requests. No ID, customer or `is_simulated`.
+  null on quantity-only requests. `quote` (`currency`, `total_minor_units`,
+  `water_category {label, supported_uses}`) is the quote the order was
+  placed with, or null: the total only, never the breakdown. No ID,
+  customer or `is_simulated`. The views get zone names and quote summaries
+  from the pricing module through `service.read_lookups`.
 - **`AdminOrderRead`**: `OrderRead` plus `id`, `customer` (`id`, `name`,
   `phone`, `phone_verified`) and `is_simulated`.
 - **Paging:** `limit` 1–100 (default 50), `offset` ≥ 0.
@@ -178,16 +192,30 @@ Every endpoint also returns 401 `not_authenticated` and 403 `forbidden`;
   is later switched off (FR-024). Names come through
   `pricing.service.zone_names`, not by reading the zones table.
 
-- **No price (FR-021, FR-022, SRS §12):** no amount column or field. A unit
-  test fails if a money-like column is added to these tables, and
-  `OrderCreate` rejects price fields.
+- **No price column (FR-021, FR-022, SRS §12):** no amount column on
+  orders; a quoted order points at its quote (`quote_id`), and the confirmed
+  price is the confirmation's snapshot. A unit test fails if a money-like
+  column is added to these tables, and `OrderCreate` rejects price fields.
+- **Ordering with a quote (#21, contract "POST /orders changes"):** on a
+  new key only, the quote is checked in this order: it exists and is this
+  customer's (else 404 `quote_not_found`), it is unexpired (409
+  `quote_expired`), it matches the order (422 `quote_mismatch`, `details`
+  naming each field: type, Keke or Tanker details, `water_source`,
+  `service_zone_id`, and the address ignoring case and spacing), and a
+  source of the preferred kind is still eligible (409
+  `no_eligible_source`). The order is created by row 1 and moved by row 3
+  (the customer accepted a valid quote, pay on delivery, dispatcher check
+  needed) in one transaction, with two events in order. A refusal writes
+  nothing.
 - **Idempotency (FR-026, NFR-011, T-06):** at most one order per
   `(customer_id, idempotency_key)`, enforced by a unique constraint so it holds
   under concurrent retries. A retry with identical details returns the
   existing order with 200. The same key with different details is 409
   `idempotency_key_reused`. "Same details" compares every field after
   normalization, so `08000000001` and `+2348000000001` are the same phone,
-  and includes the delivery details and the zone (#21).
+  and includes the delivery details, the zone and `quote_id` (#21). A retry
+  runs before any quote check, so it returns the original order even after
+  the quote expired.
   Keys are scoped per customer.
 - **Reference (FR-027):** 10 characters from `secrets.choice` over Crockford
   base32 (about 50 bits), unrelated to the ID or time.
@@ -227,6 +255,10 @@ Every endpoint also returns 401 `not_authenticated` and 403 `forbidden`;
 | `created_from` after `created_to` | 422 on `created_to` |
 | Keke or Tanker details below 600 L | 422 on `keke.can_count` or `tanker.quantity_local_gallons` |
 | Unknown `service_zone_id` | 404 `service_zone_not_found` (after the idempotency lookup, so a retry still gets its order) |
+| Unknown or another customer's `quote_id` | 404 `quote_not_found` (identical) |
+| Expired quote; no eligible source of the preferred kind | 409 `quote_expired`; 409 `no_eligible_source` |
+| Order differs from its quote | 422 `quote_mismatch`, `details[].loc` per field |
+| `quote_id` without `delivery_type` | 422 `validation_error` |
 | Details that disagree with the litres (any code path) | Refused by `ck_orders_delivery_details_shape` |
 | Preferred date before today (Lagos) | 422 on `preferred_delivery_date` |
 | Driver, or wrong role | 403 `forbidden` |
@@ -258,6 +290,9 @@ TEST_DATABASE_URL="$(grep '^DATABASE_URL=' ../.env | cut -d= -f2-)" pytest tests
 - `test_order_details_integration.py`: details stored and read with the
   zone's name; the database CHECK refusing a mismatch; unknown zone refused,
   inactive accepted; retries comparing the details (T-06).
+- `test_order_details_api.py` also passes `quote_id` through and lets each
+  quote refusal through; `test_quotes_integration.py` covers ordering with a
+  quote against the database ([pricing.md](pricing.md)).
 
 Migration check (part 1): `alembic upgrade head && alembic downgrade -1 &&
 alembic upgrade head && alembic check`.
@@ -270,8 +305,8 @@ alembic upgrade head && alembic check`.
   [delivery-state-machine.md](delivery-state-machine.md)).
 - Customer cancellation is defined (SRS v0.2 FR-044, deliveries contract
   row 22) but not built.
-- No quote on orders yet: `POST /quotes` and `quote_id` come in the second
-  part of #21. Water category and slots are set only at confirmation.
+- The customer screens (#9) do not send `quote_id` yet. Water category and
+  slots are set only at confirmation.
 - The #99 fields of `OrderRead` (`delivery_window`, `price`,
   `water_category`) are agreed in `orders.md` but not built in the fork.
 - `order_events` has no event type or metadata column, and customers cannot

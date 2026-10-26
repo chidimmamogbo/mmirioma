@@ -26,6 +26,12 @@ confirmation SMS (FR-050), and the dispatcher can then assign a driver. The
 backend is #113; the admin screens (C0 card, C1 sheet, C2 summary, the
 history line) are #114.
 
+**Quoted orders** (#21): an order placed with a server quote
+([pricing.md](pricing.md)) is already `awaiting_confirmation`. The
+dispatcher confirms it the same way but enters no total: the snapshot copies
+the quote's total (not manual), and only row 7 runs ([order details
+question 14](../api/order-details-and-price.md#open-questions)).
+
 ## 2. Feature workflow
 
 ```
@@ -35,16 +41,21 @@ GET  /admin/orders/{ref}/confirmation-options
 
 POST /admin/orders/{ref}/transition  {to: "confirmed", ...}
   confirmation.confirm_order
-    lock order ─> status must be quote_requested         else 409 invalid_order_transition
+    lock order ─> status must be expected_status          else 409 invalid_order_transition
+                  (quote_requested, or awaiting_confirmation with a quote)
     ─> field checks (category active, source exists,
-       window not past, agreed_at not future / not before the order)  else 422 (all at once)
+       window not past, agreed_at not future / not before the order;
+       quoted order: the quote's category, a source of the Tanker
+       customer's kind)                                     else 422 (all at once)
     ─> row 7 checks: phone_verified, source_eligible, delivery_window_set
                                                        else 409 transition_requirements_unmet
     ─> one transaction:
-         event quote_requested → awaiting_confirmation  (row 26, manual_quote, at t)
+         event quote_requested → awaiting_confirmation  (row 26, manual_quote, at t;
+                                                          skipped for a quoted order)
          order: category, source, window
          event awaiting_confirmation → confirmed        (row 7, note, at t + 1 µs)
-         order_price_snapshots row (manual, linked to the row 7 event)
+         order_price_snapshots row (linked to the row 7 event; manual total,
+                                    or the quote's total with is_manual false)
          audit_logs "order_confirmed"
        COMMIT
     ─> confirmation SMS ─> orders.confirmation_sms_status accepted | not_accepted
@@ -139,12 +150,20 @@ the examples are listed in [examples/README.md](../api/examples/README.md).
 
 ## 6. Important business rules
 
-- **Only from Request received** (`quote_requested`). Every pilot order
-  starts there; `awaiting_confirmation` is reached only by a server quote,
-  which does not exist yet (C4, design ahead). A repeat confirm is 409
-  `invalid_order_transition`: never a second snapshot or SMS.
+- **From the status the dispatcher saw** (`expected_status`):
+  `quote_requested` with a manual total, or `awaiting_confirmation` for an
+  order placed with a server quote (#21), with no total (422 if sent). An
+  `awaiting_confirmation` order without a quote, or any other status, is
+  409 `invalid_order_transition`. A repeat confirm is 409: never a second
+  snapshot or SMS.
+- **A quoted order keeps what the customer accepted** (#21, question 14):
+  the category must be the quote's, a Tanker order's source must be of the
+  customer's `water_source` kind (a source with no kind set does not match),
+  and the total is the quote's. A different price would be a repricing,
+  which needs the customer's documented agreement (BR-05, FR-036); it is
+  not offered.
 - **Two status changes, one transaction** (question 1): row 26 then row 7,
-  both by the dispatcher. If anything fails, neither is written. Row 26 is
+  both by the dispatcher (row 7 alone for a quoted order). If anything fails, neither is written. Row 26 is
   reachable only through this service.
 - **Row 7 checks run under the order lock:** phone verified (FR-003),
   source eligible for the category today in Lagos (FR-012, BR-10, T-04),
@@ -161,7 +180,8 @@ the examples are listed in [examples/README.md](../api/examples/README.md).
   the detail reports its current `reasons`; assigning a driver still works.
 - **A real order may use a simulated source** for now (decision 9).
 - **Audit** (NFR-004): one `order_confirmed` row per confirmation, with
-  source and category ids only; never the amount, phone or note.
+  source and category ids and `manual_quote` (`true` or `false`); never the
+  amount, phone or note.
 - **Event order:** the row 26 event is written at the confirmation time and
   the row 7 event one microsecond later, so the history (newest first) lists
   Confirmed above Awaiting confirmation.
@@ -179,7 +199,9 @@ customers and drivers get 403 `forbidden`, signed-out requests 401
 | Order not Request received (already confirmed, cancelled, a repeat) | 409 `invalid_order_transition`, `details: {from, to: "confirmed"}`, nothing written |
 | Phone not verified, source not eligible | 409 `transition_requirements_unmet`, `details.missing` sorted (`phone_verified`, `source_eligible`); nothing written |
 | Unknown or inactive category, unknown source, window starting in the past, agreement time in the future or before the order was sent | 422 `validation_error`, one `{loc, msg, type}` per problem, all at once |
-| Total not a whole naira or under ₦1.00, end not after start, `other` without a note, `disclosures_confirmed` not true, unknown field, `expected_status` not `quote_requested` | 422 `validation_error` from the schema |
+| Total not a whole naira or under ₦1.00, no total from `quote_requested`, a total from `awaiting_confirmation`, end not after start, `other` without a note, `disclosures_confirmed` not true, unknown field, another `expected_status` | 422 `validation_error` from the schema |
+| Quoted order: another category, or a source not of the customer's kind | 422 `validation_error` on `water_category_id` or `source_id` |
+| `expected_status` not the order's status, or `awaiting_confirmation` without a quote | 409 `invalid_order_transition`, nothing written |
 | Failure after both events were written (for example the audit row) | Everything is rolled back; the order is still Request received; no SMS |
 | SMS provider refuses | Order confirmed; `confirmation_sms.status` `not_accepted`; the C2 warning |
 | Two dispatchers confirm at once | The order lock serializes them; the second gets 409 `invalid_order_transition` |
@@ -203,6 +225,11 @@ TEST_DATABASE_URL=... pytest tests/test_confirmation_integration.py
   detail and history); a refused SMS; a repeat; unmet checks and T-04;
   field errors together; a mid-transaction failure rolling back both
   events; T-09; decision 10 with a real driver assignment.
+- `test_quotes_integration.py` (#21): confirming a quoted order (row 7
+  alone, the quote's total, not manual, audit `manual_quote` false, SMS
+  total); the wrong category or source kind; a stale `expected_status`; a
+  repeat. `test_confirmation_api.py` also checks the request from
+  `awaiting_confirmation` without a total and the two total rules.
 - `test_order_transitions.py`: the contract's table (rows 1-26) matches the
   rules.
 - Migration: `alembic upgrade head`, `alembic check`, `alembic downgrade -1`
@@ -232,9 +259,10 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 ## 10. Known limitations
 
-- **Only Request received orders show the card.** An order already
-  Awaiting confirmation (a server quote, C4) shows no card, because the
-  server refuses it.
+- **Only Request received orders show the card.** The server now confirms
+  orders Awaiting confirmation with a quote (#21), but the admin screen
+  (#114) still shows no card for them; it needs a screen change (G2) to
+  confirm without a total.
 - **Not run end to end against the real backend yet** in this change: the
   screens were built and tested against the mock source and the contract
   samples. T-14 needs a run with the API (`VITE_ORDERS_SOURCE=api`).
@@ -246,7 +274,8 @@ npm run lint && npm run typecheck && npm test && npm run build
   question 6; FR-036 needs the customer's acknowledgement).
 - **What the customer sees** after confirmation (window and total in the
   customer app) is a separate customer design: prompt 11, #99 (PR #117).
-- **Server quotes and slots** (C4) replace F2 and F3 later; until then
-  `awaiting_confirmation` orders cannot be confirmed here.
+- **Slots** (C4) replace F3 later. Server quotes exist (#21) but the
+  customer screens (#9) do not use them yet, so pilot orders still arrive as
+  quote requests.
 - **Downgrading migration `0012` fails while any confirmation exists**
   (`manual_quote` events), by design; see the migration's docstring.

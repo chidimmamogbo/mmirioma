@@ -230,6 +230,7 @@ def test_confirm_passes_the_request_and_returns_the_detail(api: TestClient, fake
     assert call["admin"].id == ADMIN.id
     assert isinstance(call["sms"], MockSmsProvider)
     assert call["data"] == ConfirmInput(
+        expected_status=OrderStatus.QUOTE_REQUESTED,
         water_category_id=uuid.UUID(REQUEST["water_category_id"]),
         source_id=uuid.UUID(REQUEST["source_id"]),
         window_start_at=datetime(2026, 10, 20, 9, tzinfo=UTC),
@@ -262,10 +263,26 @@ def with_(**changes: Any) -> dict[str, Any]:
     return body
 
 
+def test_a_quoted_order_is_confirmed_without_a_manual_total(api: TestClient, fake: Fake) -> None:
+    # Order details question 14 (#21): the quote's total is confirmed as it is.
+    body = with_(expected_status="awaiting_confirmation", manual_quote_total_minor_units=...)
+    response = api.post(TRANSITION, json=body, headers=sign_in(api, UserRole.ADMIN))
+    assert response.status_code == 200
+    data = fake.calls[0][1]["data"]
+    assert (data.expected_status, data.total_minor_units) == (
+        OrderStatus.AWAITING_CONFIRMATION,
+        None,
+    )
+
+
 @pytest.mark.parametrize(
     ("body", "field"),
     [
-        (with_(expected_status="awaiting_confirmation"), "expected_status"),
+        (with_(expected_status="confirmed"), "expected_status"),
+        # A quote request needs the manual total; a quoted order refuses one
+        # (its quote's total is confirmed, order details question 14).
+        (with_(manual_quote_total_minor_units=...), "manual_quote_total_minor_units"),
+        (with_(expected_status="awaiting_confirmation"), "manual_quote_total_minor_units"),
         (with_(manual_quote_total_minor_units=4_500_050), "manual_quote_total_minor_units"),
         (with_(manual_quote_total_minor_units=0), "manual_quote_total_minor_units"),
         (with_(manual_quote_total_minor_units=45000.5), "manual_quote_total_minor_units"),

@@ -6,37 +6,49 @@ lists" (agreed 2026-10-26, #37). The admin endpoints use
 writes also need the CSRF header, which the auth dependency enforces.
 ``GET /service-zones`` needs **no session**: partner sign-up lists the zones
 before an account exists, and it returns only active zone ids and names.
-Handlers only translate between HTTP and :mod:`app.modules.pricing.service`
-or :mod:`app.modules.pricing.price_lists`.
+
+``POST /quotes`` (docs/api/order-details-and-price.md, agreed 2026-10-26,
+#21) is for customers only, with CSRF, and rate-limited
+(:mod:`app.modules.pricing.rate_limit`).
+
+Handlers only translate between HTTP and :mod:`app.modules.pricing.service`,
+:mod:`app.modules.pricing.price_lists` or :mod:`app.modules.pricing.quotes`.
 """
 
 import uuid
 from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.core.errors import ErrorResponse
-from app.modules.auth.dependencies import CurrentAdmin
-from app.modules.pricing import price_lists, service
+from app.modules.auth.dependencies import CurrentAdmin, CurrentCustomer
+from app.modules.pricing import price_lists, quotes, service
+from app.modules.pricing.rate_limit import QuoteRateLimits, get_quote_rate_limits
 from app.modules.pricing.schemas import (
     PriceListCreate,
     PriceListPage,
     PriceListPageParams,
     PriceListRead,
+    QuoteAvailable,
+    QuoteCreate,
+    QuoteManual,
+    QuoteRead,
     ServiceZoneCreate,
     ServiceZoneList,
     ServiceZoneOption,
     ServiceZoneOptionList,
     ServiceZoneRead,
     ServiceZoneUpdate,
+    quote_read,
 )
 
 router = APIRouter(tags=["pricing"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
+QuoteLimits = Annotated[QuoteRateLimits, Depends(get_quote_rate_limits)]
 
 _ADMIN_ERRORS: dict[int | str, dict[str, object]] = {
     HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
@@ -145,3 +157,39 @@ async def save_price_list(
         rules=[rule.to_input() for rule in body.rules],
     )
     return PriceListRead.from_view(view)
+
+
+# --- Quotes (#21) ---------------------------------------------------------------------
+
+
+@router.post(
+    "/quotes",
+    response_model=QuoteRead,
+    responses={
+        HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
+        HTTPStatus.FORBIDDEN: {"model": ErrorResponse},
+        HTTPStatus.NOT_FOUND: {"model": ErrorResponse},
+        HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
+)
+async def create_quote(
+    body: QuoteCreate,
+    request: Request,
+    customer: CurrentCustomer,
+    limits: QuoteLimits,
+    db: DbSession,
+) -> QuoteAvailable | QuoteManual:
+    """Price a choice on the server (FR-022): a total, or a manual-quote reason (SRS §6).
+
+    A manual quote is a 200 answer, not an error. Phone verification is not
+    needed to ask for a price, only to order (FR-003).
+
+    Raises:
+        APIError: 404 ``service_zone_not_found``; 422 ``validation_error``;
+            429 ``too_many_attempts``.
+    """
+    # The direct peer; see auth/rate_limit.py for running behind a reverse proxy.
+    ip = request.client.host if request.client else "unknown"
+    limits.check_and_record(str(customer.id), ip)
+    answer = await quotes.create_quote(db, customer_id=customer.id, choice=body.to_choice())
+    return quote_read(answer)
