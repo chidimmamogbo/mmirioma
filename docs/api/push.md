@@ -1,8 +1,28 @@
-# Push notifications (proposed)
+# Push notifications (not in the MVP)
 
-**Status:** proposed by the new-design frontend fork (2026-10-19). Not agreed.
-The frontend runs on mocks (`frontend/src/mocks/pushMock.ts`) and returns
-`not_connected` in real-API mode until this is agreed and built.
+**Status: not in the MVP.** Decided by @chidimmamogbo on 2026-10-26 (#8),
+confirmed by @nnamdi-security (technical lead) the same day.
+Proposed by the new-design frontend fork on 2026-10-19; never agreed, and
+not to be built for the pilot. Reasons:
+
+- **Not an SRS channel.** FR-050 lists the notification channels as SMS,
+  transactional email and staff-operated manual messaging (WhatsApp only
+  under FR-055). Web Push is none of them.
+- **New infrastructure.** It needs a new library (`pywebpush` or similar) and
+  a VAPID key pair in the backend settings, which need approval first
+  (CLAUDE.md, "Do not introduce new ... libraries, services").
+- **Events outside the MVP.** Two of the events below have no basis in the
+  pilot: payouts (left out in #47 and #43) and "new order near you" (the
+  backend offers each job to one driver; there is no pool,
+  [api-mapping.md](../architecture/api-mapping.md#open-questions) question 6).
+
+The frontend keeps running on its mock (`frontend/src/mocks/pushMock.ts`) in
+mock mode. With the real API, the "Phone notifications" switches keep showing
+"not connected yet"; the in-app notification lists
+([customer-account.md](customer-account.md), [partners.md](partners.md)) are
+the record of what users are told.
+
+The proposal below is kept unchanged as a reference for a later version.
 
 Web Push lets the installed apps (and browsers that support it) show
 notifications while the app is closed. A subscription belongs to one browser
