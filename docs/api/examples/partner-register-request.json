@@ -1,0 +1,9 @@
+{
+  "name": "Sample Driver",
+  "phone": "08000000302",
+  "password": "sample-password",
+  "vehicle_kind": "tanker",
+  "plate": "enu 456 cd",
+  "declared_capacity_gallons": 4000,
+  "service_zone_id": "8d0b2f4e-1c7a-4b9e-a3f6-5e2d9c8b7a10"
+}
