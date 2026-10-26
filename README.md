@@ -188,8 +188,10 @@ npm run build
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md): coding, documentation, and workflow standards (mandatory).
-- [`LOG.md`](LOG.md): every issue or error hit on the project and how it was
-  fixed. Read it before starting; add to it whenever something goes wrong.
+- [`docs/log/`](docs/log/README.md): every issue or error hit on the project
+  and how it was fixed, one file per entry ([`LOG.md`](LOG.md) holds the
+  entries up to 2026-10-23). Read it before starting; add an entry whenever
+  something goes wrong.
 - [`docs/architecture/backend.md`](docs/architecture/backend.md): configuration,
   database, migrations, error envelope, CORS, health endpoints.
 - [`docs/architecture/frontend.md`](docs/architecture/frontend.md): API client and

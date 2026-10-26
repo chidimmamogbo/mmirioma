@@ -1,0 +1,8 @@
+# Who must approve a PR into main (branch protection requires a code owner).
+# Each area has a backup owner, so an author never has to approve their own PR.
+# The last matching line wins.
+
+*            @chidimmamogbo @nnamdi-security
+/frontend/   @chidimmamogbo @nnamdi-security
+/backend/    @nnamdi-security @chidimmamogbo
+/docs/api/   @nnamdi-security @chidimmamogbo
