@@ -4,10 +4,10 @@ Requirements: FR-010, FR-011, FR-012, FR-013, FR-014, FR-020, FR-021, FR-022,
 FR-023, FR-024, FR-026, BR-01, BR-02, BR-05, NFR-002 · Acceptance tests: T-01,
 T-02, T-03, T-09, T-17, T-18 · Issue: #10 · Built in: #21
 
-**Status: proposed** on 2026-10-26 by @Daveoski (+ Claude Code), for review by
-@nnamdi-security (backend, contract owner) and @chidimmamogbo (frontend). Not
-agreed, not built. It becomes `Status: agreed` when both have approved it
-(CLAUDE.md, "Team fork workflow").
+**Status: agreed** (G3) on 2026-10-26 by @nnamdi-security, technical lead,
+sole approver under #36, with @chidimmamogbo's decisions on #42. Proposed by
+@Daveoski (+ Claude Code) in #10, brought to agreement in #42. Not built yet
+(#21).
 
 **Revised 2026-10-26** after @chidimmamogbo's review of PR #28: open questions
 1, 2 and 6 decided (FR-022 only, one fixed pilot category, customers see the
@@ -22,8 +22,8 @@ the FR-023 disclosure, the pilot category (Utility Water), and the technical
 lead's answers to open questions 3, 4, 5, 7, 8, 9 and 11 recorded. Open
 questions 12 and 13 are resolved by the agreed pilot fallbacks F3 and F5
 (order confirmation, [deliveries.md](deliveries.md#order-confirmation-endpoints)),
-for @nnamdi-security to confirm; question 14 is a gap for #21. See
-[Changes](#changes).
+confirmed by the technical lead; question 14 decided (#21 extends the
+confirm endpoint). See [Changes](#changes).
 
 Decision behind it (2026-10-26, @chidimmamogbo,
 [api-mapping.md](../architecture/api-mapping.md#decisions-2026-10-26-chidimmamogbo)):
@@ -374,9 +374,9 @@ delivery, a check needs a dispatcher". Every pilot order is pay on delivery
   (straight to `confirmed`, needs slots, FR-025) stay unused in the pilot;
 - an order **without** one is created by row 1 alone, in `quote_requested`.
 
-The dispatcher then confirms a quoted order from `awaiting_confirmation`,
-which the agreed confirm endpoint does not accept yet:
-[open question 14](#open-questions).
+The dispatcher then confirms a quoted order from `awaiting_confirmation`;
+#21 extends the agreed confirm endpoint to accept it
+([open question 14](#open-questions), decided).
 
 Row 3's "Built in" column in `deliveries.md` points here, so both documents
 are agreed together. The technical lead confirmed this approach
@@ -473,8 +473,8 @@ Numbering is kept so review comments still match. Questions 1-11 are
 decided; the technical lead's answers are from his comment on #42
 (@nnamdi-security, 2026-10-26). Questions 12 and 13 are **resolved by pilot
 fallbacks he already agreed** (F3 and F5, order confirmation contract,
-2026-10-22); he confirms that reading when he approves. Question 14 is open
-for him and #21.
+2026-10-22), and he confirmed that reading. Question 14 is decided. All
+questions are settled; the contract is agreed.
 
 1. ~~Flat prices per can or per tank, or FR-022 only?~~ **Decided**
    (@chidimmamogbo, 2026-10-26): FR-022 only. The admin Pricing screen is
@@ -523,7 +523,7 @@ for him and #21.
     order is only `awaiting_confirmation` until then, so the customer has
     not been promised a window (FR-027). No new field: the checkout screen
     says the office calls to agree the window. Slots replace F3 later
-    (C4). *For @nnamdi-security to confirm.*
+    (C4). Confirmed by @nnamdi-security (technical lead), 2026-10-26.
 13. ~~Cancellation and redelivery charges before confirming (FR-023,
     FR-044, FR-038)~~ **Resolved by pilot fallback F5** (agreed with F3):
     there is **no cancellation or redelivery charge in the pilot**. The
@@ -535,8 +535,8 @@ for him and #21.
     quote") and FR-038's redelivery fee come back when charges are
     introduced; that change must then disclose the delivery charge, which
     the total-only rule (question 6) does not, so it needs a contract
-    change. *For @nnamdi-security to confirm.*
-14. **Confirming an order placed with a quote (gap for #21).** Row 3 puts a
+    change. Confirmed by @nnamdi-security (technical lead), 2026-10-26.
+14. ~~Confirming an order placed with a quote (gap for #21).~~ Row 3 puts a
     quoted order in `awaiting_confirmation` ([Status at
     creation](#status-at-creation)). But the agreed confirm endpoint,
     `POST /admin/orders/{reference}/transition` with `to: confirmed`,
@@ -544,20 +544,22 @@ for him and #21.
     `invalid_order_transition` for an `awaiting_confirmation` order ("design
     ahead (C4)", [deliveries.md](deliveries.md#confirmation-rules)). Once #21
     is built, a dispatcher could not confirm any quoted order.
-    **Recommended:** #21 extends that endpoint (additive) to accept
+    **Decided** (@nnamdi-security, technical lead, 2026-10-26): #21 extends
+    that endpoint (additive) to accept
     `expected_status: awaiting_confirmation`. Then row 7 runs alone (no row
     26), there is no `manual_quote_total_minor_units`, and the price
     snapshot copies the quote's total, with `is_manual` false. Its other
     inputs (category, source, window, `customer_agreement`) stay as agreed,
     and the source must be one of the preferred kind. A changed price is a
     repricing and needs the customer's documented agreement (BR-05, FR-036),
-    so it stays out of this step. For @nnamdi-security, with the change
-    written into `deliveries.md` in #21.
+    so it stays out of this step. #21 writes the change into
+    `deliveries.md` ("Confirmation rules") with the build.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Agreed (G3): questions 12 and 13 confirmed (pilot fallbacks F3 and F5); question 14 decided (#21 extends the confirm endpoint to accept `awaiting_confirmation`, additive) | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #42 |
 | 2026-10-26 | Open questions 12 and 13 resolved by the agreed pilot fallbacks F3 (window agreed on the confirmation call) and F5 (no cancellation or redelivery charge); FR-023 table updated; the proposed `delivery_charge_minor_units` dropped; new question 14 (quoted orders cannot be confirmed with the agreed confirm endpoint; #21 extends it) | Applies agreed fallbacks; @nnamdi-security to confirm on PR #59 |
 | 2026-10-26 | Brought to agreement (#42): `delivery_address` required on `POST /quotes`, water-only answer and `includes_delivery` removed; FR-023 disclosure table (payment method fixed "Pay on delivery"); pilot category Utility Water; technical lead's answers to questions 3, 4, 5, 7, 8, 9, 11 recorded; driver cash label reference fixed (payments.md amendment 3 is agreed); #18 → #37 for price lists; quote rate limit numbers set in #21; new open questions 12 (window) and 13 (cancellation and redelivery charges) | Decisions by @chidimmamogbo and @nnamdi-security; contract not yet agreed (questions 12, 13) |
 | 2026-10-26 | Amended for #30: `service_zone_id` on `POST /quotes` and `POST /orders` (compared for `quote_mismatch`), `service_zone` on `OrderRead`, `service_zone_not_found`; `outside_service_zone` and `delivery_cost_unavailable` defined by the zone; open question 10 decided | Decisions by @nnamdi-security; contract not yet agreed |

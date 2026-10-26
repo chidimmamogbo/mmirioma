@@ -60,7 +60,7 @@ confirmation entries (row 7 with its `confirmation` line, then row 26 with
 `manual_quote` only after #114. Amounts are integer kobo:
 `4500000` is ₦45,000.00.
 
-Order details and price samples (**proposed**,
+Order details and price samples (**agreed**,
 [../order-details-and-price.md](../order-details-and-price.md), #10):
 `quote-create-request.json` asks for a 750-gallon Tanker of borehole water
 with the address and zone (both needed for a price; no category: the server
