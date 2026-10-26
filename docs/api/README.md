@@ -13,6 +13,7 @@ Shared contracts that backend and frontend build against. Agree changes here
 | [examples/](examples/) | Mock JSON responses for frontend work (S1-05, S1-09) | n/a |
 | [push.md](push.md) | Push subscriptions and message payload (**proposed** by the new-design fork, not agreed) | not yet |
 | [public-site.md](public-site.md) | Company contact numbers, newsletter sign-up (**proposed** by the new-design fork, not agreed) | not yet |
+| [admin-directory.md](admin-directory.md) | Admin customers and saved addresses, drivers (list, add, activate), service zones (FR-010), versioned FR-022 price lists (**proposed** in #18, not agreed) | not yet |
 
 Delivery assignment states (assignment, acceptance, pickup, transit, proof,
 failure, reassignment) are defined in S1-06. [orders.md](orders.md) only fixes

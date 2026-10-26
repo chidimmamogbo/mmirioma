@@ -94,3 +94,23 @@ integer kobo; the notes write naira as "N" to stay plain ASCII.
 `record_cash` in `allowed_actions`); the other job samples have `cash: null`.
 `admin-order-detail.json` has `payment` for a confirmed pay-on-delivery order
 whose cash is not recorded yet.
+
+## Admin directory (proposed, #18)
+
+Samples for [../admin-directory.md](../admin-directory.md), **proposed, not
+agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
+
+- Customers: `admin-customers-page.json` (the list, one customer created by
+  staff and not yet verified), `admin-customer.json` (the detail, with an
+  address in an inactive zone and an order from before #21 with
+  `delivery_type: null`), `admin-customer-create-request.json`,
+  `admin-customer-address-request.json`.
+- Drivers: `admin-drivers-page.json` (an active tanker driver and an inactive
+  driver with no vehicle profile), `admin-driver-create-request.json` (3,000
+  gallons, stored as 12,000 litres), `admin-driver-activation-request.json`.
+- Service zones: `admin-service-zones.json`, one active zone with a fallback
+  rate and one inactive zone with a boundary and no fallback.
+- Price lists: `admin-price-list.json` (version 3: two bands for every zone
+  and a zone's own rule), `admin-price-list-create-request.json`.
+- Refusals: `error-price-list-changed.json`, `error-price-rules-overlap.json`,
+  `error-service-zone-name-taken.json`.

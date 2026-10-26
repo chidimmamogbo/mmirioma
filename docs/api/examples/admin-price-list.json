@@ -1,0 +1,47 @@
+{
+  "version": 3,
+  "effective_from": "2026-10-26T09:00:00Z",
+  "created_by": { "id": "0b8f1c5e-2a3b-4c5d-9e6f-7a8b9c0d1e2f", "name": "Sample Dispatcher" },
+  "reason": "Sample change for review",
+  "rules": [
+    {
+      "id": "1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b",
+      "zone_id": null,
+      "water_category_id": null,
+      "min_litres": 600,
+      "max_litres": 1999,
+      "base_delivery_fee_minor_units": 100000,
+      "distance_rate_minor_units_per_km": 10000,
+      "additional_trip_minor_units": 80000,
+      "handling_minor_units": 20000,
+      "margin": { "type": "fixed", "amount_minor_units": 50000 }
+    },
+    {
+      "id": "6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d",
+      "zone_id": null,
+      "water_category_id": null,
+      "min_litres": 2000,
+      "max_litres": null,
+      "base_delivery_fee_minor_units": 200000,
+      "distance_rate_minor_units_per_km": 15000,
+      "additional_trip_minor_units": 150000,
+      "handling_minor_units": 50000,
+      "margin": { "type": "percentage", "basis_points": 1000 }
+    },
+    {
+      "id": "c0d1e2f3-a4b5-4c6d-9e7f-8a9b0c1d2e3f",
+      "zone_id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b",
+      "water_category_id": null,
+      "min_litres": 2000,
+      "max_litres": null,
+      "base_delivery_fee_minor_units": 180000,
+      "distance_rate_minor_units_per_km": 15000,
+      "additional_trip_minor_units": 150000,
+      "handling_minor_units": 50000,
+      "margin": { "type": "percentage", "basis_points": 1000 }
+    }
+  ],
+  "changes": [
+    { "path": "rules[1].distance_rate_minor_units_per_km", "from": 12000, "to": 15000 }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "id": "0b8f1c5e-2a7d-4d3e-9a51-6f0c2b7e9d14",
+  "name": "Sample Customer",
+  "phone": "+2348000000001",
+  "phone_verified": true,
+  "is_active": true,
+  "orders_count": 3,
+  "created_at": "2026-10-17T08:00:00Z",
+  "paid_total_minor_units": 4500000,
+  "addresses": [
+    {
+      "id": "5c2d9e1a-7b3f-4a6e-8d0c-1f2e3a4b5c6d",
+      "label": "Home",
+      "address": "12 Sample Close, Independence Layout, Enugu",
+      "landmark": "Opposite the blue gate",
+      "zone": { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout", "is_active": true },
+      "is_default": true,
+      "created_at": "2026-10-17T08:05:00Z"
+    },
+    {
+      "id": "8e9f0a1b-2c3d-4e5f-9a6b-7c8d9e0f1a2b",
+      "label": "Shop",
+      "address": "4 Sample Market Road, New Haven, Enugu",
+      "landmark": null,
+      "zone": { "id": "4b5c6d7e-8f9a-4b0c-9d1e-2f3a4b5c6d7e", "name": "New Haven", "is_active": false },
+      "is_default": false,
+      "created_at": "2026-10-22T11:00:00Z"
+    }
+  ],
+  "recent_orders": [
+    {
+      "reference": "MO-7KQ2M9XH4T",
+      "created_at": "2026-10-24T09:30:00Z",
+      "status": "delivered",
+      "quantity_litres": 3000,
+      "delivery_type": "tanker"
+    },
+    {
+      "reference": "MO-3HF8P2LQ6D",
+      "created_at": "2026-10-20T07:45:00Z",
+      "status": "delivered",
+      "quantity_litres": 1200,
+      "delivery_type": "keke"
+    },
+    {
+      "reference": "MO-9WD4R6TN2K",
+      "created_at": "2026-10-16T12:00:00Z",
+      "status": "cancelled",
+      "quantity_litres": 1200,
+      "delivery_type": null
+    }
+  ]
+}

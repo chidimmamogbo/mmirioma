@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b",
+      "name": "Independence Layout",
+      "is_active": true,
+      "centre": { "latitude": 6.4447, "longitude": 7.5108 },
+      "boundary": null,
+      "fallback_delivery_fee_minor_units": 300000,
+      "created_at": "2026-10-20T10:00:00Z",
+      "updated_at": "2026-10-20T10:00:00Z"
+    },
+    {
+      "id": "4b5c6d7e-8f9a-4b0c-9d1e-2f3a4b5c6d7e",
+      "name": "New Haven",
+      "is_active": false,
+      "centre": { "latitude": 6.4549, "longitude": 7.5052 },
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [[[7.5, 6.45], [7.51, 6.45], [7.51, 6.46], [7.5, 6.46], [7.5, 6.45]]]
+      },
+      "fallback_delivery_fee_minor_units": null,
+      "created_at": "2026-10-20T10:05:00Z",
+      "updated_at": "2026-10-23T16:30:00Z"
+    }
+  ]
+}

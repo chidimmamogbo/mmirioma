@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "price_rules_overlap",
+    "message": "Two rules for the same zone and category cover the same quantities",
+    "details": [
+      { "loc": ["body", "rules", 1], "msg": "Overlaps rules[0] (600 to 1,999 litres)", "type": "value_error" }
+    ]
+  }
+}
