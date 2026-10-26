@@ -1,0 +1,7 @@
+{
+  "delivery_type": "tanker",
+  "keke": null,
+  "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
+  "water_source": "borehole",
+  "delivery_address": "12 Sample Close, Independence Layout, Enugu"
+}

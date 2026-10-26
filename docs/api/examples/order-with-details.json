@@ -1,0 +1,25 @@
+{
+  "reference": "MO-7KQ2M9XH4T",
+  "status": "awaiting_confirmation",
+  "quantity_litres": 3000,
+  "contact_name": "Sample Customer",
+  "contact_phone": "+2348000000001",
+  "delivery_address": "12 Sample Close, Independence Layout, Enugu",
+  "landmark": "Opposite the blue gate",
+  "delivery_instructions": "Tank is behind the house",
+  "preferred_delivery_date": "2026-10-27",
+  "created_at": "2026-10-26T12:35:00Z",
+  "updated_at": "2026-10-26T12:35:00Z",
+  "delivery_window": null,
+  "price": null,
+  "water_category": null,
+  "delivery_type": "tanker",
+  "keke": null,
+  "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
+  "water_source": "borehole",
+  "quote": {
+    "currency": "NGN",
+    "total_minor_units": 2000000,
+    "water_category": { "label": "Utility Water", "supported_uses": null }
+  }
+}

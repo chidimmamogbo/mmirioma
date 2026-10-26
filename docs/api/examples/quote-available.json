@@ -1,0 +1,10 @@
+{
+  "status": "quote_available",
+  "quote_id": "c7e1b9a2-4d3f-4a6b-8e05-9f2d1c0b3a74",
+  "currency": "NGN",
+  "quantity_litres": 3000,
+  "water_category": { "label": "Utility Water", "supported_uses": null },
+  "includes_delivery": true,
+  "total_minor_units": 2000000,
+  "price_valid_until": "2026-10-26T13:30:00Z"
+}
