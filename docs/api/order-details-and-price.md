@@ -404,10 +404,9 @@ adds **`quote`** for a server quote. For an order created with a `quote_id`
 and confirmed without repricing, `amount_due_label` is `quote`. If the
 dispatcher repriced it as a manual quote, it stays `manual_quote`.
 
-The wording the card shows for `quote` is a design decision for the driver
-cash design ([driver-cash.md](../design/driver-cash.md), open questions;
-@chidimmamogbo). It must not read "Manual quote", which would misstate how
-the price was set.
+For `quote` the card shows "Pay on delivery: cash after unloading", never
+"Manual quote", which would misstate how the price was set
+([driver-cash.md](../design/driver-cash.md), decision 8, @chidimmamogbo).
 
 ## Mapping to the design types
 
