@@ -1,0 +1,9 @@
+{
+  "name": "Independence Layout",
+  "is_active": true,
+  "centre": { "latitude": 6.4447, "longitude": 7.5108 },
+  "boundary": null,
+  "fallback_delivery_fees": [
+    { "water_category_id": "3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b", "fee_minor_units": 300000 }
+  ]
+}
