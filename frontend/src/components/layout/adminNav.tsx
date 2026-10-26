@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import {
+  BanknoteIcon,
   BarChartIcon,
   CreditCardIcon,
   DocumentFoldIcon,
@@ -34,6 +35,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/pricing', label: 'Pricing and delivery', icon: () => <TagDotIcon /> },
   { to: '/admin/loyalty', label: 'Loyalty points', icon: () => <StarIcon /> },
   { to: '/admin/payments', label: 'Payments', icon: () => <CreditCardIcon /> },
+  { to: '/admin/cash', label: 'Cash', icon: () => <BanknoteIcon /> },
   { to: '/admin/earnings', label: 'Rider earnings', icon: () => <WalletIcon /> },
   { to: '/admin/reports', label: 'Reports', icon: () => <BarChartIcon roundJoin={false} /> },
   { to: '/admin/support', label: 'Support', icon: () => <MessageSquareIcon />, countKey: 'support' },

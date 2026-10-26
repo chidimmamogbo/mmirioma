@@ -4,9 +4,10 @@ Requirements: FR-010, FR-011, FR-012, FR-013, FR-014, FR-020, FR-021, FR-022,
 FR-023, FR-024, FR-026, BR-01, BR-02, BR-05, NFR-002 · Acceptance tests: T-01,
 T-02, T-03, T-09, T-17, T-18 · Issue: #10 · Built in: #21
 
-**Status: agreed** (G3) on 2026-10-26 by @nnamdi-security, technical lead,
-sole approver under #36. Proposed by @Daveoski (+ Claude Code) in #10,
-revised after @chidimmamogbo's review. Not built yet (#21).
+**Status: proposed** on 2026-10-26 by @Daveoski (+ Claude Code), for review by
+@nnamdi-security (backend, contract owner) and @chidimmamogbo (frontend). Not
+agreed, not built. It becomes `Status: agreed` when both have approved it
+(CLAUDE.md, "Team fork workflow").
 
 **Revised 2026-10-26** after @chidimmamogbo's review of PR #28: open questions
 1, 2 and 6 decided (FR-022 only, one fixed pilot category, customers see the
@@ -68,9 +69,9 @@ Two delivery types (design decision 9; `DeliveryType` in
 | `delivery_type` | `"keke"` \| `"tanker"` | Required in the new shape. Keke carries jerrycans; Tanker fills a tank |
 | `keke` | object \| null | Required when `delivery_type` is `keke`, otherwise `null` or absent |
 | `keke.can_size_litres` | `25` \| `50` | The jerrycan size (design `c-keke`) |
-| `keke.can_count` | integer | At least 1. `can_size_litres × can_count` must be at least 600 (FR-021). Any count that reaches 600 L is accepted; the client keeps the design's presets (12, 24, 30, 60) ([decision 4](#open-questions)) |
+| `keke.can_count` | integer | At least 1. `can_size_litres × can_count` must be at least 600 (FR-021). Whether only the design's counts (12, 24, 30, 60) are accepted is [open question 4](#open-questions) |
 | `tanker` | object \| null | Required when `delivery_type` is `tanker`, otherwise `null` or absent |
-| `tanker.tank_type` | `"ground"` \| `"overhead"` | The customer's tank (design `c-tanker`). Recorded for the driver only; it does not affect the price or the vehicle ([decision 5](#open-questions)) |
+| `tanker.tank_type` | `"ground"` \| `"overhead"` | The customer's tank (design `c-tanker`). Recorded for the driver; whether it affects price or vehicle is [open question 5](#open-questions) |
 | `tanker.quantity_local_gallons` | integer | 150–25000, as in [orders.md](orders.md#order-object). The design's standard sizes 500, 750 and 1,000 gallons are FR-021 presets (2,000, 3,000 and 4,000 L); a custom size is any other value |
 | `water_source` | `"ninth_mile"` \| `"borehole"` \| null | Tanker only (decision 10, changed 2026-10-16: Keke has no source choice). Required for Tanker, `null` for Keke. A **preference**, not a source assignment; see [Water source and category](#water-source-and-category) |
 
@@ -126,17 +127,16 @@ Proposed:
    - The client sends **no** category. The server prices and stores every
      quote and order with the configured pilot category, read through
      `get_settings()` (CLAUDE.md) by its code, `potable` or `utility`.
-   - The pilot category is **Utility Water** (`utility`), named by the
-     technical lead on 2026-10-26. It may change to `potable` only while a
-     source is activated for Potable Water after laboratory verification
-     (FR-012, FR-014).
+   - Which category it is gets named by the technical lead in the pilot plan
+     (the fork has no copy of the pilot plan yet). It may be `potable` only
+     while a source is activated for Potable Water after laboratory
+     verification (FR-012, FR-014).
    - If the configured category is inactive or has no activated source, the
      quote answers `manual_quote_required` / `category_unavailable`.
    - The response names the category (`water_category`), so the customer
      sees it before ordering (FR-023).
-4. When several eligible sources match the preference, the quote uses the
-   **highest** cost per litre among them, so the source confirmed later never
-   costs more than the quote ([decision 3](#open-questions)).
+4. Which source's cost per litre prices a quote when several eligible sources
+   match is [open question 3](#open-questions).
 
 Decision 10b ("Ninth Mile costs more") then follows from FR-022 without a
 separate rule: Ninth Mile sources have a higher cost per litre.
@@ -202,7 +202,7 @@ answer, not an error ("If no price is reliable, use a structured
 | `water_category` | The pilot category's label and supported uses, as on `OrderRead` (FR-023) |
 | `includes_delivery` | `true` when an address was sent and `total_minor_units` is the full payable amount; `false` for a water-only price |
 | `total_minor_units` | With an address: the payable amount in kobo (water + delivery + handling + margin, FR-022), a whole number of naira (rounded up). Without one: the water cost only (cost per litre × litres), which the client labels as excluding delivery |
-| `price_valid_until` | UTC. After it, the quote cannot be ordered (SRS §8). Configurable on the server, **1 hour** by default ([decision 7](#open-questions)) |
+| `price_valid_until` | UTC. After it, the quote cannot be ordered (SRS §8). The length is [open question 7](#open-questions) |
 
 **Customers see the total only** (open question 6, decided by
 @chidimmamogbo, 2026-10-26, as the agreed `orders.md` already says: "never a
@@ -399,7 +399,7 @@ margin type, rounding) are for #21 and the admin pricing contract (#18).
 
 The driver's Cash card shows how the amount due was priced
 (`cash.amount_due_label`, [payments.md](payments.md)). The agreed value is
-`manual_quote` ("Manual quote"); payments.md amendment 3 (agreed 2026-10-23, built in #135)
+`manual_quote` ("Manual quote"); payments.md amendment 3 (proposed in #123)
 adds **`quote`** for a server quote. For an order created with a `quote_id`
 and confirmed without repricing, `amount_due_label` is `quote`. If the
 dispatcher repriced it as a manual quote, it stays `manual_quote`.
@@ -423,7 +423,8 @@ For #9 (adapters) and `docs/architecture/api-mapping.md`:
 ## Open questions
 
 Numbering is kept so review comments still match. Decided questions say who
-decided and when. All are decided; the contract is agreed.
+decided and when; the rest need an answer before this contract is agreed.
+Recommendations are proposals, not decisions.
 
 1. ~~Flat prices per can or per tank, or FR-022 only?~~ **Decided**
    (@chidimmamogbo, 2026-10-26): FR-022 only. The admin Pricing screen is
@@ -432,48 +433,53 @@ decided and when. All are decided; the contract is agreed.
    2026-10-26): one fixed category for every pilot order, set on the server,
    with no customer choice and no screen change
    ([Water source and category](#water-source-and-category), point 3).
-   **The category** (decided by @nnamdi-security, technical lead,
-   2026-10-26): **Utility Water**. Potable only with laboratory verification
-   (FR-014).
-3. ~~**Which source's cost per litre prices the quote**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26): the
-   highest cost per litre among eligible sources of the preferred kind, so
-   the source confirmed later never costs more than the quote. FR-022 says
-   "the supplier's cost", but the supplier is picked at confirmation.
-4. ~~**Which can counts are allowed?**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26), supported by
-   @chidimmamogbo: any count that reaches 600 L, as for custom litres
-   (FR-021); the client keeps the presets 12, 24, 30 and 60.
-5. ~~**Does `tank_type` affect the price or the vehicle?**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26),
-   supported by @chidimmamogbo: recorded only, no effect, until the business
-   says otherwise (the SRS has no overhead-tank charge).
+   **Still open:** which category. The technical lead names it in the pilot
+   plan, which the fork does not have yet. Potable only with laboratory
+   verification (FR-014).
+3. **Which source's cost per litre prices the quote** when several eligible
+   sources match the preference? FR-022 says "the supplier's cost", but the
+   supplier is picked later, at confirmation. **Recommended:** the highest
+   cost per litre among eligible sources of that kind, so the confirmed
+   source never costs more than the quote. For @nnamdi-security.
+4. **Which can counts are allowed?** The design offers 12, 24, 30 and 60
+   (filtered to reach 600 L). **Recommended**, and supported by
+   @chidimmamogbo: the server accepts any count that reaches 600 L, as it
+   does for custom litres (FR-021); the client keeps the presets.
+5. **Does `tank_type` (ground or overhead) affect the price or the vehicle?**
+   FR-013 mentions "whether the operator can handle a given transfer method";
+   the SRS has no overhead-tank charge. **Recommended**, and supported by
+   @chidimmamogbo: record it only, no effect, until the business says
+   otherwise.
 6. ~~Does the customer see a breakdown?~~ **Decided** (@chidimmamogbo,
    2026-10-26): **total only**, as `orders.md` already says. The components
    stay in the server snapshot and the admin views. Knock-on for #9: the
    Keke and Tanker summaries lose their water and delivery lines.
-7. ~~**How long is a quote valid?**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26), supported by
-   @chidimmamogbo: configurable, **1 hour** by default (FR-023, SRS §8). In
-   the pilot it is a server setting; an admin screen for it belongs to the
-   settings contract (#22).
+7. **How long is a quote valid?** The SRS requires a validity (FR-023, §8)
+   but no length; the mock uses 1 hour. **Recommended**, and supported by
+   @chidimmamogbo: admin-configured, 1 hour by default, pending a business
+   decision.
 8. ~~Status of an order placed with a quote~~ **Settled** by the existing
    row 3 of [deliveries.md](deliveries.md#transitions); see
-   [Status at creation](#status-at-creation). No new transition. Confirmed
-   by @nnamdi-security, 2026-10-26.
-9. ~~**Points.**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26), supported by @chidimmamogbo: left out (no SRS
-   basis); the adapter shows no estimate until #11 settles loyalty points.
+   [Status at creation](#status-at-creation). No new transition; this PR
+   updates the row's "Built in" column. For @nnamdi-security to confirm.
+9. **Points.** The mock's `points_estimate` has no SRS basis.
+   **Recommended**, and supported by @chidimmamogbo: leave it out; the
+   adapter shows no estimate until #11 settles loyalty points.
 10. ~~**Service zones and OSRM.**~~ **Decided** (@nnamdi-security,
     2026-10-26): the customer picks the zone (`service_zone_id`, FR-020);
     the delivery cost is the zone's fee per category, per order, built in
     **#30** ([admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)).
     OSRM stays open (SRS §12.1); see the [Pilot note](#response-200-quoteread).
-11. ~~**Snapshot storage.**~~ **Decided** (@nnamdi-security, technical lead, 2026-10-26): #21 stores the creation-time quote in
-    a separate `quotes` table (SRS §5) with the FR-024 components and the
-    frozen category label; the agreed `order_price_snapshots` keeps meaning
-    the confirmed price.
+11. **Snapshot storage.** The agreed `order_price_snapshots` table holds the
+    confirmed (manual) price. **Recommended:** #21 stores the creation-time
+    quote in a separate `quotes` table (SRS §5) with the FR-024 components
+    and the frozen category label, and the confirmation snapshot keeps its
+    meaning. For @nnamdi-security.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-26 | Agreed (G3): pilot category Utility Water (question 2); questions 3, 4, 5, 7, 9 and 11 decided as recommended; question 8 confirmed | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | Amended for #30: `service_zone_id` on `POST /quotes` and `POST /orders` (compared for `quote_mismatch`), `service_zone` on `OrderRead`, `service_zone_not_found`; `outside_service_zone` and `delivery_cost_unavailable` defined by the zone; open question 10 decided | Decisions by @nnamdi-security; contract not yet agreed |
 | 2026-10-26 | Revised after review (PR #28): FR-022 only; one fixed pilot category set by the server (no category field in requests); customers see the total only (breakdown fields removed, `includes_delivery` added); `quote.water_category` on `OrderRead`; idempotent replay before quote checks; address normalization for `quote_mismatch`; driver cash label `quote`; creation status through existing row 3 | Not yet |
 | 2026-10-26 | Proposed: delivery details, `POST /quotes`, `quote_id` on `POST /orders`, details and quote on `OrderRead` | Superseded by the revision above |

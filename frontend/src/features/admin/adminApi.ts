@@ -8,9 +8,12 @@
  * `not_connected` until the endpoints exist. Switching one is a change here
  * only; pages do not change.
  */
+import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
+import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
+import * as cash from './real/cash'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
 
@@ -57,6 +60,33 @@ export const savePriceList = api('Pricing', mock.savePriceList)
 export const listPayments = api('Payments', mock.listPayments)
 export const confirmPayment = api('Payments', mock.confirmPayment)
 export const refundAsPoints = api('Payments', mock.refundAsPoints)
+
+/*
+ * Cash (K3 to K5, docs/design/admin-cash.md, #19): linked to the agreed
+ * payments contract. The screens use the contract's types as they are (no
+ * older design type exists for them). The Payments page above stays on its
+ * mocks: the backend has no per-order "mark paid" (BR-07).
+ */
+export type {
+  AdminCashCollection,
+  CashDay,
+  CashDriverRow,
+  CorrectionRequest,
+  DriverCash,
+  PilotPaymentStatus,
+  ReceiveRequest,
+  ReconcileRequest,
+  Remittance,
+} from '../../lib/api/adminCash'
+/** Mock mode shows sample cash, tagged SAMPLE DATA on the cash screens (design decision 5). */
+export const CASH_IS_SAMPLE = USE_MOCKS
+export const getCashDay = (date: string) => (USE_MOCKS ? cashMock.getCashDay(date) : cash.getCashDay(date))
+export const getDriverCash = (driverId: string) => (USE_MOCKS ? cashMock.getDriverCash(driverId) : cash.getDriverCash(driverId))
+export const correctCashCollection = (collectionId: string, request: CorrectionRequest) =>
+  USE_MOCKS ? cashMock.correctCollection(collectionId, request) : cash.correctCollection(collectionId, request)
+export const receiveCash = (request: ReceiveRequest) => (USE_MOCKS ? cashMock.receiveCash(request) : cash.receiveCash(request))
+export const reconcileCash = (request: ReconcileRequest) =>
+  USE_MOCKS ? cashMock.reconcileCollections(request) : cash.reconcileCollections(request)
 export const listPayouts = api('Rider earnings', mock.listPayouts)
 export const markPayoutPaid = api('Rider earnings', mock.markPayoutPaid)
 

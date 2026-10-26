@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -50,6 +50,43 @@ describe('admin pages', () => {
     await user.click(button)
     expect(await screen.findByText(/Assigned\./, {}, { timeout: WAIT })).toBeInTheDocument()
     expect(read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage).toBe('assigned')
+  }, SLOW)
+})
+
+describe('admin cash (K3 to K5, #19)', () => {
+  it('lists the day, then receives a driver\u2019s cash with the counted total', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/cash')
+    expect(await screen.findByRole('heading', { name: 'Cash' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /^Cash$/ }).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Overdue', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Part paid · ₦2,000.00 outstanding').length).toBeGreaterThan(0)
+
+    const receiveLinks = screen.getAllByRole('link', { name: 'Receive cash' })
+    await user.click(receiveLinks[receiveLinks.length - 1])
+    expect(await screen.findByRole('heading', { name: 'Receive cash from Chinedu Okafor' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByText('₦11,500.00')).toBeInTheDocument()
+
+    await user.type(screen.getByRole('textbox', { name: 'Cash counted' }), '11500')
+    expect(screen.getByText('Counted matches the recorded total.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('You confirm you have received ₦11,500.00 in cash from Chinedu Okafor.')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm received' }))
+    expect(await screen.findByText('Received ₦11,500.00 from Chinedu Okafor.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByText('Part paid · ₦900.00 outstanding')).toBeInTheDocument()
+  }, SLOW)
+
+  it('asks for a note when the counted cash differs', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/cash/drivers/user-chinedu')
+    await user.type(await screen.findByRole('textbox', { name: 'Cash counted' }, { timeout: WAIT }), '11000')
+    expect(screen.getByText('₦500.00 short')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }))
+    expect(await screen.findByText('Say what happened.')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   }, SLOW)
 })
 

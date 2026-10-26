@@ -5,16 +5,16 @@ Shared contracts that backend and frontend build against. Agree changes here
 
 | Document | Covers | Implemented by |
 | --- | --- | --- |
-| [auth.md](auth.md) | Roles, sessions, CSRF, register/login/logout/me | S1-02 |
+| [auth.md](auth.md) | Roles, sessions, CSRF, register/login/logout/me, phone verification and change; change password (**agreed** 2026-10-26, #8) | S1-02; change password #56 |
 | [orders.md](orders.md) | Order statuses and transitions, order create/read, admin list/detail | S1-03 |
 | [deliveries.md](deliveries.md) | Order state machine and assignments; driver job endpoints (list incl. later-day jobs, detail, decline, pickup, new delivery code, incidents; part 2: accept, steps, arrival, contact attempts, unloading complete, proof, built in #75); admin dispatch endpoints (driver list, assign, withdraw, history; built in #61); order confirmation endpoints (confirmation options, confirm; agreed in PR #111, built in #112 and #113) | S1-06, S1-07, PR #50, PR #59, #61, #75, #113 |
 | [payments.md](payments.md) | Cash collection, remittance and reconciliation for the pilot (pay on delivery only, F4): driver record and handover, admin receive and reconcile, payment status on the order. **Agreed** 2026-10-22 (#98); backend built in #123, with amendments 1-3 proposed there | #123 |
-| [order-details-and-price.md](order-details-and-price.md) | Delivery type (Keke or Tanker), jerrycan and tank details, water source preference, `POST /quotes` (FR-022, total only), `quote_id` and `service_zone_id` on `POST /orders`, details, zone and quote on `OrderRead` (**agreed** 2026-10-26, #10, amended for #30) | #21 (needs #37) |
+| [order-details-and-price.md](order-details-and-price.md) | Delivery type (Keke or Tanker), jerrycan and tank details, water source preference, `POST /quotes` (FR-022, total only), `quote_id` and `service_zone_id` on `POST /orders`, details, zone and quote on `OrderRead` (**proposed** by the new-design fork, #10, revised after review, amended for #30; not agreed) | #21 (needs #30) |
 | [customer-account.md](customer-account.md) | Customer profile read, saved addresses, order feedback (FR-051), in-app notifications (FR-050), support requests, account deletion request (privacy notice §9); no points endpoint (**proposed** by the new-design fork, #11; not agreed) | not yet |
 | [partners.md](partners.md) | Partner (rider and driver) self sign-up as an auth amendment, approval status, profile read and update, going online, in-app notifications. Documents, earnings and payouts out of the MVP. Amends `auth.md` (**agreed** 2026-10-26, #14 and #47) | not yet |
 | [examples/](examples/) | Mock JSON responses for frontend work (S1-05, S1-09) | n/a |
-| [push.md](push.md) | Push subscriptions and message payload (**proposed** by the new-design fork, not agreed) | not yet |
-| [public-site.md](public-site.md) | Company contact numbers, newsletter sign-up (**proposed** by the new-design fork, not agreed) | not yet |
+| [push.md](push.md) | Push subscriptions and message payload: **not in the MVP** (decided in #8; not an SRS channel, needs a new library); kept as a reference | not built |
+| [public-site.md](public-site.md) | Support contact for the website from backend settings (FR-055); newsletter left out of the pilot (**agreed** 2026-10-26, #8) | #56 |
 | [admin-directory.md](admin-directory.md) | Admin customers and saved addresses, drivers (list, add, activate), service zones (FR-010), versioned FR-022 price lists (**proposed** in #18; the service zones and price lists sections are **agreed**; zones amended for #30: one fallback fee per category, `GET /service-zones`) | zones: #30; price lists: #37; rest not yet |
 
 Delivery assignment states (assignment, acceptance, pickup, transit, proof,
