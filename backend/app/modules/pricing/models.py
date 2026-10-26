@@ -1,4 +1,16 @@
-"""Price snapshots: the price frozen on an order when it is confirmed (FR-024).
+"""Pricing data: service zones with their delivery fees, and price snapshots.
+
+**Service zones** (FR-010, #30; contract: docs/api/admin-directory.md,
+"Service zones", agreed 2026-10-26). An administrator configures each zone
+with a name, a centre point, an optional boundary polygon and an active flag,
+plus one delivery fee per water category. The fee is the FR-022 fallback
+delivery cost while there is no road distance (OSRM is still open, SRS
+§12.1): charged once per order, whatever the number of trips. The customer
+picks the zone (FR-020); nothing here matches addresses to zones. Points are
+PostGIS ``geography`` in WGS 84 (SRID 4326, CLAUDE.md) with no spatial
+index, because nothing searches zones by location yet.
+
+**Price snapshots:** the price frozen on an order when it is confirmed (FR-024).
 
 For the pilot the only price is a **manual quote** (pilot fallback F2,
 FR-022's own fallback): the total a dispatcher agreed with the customer by
@@ -16,7 +28,18 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import BigInteger, CheckConstraint, Enum, ForeignKey, String
+from geoalchemy2 import Geography, WKBElement
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    func,
+    true,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.models import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -109,3 +132,70 @@ class OrderPriceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         )
     )
     customer_agreed_at: Mapped[datetime]
+
+
+#: Zone names are trimmed, 2-100 characters, unique ignoring case (contract).
+ZONE_NAME_MIN_LENGTH = 2
+ZONE_NAME_MAX_LENGTH = 100
+
+
+class ServiceZone(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A service zone customers order in (FR-010). Never deleted; switched off.
+
+    Orders and saved addresses will refer to zones, so a zone is kept and
+    ``is_active`` set to false instead (contract, "Endpoints").
+
+    Attributes:
+        name: Trimmed display name. Unique ignoring case, enforced by the
+            ``uq_service_zones_name_lower`` index on ``lower(name)``.
+        is_active: Whether new orders may use the zone (FR-010). Switching a
+            zone off never changes existing orders (FR-024).
+        centre: The zone's coordinates (FR-010, required), a WGS 84 point.
+            Typed by an administrator; kept for road distance later.
+        boundary: Optional WGS 84 polygon (FR-010), one outer ring.
+    """
+
+    __tablename__ = "service_zones"
+
+    name: Mapped[str] = mapped_column(String(ZONE_NAME_MAX_LENGTH))
+    is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    centre: Mapped[WKBElement] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326, spatial_index=False)
+    )
+    boundary: Mapped[WKBElement | None] = mapped_column(
+        Geography(geometry_type="POLYGON", srid=4326, spatial_index=False)
+    )
+
+
+# Case-insensitive uniqueness ("Independence Layout" and "independence layout"
+# are one zone). The database decides, so two concurrent creates cannot both
+# succeed.
+Index("uq_service_zones_name_lower", func.lower(ServiceZone.name), unique=True)
+
+
+class ServiceZoneDeliveryFee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A zone's delivery fee for one water category (FR-010, FR-022 fallback).
+
+    Decided for #30 (contract open question 13): one fee per zone and
+    category, **per order**. A zone without a fee for a category has no
+    fallback for it, and the quote becomes a manual quote
+    (``delivery_cost_unavailable``). The pricing service reads these rows;
+    see :func:`app.modules.pricing.service.delivery_cost_from_zone`.
+
+    Attributes:
+        zone_id: The zone.
+        water_category_id: The category the fee applies to (FR-014).
+        fee_minor_units: The delivery cost in kobo, 0 or more (BR-01).
+    """
+
+    __tablename__ = "service_zone_delivery_fees"
+    __table_args__ = (
+        UniqueConstraint("zone_id", "water_category_id"),
+        CheckConstraint("fee_minor_units >= 0", name="fee_not_negative"),
+    )
+
+    zone_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("service_zones.id", ondelete="RESTRICT"))
+    water_category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("water_categories.id", ondelete="RESTRICT"), index=True
+    )
+    fee_minor_units: Mapped[int] = mapped_column(BigInteger)
