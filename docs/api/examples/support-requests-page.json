@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "reference": "SR-4K7M2Q9X",
+      "type": "late",
+      "message": "The water has not arrived yet.",
+      "order_reference": "MO-7KQ2M9XH4T",
+      "status": "open",
+      "created_at": "2026-10-26T13:10:00Z",
+      "resolved_at": null
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}

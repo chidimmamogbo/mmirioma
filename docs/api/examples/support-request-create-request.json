@@ -1,0 +1,6 @@
+{
+  "idempotency_key": "1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b",
+  "type": "late",
+  "message": "The water has not arrived yet.",
+  "order_reference": "MO-7KQ2M9XH4T"
+}

@@ -74,6 +74,16 @@ the server's answer (3,000 L, total only, `includes_delivery: true`);
 is not named yet. Every amount is illustrative, not a
 real price: `2000000` is ₦20,000.00.
 
+Customer account samples (**proposed**,
+[../customer-account.md](../customer-account.md), #11) follow Sample
+Customer: `customer-profile.json` (no email, photo, preferences or points:
+see the contract's open questions); `saved-addresses-page.json` (Home is the
+default) and `address-create-request.json`; `order-feedback-request.json`
+(the design's two answers plus the optional FR-051 ones);
+`customer-notifications-page.json` (one unread); `support-request-create-request.json`
+and `support-requests-page.json`; `deletion-request.json` (requested on a
+Monday, to be acknowledged by the Thursday); `error-default-address.json`.
+
 If a contract changes, update these files in the same PR.
 
 The cash samples ([../payments.md](../payments.md), agreed; the history entry
