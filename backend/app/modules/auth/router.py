@@ -1,4 +1,8 @@
-"""Auth endpoints: register, login, logout, me, phone verification (docs/api/auth.md)."""
+"""Auth endpoints: register, login, logout, me, phone verification (docs/api/auth.md).
+
+Partner sign-up (``POST /auth/partner-register``, docs/api/partners.md) is
+here too, because it starts a session like registration.
+"""
 
 from http import HTTPStatus
 from typing import Annotated
@@ -10,7 +14,12 @@ from app.core.config import get_settings
 from app.core.database import get_db_session
 from app.core.errors import ErrorResponse
 from app.modules.auth import phone_verification, security, service
-from app.modules.auth.dependencies import SESSION_COOKIE_NAME, AuthSession, CurrentCustomer
+from app.modules.auth.dependencies import (
+    SESSION_COOKIE_NAME,
+    AuthSession,
+    CurrentCustomer,
+    CurrentCustomerOrDriver,
+)
 from app.modules.auth.models import UserRole, VerificationPurpose
 from app.modules.auth.rate_limit import AuthRateLimits, get_auth_rate_limits
 from app.modules.auth.schemas import (
@@ -23,6 +32,8 @@ from app.modules.auth.schemas import (
     VerifyCodeRequest,
 )
 from app.modules.messaging.sms import SmsProvider, get_sms_provider
+from app.modules.partners import service as partners_service
+from app.modules.partners.schemas import PartnerRegisterRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -86,6 +97,48 @@ async def register(
     limits.check_and_record_registration(_client_ip(request))
     user = await service.create_user(
         db, name=body.name, phone=body.phone, password=body.password, role=UserRole.CUSTOMER
+    )
+    auth = await service.start_session(db, user)
+    _set_session_cookie(response, auth)
+    return _session_response(auth)
+
+
+@router.post(
+    "/partner-register",
+    status_code=HTTPStatus.CREATED,
+    responses={
+        HTTPStatus.CONFLICT: {"model": ErrorResponse},
+        HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
+)
+async def partner_register(
+    body: PartnerRegisterRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    limits: RateLimits,
+) -> SessionRead:
+    """Create a Keke rider or tanker driver account and sign it in (partners.md).
+
+    The account has role ``driver`` and starts ``pending``: it can sign in,
+    but cannot go online or be offered jobs until an admin approves it. It
+    shares the registration limit per IP (NFR-002).
+
+    Raises:
+        APIError: 409 ``phone_already_registered``; 422 ``validation_error``
+            (including an unknown or inactive ``service_zone_id``); 429
+            ``too_many_attempts``.
+    """
+    limits.check_and_record_registration(_client_ip(request))
+    user = await partners_service.register_partner(
+        db,
+        name=body.name,
+        phone=body.phone,
+        password=body.password,
+        delivery_type=body.delivery_type,
+        plate=body.plate,
+        declared_capacity_gallons=body.declared_capacity_gallons,
+        service_zone_id=body.service_zone_id,
     )
     auth = await service.start_session(db, user)
     _set_session_cookie(response, auth)
@@ -186,9 +239,16 @@ def _code_sent(sent: phone_verification.CodeSent) -> PhoneCodeSentRead:
 
 @router.post("/phone-verification", status_code=HTTPStatus.ACCEPTED, responses=_CODE_REQUEST_ERRORS)
 async def request_phone_verification(
-    request: Request, customer: CurrentCustomer, db: DbSession, limits: RateLimits, sms: Sms
+    request: Request,
+    customer: CurrentCustomerOrDriver,
+    db: DbSession,
+    limits: RateLimits,
+    sms: Sms,
 ) -> PhoneCodeSentRead:
-    """Send a 6-digit code by SMS to the signed-in customer's phone (FR-003).
+    """Send a 6-digit code by SMS to the signed-in user's phone (FR-003).
+
+    Customers and drivers: a partner verifies their phone before an admin can
+    approve them (docs/api/partners.md, decision 9). Admins get 403.
 
     Raises:
         APIError: 409 ``phone_already_verified``; 429 ``too_many_attempts``
@@ -206,11 +266,11 @@ async def request_phone_verification(
 async def verify_phone(
     body: VerifyCodeRequest,
     request: Request,
-    customer: CurrentCustomer,
+    customer: CurrentCustomerOrDriver,
     db: DbSession,
     limits: RateLimits,
 ) -> UserRead:
-    """Check the code; on success the phone is verified (FR-003).
+    """Check the code; on success the phone is verified (FR-003). Customers and drivers.
 
     Raises:
         APIError: 400 ``verification_code_expired`` or

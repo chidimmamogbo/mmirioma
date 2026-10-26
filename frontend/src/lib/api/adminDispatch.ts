@@ -30,6 +30,7 @@ export type DeclineReason = (typeof DECLINE_REASONS)[number]
 export const ELIGIBILITY_REASONS = [
   'not_a_driver',
   'inactive',
+  'not_approved',
   'no_driver_profile',
   'unavailable',
   'vehicle_inactive',

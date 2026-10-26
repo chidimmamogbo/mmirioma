@@ -8,12 +8,16 @@ and ``DATABASE_URL`` configured::
     python -m app.modules.dispatch.cli add-vehicle --type "Tricycle, 1,000 L tank" \\
         --payload-litres 1000
     python -m app.modules.dispatch.cli list-vehicles
-    python -m app.modules.dispatch.cli set-driver --phone 08000000002 --vehicle <vehicle id>
+    python -m app.modules.dispatch.cli set-driver --phone 08000000002 --vehicle <vehicle id> \\
+        --delivery-type keke --plate "ENU-123-AB"
     python -m app.modules.dispatch.cli set-availability --phone 08000000002 --unavailable
     python -m app.modules.dispatch.cli list-drivers
 
 The payload must be the vehicle's **verified** safe payload (FR-013), checked
-by staff before it is entered: the system cannot verify it.
+by staff before it is entered: the system cannot verify it. A driver profile
+created here starts ``approved``, since staff checked the driver first
+(docs/api/partners.md). ``--delivery-type`` and ``--plate`` fill the partner
+app's vehicle details; without them those show as unknown.
 """
 
 import argparse
@@ -24,7 +28,12 @@ import uuid
 import app.models  # noqa: F401  (registers every model: commands write across modules)
 from app.core.database import dispose_engine, get_sessionmaker
 from app.modules.dispatch import service
-from app.modules.dispatch.models import MAX_SAFE_PAYLOAD_LITRES, VEHICLE_TYPE_MAX_LENGTH
+from app.modules.dispatch.models import (
+    MAX_SAFE_PAYLOAD_LITRES,
+    VEHICLE_TYPE_MAX_LENGTH,
+    DeliveryType,
+)
+from app.modules.dispatch.plates import normalize_plate
 from app.shared.phone import normalize_nigerian_phone
 
 
@@ -48,7 +57,11 @@ async def _run(args: argparse.Namespace) -> str:
             return "\n".join(lines) or "No vehicles yet."
         if args.command == "set-driver":
             profile = await service.set_driver_vehicle(
-                session, phone=args.phone, vehicle_profile_id=args.vehicle
+                session,
+                phone=args.phone,
+                vehicle_profile_id=args.vehicle,
+                delivery_type=args.delivery_type,
+                plate=args.plate,
             )
             return f"Driver profile {profile.id} uses vehicle {profile.vehicle_profile_id}."
         if args.command == "set-availability":
@@ -60,8 +73,12 @@ async def _run(args: argparse.Namespace) -> str:
         rows = await service.list_driver_profiles(session)
         lines = [
             f"{user.name}  {'available  ' if profile.is_available else 'unavailable'}  "
-            f"{'active' if user.is_active else 'inactive'}  {vehicle.safe_payload_litres} L  "
-            f"{vehicle.vehicle_type}"
+            f"{'active' if user.is_active else 'inactive'}  {profile.approval_status:<9}  "
+            + (
+                f"{vehicle.safe_payload_litres} L  {vehicle.vehicle_type}"
+                if vehicle is not None
+                else "no verified vehicle"
+            )
             for profile, user, vehicle in rows
         ]
         return "\n".join(lines) or "No driver profiles yet."
@@ -98,6 +115,13 @@ def _phone(raw: str) -> str:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+def _plate(raw: str) -> str:
+    try:
+        return normalize_plate(raw)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The command-line interface (exposed for tests)."""
     parser = argparse.ArgumentParser(prog="python -m app.modules.dispatch.cli")
@@ -109,6 +133,8 @@ def build_parser() -> argparse.ArgumentParser:
     driver = commands.add_parser("set-driver", help="give a driver account its vehicle")
     driver.add_argument("--phone", required=True, type=_phone)
     driver.add_argument("--vehicle", required=True, type=uuid.UUID)
+    driver.add_argument("--delivery-type", type=DeliveryType, choices=list(DeliveryType))
+    driver.add_argument("--plate", type=_plate)
     availability = commands.add_parser("set-availability", help="available for new work or not")
     availability.add_argument("--phone", required=True, type=_phone)
     state = availability.add_mutually_exclusive_group(required=True)
