@@ -9,6 +9,11 @@ FR-051, FR-055, NFR-002, NFR-004, NFR-005 · Issue: #11 · Built in: not yet
 agreed, not built. It becomes `Status: agreed` when both have approved it
 (CLAUDE.md, "Team fork workflow").
 
+**Brought to agreement (#48, 2026-10-26):** every open question decided by
+@chidimmamogbo and applied; one notification shape shared with
+[partners.md](partners.md#notifications) (#47). No question is left open. See
+[Changes](#changes).
+
 Covers the customer screens that run on mocks with no backend: profile, saved
 addresses, order feedback, notifications, support requests, account deletion
 and points. Fork functions (`frontend/src/features/customer/customerApi.ts`):
@@ -32,10 +37,10 @@ and points. Fork functions (`frontend/src/features/customer/customerApi.ts`):
 
 | Design element | Conflict | This contract |
 | --- | --- | --- |
-| Optional **email** on the profile (decision 6) | The published privacy notice says "We do **not** collect your email address" (§3). The email provider is still open (SRS §12.13) | Proposed, **not built** until the notice is updated (NFR-005). [Open question 1](#open-questions) |
-| Profile **photo** (`photo_url`) | The notice says the app takes no photographs; the stack has no file storage | **Left out.** The profile shows initials. [Open question 2](#open-questions) |
-| **SMS / WhatsApp / offers** switches | P0 SMS messages must be sent whatever the setting (FR-050, FR-035); WhatsApp is off until confirmed active on the support number (FR-055); offers and news are marketing, which the notice does not cover | Left out for now. [Open question 3](#open-questions) |
-| **Points** and rewards (decision 16: SAMPLE) | Neither the SRS nor the PRD defines loyalty points | **No endpoint.** [Points](#points) |
+| Optional **email** on the profile (decision 6) | The published privacy notice says "We do **not** collect your email address" (§3). There is no email provider (SRS §12.13) | **Left out of the pilot** ([decision 1](#decisions)). Adding it later needs a notice update first (NFR-005) |
+| Profile **photo** (`photo_url`) | The notice says the app takes no photographs; the stack has no file storage | **Dropped.** The profile shows initials ([decision 2](#decisions)) |
+| **SMS / WhatsApp / offers** switches | P0 SMS messages must be sent whatever the setting (FR-050, FR-035); WhatsApp is off until confirmed active on the support number (FR-055); offers and news are marketing, which the notice does not cover | **Left out of the pilot** ([decision 3](#decisions)) |
+| **Points** and rewards (decision 16: SAMPLE) | Neither the SRS nor the PRD defines loyalty points | **Out of the MVP**, no endpoint ([decision 12](#decisions), [Points](#points)) |
 | Notification kinds `points` and `payment` | Points: as above. Payment: the customer payment status has no design or contract yet (`orders.md`, decided question 3) | Left out; order kinds only |
 
 ## Common rules
@@ -79,21 +84,20 @@ and points. Fork functions (`frontend/src/features/customer/customerApi.ts`):
 | `stats.addresses` | Count of saved addresses |
 
 The design's `email`, `photo_url`, `preferences` and `stats.points` are not
-returned ([open questions 1-3](#open-questions), [Points](#points)).
+returned ([decisions 1-3 and 12](#decisions)).
 
 ### Changing profile details
 
-There is **no** `PATCH /me/profile` in this proposal, because every field
-above already has its own route or rule:
+There is **no** `PATCH /me/profile` in the pilot, because every field above
+already has its own route or rule:
 
 - **Phone:** `POST /auth/phone-change` and `.../verify`, agreed in
   [auth.md](auth.md#phone-verification-fr-003-fr-004) (FR-004).
-- **Name:** corrected by staff after a request (privacy notice §9,
-  `correct-name` in [privacy-tool.md](../features/privacy-tool.md)).
-  Whether customers may edit it themselves is
-  [open question 4](#open-questions).
-- **Email and preferences:** once open questions 1 and 3 are decided,
-  `PATCH /me/profile` is added with those fields (additive).
+- **Name:** staff only, corrected after a request through the privacy tool
+  (privacy notice §9, `correct-name` in
+  [privacy-tool.md](../features/privacy-tool.md); [decision 4](#decisions)).
+- **Email, photo and message preferences:** left out of the pilot
+  ([decisions 1-3](#decisions)).
 
 ## Saved addresses
 
@@ -123,7 +127,7 @@ the order's inputs).
 
 | Field | Rule |
 | --- | --- |
-| `label` | Trimmed, 1–40 characters ("Home", "Office", "Mum's house"); mock limit |
+| `label` | Trimmed, 1–50 characters ("Home", "Office", "Mum's house"). The same rule as the admin side, since both write `customer_addresses` ([decision 13](#decisions)) |
 | `address` | Trimmed, 5–500 characters, free text; same rule as `OrderCreate.delivery_address` |
 | `landmark` | Optional, up to 200 characters; same as `OrderCreate.landmark`. Empty becomes `null` |
 | `zone` | The service zone the customer picked for this address (FR-020), from [`GET /service-zones`](admin-directory.md#get-service-zones). `is_active` is read live: an address in a zone switched off stays saved, and its quote answers `outside_service_zone` (FR-010) |
@@ -163,13 +167,12 @@ Rules (from the mock, plus the zone):
   one, in one transaction (on create or update).
 - `make_default: false` on the current default does **not** clear it:
   change the default by choosing another address.
-- The **default cannot be removed** while it is the default: 409
+- The **default cannot be removed while other addresses exist**: 409
   `default_address` ("Choose another default address before removing this
-  one"). The last remaining address is the default, so it cannot be removed
-  either; [open question 5](#open-questions).
-- At most **20** addresses per customer (409 `address_limit_reached`); the
-  mock has no limit, and the number is a proposal
-  ([open question 6](#open-questions)).
+  one"). The **last remaining** address may be removed, and the customer then
+  has none ([decision 5](#decisions); the mock is stricter).
+- At most **20** addresses per customer (409 `address_limit_reached`;
+  [decision 6](#decisions)). The mock has no limit.
 
 ## Order feedback
 
@@ -205,9 +208,9 @@ for, as in the mock ([order-feedback-request.json](examples/order-feedback-reque
 | `would_reorder` | Optional boolean or `null` | FR-051 "willingness to reorder" |
 | `message` | Optional, trimmed, up to 500 characters; empty becomes `null` | SRS §5 `message` |
 
-The design asks only for `rating` and `poured_by_partner`; the other fields
-are optional so the current screen works, and whether the screen should ask
-for them is [open question 7](#open-questions).
+The design asks only for `rating` and `poured_by_partner`. The other three
+stay **optional** API fields, with **no screen change now** and **no time
+limit** for feedback after delivery ([decision 7](#decisions)).
 
 Success: 201 on first submission, 200 on replacement, with the `Feedback`
 object (the body plus `submitted_at` and `updated_at`).
@@ -231,6 +234,11 @@ one row per message (order or user, template, channel, status, provider
 reference, sent_at; SRS §5). This contract adds the in-app list as **channel
 `in_app`** in that table, so there is one record of what was told to the
 customer, whichever the channel.
+
+**One shape for customers and partners** (#48, with @Bonvee120 on #47): the
+notification object, the page and the mark-read request below are the same
+as in [partners.md](partners.md#notifications); only the path (`/me/...`
+here, `/driver/...` there) and the `kind` values differ.
 
 ### What creates a notification
 
@@ -258,28 +266,48 @@ Creating an in-app notification never changes order status (FR-050:
 
 | Method | Path | Body | Success | Errors |
 | --- | --- | --- | --- | --- |
-| GET | `/me/notifications` | none | 200 page plus `unread_count`, newest first | 422 `validation_error` (query) |
-| POST | `/me/notifications/read` | `{ "ids": [...] }` or `{}` | 204 | 422 `validation_error` |
+| GET | `/me/notifications` | none | 200 page plus `unread_count`, newest first | 422 `validation_error` (bad `limit` or `offset`) |
+| POST | `/me/notifications/read` | optional `{ "ids": [...] }`; no body or `{}` | 204 | 422 `validation_error` (`ids` not a list of UUIDs, or more than 100) |
 
-Notification object ([customer-notifications-page.json](examples/customer-notifications-page.json)):
+Page ([customer-notifications-page.json](examples/customer-notifications-page.json)):
 
 ```json
 {
-  "id": "9b1c2d3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e",
-  "kind": "order_received",
-  "title": "Request received",
-  "body": "We have your request MO-7KQ2. We will confirm the price and time with you.",
-  "reference": "MO-7KQ2M9XH4T",
-  "created_at": "2026-10-26T12:35:00Z",
-  "read": false
+  "items": [
+    {
+      "id": "9b1c2d3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e",
+      "kind": "order_received",
+      "title": "Request received",
+      "body": "We have your request MO-7KQ2. We will confirm the price and time with you.",
+      "reference": "MO-7KQ2M9XH4T",
+      "created_at": "2026-10-26T12:35:00Z",
+      "read_at": null
+    }
+  ],
+  "unread_count": 1,
+  "total": 1,
+  "limit": 50,
+  "offset": 0
 }
 ```
 
-- `POST .../read` with `ids` marks those (unknown or another customer's ids
-  are ignored, so nothing can be probed); with `{}` it marks every one as
-  read. Up to 100 ids.
-- Notification rows follow the order's retention (privacy notice §8) and are
-  removed when the account is anonymized ([open question 8](#open-questions)).
+| Field | Rule |
+| --- | --- |
+| `kind` | One of the values above. Clients must not fail on one they do not know |
+| `title`, `body` | Written by the server from a template (FR-050: no promise of unverified delivery or water quality) |
+| `reference` | The order's public reference when the message is about one order, else `null`. Never the delivery code (SRS §5 `notifications`) |
+| `read_at` | UTC timestamp, or `null` while unread |
+| `unread_count` | Unread messages across **all** pages, for the badge |
+
+`POST /me/notifications/read`:
+
+- With `ids` (up to 100), marks those as read. Unknown ids, and ids of other
+  people's messages, are ignored, so nothing can be probed.
+- With no body or `{}`, marks every unread message of the customer as read.
+
+Notification rows follow the **order's retention** (privacy notice §8) and
+are removed when the account is anonymized. There is no separate 12-month
+rule, so the notice needs no change ([decision 8](#decisions)).
 
 ## Support requests
 
@@ -327,8 +355,9 @@ after a dropped connection does not file the same report twice.
 A support request **is not a dispute**. Disputing a delivered order is the
 separate `delivered → disputed` transition (row 24 in
 [deliveries.md](deliveries.md#transitions), 48 hours, BR-16), not built yet.
-Whether a `wrong_quantity` report on a delivered order should open one is
-[open question 9](#open-questions). Rows of support requests carry personal
+A support request **never changes the order**; staff open the dispute (row
+24) when a report needs one ([decision 9](#decisions)). Rows of support
+requests carry personal
 messages: staff see them, drivers never do.
 
 ## Account deletion
@@ -359,8 +388,8 @@ Body: `{ "reason": "Moving away" }` (optional, trimmed, up to 500 characters).
 | Field | Rule |
 | --- | --- |
 | `reference` | `DR-` and 8 random Crockford base32 characters, to quote when staff call back |
-| `status` | `received` (this endpoint). Later statuses (`acknowledged`, `completed`, `refused`) are set by staff; [open question 10](#open-questions) |
-| `acknowledge_by` | Lagos date 3 working days after the request (privacy notice §9). Working days are Monday to Friday; public holidays are [open question 11](#open-questions) |
+| `status` | `received` from this endpoint. Staff then set `acknowledged`, `completed`, or `refused` with a reason, through the privacy tool, which records the outcome on the request ([decision 10](#decisions)) |
+| `acknowledge_by` | Lagos date 3 working days after the request (privacy notice §9). Working days are **Monday to Friday, ignoring public holidays**, so the date is never later than the notice promises ([decision 11](#decisions)) |
 
 Rules:
 
@@ -385,8 +414,8 @@ all business rules (CLAUDE.md: never invent them). `getPoints` stays on its
 mock, and in real-API mode the Points screen shows its "not connected yet"
 state, as the linking plan says for screens without a contract.
 
-Before a points contract can be written, the business must decide those
-rules and add them to the SRS ([open question 12](#open-questions)).
+Points are **out of the MVP** until the business adds those rules to the SRS
+([decision 12](#decisions)).
 
 ## Errors added by this contract
 
@@ -409,20 +438,24 @@ Example: [error-default-address.json](examples/error-default-address.json).
   of endpoints): the customer's user (RESTRICT), `zone_id` (required, foreign
   key to `service_zones`), `label`, `address`, `landmark`, `is_default`,
   timestamps; a partial unique index on the customer where `is_default`, so a
-  customer can never have two defaults. The label length differs between the
-  two contracts ([open question 13](#open-questions)).
+  customer can never have two defaults. `label` is 1–50 characters on both
+  sides ([decision 13](#decisions)).
 - `feedback` (SRS §5): `order_id` (unique), `rating`, `poured_by_partner`,
   `on_time`, `quantity_as_ordered`, `would_reorder`, `message`, timestamps.
-- `notifications` (SRS §5) with channel `in_app` and a `read_at`.
+- `notifications` (SRS §5) with channel `in_app` and a `read_at`: one table
+  for customers and partners ([partners.md](partners.md#notifications)).
 - `support_requests`: `reference` (unique), `user_id`, `order_id`
   (nullable), `type`, `message`, `status`, `idempotency_key` (unique per
   customer), `resolved_at`, `resolved_by`, timestamps.
 - `deletion_requests`: `reference` (unique), `user_id`, `reason`, `status`,
   `requested_at`, `acknowledged_at`, `completed_at`, `handled_by`.
-- The privacy tool's `anonymize-customer` also removes saved addresses,
-  notifications, support request messages and the deletion reason, and
-  blanks feedback `message` (privacy notice §9). Its retention review adds
-  support requests resolved over 3 years ago (§8).
+- **Privacy tool changes, part of the same build issue:**
+  `anonymize-customer` also removes saved addresses, notifications, support
+  request messages and the deletion reason, and blanks feedback `message`
+  (privacy notice §9). Its retention review adds support requests resolved
+  over 3 years ago (§8). A new step sets a deletion request's status
+  (`acknowledged`, `completed`, or `refused` with a reason) and records the
+  outcome on the request ([decision 10](#decisions)).
 
 All reviewed Alembic migrations; no new library.
 
@@ -435,7 +468,7 @@ For the linking adapters (`frontend/src/features/customer/real/`):
 | `CustomerProfile` | `CustomerProfile`: `email` `null`, `photo_url` `null`; `preferences` and `stats.points` have no backend value. The design type requires them, so linking needs a small type and screen change (switches and the points stat hidden), never a filled-in `false` or `0` that would look real |
 | Address object | `SavedAddress`: same fields; `created_at` / `updated_at` dropped; `zone` dropped until the screen shows it. Adding and editing an address needs a zone picker on the screen (G2) |
 | `Feedback` | `CustomerOrder.feedback` `{rating, poured_by_partner}` |
-| Notification object | `CustomerNotification`: `created_at` → `at`; `order_confirmed`, `cancelled`, `delivery_failed` are new kinds for the design to give icons |
+| Notification object | `CustomerNotification`: `created_at` → `at`; `read` = `read_at !== null`; `order_confirmed`, `cancelled`, `delivery_failed` are new kinds for the design to give icons |
 | Support request object | `SupportTicket`: `reference` → `number`, `PROBLEM_LABEL[type]` → `title`, `status` same, `kind` `problem` |
 | Deletion request | `requestAccountDeletion` returns a `SupportTicket`: `reference` → `number`, "Delete my account" → `title`, `kind` `question`, `status` `open` |
 
@@ -443,62 +476,44 @@ Where the design type needs a value the backend does not send, the adapter
 shows it as missing, never a sample value (api-mapping.md, "Money": "A
 missing price is shown as missing, never filled in", applied to every field).
 
-## Open questions
+## Decisions
 
-Recommendations are proposals, not decisions.
+All of the proposal's open questions were decided by @chidimmamogbo on
+2026-10-26 (#48). The numbers are kept so review comments still match. No
+question is left open.
 
-1. **Email.** Decision 6 adds an optional email "for updates, newsletters and
-   promo alerts". The privacy notice says the app does not collect email,
-   and the email provider is open (SRS §12.13). **Recommended:** update the
-   privacy notice first (NFR-005, technical lead), then add `email` to
-   `PATCH /me/profile`, used only for transactional messages until marketing
-   consent is decided (question 3). For @chidimmamogbo and the technical lead.
-2. **Profile photo.** **Recommended:** drop it for the pilot (no file
-   storage, and the notice says no photographs). The profile shows initials.
-3. **Message preferences.** SMS P0 messages (confirmed, dispatched, delivery
-   code, payment, cancellation and refund) are always sent (FR-050, FR-035);
-   only the P1 ones (created, assigned, delayed, delivered) could be switched
-   off. WhatsApp waits for FR-055. "Offers and news" is marketing and needs a
-   consent wording in the notice. **Recommended:** leave all three switches
-   out of the pilot; add an `offers_and_news` consent (default off) only with
-   a notice update.
-4. **Can customers edit their name?** The privacy tool corrects it on
-   request. **Recommended:** keep it staff-only for the pilot.
-5. **The last address.** It is always the default, so it cannot be removed.
-   **Recommended:** allow removing the last remaining address (the customer
-   then has none), but not a default while others exist. Mock behavior is
-   stricter.
-6. **Address limit.** **Recommended:** 20 per customer, to bound abuse.
-   Needs a decision.
-7. **More feedback questions.** FR-051 lists timeliness, received quantity
-   and willingness to reorder; the design asks only for stars and "poured
-   by partner". **Recommended:** add three yes/no questions to the rating
-   screen (design change, G2, @chidimmamogbo); the API already accepts them.
-   Also: a time limit for feedback after delivery (none proposed).
-8. **Notification retention.** **Recommended:** keep in-app notifications
-   for 12 months, then delete them at the monthly review; needs a row in the
-   privacy notice's retention table.
-9. **Support request vs dispute.** **Recommended:** a support request never
-   changes the order. Staff open the dispute (row 24) when the report is a
-   real dispute, until the customer dispute screen exists.
-10. **Deletion request statuses.** **Recommended:** staff set
-    `acknowledged` and `completed` (or `refused` with a reason) with the
-    privacy tool, which then also records the outcome on the request; the
-    customer sees the status on the account screen.
-11. **Working days for the 3-day acknowledgement.** **Recommended:** Monday
-    to Friday, ignoring public holidays, so the date is never later than the
-    notice promises.
-12. **Points.** Needs business rules in the SRS before any contract (earning,
-    value, rounding, expiry, redemption, refunds of points on cancellation).
-    For the technical lead.
-13. **Address label length.** This contract allows 1–40 characters (the
-    mock); [admin-directory.md](admin-directory.md#customers) allows 2–50.
-    Both write the same `customer_addresses` table, so one rule must win.
-    **Recommended:** 1–50, which accepts every label either screen allows.
+1. **Email:** left out of the pilot. The privacy notice (§3) says the app
+   does not collect email, and there is no email provider (SRS §12), so an
+   email field has no use yet. Adding it later needs a notice update first
+   (NFR-005). The same applies to partners (#47).
+2. **Profile photo:** dropped; the profile shows initials.
+3. **Message preferences:** all three switches (SMS, WhatsApp, offers and
+   news) left out of the pilot.
+4. **Name:** staff only, through the privacy tool (`correct-name`).
+5. **Last address:** removing the last remaining address is allowed (the
+   customer then has none); a default cannot be removed while other
+   addresses exist (409 `default_address`).
+6. **Address limit:** 20 per customer (409 `address_limit_reached`).
+7. **Extra feedback questions:** no screen change now. The API keeps
+   `on_time`, `quantity_as_ordered` and `would_reorder` as optional fields;
+   no time limit for feedback.
+8. **Notification retention:** notifications follow the order's retention
+   (privacy notice §8) and are removed at anonymization. No separate
+   12-month rule, so the notice needs no change.
+9. **Support request vs dispute:** a support request never changes the
+   order; staff open the dispute (row 24) when needed.
+10. **Deletion request statuses:** staff set `acknowledged`, `completed` or
+    `refused` (with a reason) through the privacy tool, which records the
+    outcome on the request.
+11. **Working days:** Monday to Friday, ignoring public holidays.
+12. **Points:** out of the MVP until the business adds rules to the SRS.
+13. **Address label:** 1–50 characters, trimmed. `admin-directory.md` uses
+    the same rule (#43), since both write `customer_addresses`.
 
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Brought to agreement (#48): open questions 1-13 decided and recorded as "Decisions", and applied in the body (no email, photo or switches; name staff only; last address removable; 20-address limit; feedback fields optional, no time limit; notifications follow order retention; deletion statuses through the privacy tool; Monday-Friday working days; points out of the MVP; label 1-50); notification object, page and mark-read made one shape with partners.md (`read_at`, `unread_count`, optional `ids`); no later `PATCH /me/profile`; privacy tool changes named in "Data needed" | Decisions by @chidimmamogbo; contract not yet agreed |
 | 2026-10-26 | Saved addresses carry the zone the customer picked (`zone`, required `zone_id`), one `customer_addresses` table shared with admin-directory.md, as agreed for #30; open question 13 added | Not yet |
 | 2026-10-26 | Proposed: profile read, saved addresses, order feedback, in-app notifications, support requests, account deletion request; no points endpoint | Not yet |
