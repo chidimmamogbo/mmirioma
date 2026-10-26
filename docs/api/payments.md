@@ -503,7 +503,8 @@ which merged before this agreement was recorded; the backend review by
    - K3's `driver.vehicle` is the vehicle type, the only vehicle text stored;
    - `AdminCashCollection` also carries `handed_over_at`, `corrected_by`,
      `correction_reason` and `payment_sms_status`;
-   - `amount_due_label` is `quote` for a server quote (none in the pilot).
+   - `amount_due_label` is `quote` for a server quote, which #21 brings to
+     the pilot ([order-details-and-price.md](order-details-and-price.md#driver-cash-label)).
 
 Examples for every cash endpoint are in [examples/](examples/README.md), and
 `backend/tests/test_payments_api.py` checks them against the response
