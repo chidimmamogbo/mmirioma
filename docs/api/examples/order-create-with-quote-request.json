@@ -5,7 +5,6 @@
   "keke": null,
   "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
   "water_source": "borehole",
-  "water_category_id": "8a4d2c1e-5b7f-4e3a-9c60-2f1e0d9b7a65",
   "contact_name": "Sample Customer",
   "contact_phone": "08000000001",
   "delivery_address": "12 Sample Close, Independence Layout, Enugu",

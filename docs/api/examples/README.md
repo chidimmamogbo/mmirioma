@@ -62,13 +62,16 @@ confirmation entries (row 7 with its `confirmation` line, then row 26 with
 
 Order details and price samples (**proposed**,
 [../order-details-and-price.md](../order-details-and-price.md), #10):
-`quote-create-request.json` asks for a 750-gallon Tanker of borehole water;
-`quote-available.json` is the server's answer (3,000 L; water, delivery and
-other add up to the total); `quote-manual.json` is a manual-quote answer
-(`no_vehicle_plan`); `order-create-with-quote-request.json` places the order
-with that `quote_id`; `order-with-details.json` is the order just after,
-`awaiting_confirmation` with its frozen quote; `error-quote-expired.json` is
-the refusal after `price_valid_until`. Every amount is illustrative, not a
+`quote-create-request.json` asks for a 750-gallon Tanker of borehole water
+(no category: the server uses the pilot category); `quote-available.json` is
+the server's answer (3,000 L, total only, `includes_delivery: true`);
+`quote-manual.json` is a manual-quote answer (`no_vehicle_plan`);
+`order-create-with-quote-request.json` places the order with that
+`quote_id`; `order-with-details.json` is the order just after,
+`awaiting_confirmation` with its frozen quote and the category accepted
+(`quote.water_category`); `error-quote-expired.json` is the refusal after
+`price_valid_until`. "Utility Water" is an example only: the pilot category
+is not named yet. Every amount is illustrative, not a
 real price: `2000000` is ₦20,000.00.
 
 If a contract changes, update these files in the same PR.

@@ -19,9 +19,7 @@
   "water_source": "borehole",
   "quote": {
     "currency": "NGN",
-    "water_minor_units": 1500000,
-    "delivery_minor_units": 350000,
-    "other_minor_units": 150000,
-    "total_minor_units": 2000000
+    "total_minor_units": 2000000,
+    "water_category": { "label": "Utility Water", "supported_uses": null }
   }
 }

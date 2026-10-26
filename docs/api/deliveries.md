@@ -94,7 +94,7 @@ until it exists, that transition cannot happen.
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | (none) | `quote_requested` | customer | Valid request, phone verified (FR-003) | | **done** (`POST /orders`) |
 | 2 | `quote_requested` | `awaiting_payment` | customer | Accepts a valid server quote, prepaid method | | quotes |
-| 3 | `quote_requested` | `awaiting_confirmation` | customer | Accepts a valid quote, pay on delivery, a check needs a dispatcher | | quotes |
+| 3 | `quote_requested` | `awaiting_confirmation` | customer | Accepts a valid quote, pay on delivery, a check needs a dispatcher. Proposed (#10): `POST /orders` with a valid `quote_id` writes row 1 and this row in one transaction ([order-details-and-price.md](order-details-and-price.md#status-at-creation)) | | quotes (#21, proposed) |
 | 4 | `quote_requested` | `confirmed` | customer | Accepts a valid quote, pay on delivery, phone verified, source eligible, slot reserved | | quotes |
 | 5 | `awaiting_payment` | `confirmed` | system, admin | Payment verified (FR-041), source eligible, slot reserved | | payments |
 | 6 | `awaiting_payment` | `awaiting_confirmation` | system, admin | Payment verified, a check needs a dispatcher | | payments |

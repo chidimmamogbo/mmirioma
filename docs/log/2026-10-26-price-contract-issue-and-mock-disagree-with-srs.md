@@ -18,7 +18,8 @@
   pricing, and the issue text was written before the "new file" approach.
 - **Fix / workaround:** (1) Wrote a new `docs/api/order-details-and-price.md`
   and added a one-line pointer in `orders.md`. (2) The contract follows FR-022
-  and lists flat per-unit prices as open question 1. (3) Not fixed: the file
-  belongs to the shared domain types; left for its owner.
-- **Status:** workaround
+  and lists flat per-unit prices as open question 1; @chidimmamogbo then
+  decided FR-022 only (PR #28 review). (3) Resolved on `main` by PR #27, which
+  removed `TANK_LITRES` and its comment.
+- **Status:** resolved
 - **Refs:** #10, #21, `docs/api/order-details-and-price.md`

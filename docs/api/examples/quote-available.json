@@ -4,9 +4,7 @@
   "currency": "NGN",
   "quantity_litres": 3000,
   "water_category": { "label": "Utility Water", "supported_uses": null },
-  "water_minor_units": 1500000,
-  "delivery_minor_units": 350000,
-  "other_minor_units": 150000,
+  "includes_delivery": true,
   "total_minor_units": 2000000,
   "price_valid_until": "2026-10-26T13:30:00Z"
 }
