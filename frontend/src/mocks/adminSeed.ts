@@ -17,6 +17,7 @@ import type {
   ServiceArea,
   StaffMember,
 } from '../domain/admin'
+import type { CashMockData } from './adminCashMock'
 import { DEFAULT_PRICE_LIST } from './pricing'
 import { lagosAt, lagosToday } from './time'
 
@@ -37,6 +38,8 @@ export interface AdminData {
   notifications: AdminNotification[]
   staff: StaffMember[]
   settings: AdminSettings
+  /** Cash records for K3 to K5 (#19); created on first use, so older saved demos have none. */
+  cash?: CashMockData
 }
 
 function minutesAgo(now: Date, m: number): string {

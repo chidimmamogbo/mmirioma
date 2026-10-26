@@ -27,6 +27,8 @@ export const adminKeys = {
   prices: ['admin', 'prices'] as const,
   payments: (filter: api.PaymentFilter, customerId: string) => ['admin', 'payments', filter, customerId] as const,
   payouts: ['admin', 'payouts'] as const,
+  cashDay: (date: string) => ['admin', 'cash', 'day', date] as const,
+  driverCash: (driverId: string) => ['admin', 'cash', 'driver', driverId] as const,
   report: (range: ReportRange) => ['admin', 'report', range] as const,
   issues: (query: string) => ['admin', 'issues', query] as const,
   issuePeople: (id: string) => ['admin', 'issue-people', id] as const,
@@ -61,6 +63,10 @@ export const usePriceLists = () => useQuery({ queryKey: adminKeys.prices, queryF
 export const usePayments = (filter: api.PaymentFilter, customerId: string) =>
   useQuery({ queryKey: adminKeys.payments(filter, customerId), queryFn: () => api.listPayments(filter, customerId || undefined), placeholderData: keepPreviousData })
 export const usePayouts = () => useQuery({ queryKey: adminKeys.payouts, queryFn: api.listPayouts })
+/** K3: one Lagos day of cash; refreshed like the other live lists (drivers hand over during the day). */
+export const useCashDay = (date: string) => useQuery({ queryKey: adminKeys.cashDay(date), queryFn: () => api.getCashDay(date), placeholderData: keepPreviousData, refetchInterval: LIVE })
+/** K4: a driver's cash on hand to receive. */
+export const useDriverCash = (driverId: string) => useQuery({ queryKey: adminKeys.driverCash(driverId), queryFn: () => api.getDriverCash(driverId) })
 export const useReport = (range: ReportRange) => useQuery({ queryKey: adminKeys.report(range), queryFn: () => api.getReport(range), placeholderData: keepPreviousData })
 export const useIssues = (query: string) => useQuery({ queryKey: adminKeys.issues(query), queryFn: () => api.listIssues(query), placeholderData: keepPreviousData, refetchInterval: LIVE })
 export const useIssuePeople = (id: string | null) => useQuery({ queryKey: adminKeys.issuePeople(id ?? ''), queryFn: () => api.getIssuePeople(id!), enabled: Boolean(id) })
