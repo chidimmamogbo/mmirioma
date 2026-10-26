@@ -25,6 +25,84 @@ frontend/src/features/<feature>/
   their own unit tests; the adapter only fetches and converts.
 - `VITE_USE_MOCKS=true` keeps serving the full mock demo.
 
+## Writing an adapter
+
+Three pieces per linked function. The working example of the conversion
+piece is `frontend/src/features/customer/real/orderStage.ts` with its test;
+the order shown below is the shape #9 builds once #21 adds the order fields.
+
+**1. The conversion:** pure, in `real/`, one per backend type. It never
+invents a value: a field the backend does not send becomes the screen's
+empty state (`null`), and the PR lists it.
+
+```ts
+// features/customer/real/order.ts
+import type { CustomerOrder } from '../../../domain/orders'
+import type { OrderRead } from '../../../lib/api/orders'
+import { customerStageFromStatus } from './orderStage'
+
+/** Backend order to the design's order (docs/architecture/api-mapping.md). */
+export function customerOrderFromRead(read: OrderRead): CustomerOrder {
+  // ...map each field with the rules in this file
+}
+```
+
+**2. The adapter:** fetches with the client from `lib/api/` and converts.
+It takes the client as its last parameter, defaulting to the shared
+`apiClient`, so tests can pass one with a fake `fetch`. Errors pass through
+unchanged: the client already turns every failure into an `ApiError`, and
+screens show it with `ErrorBlock` / `errorMessage()`.
+
+```ts
+// features/customer/real/order.ts
+import { apiClient, type ApiClient } from '../../../lib/api/client'
+import { getOrder as fetchOrder } from '../../../lib/api/orders'
+
+export async function getOrder(reference: string, client: ApiClient = apiClient): Promise<CustomerOrder> {
+  return customerOrderFromRead(await fetchOrder(reference, undefined, client))
+}
+```
+
+**3. The switch:** one line in `<feature>Api.ts`, replacing
+`notConnected(...)`. The signature screens call does not change.
+
+```ts
+// features/customer/customerApi.ts
+import * as real from './real/order'
+
+export const getOrder = (reference: string): Promise<CustomerOrder> =>
+  USE_MOCKS ? mock.getOrder(reference) : real.getOrder(reference)
+```
+
+**Tests** (`real/<area>.test.ts`), following `lib/api/orders.test.ts`: a
+`createApiClient` with a fake `fetch`, then one test per outcome.
+
+```ts
+import { describe, expect, it, vi } from 'vitest'
+import { ApiError, createApiClient } from '../../../lib/api/client'
+import { getOrder } from './order'
+
+function clientReturning(body: unknown, status = 200) {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
+  return createApiClient({ baseUrl: 'http://api.test', fetch })
+}
+
+describe('getOrder (real)', () => {
+  it('converts the backend order', async () => {
+    const order = await getOrder('MO-7KQ2M9XH4T', clientReturning(SAMPLE_ORDER_READ))
+    expect(order.stage).toBe('on_the_way')
+  })
+
+  it('passes a backend error through as an ApiError', async () => {
+    const client = clientReturning({ error: { code: 'order_not_found', message: 'Order not found', details: null } }, 404)
+    await expect(getOrder('MO-X', client)).rejects.toMatchObject({ code: 'order_not_found' } satisfies Partial<ApiError>)
+  })
+})
+```
+
+Take sample bodies from `docs/api/examples/`, so tests and contract agree.
+
 ## Decisions (2026-10-26, @chidimmamogbo)
 
 1. **The fork's backend follows the new design.** Orders gain a delivery
