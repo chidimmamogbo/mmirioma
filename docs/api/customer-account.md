@@ -4,10 +4,9 @@ Requirements: FR-001, FR-003, FR-004, FR-020, FR-027, FR-032, FR-050,
 FR-051, FR-055, NFR-002, NFR-004, NFR-005 · Issue: #11 · Built in: not yet
 (a build issue follows agreement)
 
-**Status: proposed** on 2026-10-26 by @Daveoski (+ Claude Code), for review by
-@nnamdi-security (backend, contract owner) and @chidimmamogbo (frontend). Not
-agreed, not built. It becomes `Status: agreed` when both have approved it
-(CLAUDE.md, "Team fork workflow").
+**Status: agreed** (G3) on 2026-10-27 by @nnamdi-security (technical lead,
+backend, contract owner) and @chidimmamogbo (frontend), on PR #60. Proposed
+on 2026-10-26 by @Daveoski (+ Claude Code). Not built: a build issue follows.
 
 **Brought to agreement (#48, 2026-10-26):** every open question decided by
 @chidimmamogbo and applied; one notification shape shared with
@@ -39,7 +38,7 @@ and points. Fork functions (`frontend/src/features/customer/customerApi.ts`):
 | --- | --- | --- |
 | Optional **email** on the profile (decision 6) | The published privacy notice says "We do **not** collect your email address" (§3). There is no email provider (SRS §12.13) | **Left out of the pilot** ([decision 1](#decisions)). Adding it later needs a notice update first (NFR-005) |
 | Profile **photo** (`photo_url`) | The notice says the app takes no photographs; the stack has no file storage | **Dropped.** The profile shows initials ([decision 2](#decisions)) |
-| **SMS / WhatsApp / offers** switches | P0 SMS messages must be sent whatever the setting (FR-050, FR-035); WhatsApp is off until confirmed active on the support number (FR-055); offers and news are marketing, which the notice does not cover | **Left out of the pilot** ([decision 3](#decisions)) |
+| **SMS / WhatsApp / offers** switches | P0 SMS messages must be sent whatever the setting (FR-050, FR-035); WhatsApp is confirmed active on the support number (FR-055, [public-site.md](public-site.md), #8), and the switches stay out of the pilot all the same; offers and news are marketing, which the notice does not cover | **Left out of the pilot** ([decision 3](#decisions)) |
 | **Points** and rewards (decision 16: SAMPLE) | Neither the SRS nor the PRD defines loyalty points | **Out of the MVP**, no endpoint ([decision 12](#decisions), [Points](#points)) |
 | Notification kinds `points` and `payment` | Points: as above. Payment: the customer payment status has no design or contract yet (`orders.md`, decided question 3) | Left out; order kinds only |
 
@@ -514,6 +513,7 @@ question is left open.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Agreed (G3); the switches row's WhatsApp reason updated (support WhatsApp was confirmed on #8), as @chidimmamogbo noted on PR #60 | @nnamdi-security (technical lead) and @chidimmamogbo, PR #60 |
 | 2026-10-26 | Brought to agreement (#48): open questions 1-13 decided and recorded as "Decisions", and applied in the body (no email, photo or switches; name staff only; last address removable; 20-address limit; feedback fields optional, no time limit; notifications follow order retention; deletion statuses through the privacy tool; Monday-Friday working days; points out of the MVP; label 1-50); notification object, page and mark-read made one shape with partners.md (`read_at`, `unread_count`, optional `ids`); no later `PATCH /me/profile`; privacy tool changes named in "Data needed" | Decisions by @chidimmamogbo; contract not yet agreed |
 | 2026-10-26 | Saved addresses carry the zone the customer picked (`zone`, required `zone_id`), one `customer_addresses` table shared with admin-directory.md, as agreed for #30; open question 13 added | Not yet |
 | 2026-10-26 | Proposed: profile read, saved addresses, order feedback, in-app notifications, support requests, account deletion request; no points endpoint | Not yet |
