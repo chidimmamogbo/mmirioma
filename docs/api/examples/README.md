@@ -74,6 +74,17 @@ the server's answer (3,000 L, total only, `includes_delivery: true`);
 is not named yet. Every amount is illustrative, not a
 real price: `2000000` is ₦20,000.00.
 
+Partner account samples (**proposed**, [../partners.md](../partners.md), #14):
+`partner-register-request.json` is a tanker driver signing up with a declared
+4,000 gallons; `partner-profile-pending.json` is that driver just after,
+`pending` and offline, with 16,000 declared litres and no verified payload
+(`safe_payload_litres: null`). `partner-profile.json` is an approved Keke
+rider whose payload admin has verified. `partner-profile-update-request.json`
+adds an email and turns on offers; `partner-availability-request.json` goes
+online, and `error-partner-not-approved.json` is the refusal for a pending
+partner. `partner-notifications.json` holds one unread job offer and one read
+approval message. The zone id and name stand in for #30's zones.
+
 If a contract changes, update these files in the same PR.
 
 The cash samples ([../payments.md](../payments.md), agreed; the history entry
