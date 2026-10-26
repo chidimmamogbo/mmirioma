@@ -5,6 +5,11 @@ review by @nnamdi-security and @chidimmamogbo (#18). Not agreed, not built.
 It becomes `Status: agreed` when both have approved it (CLAUDE.md, "Team fork
 workflow").
 
+**Amended 2026-10-26 for #30** (service zones): open questions 5, 6, 13, 14
+and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee
+per water category; customers list active zones with `GET /service-zones`.
+See [Changes](#changes).
+
 The fork's admin Customers, Riders, Service areas and Pricing screens run on
 mocks (`frontend/src/mocks/adminMock.ts`) and show "not connected yet" against
 the real API. This contract proposes the endpoints that would let them leave
@@ -23,7 +28,7 @@ The fork functions `listCustomers` through `savePriceList` in
 | `adjustPoints` | **Not proposed**: points belong to #11 ([decision 3](#decisions-taken-in-18)) |
 | `listRiders`, `getRider`, `setRiderApproval`, `addRider` | [Drivers](#drivers) |
 | `listStations`, `setStationOpen`, `saveStation`, `uploadStationPapers` | **Not proposed**: sources stay on the command-line tool ([decision 5](#decisions-taken-in-18)) |
-| `listAreas`, `saveArea` | [Service zones](#service-zones) |
+| `listAreas`, `saveArea` | [Service zones](#service-zones) (built in #30) |
 | `listPriceLists`, `savePriceList` | [Price lists](#price-lists) |
 
 Functions that are not proposed keep their mocks and keep showing "not
@@ -71,7 +76,8 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
 ## Access rules
 
 - Every endpoint requires a signed-in, active `admin` ([auth.md](auth.md)).
-  Customers and drivers get 403 `forbidden` (FR-001).
+  Customers and drivers get 403 `forbidden` (FR-001). The one exception is
+  [`GET /service-zones`](#get-service-zones), which is for customers only.
 - Unsafe requests (`POST`, `PATCH`) need the `X-CSRF-Token` header (403
   `csrf_failed`).
 - Every write records an audit row (NFR-004) with the actor, the action, the
@@ -233,8 +239,9 @@ Saves an address on the customer (design `a-create` "+ Add address").
 
 `zone_id` is required: an address must have a zone (SRS §5, FR-020). An
 unknown zone is 404 `service_zone_not_found`. An inactive zone is allowed
-(staff may record the address); ordering checks the zone. How staff find the
-zone for a typed address is [open question 6](#open-questions). Returns the
+(staff may record the address); ordering checks the zone. Staff pick the zone
+([Which zone an address is in](#which-zone-an-address-is-in), open question 6
+decided). Returns the
 whole customer, so the page redraws without a second request.
 
 Editing, deleting and changing the default address are not proposed (no
@@ -403,7 +410,12 @@ them "service areas".
   "is_active": true,
   "centre": { "latitude": 6.4447, "longitude": 7.5108 },
   "boundary": null,
-  "fallback_delivery_fee_minor_units": 300000,
+  "fallback_delivery_fees": [
+    {
+      "water_category": { "id": "3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b", "label": "Potable Water" },
+      "fee_minor_units": 300000
+    }
+  ],
   "created_at": "2026-10-20T10:00:00Z",
   "updated_at": "2026-10-20T10:00:00Z"
 }
@@ -413,31 +425,92 @@ them "service areas".
 | --- | --- |
 | `name` | Trimmed, 2-100 characters, unique ignoring case |
 | `is_active` | FR-010. The design's "enabled". New orders need an active zone; switching a zone off never changes existing orders (FR-024) |
-| `centre` | The zone's coordinates (FR-010, required). WGS 84 decimal degrees (SRID 4326, CLAUDE.md). The design has no field for it ([open question 5](#open-questions)) |
+| `centre` | The zone's coordinates (FR-010, required). WGS 84 decimal degrees (SRID 4326, CLAUDE.md): `latitude` -90 to 90, `longitude` -180 to 180; no other bound. Typed in by the admin, since no map provider is approved ([open question 5](#open-questions), decided). Stored for road distance later (OSRM, SRS §12.1); the pilot does not use it to match addresses ([Which zone an address is in](#which-zone-an-address-is-in)) |
 | `boundary` | Optional GeoJSON `Polygon`, SRID 4326 (FR-010 "optional geographic polygon"), or `null`. A closed ring of at least 4 positions |
-| `fallback_delivery_fee_minor_units` | The zone's delivery rate, used for the delivery cost when no road distance is available (FR-022), integer kobo, at least 0, or `null` for no fallback, so the quote becomes `manual_quote_required` (FR-022: "or the order becomes a manual quote"). The design's "fixed fee per area". Whether it is per trip or per order, and per category, is [open question 13](#open-questions) |
+| `fallback_delivery_fees` | The zone's delivery rates (FR-010), used as the delivery cost when no road distance is available (FR-022): **one fee per water category, per order** ([open question 13](#open-questions), decided), whatever the number of trips. Integer kobo, at least 0. Each category at most once. An empty list means no fallback ([Delivery cost from the zone](#delivery-cost-from-the-zone)). The design's "fixed fee per area" |
+| `fallback_delivery_fees[].water_category` | `id` and current `label` of a water category (FR-014). Written as `water_category_id` |
 
-Not in `ServiceZone`: the design's `station_id` and `distance_km` (decision
-10a, a road distance typed by admin). FR-022 takes the distance from OSRM
-and forbids fabricated route estimates, so an admin-entered distance is
-[open question 14](#open-questions). FR-010's "eligibility" is
-[open question 15](#open-questions).
+Not in `ServiceZone`, by decision (@nnamdi-security, 2026-10-26):
+
+- The design's `distance_km` (decision 10a, a road distance typed by an
+  admin): FR-022 takes the distance from OSRM and forbids fabricated route
+  estimates, and the per-zone fee makes it unnecessary
+  ([open question 14](#open-questions)).
+- The design's `station_id`: sources stay on the command-line tool
+  ([decision 5](#decisions-taken-in-18)), and the source is chosen at
+  confirmation, not per zone.
+- FR-010's "eligibility": no separate field. In the pilot, a zone delivers a
+  category when it has a fee for it
+  ([open question 15](#open-questions)). Revisit when OSRM is added, since a
+  road-distance price would not need a fee.
+- SRS §5's "default pricing zone": no column. A price rule with
+  `zone_id: null` already applies to every zone without a rule of its own
+  ([Price lists](#price-lists)), so a default zone would be a second way to
+  say the same thing.
+
+### Which zone an address is in
+
+FR-020: the customer submits the service zone with the address; a map pin is
+optional. **Decided** ([open question 6](#open-questions)): the customer
+picks the zone from the active zones ([`GET /service-zones`](#get-service-zones));
+staff pick it for an address they record. The server never guesses a zone
+from address text and never geocodes. An address in no listed zone is sent
+with no zone, and its quote is `manual_quote_required` /
+`outside_service_zone` (FR-010, T-02; see
+[order-details-and-price.md](order-details-and-price.md#post-quotes)).
+
+### Delivery cost from the zone
+
+Until OSRM exists (SRS §12.1), the delivery cost of a quote with an address
+is the zone's fee for the quote's category (FR-022 fallback). The quote side
+is built in #21:
+
+| Zone and fee | Quote |
+| --- | --- |
+| Active zone with a fee for the category | Delivery cost = that fee, once per order. Handling and margin still come from the price list (FR-022) |
+| Active zone, no fee for the category | `manual_quote_required` / `delivery_cost_unavailable` (FR-022, T-18) |
+| No zone, or an inactive zone | `manual_quote_required` / `outside_service_zone` (FR-010, T-02) |
+
+Never a distance guess or another zone's fee ("No fabricated route
+estimates", FR-022).
 
 ### Endpoints
 
 | Method | Path | Request | Success | Errors |
 | --- | --- | --- | --- | --- |
 | GET | `/admin/service-zones` | none | 200 `{ "items": [ServiceZone] }` | none beyond shared |
-| POST | `/admin/service-zones` | `ServiceZoneWrite` | 201 `ServiceZone` | 409 `service_zone_name_taken`, 422 `validation_error` |
-| PATCH | `/admin/service-zones/{id}` | `ServiceZoneWrite`, fields optional | 200 `ServiceZone` | 404 `service_zone_not_found`, 409 `service_zone_name_taken`, 422 `validation_error` |
+| POST | `/admin/service-zones` | `ServiceZoneWrite` | 201 `ServiceZone` | 404 `water_category_not_found`, 409 `service_zone_name_taken`, 422 `validation_error` |
+| PATCH | `/admin/service-zones/{id}` | `ServiceZoneWrite`, fields optional | 200 `ServiceZone` | 404 `service_zone_not_found`, 404 `water_category_not_found`, 409 `service_zone_name_taken`, 422 `validation_error` |
+| GET | `/service-zones` | none | 200 `{ "items": [ServiceZoneOption] }` | none beyond shared |
 
-`GET` returns every zone, active or not, by name, with no pagination: a
-pilot has a handful of zones. `ServiceZoneWrite` is the object without `id`,
-`created_at` and `updated_at`. In `PATCH`, an absent field is unchanged and
-`null` clears `boundary` or `fallback_delivery_fee_minor_units`. Zones are
-never deleted (orders and addresses refer to them); switch one off instead.
+`GET /admin/service-zones` returns every zone, active or not, by name, with
+no pagination: a pilot has a handful of zones. `ServiceZoneWrite` is the
+object without `id`, `created_at` and `updated_at`, with each fee written as
+`{ "water_category_id": "…", "fee_minor_units": 300000 }`
+([admin-service-zone-write-request.json](examples/admin-service-zone-write-request.json)).
+In `POST`, `fallback_delivery_fees` may be omitted (empty list). In `PATCH`,
+an absent field is unchanged, `null` clears `boundary`, and a sent
+`fallback_delivery_fees` replaces the whole list (`[]` removes every fee).
+A category listed twice is 422 `validation_error`. Zones are never deleted
+(orders and addresses refer to them); switch one off instead.
 
 The mock's 409 `area_exists` becomes `service_zone_name_taken`.
+
+#### GET /service-zones
+
+The zones a customer can pick for an address (FR-020,
+[Which zone an address is in](#which-zone-an-address-is-in)). Signed-in
+`customer` only; staff and drivers get 403 `forbidden` (they use
+`GET /admin/service-zones`). Active zones only, by name, no pagination
+([service-zones.json](examples/service-zones.json)):
+
+```json
+{ "items": [ { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout" } ] }
+```
+
+`ServiceZoneOption` is `id` and `name` only: no fees (customers see the
+total only, [order-details-and-price.md](order-details-and-price.md#response-200-quoteread)),
+no coordinates or boundary.
 
 ## Price lists
 
@@ -567,7 +640,7 @@ Not in the price list, with the reason:
 | 404 | `customer_not_found` | No customer account with this id |
 | 404 | `driver_not_found` | No driver account with this id (already used by dispatch) |
 | 404 | `service_zone_not_found` | Unknown zone id, in a path or a body |
-| 404 | `water_category_not_found` | Unknown category id in a price rule |
+| 404 | `water_category_not_found` | Unknown category id in a price rule or a zone fee |
 | 404 | `price_list_not_found` | No price list saved yet |
 | 409 | `phone_already_registered` | The phone has an account (already used by auth) |
 | 409 | `driver_has_accepted_job` | Deactivating a driver who holds an accepted job ([open question 12](#open-questions)) |
@@ -595,7 +668,8 @@ For the link issues that follow; the adapters convert with these rules.
 | `vehicle.delivery_type`, `vehicle.safe_payload_litres` | `vehicle.type`, `vehicle.tank_gallons` | Tanker gallons = litres ÷ 4; Keke `null` |
 | `zones[].name` | `service_areas` | Names |
 | `live_jobs`, `completed_jobs`, `created_at` | `active_orders`, `trips`, `partner_since` | Same values |
-| `ServiceZone.is_active`, `fallback_delivery_fee_minor_units` | `ServiceArea.enabled`, `fixed_fee_minor_units` | Same values. `station_id` and `distance_km` have no source |
+| `ServiceZone.is_active` | `ServiceArea.enabled` | Same value |
+| `ServiceZone.fallback_delivery_fees` | `ServiceArea.fixed_fee_minor_units` | The pilot category's fee (one category is priced in the pilot, #10), or `null` when the zone has none. Saving writes that one entry and keeps the others. `station_id` and `distance_km` have no source (`null`). The screen has no `centre` input, so creating a zone from it needs a screen change (G2) in the link issue |
 | `PriceList` | `PriceList` | Different shape: the screen is redesigned (decision 1) |
 
 ## Data needed
@@ -605,7 +679,9 @@ migration):
 
 - `service_zones`: `name` (unique, case-insensitive), `is_active`, `centre`
   (PostGIS `geography(Point, 4326)`), `boundary` (`geography(Polygon, 4326)`,
-  nullable), `fallback_delivery_fee_minor_units` (`BigInteger`, nullable).
+  nullable).
+- `service_zone_delivery_fees`: `zone_id`, `water_category_id`,
+  `fee_minor_units` (`BigInteger`, at least 0), unique together.
 - `customer_addresses`: `customer_id` (`users`), `zone_id`, `label`,
   `address`, `landmark`, `is_default` (one default per customer, enforced by
   a partial unique index). The SRS lists latitude and longitude as optional;
@@ -625,22 +701,29 @@ migration):
 
 | # | Question | Source of the gap |
 | --- | --- | --- |
-| 1 | Which issue builds these endpoints? Zones fit #30 (lane E); customers, drivers and price lists need build issues | Process |
+| 1 | Which issue builds these endpoints? **Zones: #30** (lane E). Customers, drivers and price lists still need build issues | Process |
 | 2 | How does a customer or driver created by staff sign in? There is no password reset or invite in the backend; `auth.md` says staff accounts come from the command-line tool | Mock says "Forgot password" later; no SRS rule |
 | 3 | May staff send the FR-003 SMS code to a customer who phoned in, and enter the code the customer reads back? Or must the customer verify in the app? | FR-003 says the customer verifies possession; silent on staff help. `auth.md` "Planned" lists a dispatcher fallback needing a written procedure |
 | 4 | Does "ordered this week" mean the last 7 days or the calendar week (Monday to Sunday, Lagos)? | Design wording |
-| 5 | The Service areas screen has no coordinates field, but FR-010 requires coordinates. Is entering latitude and longitude acceptable, or does the screen need a map (no map provider is approved)? | FR-010, decision 10a |
-| 6 | How is a typed address matched to a zone without a map pin (FR-020)? Staff pick the zone (proposed here), the customer picks it, or a geocoder decides? | FR-020, #30 scope |
+| 5 | ~~The Service areas screen has no coordinates field, but FR-010 requires coordinates. Is entering latitude and longitude acceptable, or does the screen need a map?~~ **Decided** (@nnamdi-security, 2026-10-26): `centre` stays required and the admin types latitude and longitude; only the normal ranges are checked | FR-010, decision 10a |
+| 6 | ~~How is a typed address matched to a zone without a map pin (FR-020)?~~ **Decided** (@nnamdi-security, 2026-10-26): the customer picks it from `GET /service-zones` (FR-020: the customer submits the zone); staff pick it for addresses they record; no geocoding | FR-020, #30 scope |
 | 7 | Do new partners need a `pending` state (papers checked before first activation), beyond FR-002's active and inactive? Settle with #14 (partner sign-up and documents) | Design `approval`, FR-002, FR-012 is about sources not partners |
 | 8 | How is a Keke's verified safe payload entered (the design asks only tankers for a capacity)? Settings shows `[SAFE LOAD]` per vehicle type | FR-013, design Settings |
 | 9 | Are a plate number and a fleet code (`KK-014`) part of the driver record? The SRS lists neither | Design fields |
 | 10 | Do customer points exist at all? If yes, their rules (earning, welcome bonus, redemption, rounding) and staff adjustments. Settle in #11 | Design decision 16; no SRS rule |
 | 11 | Is rider and driver pay a price-list rate, a recorded per-order labour or transport cost (FR-042), or out of the MVP? Today's earnings and payout due depend on it (#22 payouts) | Design decision 16; FR-042 |
 | 12 | What happens to a job the driver already accepted when the driver is deactivated: withdrawn, finished first, or failed? Proposed: refuse deactivation until it ends | FR-002, deliveries.md rows 10-11 |
-| 13 | Is a zone's fallback rate per order or per trip, and does it differ by water category or vehicle type? | FR-010, FR-022 |
-| 14 | May an admin-entered road distance per zone (decision 10a) stand in for OSRM while OSRM hosting is open, or is that a fabricated estimate under FR-022? | FR-022, SRS §12.1 |
-| 15 | What does FR-010's zone "eligibility" hold: the water categories offered in the zone, the vehicle types that can reach it, or something else? | FR-010 wording |
+| 13 | ~~Is a zone's fallback rate per order or per trip, and does it differ by water category or vehicle type?~~ **Decided** (@nnamdi-security, 2026-10-26): one fee per zone and water category, **per order**; not by vehicle type | FR-010, FR-022 |
+| 14 | ~~May an admin-entered road distance per zone (decision 10a) stand in for OSRM?~~ **Decided** (@nnamdi-security, 2026-10-26): no. The zone fee is the fallback; `distance_km` and `station_id` are dropped | FR-022, SRS §12.1 |
+| 15 | ~~What does FR-010's zone "eligibility" hold?~~ **Decided** (@nnamdi-security, 2026-10-26): no separate field; in the pilot a zone delivers a category when it has a fee for it. Revisit with OSRM. SRS §5's "default pricing zone" is not stored either: a `zone_id: null` price rule does that job | FR-010 wording |
 | 16 | Should a price list be scheduled for a future date (SRS §5 "effective dates"), or take effect when saved (proposed)? | SRS §5 |
 | 17 | How is the OSRM distance rounded before the per-km rate (to 0.1 km, to whole km, up or nearest)? | FR-022 |
 | 18 | Are FR-022 "handling rates" per order (proposed), per litre or per trip? | FR-022 |
 | 19 | Should delivery rates differ for Keke and tanker beyond what quantity bands give? SRS §5 keys rules by zone, band and category, not vehicle type | SRS §5, design a-pricing |
+
+## Changes
+
+| Date | Change | Agreed by |
+| --- | --- | --- |
+| 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Decisions by @nnamdi-security; contract not yet agreed |
+| 2026-10-26 | Proposed (#18, PR #34) | Not yet |

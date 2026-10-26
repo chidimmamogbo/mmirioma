@@ -17,6 +17,7 @@
   "keke": null,
   "tanker": { "tank_type": "ground", "quantity_local_gallons": 750 },
   "water_source": "borehole",
+  "service_zone": { "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b", "name": "Independence Layout" },
   "quote": {
     "currency": "NGN",
     "total_minor_units": 2000000,

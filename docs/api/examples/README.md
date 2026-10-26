@@ -109,7 +109,10 @@ agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
   driver with no vehicle profile), `admin-driver-create-request.json` (3,000
   gallons, stored as 12,000 litres), `admin-driver-activation-request.json`.
 - Service zones: `admin-service-zones.json`, one active zone with a fallback
-  rate and one inactive zone with a boundary and no fallback.
+  fee for one category and one inactive zone with a boundary and no fees;
+  `admin-service-zone-write-request.json` (create or replace); and
+  `service-zones.json`, the customer's list of active zones (names only, no
+  fees).
 - Price lists: `admin-price-list.json` (version 3: two bands for every zone
   and a zone's own rule), `admin-price-list-create-request.json`.
 - Refusals: `error-price-list-changed.json`, `error-price-rules-overlap.json`,
