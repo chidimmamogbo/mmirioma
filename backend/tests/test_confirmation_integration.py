@@ -154,15 +154,22 @@ async def new_order(sessions: Sessions, s: Setup) -> Order:
         delivery_address="12 Sample Close, Independence Layout, Enugu",
         is_simulated=True,
     )
+    sent_at = NOW - timedelta(hours=4)
     async with sessions() as session:
         session.add(order)
         await session.flush()
+        # Pinned to the test clock: the confirmation events are written at NOW,
+        # so a database-time creation event would sort after them once the
+        # real clock passes NOW.
         session.add(
-            OrderEvent(order_id=order.id, to_status=S.QUOTE_REQUESTED, actor_id=s.customer.id)
+            OrderEvent(
+                order_id=order.id,
+                to_status=S.QUOTE_REQUESTED,
+                actor_id=s.customer.id,
+                created_at=sent_at,
+            )
         )
-        await session.execute(
-            update(Order).where(Order.id == order.id).values(created_at=NOW - timedelta(hours=4))
-        )
+        await session.execute(update(Order).where(Order.id == order.id).values(created_at=sent_at))
         await session.commit()
         await session.refresh(order)
     return order
