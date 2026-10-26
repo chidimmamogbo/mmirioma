@@ -26,6 +26,23 @@ export const WATER_SOURCE_LABEL: Record<WaterSource, string> = {
 export const CAN_SIZES: CanSizeLitres[] = [25, 50]
 export const CAN_COUNTS = [12, 24, 30, 60] as const
 
+/** Smallest order the server accepts, in litres (SRS v0.3 FR-021). The server checks it too. */
+export const MIN_ORDER_LITRES = 600
+
+/**
+ * Can counts offered for a can size: only those that reach MIN_ORDER_LITRES,
+ * so 12 × 25 L (300 L) is not offered (decision of 2026-10-26).
+ */
+export function canCountsFor(size: CanSizeLitres): number[] {
+  return CAN_COUNTS.filter((count) => count * size >= MIN_ORDER_LITRES)
+}
+
+/** The can count to keep when the size changes: the same one if still offered, else the smallest offered. */
+export function fitCanCount(size: CanSizeLitres, count: number): number {
+  const offered = canCountsFor(size)
+  return offered.includes(count) ? count : (offered[0] ?? CAN_COUNTS[CAN_COUNTS.length - 1])
+}
+
 /** Standard tank sizes (design `c-tanker`). "Custom" needs a manual quote (FR-021). */
 export const TANK_SIZES: TankSizeGallons[] = [500, 750, 1000]
 
@@ -78,8 +95,20 @@ export type Quote =
     }
   | { status: 'manual_quote_required'; reason: string }
 
-/** Customer-facing delivery stage, shown with the design's labels (decision 12). */
-export type DeliveryStage = 'waiting_rider' | 'rider_assigned' | 'picked_up' | 'on_the_way' | 'delivered' | 'cancelled'
+/**
+ * Customer-facing delivery stage, shown with the design's labels (decision 12).
+ * `failed` and `under_review` show the backend's `failed` and `disputed`
+ * statuses (decision of 2026-10-26, docs/architecture/api-mapping.md).
+ */
+export type DeliveryStage =
+  | 'waiting_rider'
+  | 'rider_assigned'
+  | 'picked_up'
+  | 'on_the_way'
+  | 'delivered'
+  | 'cancelled'
+  | 'failed'
+  | 'under_review'
 
 export const STAGE_LABEL: Record<DeliveryStage, string> = {
   waiting_rider: 'Waiting for rider',
@@ -88,11 +117,22 @@ export const STAGE_LABEL: Record<DeliveryStage, string> = {
   on_the_way: 'On the way',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
+  failed: 'Delivery failed',
+  under_review: 'Under review',
 }
 
-/** Active orders are the ones a customer can still track. */
+/**
+ * Active orders are the ones a customer can still track. A failed delivery has
+ * ended, and an order under review is not moving until staff resolve it, so
+ * neither is tracked.
+ */
 export function isActiveStage(stage: DeliveryStage): boolean {
-  return stage !== 'delivered' && stage !== 'cancelled'
+  return !['delivered', 'cancelled', 'failed', 'under_review'].includes(stage)
+}
+
+/** Stages that end an order with a problem, shown in red. */
+export function isProblemStage(stage: DeliveryStage): boolean {
+  return stage === 'cancelled' || stage === 'failed'
 }
 
 /** Payment state, always shown separately from delivery (FR-040, BR-07). */

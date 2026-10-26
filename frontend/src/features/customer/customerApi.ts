@@ -5,7 +5,8 @@
  * contract has no delivery type, price, address book, points or support).
  * In mock mode they use `src/mocks/customerMock.ts`; in real-API mode they
  * fail with `not_connected` until the backend exists. When an endpoint is
- * added, replace its `notConnected(...)` with a `apiClient.request` call here;
+ * added, replace its `notConnected(...)` with an adapter from `./real/` that
+ * calls `src/lib/api/` and converts with docs/architecture/api-mapping.md;
  * screens do not change.
  */
 import type {

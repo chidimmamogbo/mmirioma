@@ -14,6 +14,8 @@ const STAGE_TONE: Record<DeliveryStage, ChipTone> = {
   on_the_way: 'blue',
   delivered: 'green',
   cancelled: 'red',
+  failed: 'red',
+  under_review: 'amber',
 }
 
 /** Delivery stage chip: colour plus words (and a tick when delivered). */

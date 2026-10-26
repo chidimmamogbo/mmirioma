@@ -6,7 +6,7 @@ import { Card } from '../../../../components/ui/Card'
 import { SampleTag } from '../../../../components/ui/Chip'
 import { OptionTile } from '../../../../components/ui/Choice'
 import { KeyValue, SectionHeader, Separator } from '../../../../components/ui/Content'
-import { CAN_COUNTS, CAN_SIZES, kekeTotalLitres } from '../../../../domain/orders'
+import { CAN_SIZES, canCountsFor, fitCanCount, kekeTotalLitres } from '../../../../domain/orders'
 import { formatNaira } from '../../../../lib/format/money'
 import { OptionGroup, OrderStepHeading, SummaryTotal } from '../../components/OrderParts'
 import { draftChoice } from '../../order/draft'
@@ -40,7 +40,9 @@ export function KekeOrder() {
               <OptionTile
                 key={size}
                 selected={draft.keke.can_size_litres === size}
-                onSelect={() => update((d) => ({ delivery_type: 'keke', keke: { ...d.keke, can_size_litres: size } }))}
+                onSelect={() =>
+                  update((d) => ({ delivery_type: 'keke', keke: { can_size_litres: size, can_count: fitCanCount(size, d.keke.can_count) } }))
+                }
                 className="px-2 pt-4 pb-3"
               >
                 <Illustration name="jerrycan" style={{ height: size === 25 ? 46 : 60 }} />
@@ -51,7 +53,7 @@ export function KekeOrder() {
         </OptionGroup>
         <OptionGroup legend="How many cans?" className="rise-3">
           <div className="grid grid-cols-4 gap-2.5">
-            {CAN_COUNTS.map((count) => (
+            {canCountsFor(draft.keke.can_size_litres).map((count) => (
               <OptionTile
                 key={count}
                 selected={draft.keke.can_count === count}

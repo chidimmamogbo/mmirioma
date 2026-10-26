@@ -8,7 +8,7 @@ import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../components/ui/Content'
 import { IconLink } from '../../../components/ui/IconButton'
-import { STAGE_LABEL, describeChoice, type CustomerOrder } from '../../../domain/orders'
+import { STAGE_LABEL, describeChoice, isProblemStage, type CustomerOrder } from '../../../domain/orders'
 import { cx } from '../../../lib/cx'
 import { formatShortDate, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
@@ -69,7 +69,10 @@ export function OrderDetail() {
                     : 'Jerrycans · Keke'}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <Chip tone={o.stage === 'delivered' ? 'green' : o.stage === 'cancelled' ? 'red' : 'blue'} className="bg-white">
+                  <Chip
+                    tone={o.stage === 'delivered' ? 'green' : isProblemStage(o.stage) ? 'red' : o.stage === 'under_review' ? 'amber' : 'blue'}
+                    className="bg-white"
+                  >
                     {o.stage === 'delivered' ? '✓ ' : ''}
                     {STAGE_LABEL[o.stage]}
                   </Chip>
@@ -86,12 +89,12 @@ export function OrderDetail() {
               <ol className="m-0 flex list-none flex-col p-0">
                 {o.timeline.map((t, i) => {
                   const last = i === o.timeline.length - 1
-                  const finished = last && (o.stage === 'delivered' || o.stage === 'cancelled')
+                  const finished = last && (o.stage === 'delivered' || isProblemStage(o.stage))
                   return (
                     <li key={`${t.label}-${t.at}`} className="flex gap-3">
                       <div className="flex flex-col items-center">
                         <span
-                          className={cx('size-3.5 rounded-full', finished ? (o.stage === 'cancelled' ? 'bg-[#DC2626]' : 'bg-[#16A34A]') : 'bg-primary')}
+                          className={cx('size-3.5 rounded-full', finished ? (isProblemStage(o.stage) ? 'bg-[#DC2626]' : 'bg-[#16A34A]') : 'bg-primary')}
                         />
                         {!last && <span className="min-h-[22px] w-0.5 flex-1 bg-primary" />}
                       </div>
