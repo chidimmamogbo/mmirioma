@@ -180,7 +180,7 @@ token, and starts a session.
 | `vehicle_kind` | `keke` or `tanker` |
 | `plate` | Trimmed and upper-cased. At least 4 characters (the mock's check). Format: [open question 3](#open-questions) |
 | `declared_capacity_gallons` | Tanker: required, a whole number from 500 to 20,000 (`tankCapacity.ts`: 500 is the smallest tanker order; 20,000 only catches typos). Keke: must be `null` or absent |
-| `service_zone_id` | An active zone from #30. Until #30 is built, see [open question 2](#open-questions) |
+| `service_zone_id` | An active zone from `GET /service-zones` (#30, [open question 2](#open-questions), decided) |
 
 **201** `Session` with the session cookie, as `POST /auth/register`. The user
 has `role: "driver"` and `phone_verified: false`. The partner starts
@@ -379,10 +379,11 @@ Recommendations are proposals, not decisions.
    proposal. Needs the owner to confirm that a pending or suspended partner
    may sign in, and what `suspended` means next to deactivation. For
    @nnamdi-security and @chidimmamogbo.
-2. **Zone at sign-up.** `service_zone_id` needs #30. Sign-up also needs the
-   active zone names without a session. **Recommended:** #30 includes a
-   public, read-only list of active zone names and ids. Until then sign-up
-   cannot be linked. For @nnamdi-security (#30).
+2. ~~**Zone at sign-up.**~~ **Decided** (@nnamdi-security, technical lead,
+   2026-10-26): `GET /service-zones`
+   ([admin-directory.md](admin-directory.md#get-service-zones), built in #30)
+   needs no session, so sign-up can list the active zones (`id` and `name`
+   only). Sign-up can be linked once #30 is built.
 3. **Plate format.** The SRS has no rule. The mock asks for at least 4
    characters. Should the server check the Nigerian plate format, and how
    long can a plate be?

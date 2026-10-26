@@ -10,7 +10,9 @@ CLAUDE.md requires.
 
 ## 1. Load the issue
 
-1. `gh issue view $ARGUMENTS --repo chidimmamogbo/mmirioma --comments`.
+1. `gh issue view $ARGUMENTS --repo chidimmamogbo/mmirioma --json title,body,labels,comments`.
+   Use `--json`: outside a terminal, `--comments` prints only the comments
+   and leaves out the issue body.
 2. Read CLAUDE.md, starting with "Team fork workflow", and your lane in
    `docs/process/linking-plan.md`.
 3. For each issue on the "Depends on" line, check it is closed

@@ -69,9 +69,10 @@ A `Card` on the Done screen, below the job summary, replacing the "Payment"
 row (decision 3).
 
 - **Ready to record:** caption "Amount due", the amount in 28 px bold
-  (`₦6,500.00`), the line "Manual quote · Pay on delivery: cash after
-  unloading" ("Manual quote" from `cash.amount_due_label` `manual_quote`,
-  as the contract asks), the hint
+  (`₦6,500.00`), a line set by `cash.amount_due_label` (decision 8):
+  `manual_quote` shows "Manual quote · Pay on delivery: cash after
+  unloading"; `quote` (an order placed with a server quote) and any other
+  value show "Pay on delivery: cash after unloading". Then the hint
   "Count the cash with the customer before you record it." and a primary
   button "Record cash". "Back to dashboard" stays below; neither waits for
   the other.
@@ -203,13 +204,18 @@ Every row points to the agreed [payments contract](../api/payments.md).
    (note missing), "Cash already recorded", "Finish unloading first", "This
    order is no longer yours", "Not sent", "Some cash changed", "No cash to
    hand over", the K2 home card, and the toast "Marked ready to hand over."
+8. **Price label by `amount_due_label`** (@chidimmamogbo, 2026-10-26;
+   settles the open question left by this design). The order details and
+   price contract (#28) uses `quote` for an order placed with a server quote
+   and keeps `manual_quote` for a dispatcher's manual price
+   ([order-details-and-price.md](../api/order-details-and-price.md),
+   payments.md amendment 3). The card says "Manual quote" only for
+   `manual_quote`, so a quoted price is never called manual; `quote` and any
+   label the app does not know show "Pay on delivery: cash after unloading"
+   alone, without failing.
 
 ## Open questions
 
-- **Price label after #10.** The contract's only `amount_due_label` is
-  `manual_quote` ("Manual quote"). Once orders carry an instant price (#10,
-  #21), the contract needs a label for it; until then the card shows
-  "Manual quote" as the contract says.
 - Linking (#20) depends on the backend job steps (#13) for
   `unloading_completed_at`, since the fork's flow has no separate
   "unloading complete" step yet.

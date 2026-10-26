@@ -78,8 +78,9 @@ The technical lead checks the design before anyone builds it, then sets
 
 From the screen-to-endpoint table, create or update `docs/api/<area>.md` and its
 mock JSON in `docs/api/examples/`. The frontend and backend owners both review
-it, and the document is marked `Status: agreed` with their names. **Nothing is
-built until the contract is agreed.** If the design asks for a
+it, and the document is marked `Status: agreed` with their names. The technical
+lead may instead agree it alone, and the document then names only them.
+**Nothing is built until the contract is agreed.** If the design asks for a
 field the SRS does not support, change the design, not the rules.
 
 ### 5. Parallel Development

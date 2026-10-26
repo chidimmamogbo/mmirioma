@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "price_list_changed",
+    "message": "Prices changed since you opened this page",
+    "details": { "current_version": 4 }
+  }
+}

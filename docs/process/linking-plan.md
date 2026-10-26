@@ -46,6 +46,9 @@ when those issues close.
 - `backend/` and `docs/api/`: @nnamdi-security, backup @chidimmamogbo.
 - A contract is agreed when both have approved it. A new screen is approved
   (G2) by @chidimmamogbo.
+- The technical lead (@nnamdi-security) may also agree a contract (G3) or
+  approve a design (G2) alone. The pull request that records it still needs
+  a code owner other than its author (branch protection).
 
 ## Not in the backend yet
 

@@ -1,0 +1,17 @@
+{
+  "base_version": 3,
+  "reason": "Sample change for review",
+  "rules": [
+    {
+      "zone_id": null,
+      "water_category_id": null,
+      "min_litres": 600,
+      "max_litres": null,
+      "base_delivery_fee_minor_units": 200000,
+      "distance_rate_minor_units_per_km": 15000,
+      "additional_trip_minor_units": 150000,
+      "handling_minor_units": 50000,
+      "margin": { "type": "percentage", "basis_points": 1000 }
+    }
+  ]
+}
