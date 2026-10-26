@@ -199,6 +199,76 @@ The partner apps moved from `/rider` and `/driver` to `/partner/rider` and
 public landing page and the customer app starts at `/app`. Decisions and
 differences: [landing-v1.md](landing-v1.md).
 
+## Service zone changes (2026-10-26, #30)
+
+**Status: approved** (G2) by @nnamdi-security, technical lead, sole
+approver under PR #36, on 2026-10-26. Built in the link issues, not here:
+#9 (customer), #14 (partner sign-up), and the Service areas link (lane D).
+
+Why: customers order only in an active service zone and pick it themselves
+(FR-010, FR-020; contract decision in
+[admin-directory.md](../api/admin-directory.md#which-zone-an-address-is-in)),
+and the zone's fee replaces the admin-typed distance (FR-022, "no
+fabricated route estimates"). No new rule here: each change shows what the
+agreed contracts already decide. Reuse the existing components (`Field`,
+the `select` input style, `LoadingBlock`, `ErrorBlock`, notices); no new
+tokens.
+
+### Z1. Customer: area on Delivery details (`c-details`)
+
+- **New address:** a required **Area** select under the address, listing
+  the active zones by name (`GET /service-zones`), with a last option **My
+  area is not listed**. Nothing is preselected.
+- **Saved address:** its area name shows under the address text; no picker.
+  An address whose zone was switched off shows "No longer served" and is
+  treated like "not listed".
+- **Not listed** shows a neutral notice under the select: "We don't have an
+  instant price for your area yet. Send your request and our team will call
+  you." The order continues as a quote request (no `quote_id`); never an
+  estimated price or a delivery promise (FR-010, FR-022).
+- **States:** loading ("Loading areas", Continue disabled); error
+  (`ErrorBlock` with Retry; Continue disabled until the list loads); a list
+  with no zones (only "My area is not listed", with the notice); a field
+  error "Choose your area" when Continue is pressed with none chosen.
+- **Review / price:** the `outside_service_zone` and
+  `delivery_cost_unavailable` reasons use the existing manual-quote state,
+  with the client's wording per reason (contract: clients word the code).
+
+### Z2. Customer: area on saved addresses
+
+- **Save this address? (`c-save`)** is skipped for an address sent as "not
+  listed": a saved address must have a zone (customer-account.md, #33).
+- **Saved addresses add and edit:** the same required **Area** select, with
+  no "not listed" option. Same loading and error states as Z1.
+
+### Z3. Partner sign-up: area select
+
+- The free-text **Area you work in** becomes a required select of the
+  active zones (`GET /service-zones`, which needs no session), by name. No
+  "not listed" option: partners.md requires an active zone.
+- **States:** loading (submit disabled); error (`ErrorBlock` with Retry,
+  submit disabled); no zones ("No areas are open for sign-up yet. Please try
+  again later.", submit disabled); field error "Choose the area you work in".
+
+### Z4. Admin Service areas: edit form and list
+
+- **Removed:** "Serving station" and "Distance (km)" (contract open
+  question 14: no admin-typed distance; sources stay on the command-line
+  tool) and their list columns.
+- **Added:** **Latitude** and **Longitude** number inputs, both required,
+  with the hint "Decimal degrees, e.g. 6.4447 and 7.5108". Errors: "Enter a
+  latitude between -90 and 90" and "Enter a longitude between -180 and 180"
+  (the only checks the contract makes).
+- **"Fixed fee (₦)"** becomes **"Delivery fee per order (₦)"** with the hint
+  "Leave empty for no fee: quotes for this area become manual." It edits the
+  pilot water category's fee (admin-directory.md mapping). Which category is
+  the pilot one is still [#10 open question 2](../api/order-details-and-price.md#open-questions);
+  until it is named, the field cannot be linked.
+- **Boundary:** not editable on this screen (no map provider); zones keep
+  the boundary set through the API.
+- **States:** unchanged, plus the 409 `service_zone_name_taken` message "An
+  area with this name already exists" (the mock's `area_exists` wording).
+
 ## Open questions
 
 1. **Water source and stations.** Does the chosen source (Ninth Mile or
