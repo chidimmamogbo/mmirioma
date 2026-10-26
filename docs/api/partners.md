@@ -3,16 +3,14 @@
 Requirements: FR-001, FR-002, FR-003, FR-013, FR-031, FR-032, FR-050, NFR-002, NFR-004 ·
 Issues: #14, #47 · Built in: not yet
 
-**Status: proposed** on 2026-10-26 by @Bonvee120 (+ Claude Code), revised for
-#47 with the decisions of @chidimmamogbo (2026-10-26). For review by
-@nnamdi-security (backend, contract owner) and @chidimmamogbo (frontend). Not
-agreed, not built. It becomes `Status: agreed` when both have approved it
-(CLAUDE.md, "Team fork workflow").
+**Status: agreed** (G3) on 2026-10-26 by @nnamdi-security, technical lead,
+sole approver under #36. Proposed by @Bonvee120 (+ Claude Code) in #14,
+revised for #47 with the decisions of @chidimmamogbo (2026-10-26). Not built.
 
 The partner sign-up endpoint also amends the agreed [auth contract](auth.md):
 partners become the one exception to "no self-registration for staff". The
-amendment is written into `auth.md` in the same pull request and needs
-@chidimmamogbo as the auth owner (lane A, #8) as well as @nnamdi-security.
+amendment is written into `auth.md` in the same pull request and is agreed
+with this contract.
 
 Conventions (errors, formats, phone numbers, pagination) are in
 [README.md](README.md). Paths below omit `/api/v1`.
@@ -412,12 +410,12 @@ decided and when. Recommendations are proposals, not decisions.
    Nigerian-format check. 4 to 15 characters, letters, digits, spaces and
    hyphens, trimmed and upper-cased; otherwise 422 `validation_error`. The
    admin checks the real plate at approval.
-4. **Transfer methods (FR-013).** Who sets them, and which values? The design
+4. ~~**Transfer methods (FR-013).**~~ Who sets them, and which values? The design
    says Keke riders pour into "Drums, ground tanks" and tankers into "Ground
    and overhead tanks (pump)", but orders only know `ground` and `overhead`
-   (#10). **Recommended:** admin sets them at approval, with the two
-   `tank_type` values only, until the business adds drums. For
-   @nnamdi-security to confirm.
+   (#10). **Decided** (@nnamdi-security, 2026-10-26): the admin sets them at
+   approval, with the two `tank_type` values only (`ground`, `overhead`),
+   until the business adds drums. A partner never sets them.
 5. ~~**Preferences.**~~ **Decided** (@chidimmamogbo, 2026-10-26; amended the
    same day in the #48 review): keep `new_order_alerts` and `sms_updates`,
    stored only. No partner SMS, push or email is sent yet, so they change
@@ -434,12 +432,13 @@ decided and when. Recommendations are proposals, not decisions.
    2026-10-26): out of the MVP. No SRS requirement covers partner pay, and
    PRD §3.2 lists wallets as a non-goal. The screens stay "not connected yet"
    with their "Sample" labels; the admin rider payouts in #22 do the same.
-8. **Pending partners and vehicle profiles.** A pending partner has no
+8. ~~**Pending partners and vehicle profiles.**~~ A pending partner has no
    verified vehicle, but `DriverProfile.vehicle_profile_id` is `NOT NULL`.
-   **Recommended:** make it nullable in the build migration and keep the
-   declared vehicle on the driver profile. Dispatch already rejects a driver
-   without a usable vehicle (`no_driver_profile`, `vehicle_inactive`). For
-   @nnamdi-security to confirm.
+   **Decided** (@nnamdi-security, 2026-10-26): make it nullable in the build
+   migration and keep the declared vehicle on the driver profile; the admin
+   links or creates the vehicle profile at approval. Dispatch already rejects
+   a driver without a usable vehicle (`no_driver_profile`,
+   `vehicle_inactive`).
 9. ~~**Partner phone verification.**~~ **Decided** (@chidimmamogbo,
    2026-10-26): drivers may use the FR-003 SMS code endpoints
    (`POST /auth/phone-verification` and `/verify`), and an admin can approve
@@ -451,5 +450,6 @@ decided and when. Recommendations are proposals, not decisions.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Agreed (G3): open questions 4 (admin sets transfer methods at approval, `ground` and `overhead`) and 8 (`vehicle_profile_id` nullable) decided; the `auth.md` amendment agreed with it | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | Revised for #47: open questions 1, 3, 5, 6, 7 and 9 decided and applied; the approval endpoint is in #43; the sign-up zone is the first `driver_service_zones` row; `station_closed` not created and push depends on `push.md`; `email` and `offers_and_news` removed; notifications use the customer shape (`read_at`, `unread_count`, `ids` on mark-read); `vehicle.kind` and `vehicle_kind` renamed `delivery_type` to match `admin-directory.md`; `phone_verified` added to the profile; `auth.md` amended | Not yet |
 | 2026-10-26 | Proposed (#14, PR #35): partner sign-up (auth amendment), approval status, profile read and update, availability, notifications. Documents, earnings and payouts left out | Not yet |

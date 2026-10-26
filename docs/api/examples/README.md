@@ -85,7 +85,7 @@ default; each address has the zone the customer picked) and
 and `support-requests-page.json`; `deletion-request.json` (requested on a
 Monday, to be acknowledged by the Thursday); `error-default-address.json`.
 
-Partner account samples (**proposed**, [../partners.md](../partners.md), #14,
+Partner account samples (**agreed**, [../partners.md](../partners.md), #14,
 revised in #47): `partner-register-request.json` is a tanker driver signing
 up with a declared 4,000 gallons; `partner-profile-pending.json` is that
 driver just after, `pending`, offline and with the phone not yet verified,

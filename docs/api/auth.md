@@ -13,9 +13,9 @@ Screens: [docs/design/authentication.md](../design/authentication.md).
 element maps to this contract with no change. That design was approved (G2)
 on 2026-10-19; the screens are not built yet.
 
-**Partner amendment (2026-10-26, #47): proposed**, not agreed. Partner self
-sign-up and driver phone verification, from [partners.md](partners.md). See
-[Changes](#changes).
+**Partner amendment (2026-10-26, #47): agreed** by @nnamdi-security
+(technical lead, #36). Partner self sign-up and driver phone verification,
+from [partners.md](partners.md). See [Changes](#changes).
 
 ## Roles
 
@@ -31,7 +31,7 @@ sign-up and driver phone verification, from [partners.md](partners.md). See
   command-line tool, not through the API. There is no self-registration for
   staff, with one exception: partners (role `driver`) sign up with
   `POST /auth/partner-register` and start `pending` until an admin approves
-  them ([partners.md](partners.md#approval-status), proposed). Admins still
+  them ([partners.md](partners.md#approval-status)). Admins still
   come only from the command-line tool.
 - Inactive accounts cannot sign in, and their existing sessions stop working
   immediately (FR-002).
@@ -60,7 +60,7 @@ allowed before verification), following SRS v0.2:
   stored and no verification is claimed (503 `sms_unavailable`).
 - Customers and drivers use `POST /auth/phone-verification` and `/verify`;
   a partner verifies the phone before an admin can approve them
-  ([partners.md](partners.md#approval-status), decision 9, proposed). The
+  ([partners.md](partners.md#approval-status), decision 9). The
   phone-change endpoints stay customer only. Admins get 403 `forbidden`, and
   drivers get 403 `forbidden` on phone change.
 
@@ -148,7 +148,7 @@ Only the signed-in user's own object is returned by these endpoints.
 | Method | Path | Auth | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
 | POST | `/auth/register` | none | `{name, phone, password}` | 201 `Session` + cookie | 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts` |
-| POST | `/auth/partner-register` | none | see [partners.md](partners.md#post-authpartner-register) (proposed) | 201 `Session` + cookie, role `driver` | 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts` (shares the registration limit) |
+| POST | `/auth/partner-register` | none | see [partners.md](partners.md#post-authpartner-register) | 201 `Session` + cookie, role `driver` | 409 `phone_already_registered`, 422 `validation_error`, 429 `too_many_attempts` (shares the registration limit) |
 | POST | `/auth/login` | none | `{phone, password}` | 200 `Session` + cookie | 401 `invalid_credentials`, 422 `validation_error`, 429 `too_many_attempts` |
 | POST | `/auth/logout` | session + CSRF | none | 204, cookie cleared | 401 `not_authenticated`, 403 `csrf_failed` |
 | GET | `/auth/me` | session | none | 200 `Session` | 401 `not_authenticated` |
@@ -200,6 +200,6 @@ Examples: [examples/auth-session.json](examples/auth-session.json),
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-26 | Partner amendment (#47, [partners.md](partners.md)): partners sign up with `POST /auth/partner-register`, the one exception to "no self-registration for staff"; drivers may use the phone-verification endpoints (not phone change); admins still come only from the command-line tool | Not yet (needs @chidimmamogbo as auth owner and @nnamdi-security) |
+| 2026-10-26 | Partner amendment (#47, [partners.md](partners.md)): partners sign up with `POST /auth/partner-register`, the one exception to "no self-registration for staff"; drivers may use the phone-verification endpoints (not phone change); admins still come only from the command-line tool | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #47 |
 | 2026-10-17 | Phone verification (SRS v0.2 FR-003, FR-004) | @Cloudcrackamara (2026-10-18), @nnamdi-security |
 | 2026-10-15 | Agreed (G3), S1-01 | @nnamdi-security |
