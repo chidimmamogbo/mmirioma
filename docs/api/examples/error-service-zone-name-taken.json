@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "service_zone_name_taken",
+    "message": "A service zone with this name already exists",
+    "details": null
+  }
+}
