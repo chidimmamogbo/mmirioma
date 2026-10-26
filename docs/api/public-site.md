@@ -2,11 +2,10 @@
 
 Requirements: FR-055, NFR-002 · Issue: #8 · Built in: not yet
 
-**Status: proposed** on 2026-10-21 by the new-design fork, **revised
-2026-10-26 in #8** after decisions by @chidimmamogbo (see
-[Changes](#changes)). Not agreed. It becomes `Status: agreed` when
-@nnamdi-security and @chidimmamogbo have both approved it (CLAUDE.md, "Team
-fork workflow").
+**Status: agreed** (G3) on 2026-10-26 by @nnamdi-security, technical lead
+(#36). Proposed on 2026-10-21 by the new-design fork, **revised 2026-10-26 in
+#8** after decisions by @chidimmamogbo (see [Changes](#changes)). Not built
+yet (#56).
 
 The frontend uses a mock (`frontend/src/mocks/publicMock.ts`); with the real
 API it reports "not connected yet" until the endpoint exists. Conventions
@@ -85,5 +84,5 @@ git history of this file, for when an email provider is approved.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-26 | Revised in #8: contact read from backend settings only (FR-055), `phone` always set, `whatsapp` on by a setting (WhatsApp confirmed active); admin "Support WhatsApp" field removed; newsletter left out of the pilot | Decisions by @chidimmamogbo; contract not yet agreed |
+| 2026-10-26 | Revised in #8: contact read from backend settings only (FR-055), `phone` always set, `whatsapp` on by a setting (WhatsApp confirmed active); admin "Support WhatsApp" field removed; newsletter left out of the pilot | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #8 |
 | 2026-10-21 | Proposed: contact numbers from admin Settings, newsletter sign-up | Superseded |

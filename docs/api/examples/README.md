@@ -143,10 +143,10 @@ agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
 - Refusals: `error-price-list-changed.json`, `error-price-rules-overlap.json`,
   `error-service-zone-name-taken.json`.
 
-## Change password (proposed, #8)
+## Change password and public contact (agreed, #8)
 
 `change-password-request.json` is the body of `POST /auth/password`, and
 `error-password-incorrect.json` its 403 for a wrong current password
-([../auth.md](../auth.md#change-password-proposed-8)). The passwords are
+([../auth.md](../auth.md#change-password-8)). The passwords are
 samples, not real ones. `public-contact.json` is `GET /public/contact`
 ([../public-site.md](../public-site.md#get-publiccontact)).

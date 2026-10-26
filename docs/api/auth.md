@@ -17,9 +17,9 @@ on 2026-10-19; the screens are not built yet.
 (technical lead, #36). Partner self sign-up and driver phone verification,
 from [partners.md](partners.md). See [Changes](#changes).
 
-**Change password (2026-10-26, #8): proposed amendment**, not agreed. See
-[Change password](#change-password-proposed-8). It becomes agreed when
-@nnamdi-security and @chidimmamogbo have both approved it.
+**Change password (2026-10-26, #8): agreed** by @nnamdi-security
+(technical lead, #36), with @chidimmamogbo's decisions. See
+[Change password](#change-password-8).
 
 ## Roles
 
@@ -115,7 +115,7 @@ allowed before verification), following SRS v0.2:
 | Contents | Random opaque token (not the user ID); only its keyed hash is stored |
 | Flags | `HttpOnly`; `Secure` (configurable, forced on in production); `SameSite=Lax` (configurable); `Path=/` |
 | Lifetime | Absolute, `SESSION_MAX_AGE_SECONDS` (default 7 days). No sliding renewal |
-| Revocation | Server-side: logout, account deactivation; a password change ends every other session of the account (proposed, #8) |
+| Revocation | Server-side: logout, account deactivation; a password change ends every other session of the account (#8) |
 
 A new session is created at every login and registration. Old sessions are not
 reused.
@@ -181,10 +181,10 @@ Only the signed-in user's own object is returned by these endpoints.
 Examples: [examples/auth-session.json](examples/auth-session.json),
 [examples/error-invalid-credentials.json](examples/error-invalid-credentials.json).
 
-## Change password (proposed, #8)
+## Change password (#8)
 
 The fork's Change password screen (`/profile/password` for customers, and the
-same screen in the partner and admin apps) has no endpoint. Proposed:
+same screen in the partner and admin apps) has no endpoint. Agreed in #8 (build: #56):
 
 | Method | Path | Auth | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
@@ -250,7 +250,7 @@ Frontend note: the mock (`mockChangePassword`) answers 400
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-26 | Change password proposed (#8): `POST /auth/password`; a change ends the account's other sessions | Not yet |
+| 2026-10-26 | Change password (#8): `POST /auth/password`; a change ends the account's other sessions | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #8 |
 | 2026-10-26 | Partner amendment (#47, [partners.md](partners.md)): partners sign up with `POST /auth/partner-register`, the one exception to "no self-registration for staff"; drivers may use the phone-verification endpoints (not phone change); admins still come only from the command-line tool | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #47 |
 | 2026-10-17 | Phone verification (SRS v0.2 FR-003, FR-004) | @Cloudcrackamara (2026-10-18), @nnamdi-security |
 | 2026-10-15 | Agreed (G3), S1-01 | @nnamdi-security |

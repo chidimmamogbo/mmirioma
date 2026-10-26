@@ -1,6 +1,7 @@
 # Push notifications (not in the MVP)
 
-**Status: not in the MVP.** Decided by @chidimmamogbo on 2026-10-26 (#8).
+**Status: not in the MVP.** Decided by @chidimmamogbo on 2026-10-26 (#8),
+confirmed by @nnamdi-security (technical lead) the same day.
 Proposed by the new-design frontend fork on 2026-10-19; never agreed, and
 not to be built for the pilot. Reasons:
 
