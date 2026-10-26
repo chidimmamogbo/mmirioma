@@ -4,11 +4,16 @@ Rules (docs/api/deliveries.md rows 8-11, "Assignment statuses"):
 
 - **Assign (row 8).** A dispatcher offers a ``confirmed`` order to one
   driver. The driver must be eligible (FR-031): a ``driver`` account that is
-  active (FR-002), with a driver profile, marked available, using an active
+  active (FR-002), approved (docs/api/partners.md, "Approval status"), with
+  a driver profile and a verified vehicle, marked available, using an active
   vehicle whose verified safe payload covers the order's quantity in one
   trip (FR-013; multi-trip plans are not modelled yet), and with no other
   live job. The order becomes ``assigned`` and the assignment ``offered``.
   The driver has **not** accepted yet, and nothing may say so (FR-032).
+- **Partner notifications.** An offer, a withdraw and a cancellation of a
+  job the driver held each leave the driver an in-app message
+  (``assigned``, ``reassigned``; docs/api/partners.md, "Notifications"),
+  written in the same transaction as the change.
 - **Accept (row 9)** and **decline (row 10)** are for the offered driver
   only; anyone else gets 404 ``order_not_found`` (T-07). Accepting makes
   the order ``accepted``; declining returns it to ``confirmed`` with reason
@@ -51,12 +56,15 @@ from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
 from app.modules.dispatch.models import (
     LIVE_ASSIGNMENT_STATUSES,
+    ApprovalStatus,
     Assignment,
     AssignmentStatus,
     DeclineReason,
+    DeliveryType,
     DriverProfile,
     VehicleProfile,
 )
+from app.modules.notifications import service as notifications_service
 from app.modules.orders import service as orders_service
 from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
 from app.modules.orders.service import StaffOrder
@@ -68,11 +76,46 @@ class Ineligibility(StrEnum):
 
     NOT_A_DRIVER = "not_a_driver"
     INACTIVE = "inactive"
+    NOT_APPROVED = "not_approved"
     NO_DRIVER_PROFILE = "no_driver_profile"
     UNAVAILABLE = "unavailable"
     VEHICLE_INACTIVE = "vehicle_inactive"
     OVER_PAYLOAD = "over_payload"
     BUSY = "busy"
+
+
+#: Partner notification kinds written here (docs/api/partners.md, "Notifications").
+NOTIFICATION_ASSIGNED = "assigned"
+NOTIFICATION_REASSIGNED = "reassigned"
+
+
+def notify_job_taken_back(
+    session: AsyncSession, *, driver_id: uuid.UUID, order: Order, cancelled: bool
+) -> None:
+    """Tell a driver an admin withdrew or cancelled a job they held. Does not commit.
+
+    Kind ``reassigned`` covers both (partners.md: "Admin withdraws or cancels
+    a job the partner held"). Called from the withdraw here and from the
+    cancellation in :mod:`app.modules.deliveries.holds`.
+
+    Args:
+        session: The session the withdraw or cancellation is written in.
+        driver_id: The driver who held the job.
+        order: The order.
+        cancelled: True for a cancellation, False for a withdraw.
+    """
+    if cancelled:
+        title, body = "Order cancelled", f"Admin cancelled {order.reference}."
+    else:
+        title, body = "Order taken back", f"Admin took {order.reference} back from you."
+    notifications_service.add(
+        session,
+        user_id=driver_id,
+        order_id=order.id,
+        kind=NOTIFICATION_REASSIGNED,
+        title=title,
+        body=body,
+    )
 
 
 def eligibility_problems(
@@ -103,9 +146,14 @@ def eligibility_problems(
         return [Ineligibility.NOT_A_DRIVER]
     if not driver.is_active:
         problems.append(Ineligibility.INACTIVE)
-    if profile is None:
+    if profile is not None and profile.approval_status is not ApprovalStatus.APPROVED:
+        # A pending or suspended partner is never offered a job (partners.md).
+        problems.append(Ineligibility.NOT_APPROVED)
+    if profile is None or vehicle is None:
+        # No verified vehicle yet, e.g. a partner awaiting approval
+        # (partners.md, decision 8): deliveries.md's "no vehicle recorded".
         problems.append(Ineligibility.NO_DRIVER_PROFILE)
-    else:
+    if profile is not None:
         if not profile.is_available:
             problems.append(Ineligibility.UNAVAILABLE)
         if vehicle is not None and not vehicle.is_active:
@@ -217,7 +265,7 @@ async def _assign_driver(
     )
     vehicle = (
         await session.get(VehicleProfile, profile.vehicle_profile_id)
-        if profile is not None
+        if profile is not None and profile.vehicle_profile_id is not None
         else None
     )
     problems = eligibility_problems(
@@ -249,6 +297,14 @@ async def _assign_driver(
             satisfied={Requirement.DRIVER_ELIGIBLE},
             assignment_id=assignment.id,
             commit=False,
+        )
+        notifications_service.add(
+            session,
+            user_id=driver.id,
+            order_id=order.id,
+            kind=NOTIFICATION_ASSIGNED,
+            title="Admin assigned you an order",
+            body=f"{order.reference} · {order.quantity_litres:,} L",
         )
     except IntegrityError as exc:
         # A concurrent request took the driver or the order first.
@@ -443,6 +499,7 @@ async def withdraw_assignment(
         raise
     live.status = AssignmentStatus.WITHDRAWN
     live.ended_at = datetime.now(UTC)
+    notify_job_taken_back(session, driver_id=live.driver_user_id, order=order, cancelled=False)
     if not commit:
         await session.flush()
         return live
@@ -751,14 +808,28 @@ async def list_vehicle_profiles(session: AsyncSession) -> list[VehicleProfile]:
 
 
 async def set_driver_vehicle(
-    session: AsyncSession, *, phone: str, vehicle_profile_id: uuid.UUID
+    session: AsyncSession,
+    *,
+    phone: str,
+    vehicle_profile_id: uuid.UUID,
+    delivery_type: DeliveryType | None = None,
+    plate: str | None = None,
 ) -> DriverProfile:
     """Create or update a driver's profile with their vehicle. Commits.
+
+    The technical lead checks the driver and vehicle before running the
+    command, so a profile created here starts ``approved`` (partners.md:
+    drivers from the command-line tool keep working as before). It does not
+    change the approval status of an existing profile.
 
     Args:
         session: Database session.
         phone: The driver's normalized phone.
         vehicle_profile_id: An active vehicle profile.
+        delivery_type: Keke or tanker, if given (partners.md, the partner's
+            ``vehicle.delivery_type``).
+        plate: The plate, if given, already normalized
+            (:func:`app.modules.dispatch.plates.normalize_plate`).
 
     Returns:
         The driver profile.
@@ -775,10 +846,16 @@ async def set_driver_vehicle(
         raise LookupError("No active vehicle profile with this ID")
     profile = await session.scalar(select(DriverProfile).where(DriverProfile.user_id == user.id))
     if profile is None:
-        profile = DriverProfile(user_id=user.id, vehicle_profile_id=vehicle.id)
+        profile = DriverProfile(
+            user_id=user.id, vehicle_profile_id=vehicle.id, approval_status=ApprovalStatus.APPROVED
+        )
         session.add(profile)
     else:
         profile.vehicle_profile_id = vehicle.id
+    if delivery_type is not None:
+        profile.delivery_type = delivery_type
+    if plate is not None:
+        profile.plate = plate
     await session.commit()
     await session.refresh(profile)
     return profile
@@ -811,12 +888,12 @@ async def set_driver_availability(
 
 async def list_driver_profiles(
     session: AsyncSession,
-) -> list[tuple[DriverProfile, User, VehicleProfile]]:
-    """Return every driver profile with its account and vehicle."""
+) -> list[tuple[DriverProfile, User, VehicleProfile | None]]:
+    """Return every driver profile with its account and vehicle (None until verified)."""
     rows = await session.execute(
         select(DriverProfile, User, VehicleProfile)
         .join(User, User.id == DriverProfile.user_id)
-        .join(VehicleProfile, VehicleProfile.id == DriverProfile.vehicle_profile_id)
+        .outerjoin(VehicleProfile, VehicleProfile.id == DriverProfile.vehicle_profile_id)
         .order_by(User.name)
     )
     # SQLAlchemy 2.1: rows unpack directly; Result.tuples() is deprecated.
