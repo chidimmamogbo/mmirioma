@@ -20,8 +20,9 @@ failure, reassignment) are defined in S1-06. [orders.md](orders.md) only fixes
 the order-level statuses they must map onto.
 
 **Status:** proposed for review by Chidinma (orders) and Chukwuebuka (delivery).
-A contract is agreed once both reviews are done. Each document ends with its own
-open questions.
+A contract is agreed once both reviews are done, or when the technical lead
+agrees it alone (CLAUDE.md, "Team fork workflow"). Each document ends with its
+own open questions.
 
 ### Privacy notice page: no endpoints
 
