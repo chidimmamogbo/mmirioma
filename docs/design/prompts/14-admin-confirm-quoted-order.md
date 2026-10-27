@@ -5,8 +5,8 @@ Requirements: FR-012, FR-014, FR-022, FR-023, FR-024, FR-027, FR-030,
 FR-033 (rows 26 and 7), FR-036, FR-050, BR-02, BR-05, NFR-004, NFR-012,
 NFR-020, NFR-021, NFR-022 · Acceptance tests: T-04, T-09, T-14 · Contracts:
 [deliveries.md](../../api/deliveries.md#order-confirmation-endpoints)
-("Confirmation rules", extended in #21; agreed G3) and its [proposed
-amendment (#72)](../../api/deliveries.md#proposed-amendment-72-the-quotes-category-id-and-the-source-kind)
+("Confirmation rules", extended in #21; agreed G3) and its [agreed
+amendment (#72)](../../api/deliveries.md#amendment-72-the-quotes-category-id-and-the-source-kind)
 (the quote's category id, the source kind),
 [order-details-and-price.md](../../api/order-details-and-price.md)
 (question 14) · Backend: built in #113 and #21 · Build: a link issue opened
@@ -209,9 +209,9 @@ React and Tailwind v4 components.
 
 1. **The quote's category id:** add `id` to `quote.water_category` on the
    admin order detail (additive, read side); the confirm request stays as
-   agreed. Written as a [proposed
-   amendment](../../api/deliveries.md#proposed-amendment-72-the-quotes-category-id-and-the-source-kind);
-   agreed by @chidimmamogbo, waiting for @nnamdi-security.
+   agreed. Written as an
+   [amendment](../../api/deliveries.md#amendment-72-the-quotes-category-id-and-the-source-kind),
+   agreed (G3) by @chidimmamogbo and @nnamdi-security on PR #132.
 2. **The source's kind:** add `kind` (`ninth_mile`, `borehole` or `null`) to
    each `confirmation-options` source, so a priced Tanker order shows only
    sources of the customer's kind. Same amendment.

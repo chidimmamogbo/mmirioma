@@ -1758,13 +1758,14 @@ Additive, so the shipped dispatch history keeps working:
   `{ "water_category_label", "source_name", "delivery_window": { "start_at", "end_at" }, "total_minor_units", "manual": true }`.
   Every other entry has `confirmation: null`.
 
-#### Proposed amendment (#72): the quote's category id and the source kind
+#### Amendment (#72): the quote's category id and the source kind
 
-**Status: proposed** on 2026-10-27 by @Daveoski (+ Claude Code), for the
-confirm sheet of [#72](https://github.com/chidimmamogbo/mmirioma/issues/72)
-(prompt 14). Agreed by @chidimmamogbo (G3, review of PR #132); waiting for
-@nnamdi-security (contract owner). Not built. The rest of this section stays
-agreed as it is.
+**Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
+(technical lead, contract owner), on PR #132. Proposed by @Daveoski (+ Claude
+Code) for the confirm sheet of
+[#72](https://github.com/chidimmamogbo/mmirioma/issues/72) (prompt 14). Not
+built yet: it is built with the confirm screens' link issue. The rest of this
+section stays agreed as it is.
 
 **Gap.** Confirming an order placed with a server quote must send the
 quote's `water_category_id`, and for a Tanker order a `source_id` of the
