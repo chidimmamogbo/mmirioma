@@ -3,7 +3,7 @@ import orderSample from '../../../../../docs/api/examples/order-with-details.jso
 import { ApiError, createApiClient } from '../../../lib/api/client'
 import type { OrderRead } from '../../../lib/api/orders'
 import type { CreateOrderInput } from '../../../mocks/customerMock'
-import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput } from './order'
+import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput, submitFeedback } from './order'
 
 /** The agreed contract's example order (docs/api/order-details-and-price.md). */
 const SAMPLE = orderSample as unknown as OrderRead
@@ -170,5 +170,43 @@ describe('createOrder (real)', () => {
   it('passes 403 phone_not_verified through, so Review shows "Verify your phone number first"', async () => {
     const { client } = clientReturning({ body: NOT_VERIFIED, status: 403 })
     await expect(createOrder(KEKE_INPUT, client)).rejects.toMatchObject({ status: 403, code: 'phone_not_verified' } satisfies Partial<ApiError>)
+  })
+})
+
+const FEEDBACK = {
+  rating: 4,
+  poured_by_partner: true,
+  on_time: null,
+  quantity_as_ordered: null,
+  would_reorder: null,
+  message: null,
+  submitted_at: '2026-10-27T15:00:00Z',
+  updated_at: '2026-10-27T15:00:00Z',
+}
+
+describe('order feedback (#88 part 3)', () => {
+  it('reads the feedback on an order, and none when the server sends none', () => {
+    expect(customerOrderFromRead({ ...OLD_ORDER, feedback: FEEDBACK }).feedback).toEqual({ rating: 4, poured_by_partner: true })
+    expect(customerOrderFromRead({ ...OLD_ORDER, feedback: null }).feedback).toBeNull()
+    expect(customerOrderFromRead(OLD_ORDER).feedback).toBeNull()
+  })
+
+  it('sends the two answers with PUT, then returns the order with its feedback', async () => {
+    const { fetch, client } = clientReturning({ body: FEEDBACK, status: 201 }, { body: { ...OLD_ORDER, feedback: FEEDBACK } })
+    const order = await submitFeedback(OLD_ORDER.reference, { rating: 4, poured_by_partner: true }, client)
+    const [url, init] = fetch.mock.calls[0]
+    expect(url).toBe(`http://api.test/api/v1/orders/${OLD_ORDER.reference}/feedback`)
+    expect(init?.method).toBe('PUT')
+    expect(JSON.parse(init?.body as string)).toEqual({ rating: 4, poured_by_partner: true })
+    expect(fetch.mock.calls[1][0]).toBe(`http://api.test/api/v1/orders/${OLD_ORDER.reference}`)
+    expect(order.feedback).toEqual({ rating: 4, poured_by_partner: true })
+  })
+
+  it('passes 409 order_not_delivered through', async () => {
+    const { client } = clientReturning({ body: { error: { code: 'order_not_delivered', message: 'Rate after delivery', details: null } }, status: 409 })
+    await expect(submitFeedback('MO-7KQ2M9XH4T', { rating: 5, poured_by_partner: false }, client)).rejects.toMatchObject({
+      status: 409,
+      code: 'order_not_delivered',
+    } satisfies Partial<ApiError>)
   })
 })
