@@ -7,13 +7,14 @@ and the delivery details from docs/api/order-details-and-price.md
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated, Literal, cast
+from typing import Annotated, Literal, Self, cast
 
 from pydantic import (
     AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StringConstraints,
     ValidationInfo,
     field_validator,
@@ -25,10 +26,14 @@ from app.modules.orders.models import (
     CONTACT_NAME_MAX_LENGTH,
     DELIVERY_ADDRESS_MAX_LENGTH,
     DELIVERY_INSTRUCTIONS_MAX_LENGTH,
+    FEEDBACK_MESSAGE_MAX_LENGTH,
+    FEEDBACK_RATING_MAX,
+    FEEDBACK_RATING_MIN,
     KEKE_CAN_SIZES_LITRES,
     LANDMARK_MAX_LENGTH,
     DeliveryType,
     Order,
+    OrderFeedback,
     OrderStatus,
     TankType,
     WaterSourcePreference,
@@ -78,6 +83,11 @@ DeliveryAddress = Annotated[
 Landmark = Annotated[
     str,
     StringConstraints(strip_whitespace=True, max_length=LANDMARK_MAX_LENGTH),
+    AfterValidator(_blank_to_none),
+]
+FeedbackMessage = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, max_length=FEEDBACK_MESSAGE_MAX_LENGTH),
     AfterValidator(_blank_to_none),
 ]
 DeliveryInstructions = Annotated[
@@ -282,12 +292,58 @@ class OrderQuoteRead(BaseModel):
     water_category: QuoteCategoryRead
 
 
-class OrderRead(BaseModel):
-    """An order as its customer sees it (``OrderRead`` in the contract).
+class FeedbackInput(BaseModel):
+    """``PUT /orders/{reference}/feedback`` (FR-051; customer-account.md, "Order feedback").
 
-    Has no internal ID, customer ID or ``is_simulated``: customers never see
-    them (BR-09). Build it with :meth:`from_order`, which needs the zone's
-    name and the quote's summary from the pricing module
+    ``rating`` and ``poured_by_partner`` are required; the other answers are
+    optional (decision 7). Strict types, so ``"5"`` or ``"yes"`` is refused
+    rather than read as a number or ``true``. Unknown fields are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    rating: Annotated[int, Field(strict=True, ge=FEEDBACK_RATING_MIN, le=FEEDBACK_RATING_MAX)]
+    poured_by_partner: StrictBool
+    on_time: StrictBool | None = None
+    quantity_as_ordered: StrictBool | None = None
+    would_reorder: StrictBool | None = None
+    message: FeedbackMessage | None = None
+
+
+class FeedbackRead(BaseModel):
+    """The ``Feedback`` object: the answers plus when they were given."""
+
+    rating: int
+    poured_by_partner: bool
+    on_time: bool | None
+    quantity_as_ordered: bool | None
+    would_reorder: bool | None
+    message: str | None
+    submitted_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_feedback(cls, feedback: OrderFeedback) -> FeedbackRead:
+        """Build the response from the stored row (``created_at`` is the first submission)."""
+        return cls(
+            rating=feedback.rating,
+            poured_by_partner=feedback.poured_by_partner,
+            on_time=feedback.on_time,
+            quantity_as_ordered=feedback.quantity_as_ordered,
+            would_reorder=feedback.would_reorder,
+            message=feedback.message,
+            submitted_at=feedback.created_at,
+            updated_at=feedback.updated_at,
+        )
+
+
+class OrderBaseRead(BaseModel):
+    """The order fields customers and staff both see.
+
+    ``OrderRead`` (the customer) adds ``feedback``; ``AdminOrderRead`` (staff)
+    adds internal fields. Has no internal ID, customer ID or
+    ``is_simulated``. Build it with :meth:`from_order`, which needs the
+    zone's name and the quote's summary from the pricing module
     (``orders.service.read_lookups``).
 
     Attributes:
@@ -317,8 +373,8 @@ class OrderRead(BaseModel):
     quote: OrderQuoteRead | None
 
     @classmethod
-    def from_order(cls, order: Order, lookups: ReadLookups) -> OrderRead:
-        """Build the customer view of an order.
+    def from_order(cls, order: Order, lookups: ReadLookups) -> Self:
+        """Build the shared view of an order.
 
         Args:
             order: The order.
@@ -412,7 +468,38 @@ class OrderHoldRead(BaseModel):
     since: datetime
 
 
-class AdminOrderRead(OrderRead):
+class OrderRead(OrderBaseRead):
+    """An order as its customer sees it (``OrderRead`` in the contract).
+
+    Customers never see internal IDs or ``is_simulated`` (BR-09).
+
+    Attributes:
+        feedback: The customer's feedback on the order (FR-051), or null.
+            Customers only: not on the staff views (customer-account.md).
+    """
+
+    feedback: FeedbackRead | None = None
+
+    @classmethod
+    def from_order(cls, order: Order, lookups: ReadLookups) -> Self:
+        """Build the customer view of an order, with its feedback.
+
+        Args:
+            order: The order.
+            lookups: Zone names, quote summaries and feedback covering the
+                order (``orders.service.read_lookups``).
+
+        Returns:
+            The customer representation.
+        """
+        feedback = lookups.feedback.get(order.id)
+        return cls(
+            **OrderBaseRead.from_order(order, lookups).model_dump(),
+            feedback=FeedbackRead.from_feedback(feedback) if feedback is not None else None,
+        )
+
+
+class AdminOrderRead(OrderBaseRead):
     """An order as staff see it: the customer view plus internal fields.
 
     Attributes:
@@ -448,7 +535,7 @@ class AdminOrderRead(OrderRead):
             The admin representation.
         """
         return cls(
-            **OrderRead.from_order(order, lookups).model_dump(),
+            **OrderBaseRead.from_order(order, lookups).model_dump(),
             id=order.id,
             customer=OrderCustomer(
                 id=customer.id,

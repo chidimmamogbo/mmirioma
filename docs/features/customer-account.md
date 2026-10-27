@@ -1,12 +1,13 @@
-# Customer account (profile and saved addresses)
+# Customer account (profile, saved addresses, order feedback)
 
-Issue: #82 (part 1 of 4) · Contract:
+Issue: #82 (parts 1 and 3 of 4) · Contract:
 [customer-account.md](../api/customer-account.md) (agreed 2026-10-27, #11 and
-#48) · Requirements: FR-001, FR-010, FR-020, FR-024, NFR-004, NFR-005
+#48) · Requirements: FR-001, FR-010, FR-020, FR-024, FR-051, NFR-004, NFR-005
 
-Part 1 builds the profile read and saved addresses. Notifications (part 2),
-order feedback (part 3), and support and deletion requests (part 4) are not
-built yet; their screens stay on mocks.
+Part 1 builds the profile read and saved addresses; part 3 builds order
+feedback. Customer notifications (part 2) have their own document,
+[notifications.md](notifications.md). Support and deletion requests (part 4)
+are not built yet; their screens stay on mocks.
 
 ## 1. Overview and purpose
 
@@ -42,6 +43,13 @@ screens read these endpoints once their link issue is done.
 | `backend/alembic/versions/20261027_0019_add_customer_addresses.py` | The table and its indexes |
 | `backend/tests/test_customer_account_api.py` | Roles, CSRF, validation, bodies against the contract examples (no database) |
 | `backend/tests/test_customer_account_integration.py` | Every rule against a real database |
+| `backend/app/modules/orders/models.py` | `OrderFeedback` (`feedback`), part 3 |
+| `backend/app/modules/orders/schemas.py` | `FeedbackInput`, `FeedbackRead`; `OrderRead` (customer) gains `feedback`, the shared fields move to `OrderBaseRead` so staff views stay without it |
+| `backend/app/modules/orders/service.py` | `put_feedback`; `feedback_by_order` and `read_lookups(..., with_feedback=True)` for the customer views |
+| `backend/app/modules/orders/router.py` | `PUT /orders/{reference}/feedback` |
+| `backend/app/modules/orders/retention.py` | Blanks the feedback message when an order is anonymized |
+| `backend/alembic/versions/20261027_0020_add_order_feedback.py` | The `feedback` table |
+| `backend/tests/test_order_feedback_api.py`, `backend/tests/test_order_feedback_integration.py` | Feedback without and with a database |
 
 ## 4. Database models and relationships
 
@@ -55,6 +63,16 @@ screens read these endpoints once their link issue is done.
 | `address` | 5-500 characters |
 | `landmark` | Up to 200 characters, nullable |
 | `is_default` | Partial unique index `uq_customer_addresses_one_default` on `customer_id` where `is_default`: never two defaults |
+
+`feedback` (migration `0020`, SRS §5):
+
+| Column | Rule |
+| --- | --- |
+| `order_id` | → `orders`, unique (one per order), CASCADE: feedback goes with its order |
+| `rating` | SMALLINT, CHECK 1-5 (`ck_feedback_rating_range`) |
+| `poured_by_partner` | Required boolean |
+| `on_time`, `quantity_as_ordered`, `would_reorder` | Optional booleans |
+| `message` | Up to 500 characters, nullable |
 
 Latitude and longitude (SRS §5, optional) are not stored until a screen
 collects them. The privacy tool deletes a customer's addresses before it
@@ -73,6 +91,13 @@ All under `/api/v1`, customer session only, CSRF on unsafe methods.
 | PATCH | `/me/addresses/{id}` | 200 address | 404 `address_not_found`, 404 `service_zone_not_found`, 422 `validation_error` |
 | POST | `/me/addresses/{id}/default` | 200 address | 404 `address_not_found` |
 | DELETE | `/me/addresses/{id}` | 204 | 404 `address_not_found`, 409 `default_address` |
+| PUT | `/orders/{reference}/feedback` | 201 `Feedback` the first time, 200 when replaced | 404 `order_not_found`, 409 `order_not_delivered`, 422 `validation_error` |
+
+`Feedback` is the body plus `submitted_at` (first submission) and
+`updated_at`. The customer's `OrderRead` (`GET /orders`,
+`GET /orders/{reference}`, `POST /orders`) carries it as `feedback`, or
+null. Staff order views do not (the contract leaves staff views to #22,
+which did not add it).
 
 Bodies match the contract examples (`customer-profile.json`,
 `saved-addresses-page.json`, `address-create-request.json`,
@@ -99,6 +124,19 @@ Bodies match the contract examples (`customer-profile.json`,
   never the address text. Setting the current default again, or saving an
   address unchanged, writes no row.
 
+**Order feedback** (FR-051, contract "Order feedback"):
+
+- Only a `delivered` order can be rated (409 `order_not_delivered`); no time
+  limit after delivery (decision 7).
+- One feedback per order: `PUT` again replaces it (FR-051 duplicate
+  protection). The order row is locked first, so two requests at once
+  cannot both insert; the unique `order_id` is the last defence.
+- `rating` (1-5) and `poured_by_partner` are required; the other three
+  answers are optional, with no screen change now (decision 7). Strict
+  types: `"5"` or `"yes"` is refused. A blank message becomes null.
+- Never shown to drivers. Anonymizing the order (privacy tool) blanks the
+  message and keeps the answers, which hold no personal data.
+
 ## 7. Authentication and authorization requirements
 
 Customer session only (FR-001): admins and drivers get 403 `forbidden`.
@@ -121,15 +159,15 @@ exist.
 
 ```bash
 cd backend
-pytest tests/test_customer_account_api.py
+pytest tests/test_customer_account_api.py tests/test_order_feedback_api.py
 # with the fork's test database (never the dev database; see docs/log):
-TEST_DATABASE_URL=<mmirioma_fork_test URL> pytest tests/test_customer_account_integration.py tests/test_privacy_integration.py
+TEST_DATABASE_URL=<mmirioma_fork_test URL> pytest tests/test_customer_account_integration.py tests/test_order_feedback_integration.py tests/test_privacy_integration.py
 ```
 
 ## 10. Known limitations
 
-- Parts 2-4 of the contract (notifications, feedback, support and deletion
-  requests) are not built yet (#82).
+- Part 4 of the contract (support and deletion requests) is not built yet
+  (#82).
 - The customer screens still use their mocks until the lane B link issue.
 - No latitude or longitude on addresses yet (road distance needs them,
   SRS §12.1).

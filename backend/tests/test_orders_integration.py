@@ -464,7 +464,11 @@ def test_admin_sees_any_order_with_its_customer(
 
     assert response.status_code == 200
     detail = response.json()
+    # Every customer field, except feedback, which customers see and staff
+    # views do not (docs/api/customer-account.md, "Order feedback").
+    assert order.pop("feedback") is None
     assert {key: detail[key] for key in order} == order
+    assert "feedback" not in detail
     assert detail["is_simulated"] is False
     assert detail["customer"]["phone"] == customer_phone
     assert detail["customer"]["phone_verified"] is True  # set by add_account (FR-003)

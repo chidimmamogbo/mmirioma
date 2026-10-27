@@ -25,7 +25,7 @@ export function PartnerHomeTopBar() {
   const { base } = usePartnerApp()
   const profile = usePartnerProfile()
   const notes = usePartnerNotifications()
-  const unread = notes.data?.filter((n) => !n.read).length ?? 0
+  const unread = notes.data?.unread_count ?? 0
   return (
     <TopBar
       left={<MenuLink to={`${base}/menu`} />}

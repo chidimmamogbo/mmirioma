@@ -17,7 +17,7 @@ import { formatNaira } from '../../../lib/format/money'
 import { phoneEnding } from '../../../lib/format/phone'
 import { mmss, useSecondsUntil } from '../../../lib/useNow'
 import { JobMiniCard } from '../components/JobParts'
-import { jobDeliveryType, jobQuantity } from '../jobHelpers'
+import { contactSuffix, jobDeliveryType, jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, useResendCode, useVerifyCode } from '../queries'
 
@@ -50,7 +50,10 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
 
   const resendAt = j.code_resend_at ? Date.parse(j.code_resend_at) : 0
   const wait = useSecondsUntil(resendAt)
-  const locked = j.code_tries_left <= 0 || (verify.error instanceof ApiError && verify.error.code === 'code_locked')
+  // No tries count yet means no code was issued yet: wait for it, never "locked" (@chidimmamogbo on #12).
+  const waiting = j.code_tries_left === null
+  const locked = (j.code_tries_left !== null && j.code_tries_left <= 0) || (verify.error instanceof ApiError && verify.error.code === 'code_locked')
+  const firstName = j.customer.contact_name?.split(' ')[0] ?? 'the customer'
   const keke = jobDeliveryType(j, vehicle) === 'keke'
   const tankType = j.choice?.delivery_type === 'tanker' ? j.choice.tank_type : null
   const issueLink = `${base}/issue?ref=${j.reference}&type=code_not_working`
@@ -80,17 +83,17 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           title="Enter delivery code"
           sub={
             showError
-              ? `${j.reference} · ${j.customer.contact_name}`
+              ? `${j.reference}${contactSuffix(j)}`
               : keke
-                ? `Pour the water first. Then ask the customer for the 6-digit code we sent to their phone ending ${phoneEnding(j.customer.phone)}.`
-                : `Pump the water in first, then ask ${j.customer.contact_name.split(' ')[0]} for the 6-digit code sent to their phone.`
+                ? `Pour the water first. Then ask the customer for the 6-digit code we sent to their phone${j.customer.phone ? ` ending ${phoneEnding(j.customer.phone)}` : ''}.`
+                : `Pump the water in first, then ask ${firstName} for the 6-digit code sent to their phone.`
           }
         />
         {!showError && (
           <JobMiniCard
             className="rise-2"
             job={j}
-            sub={keke ? `${jobQuantity(j)} · ${j.customer.contact_name}` : `${jobQuantity(j, 'short')}${tankType ? ` · ${tankType} tank` : ''}`}
+            sub={keke ? `${jobQuantity(j)}${contactSuffix(j)}` : `${jobQuantity(j, 'short')}${tankType ? ` · ${tankType} tank` : ''}`}
             trailing={j.earning_minor_units !== null ? <Chip tone="amber">{formatNaira(j.earning_minor_units)}</Chip> : undefined}
           />
         )}
@@ -144,6 +147,10 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
               Still not working? Ask admin to confirm the delivery
             </Link>
           </>
+        ) : waiting ? (
+          <Notice className="rise-3">
+            <b>Waiting for the delivery code.</b> We send it to the customer when you finish unloading.
+          </Notice>
         ) : (
           <>
             <div className="rise-3 flex justify-between text-[13px]">

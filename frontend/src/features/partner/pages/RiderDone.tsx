@@ -73,7 +73,8 @@ export function RiderDone() {
                 </div>
               </div>
               <Separator />
-              <KeyValue label="Customer" value={j.customer.contact_name} />
+              {/* The receiver is not sent once the job ends (real API): leave the row out. */}
+              {j.customer.contact_name && <KeyValue label="Customer" value={j.customer.contact_name} />}
               {j.delivered_at && <KeyValue label="Delivered at" value={formatDateTime(j.delivered_at)} />}
               {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>

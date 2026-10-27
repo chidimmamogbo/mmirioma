@@ -35,8 +35,12 @@ addresses, points, notifications, support and their profile.
    refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`, points,
    rating, "did they pour it in").
 7. **Account**: orders list and details (with receipt), points, saved
-   addresses, notifications, support (report a problem, contact), profile
-   (optional email, update preferences, change password, delete request).
+   addresses, notifications, support (report a problem, contact). **My
+   profile** (`/profile`): name, stats, phone and its verification. **Account
+   settings** (`/settings`, separate since #57, approved by @chidimmamogbo on
+   2026-10-27): change password, change phone number, privacy notice, delete
+   request, log out; the optional email and message switches show in mock
+   mode only (out of the pilot, customer-account.md decisions 1 and 3).
 
 ## 3. Important files
 
@@ -98,7 +102,12 @@ the default, remove) from [customer-account.md](../api/customer-account.md):
 
 The other account screens (notifications, support, feedback, account
 deletion) still use mocks until #82 builds them (#88 parts 2 and 3). Points
-stay on the mock: they are out of the MVP.
+stay on the mock: they are out of the MVP. Where a screen still has no data
+from the server, Home, the top bar, the menu and My profile take the name
+and phone from the session (`GET /auth/me`). Change password
+(`POST /auth/password`) and the support contact (`GET /public/contact`) are
+linked (#57); the email row and message switches sit on Account settings
+(`/settings`).
 
 ## 6. Important business rules
 
