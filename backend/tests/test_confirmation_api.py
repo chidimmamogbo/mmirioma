@@ -44,6 +44,7 @@ from app.modules.sources.models import (
     WaterCategory,
     WaterSource,
     WaterSourceCategory,
+    WaterSourceKind,
 )
 from tests.test_dispatch_api import confirmed_view, keys
 
@@ -130,7 +131,11 @@ class Fake:
             raise self.error
         potable = WaterCategory(id=uuid.uuid4(), code="potable", label="Potable Water")
         source = WaterSource(
-            id=uuid.uuid4(), name="Sample Borehole A", approximate_location="X", is_simulated=False
+            id=uuid.uuid4(),
+            name="Sample Borehole A",
+            approximate_location="X",
+            is_simulated=False,
+            kind=WaterSourceKind.BOREHOLE,
         )
         activation = WaterSourceCategory(
             source_id=source.id,
@@ -344,6 +349,8 @@ def test_options_match_the_contract_example(api: TestClient, fake: Fake) -> None
     source = body["categories"][0]["sources"][0]
     assert source["report_reference"] == "LR-0001"
     assert source["approved_until"] == "2027-01-30"
+    # Amendment #72: the kind, so a quoted Tanker order shows only matching sources.
+    assert source["kind"] == "borehole"
     assert "cost" not in json.dumps(body)
 
 

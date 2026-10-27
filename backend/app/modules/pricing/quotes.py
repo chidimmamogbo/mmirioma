@@ -122,9 +122,14 @@ class QuoteAnswer:
 
 @dataclass(frozen=True)
 class QuoteSummary:
-    """What a customer sees of an order's quote (total only, decision 6)."""
+    """What a customer sees of an order's quote (total only, decision 6).
+
+    ``water_category_id`` is for staff only: admins confirm with it
+    (deliveries.md, amendment #72); the customer's view leaves it out.
+    """
 
     total_minor_units: int
+    water_category_id: uuid.UUID
     water_category_label: str
     supported_uses: str | None
 
@@ -434,6 +439,7 @@ async def quote_summaries(
     return {
         quote.id: QuoteSummary(
             total_minor_units=quote.total_minor_units,
+            water_category_id=quote.water_category_id,
             water_category_label=quote.water_category_label,
             supported_uses=uses.get(quote.water_category_id),
         )
