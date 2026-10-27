@@ -48,7 +48,18 @@ class Settings(BaseSettings):
             Use ``none`` only when the frontend and API are on different sites;
             it requires a secure cookie.
         support_phone: Customer support number in E.164 form, used in SMS
-            templates (FR-055). Defaults to the official number.
+            templates and ``GET /public/contact`` (FR-055). Defaults to the
+            official number.
+        support_whatsapp_enabled: Whether WhatsApp support is on for
+            ``support_phone`` (FR-055: only once confirmed active). When
+            false, ``GET /public/contact`` returns ``whatsapp: null``.
+        pilot_water_category: Code of the one water category every pilot
+            quote and order uses (order details contract, question 2):
+            ``utility`` (Utility Water) by default; ``potable`` only once a
+            source is activated for it after laboratory verification
+            (FR-012, FR-014).
+        quote_validity_minutes: How long a server quote can be ordered
+            (FR-023, SRS §8; contract question 7): 60 by default.
         sms_provider: ``mock`` (development and test: nothing is sent, the
             message is logged locally) or ``termii``. Production requires
             ``termii`` (FR-003).
@@ -88,6 +99,9 @@ class Settings(BaseSettings):
     session_cookie_secure: bool | None = None
     session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     support_phone: str = OFFICIAL_SUPPORT_PHONE
+    support_whatsapp_enabled: bool = False
+    pilot_water_category: Literal["potable", "utility"] = "utility"
+    quote_validity_minutes: int = Field(default=60, ge=1, le=24 * 60)
     sms_provider: Literal["mock", "termii"] = "mock"
     termii_base_url: str = "https://api.ng.termii.com"
     termii_api_key: SecretStr | None = None

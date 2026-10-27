@@ -52,6 +52,7 @@ from app.modules.dispatch.schemas import (
     WithdrawRequest,
 )
 from app.modules.messaging.sms import SmsProvider, get_sms_provider
+from app.modules.orders import service as orders_service
 from app.modules.orders.models import OrderStatus, TransitionReason
 from app.modules.orders.schemas import AdminOrderRead
 from app.modules.payments import service as payments_service
@@ -83,6 +84,7 @@ def _detail(detail: holds.OrderDetail) -> AdminOrderDetail:
         hold_read(detail.hold),
         OrderConfirmationFields.from_view(detail.dispatch.staff_order.order, detail.confirmation),
         OrderPaymentRead.from_view(detail.payment),
+        lookups=detail.lookups,
     )
 
 
@@ -105,10 +107,14 @@ async def list_orders(
         limit=filters.limit,
         offset=filters.offset,
     )
+    lookups = await orders_service.read_lookups(db, (item.staff_order.order for item in items))
     return HeldAdminOrderPage(
         items=[
             AdminOrderRead.from_order(
-                item.staff_order.order, item.staff_order.customer, hold_read(item.hold)
+                item.staff_order.order,
+                item.staff_order.customer,
+                hold_read(item.hold),
+                lookups=lookups,
             )
             for item in items
         ],

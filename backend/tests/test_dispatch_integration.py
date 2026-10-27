@@ -492,6 +492,7 @@ def test_offer_by_reference_returns_the_current_detail(created: Created) -> None
                 None,
                 OrderConfirmationFields.from_view(offered.staff_order.order, view),
                 OrderPaymentRead.from_view(payment),
+                lookups=orders_service.ReadLookups(),  # no zone, no quote
             ).model_dump()
             again, repeated_new = await service.offer_order(
                 session, reference=order.reference, driver_user_id=driver.id, admin=admin

@@ -34,6 +34,7 @@ from app.modules.dispatch.schemas import (
     DispatchDriver,
     DispatchDriverList,
 )
+from app.modules.orders import service as orders_service
 from app.modules.payments import service as payments_service
 from app.modules.payments.schemas import OrderPaymentRead
 
@@ -97,4 +98,5 @@ async def assign(
         None,
         OrderConfirmationFields.from_view(staff_order, view),
         OrderPaymentRead.from_view(payment),
+        lookups=await orders_service.read_lookups(db, [staff_order]),
     )

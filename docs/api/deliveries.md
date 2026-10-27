@@ -1509,7 +1509,11 @@ Derived from the approved
 proposal's four open questions were answered in that review and are
 [decisions 7-10](#confirmation-decisions). Built in #112 (source records)
 and #113 (`backend/app/modules/confirmation/`, migration `0012`; see
-[order-confirmation.md](../features/order-confirmation.md)).
+[order-confirmation.md](../features/order-confirmation.md)). Extended
+(additive) in #21 to confirm orders placed with a server quote from
+`awaiting_confirmation`, as decided by @nnamdi-security (technical lead) in
+[order details question 14](order-details-and-price.md#open-questions),
+2026-10-26.
 
 How a dispatcher confirms an order for the pilot (FR-030, row 7): they agree
 a manual quote (F2) and a delivery window (F3) with the customer, choose a
@@ -1529,15 +1533,27 @@ path `/api/v1`, formats, error envelope, CSRF) are in the
   `quote_requested` → `awaiting_confirmation` (reason `manual_quote`, see
   [state machine change](#state-machine-change-row-26)), then row 7. If any
   row 7 check fails, neither is written.
-- **Pilot orders start at `quote_requested`.** `expected_status` must be
-  `quote_requested`. An order in `awaiting_confirmation` got there by
-  accepting a server quote (row 3), which does not exist yet; confirming it
-  is design ahead (C4), so it is 409 `invalid_order_transition` here.
+- **Quote requests start at `quote_requested`.** `expected_status`
+  `quote_requested` confirms one with a manual total (rows 26 and 7).
+- **Quoted orders start at `awaiting_confirmation`** (#21, [order details
+  question 14](order-details-and-price.md#open-questions), additive). An
+  order placed with a server quote got there by row 3. `expected_status`
+  `awaiting_confirmation` confirms it by **row 7 alone** (no row 26), with
+  **no** `manual_quote_total_minor_units` (422 if sent): the snapshot copies
+  the quote's total and is not manual. The category must be the quote's,
+  and for a Tanker order the source must be of the kind the customer chose
+  (`water_source`; a source with no kind set does not match); otherwise 422
+  on that field. A changed price is a repricing, which needs the customer's
+  documented agreement (BR-05, FR-036), so it is not offered here.
+- **`expected_status` must be the order's status**, and an
+  `awaiting_confirmation` order must have a quote; otherwise 409
+  `invalid_order_transition` and nothing changes.
 - **The checks run again under the order lock:** phone verified, source
   eligible for the chosen category today, delivery window set. Payment does
   not apply: every pilot order is pay on delivery (F4).
 - **The price is frozen** (FR-024): one price snapshot per confirmation,
-  marked `manual`, with the category label as it was. Later changes to a
+  marked `manual` for a manual total (not for a quoted order), with the
+  category label as it was. Later changes to a
   category or source never change it (FR-014, T-09).
 - **The SMS never changes the order** (FR-050). It is sent after the commit;
   its outcome is stored and returned, and a failure does not undo the
@@ -1545,7 +1561,7 @@ path `/api/v1`, formats, error envelope, CSRF) are in the
 - **Every confirmation is audited** (NFR-004, as hold decision 6): one
   `audit_logs` row in the same transaction, `action` `order_confirmed`,
   `target_type` `order`, `metadata` `{ "source_id", "water_category_id",
-  "manual_quote": true }`. No phone numbers, addresses, amounts or notes in
+  "manual_quote" }` (`true` for a manual total, `false` for a quoted order). No phone numbers, addresses, amounts or notes in
   `metadata`.
 
 ### Source eligibility (shared with R2)
@@ -1667,7 +1683,8 @@ the supplier's cost, not the customer's price).
 #### POST /admin/orders/{reference}/transition (confirm)
 
 The planned admin transition endpoint, agreed here **only** for `to:
-confirmed` from `quote_requested` (rows 26 and 7). `ConfirmRequest`:
+confirmed` from `quote_requested` (rows 26 and 7) or, for an order placed
+with a quote, from `awaiting_confirmation` (row 7, #21). `ConfirmRequest`:
 
 ```json
 {
@@ -1685,11 +1702,11 @@ confirmed` from `quote_requested` (rows 26 and 7). `ConfirmRequest`:
 | Field | Rule |
 | --- | --- |
 | `to` | `confirmed` |
-| `expected_status` | **Required**, `quote_requested`. A mismatch is 409 `invalid_order_transition` and nothing changes |
-| `water_category_id` | An active category; unknown is 422 (`loc` this field) |
-| `source_id` | An existing source; unknown is 422. Not eligible for the category is 409 `transition_requirements_unmet` with `source_eligible` |
+| `expected_status` | **Required**, `quote_requested` or (#21) `awaiting_confirmation` for an order placed with a quote. A mismatch is 409 `invalid_order_transition` and nothing changes |
+| `water_category_id` | An active category; unknown is 422 (`loc` this field). For a quoted order, the quote's category, else 422 |
+| `source_id` | An existing source; unknown is 422. For a quoted Tanker order, of the customer's `water_source` kind, else 422. Not eligible for the category is 409 `transition_requirements_unmet` with `source_eligible` |
 | `delivery_window` | Aware timestamps; `end_at` after `start_at`; `start_at` not in the past (2 minutes' clock tolerance). Otherwise 422 per field |
-| `manual_quote_total_minor_units` | Integer kobo, a **whole naira** (a multiple of 100; FR-022 rounds the payable amount to whole naira), at least 100 (₦1.00). **No upper limit** ([decision 7](#confirmation-decisions)); stored as `BigInteger`. Otherwise 422 |
+| `manual_quote_total_minor_units` | With `quote_requested`: **required**, integer kobo, a **whole naira** (a multiple of 100; FR-022 rounds the payable amount to whole naira), at least 100 (₦1.00). **No upper limit** ([decision 7](#confirmation-decisions)); stored as `BigInteger`. Otherwise 422. With `awaiting_confirmation`: must be absent or `null` (422 otherwise); the quote's total is confirmed |
 | `customer_agreement.method` | `phone_call`, `in_person_to_staff` or `other` (the hold review's codes). `other` requires `note` |
 | `customer_agreement.agreed_at` | Aware timestamp, not in the future (2 minutes' tolerance) and not before the order was created |
 | `customer_agreement.disclosures_confirmed` | Must be `true`: the dispatcher told the customer the total, category, window, cash after unloading, and no cancellation or redelivery charge (F5) |
@@ -1709,7 +1726,7 @@ Errors:
   written. The client reloads the options for `source_eligible` (C1
   refused).
 - 409 `invalid_order_transition` (`details.from`, `to`): the order is no
-  longer `quote_requested` (another dispatcher confirmed it, or the
+  longer in `expected_status` (another dispatcher confirmed it, or the
   customer cancelled).
 - A repeat of a confirmation that already succeeded is 409
   `invalid_order_transition`, never a second snapshot or SMS.

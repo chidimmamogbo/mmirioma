@@ -75,7 +75,7 @@ uses the pilot category); `quote-available.json` is the server's answer
 amount is illustrative, not a
 real price: `2000000` is ₦20,000.00.
 
-Customer account samples (**proposed**,
+Customer account samples (**agreed**,
 [../customer-account.md](../customer-account.md), #11) follow Sample
 Customer: `customer-profile.json` (no email, photo, preferences or points:
 left out by the contract's decisions, #48); `saved-addresses-page.json` (Home is the

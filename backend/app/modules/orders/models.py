@@ -4,7 +4,14 @@ Orders are created as price-less requests (docs/api/orders.md, "Why Sprint 1
 orders have no price"). For the pilot a dispatcher confirms an order with a
 manual quote, a water category, a source and a window (order confirmation,
 #113): the price lives in ``order_price_snapshots`` (pricing module), not on
-the order. Server quotes, zones and slots come later.
+the order. Server quotes and slots come later.
+
+**Order details** (docs/api/order-details-and-price.md, agreed 2026-10-26,
+#21): a new order says how it is delivered (``delivery_type``: Keke with
+jerrycans, or Tanker filling a tank), with the jerrycan or tank details, the
+customer's water source preference (Tanker only) and the service zone they
+picked (FR-020). The quantity is still stored in litres, derived exactly from
+the details (FR-021). Orders created before #21 have none of these.
 
 The confirmed delivery window is stored as two timestamps on the order
 (``delivery_window_start_at``/``end_at``) until delivery slots exist (FR-025);
@@ -145,6 +152,48 @@ class PaymentStatus(StrEnum):
 
 EVENT_NOTE_MAX_LENGTH = 500
 
+# Jerrycan sizes the Keke design offers (c-keke); a quantity is size x count.
+KEKE_CAN_SIZES_LITRES = (25, 50)
+
+
+class DeliveryType(StrEnum):
+    """How an order is delivered (design decision 9; order details contract)."""
+
+    #: A Keke (tricycle) carrying jerrycans.
+    KEKE = "keke"
+    #: A tanker filling the customer's tank.
+    TANKER = "tanker"
+
+
+class TankType(StrEnum):
+    """The customer's tank (design c-tanker). Recorded for the driver only (decision 5)."""
+
+    GROUND = "ground"
+    OVERHEAD = "overhead"
+
+
+class WaterSourcePreference(StrEnum):
+    """Where a Tanker customer prefers the water collected from (decision 10).
+
+    A preference, not a source assignment and never a quality claim (FR-014):
+    the dispatcher still picks an eligible source at confirmation (FR-012).
+    """
+
+    NINTH_MILE = "ninth_mile"
+    BOREHOLE = "borehole"
+
+
+def _choice_enum(enum_class: type[StrEnum], name: str, length: int) -> Enum:
+    # VARCHAR plus one CHECK, like the status columns (the schema's convention).
+    return Enum(
+        enum_class,
+        name=name,
+        native_enum=False,
+        create_constraint=True,
+        length=length,
+        values_callable=lambda members: [member.value for member in members],
+    )
+
 
 # Shared by both tables. VARCHAR plus a CHECK constraint rather than a native
 # PostgreSQL enum (same choice as users.role), so adding a status later is a
@@ -210,6 +259,19 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             received; 0 otherwise. Collected outside the app in the pilot (F9).
         overpaid_minor_units: Kobo received above the amount due, flagged for
             review (FR-041); any refund is recorded outside the app (F7).
+        delivery_type: :class:`DeliveryType`, or null on orders created
+            before #21 (quantity only).
+        keke_can_size_litres: Keke only: 25 or 50.
+        keke_can_count: Keke only: jerrycans; size x count is the quantity.
+        tanker_tank_type: Tanker only: :class:`TankType`.
+        tanker_quantity_local_gallons: Tanker only: as sent; the quantity is
+            gallons x 4 (FR-021).
+        water_source: Tanker only: :class:`WaterSourcePreference`.
+        service_zone_id: The zone the customer picked (FR-020), or null when
+            their area is not listed. Kept when the zone is later switched
+            off (FR-024).
+        quote_id: The server quote the order was placed with (pricing
+            module), frozen (FR-024); null for a quote request.
     """
 
     __tablename__ = "orders"
@@ -234,6 +296,22 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "outstanding_balance_minor_units >= 0 AND overpaid_minor_units >= 0",
             name="payment_balances_not_negative",
+        ),
+        # One shape per delivery type, and the stored litres follow exactly
+        # from the details (FR-021), so no code path can store a mismatch.
+        CheckConstraint(
+            "(delivery_type IS NULL AND keke_can_size_litres IS NULL AND keke_can_count IS NULL"
+            " AND tanker_tank_type IS NULL AND tanker_quantity_local_gallons IS NULL"
+            " AND water_source IS NULL)"
+            " OR (delivery_type = 'keke' AND keke_can_size_litres IN (25, 50)"
+            " AND keke_can_count >= 1 AND quantity_litres = keke_can_size_litres * keke_can_count"
+            " AND tanker_tank_type IS NULL AND tanker_quantity_local_gallons IS NULL"
+            " AND water_source IS NULL)"
+            " OR (delivery_type = 'tanker' AND tanker_tank_type IS NOT NULL"
+            " AND tanker_quantity_local_gallons >= 1"
+            " AND quantity_litres = tanker_quantity_local_gallons * 4 AND water_source IS NOT NULL"
+            " AND keke_can_size_litres IS NULL AND keke_can_count IS NULL)",
+            name="delivery_details_shape",
         ),
     )
 
@@ -294,6 +372,24 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         BigInteger, default=0, server_default="0"
     )
     overpaid_minor_units: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    delivery_type: Mapped[DeliveryType | None] = mapped_column(
+        _choice_enum(DeliveryType, "delivery_type", 10)
+    )
+    keke_can_size_litres: Mapped[int | None]
+    keke_can_count: Mapped[int | None]
+    tanker_tank_type: Mapped[TankType | None] = mapped_column(
+        _choice_enum(TankType, "tanker_tank_type", 10)
+    )
+    tanker_quantity_local_gallons: Mapped[int | None]
+    water_source: Mapped[WaterSourcePreference | None] = mapped_column(
+        _choice_enum(WaterSourcePreference, "water_source", 12)
+    )
+    service_zone_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("service_zones.id", ondelete="RESTRICT"), index=True
+    )
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("quotes.id", ondelete="RESTRICT"), index=True
+    )
 
 
 class OrderEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):

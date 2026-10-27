@@ -48,7 +48,7 @@ do, so concurrent decisions cannot both win.
 
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from http import HTTPStatus
@@ -181,6 +181,8 @@ class OrderDetail:
     confirmation: confirmation_service.ConfirmationView
     #: The payment card (K6, docs/api/payments.md); None before confirmation.
     payment: payments_service.PaymentView | None = None
+    #: The order's zone name and quote summary (order details contract).
+    lookups: orders_service.ReadLookups = field(default_factory=orders_service.ReadLookups)
 
 
 @dataclass(frozen=True)
@@ -406,6 +408,7 @@ async def get_order_detail(session: AsyncSession, *, reference: str) -> OrderDet
         hold=holds.get(order.id),
         confirmation=await confirmation_service.confirmation_view(session, order),
         payment=await payments_service.payment_view(session, order),
+        lookups=await orders_service.read_lookups(session, [order]),
     )
 
 

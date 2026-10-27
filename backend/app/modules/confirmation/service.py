@@ -6,29 +6,42 @@ fallback F2) and a **delivery window** (F3), chooses a **water category** and
 an **eligible source** (F1, FR-012), and confirms. Every pilot order is pay on
 delivery (F4) and has no cancellation or redelivery charge (F5).
 
+**Quoted orders** (#21, question 14 of docs/api/order-details-and-price.md):
+an order placed with a server quote is already ``awaiting_confirmation``
+(row 3). The dispatcher confirms it the same way, but with no manual total:
+row 7 runs alone and the snapshot copies the quote's total (``is_manual``
+false). A changed price would be a repricing, which needs the customer's
+documented agreement (BR-05), so it is not offered here.
+
 Rules, in the order they are applied by :func:`confirm_order`:
 
-1. **Only from ``quote_requested``** (the request's ``expected_status``). An
-   order already confirmed, cancelled or in ``awaiting_confirmation`` (only
-   reachable by a server quote, not built) is 409 ``invalid_order_transition``.
-   A repeated confirmation is therefore refused, never a second snapshot or SMS.
+1. **Only from the request's ``expected_status``**: ``quote_requested``, or
+   ``awaiting_confirmation`` for an order with a quote. Any other status, a
+   mismatch, or an ``awaiting_confirmation`` order without a quote is 409
+   ``invalid_order_transition``. A repeated confirmation is therefore
+   refused, never a second snapshot or SMS.
 2. **Field checks** (422 ``validation_error``, every problem at once): the
    category is active, the source exists, the window starts no earlier than
    now (2 minutes' clock tolerance), the customer agreed no later than now
-   and no earlier than the order was created. Schema checks (whole naira,
-   end after start, ``other`` needs a note, disclosures confirmed) run first,
-   in :mod:`app.modules.confirmation.schemas`.
+   and no earlier than the order was created. For a quoted order, the
+   category is the quote's (the one the customer accepted, FR-023, FR-024)
+   and, for a Tanker order, the source is of the kind the customer chose
+   (``water_source``; a source with no kind set does not match). Schema
+   checks (whole naira, total only for a quote request, end after start,
+   ``other`` needs a note, disclosures confirmed) run first, in
+   :mod:`app.modules.confirmation.schemas`.
 3. **Row 7 checks under the order lock** (409 ``transition_requirements_unmet``
    with ``details.missing``): ``phone_verified``, ``source_eligible`` (the
    shared check, :mod:`app.modules.sources.eligibility`) and
    ``delivery_window_set``. Nothing is written when one fails.
 4. **One transaction** (question 1): row 26 ``quote_requested`` →
-   ``awaiting_confirmation`` (reason ``manual_quote``), then row 7 →
+   ``awaiting_confirmation`` (reason ``manual_quote``; skipped for a quoted
+   order, already there), then row 7 →
    ``confirmed`` with the dispatcher's note; the order gets its category,
    source and window, and payment ``pay_on_delivery`` /
    ``pending_collection`` (F4, docs/api/payments.md); the price snapshot is
    stored (FR-024); one audit row
-   ``order_confirmed`` (NFR-004, ids only). The two events get increasing
+   ``order_confirmed`` (NFR-004, ids and ``manual_quote``). The two events get increasing
    times so the history lists them in order.
 5. **The confirmation SMS after the commit** (FR-050). Its outcome is stored
    on the order; a refused SMS never undoes the confirmation.
@@ -62,6 +75,7 @@ from app.modules.orders.models import (
     TransitionReason,
 )
 from app.modules.orders.transitions import Requirement
+from app.modules.pricing import quotes
 from app.modules.pricing.models import AgreementMethod, OrderPriceSnapshot
 from app.modules.sources.eligibility import (
     EligibilityReason,
@@ -160,13 +174,20 @@ async def confirmation_options(
 
 @dataclass(frozen=True)
 class ConfirmInput:
-    """A validated ``ConfirmRequest`` (schema checks already passed)."""
+    """A validated ``ConfirmRequest`` (schema checks already passed).
 
+    Attributes:
+        expected_status: ``quote_requested`` or ``awaiting_confirmation``.
+        total_minor_units: The manual total; None for a quoted order, whose
+            quote's total is confirmed.
+    """
+
+    expected_status: OrderStatus
     water_category_id: uuid.UUID
     source_id: uuid.UUID
     window_start_at: datetime
     window_end_at: datetime
-    total_minor_units: int
+    total_minor_units: int | None
     agreement_method: AgreementMethod
     agreed_at: datetime
     note: str | None
@@ -194,7 +215,7 @@ async def confirm_order(
     sms: SmsProvider,
     now: datetime | None = None,
 ) -> None:
-    """Confirm an order with a manual quote (rows 26 and 7). Commits.
+    """Confirm an order: a manual quote (rows 26 and 7), or its server quote (row 7). Commits.
 
     See the module docstring for the rules and their order.
 
@@ -213,7 +234,9 @@ async def confirm_order(
     now = now or datetime.now(UTC)
     staff = await orders_service.get_order_for_staff(session, reference=reference)
     order = await orders_service.lock_order(session, staff.order.id)
-    if order.status is not OrderStatus.QUOTE_REQUESTED:
+    quote = await quotes.get_quote(session, order.quote_id) if order.quote_id else None
+    quoted = data.expected_status is OrderStatus.AWAITING_CONFIRMATION
+    if order.status is not data.expected_status or quoted != (quote is not None):
         # Read before the rollback, which expires every loaded object.
         current = order.status
         await session.rollback()
@@ -226,6 +249,17 @@ async def confirm_order(
         errors.append(_field_error(["water_category_id"], "Choose an active water category"))
     if source is None:
         errors.append(_field_error(["source_id"], "Choose a water source from the list"))
+    if quote is not None and data.water_category_id != quote.water_category_id:
+        errors.append(
+            _field_error(["water_category_id"], "Choose the water category of the order's quote")
+        )
+    if (
+        quote is not None
+        and source is not None
+        and order.water_source is not None
+        and source.kind != order.water_source
+    ):
+        errors.append(_field_error(["source_id"], "Choose a source of the kind the customer chose"))
     if data.window_start_at < now - CLOCK_SKEW_TOLERANCE:
         errors.append(
             _field_error(["delivery_window", "start_at"], "The window cannot start in the past")
@@ -272,15 +306,20 @@ async def confirm_order(
             details={"missing": sorted(requirement.value for requirement in missing)},
         )
 
-    await orders_service.transition_order(
-        session,
-        order_id=order.id,
-        target=OrderStatus.AWAITING_CONFIRMATION,
-        actor=admin,
-        reason_code=TransitionReason.MANUAL_QUOTE,
-        occurred_at=now,
-        commit=False,
-    )
+    if quote is None:
+        await orders_service.transition_order(
+            session,
+            order_id=order.id,
+            target=OrderStatus.AWAITING_CONFIRMATION,
+            actor=admin,
+            reason_code=TransitionReason.MANUAL_QUOTE,
+            occurred_at=now,
+            commit=False,
+        )
+    # The schema requires a manual total exactly when there is no quote.
+    total_minor_units = quote.total_minor_units if quote else data.total_minor_units
+    if total_minor_units is None:
+        raise ValueError("A quote request is confirmed with a manual total")
     order.water_category_id = category.id
     order.source_id = source.id
     order.delivery_window_start_at = data.window_start_at
@@ -305,9 +344,9 @@ async def confirm_order(
         OrderPriceSnapshot(
             order_id=order.id,
             event_id=confirmed_event_id,
-            total_minor_units=data.total_minor_units,
+            total_minor_units=total_minor_units,
             currency="NGN",
-            is_manual=True,
+            is_manual=quote is None,
             water_category_id=category.id,
             water_category_label=category.label,
             source_id=source.id,
@@ -328,7 +367,7 @@ async def confirm_order(
         details={
             "source_id": str(source.id),
             "water_category_id": str(category.id),
-            "manual_quote": True,
+            "manual_quote": quote is None,
         },
     )
     await session.commit()
@@ -337,7 +376,7 @@ async def confirm_order(
         reference=order.reference,
         window_start_at=data.window_start_at,
         window_end_at=data.window_end_at,
-        total_minor_units=data.total_minor_units,
+        total_minor_units=total_minor_units,
     )
     await _send_confirmation_sms(
         session, order=order, phone=staff.customer.phone, text=text, sms=sms, now=now

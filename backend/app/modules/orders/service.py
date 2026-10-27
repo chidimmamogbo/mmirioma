@@ -7,7 +7,9 @@ Rules implemented here (docs/api/orders.md):
   (:func:`ensure_customer_can_order`).
 - **Creation (FR-020, FR-021, FR-027):** a customer's order request is stored
   in status ``quote_requested`` with no price, and an ``order_events`` row
-  records the creation (NFR-004).
+  records the creation (NFR-004). An order placed with a valid server quote
+  (``quote_id``, #21) also moves by row 3 to ``awaiting_confirmation`` in the
+  same transaction.
 - **Idempotency (FR-026, NFR-011, T-06):** the client sends one idempotency key
   per checkout attempt. Repeating the key with the same details returns the
   existing order; repeating it with different details is rejected with 409
@@ -24,9 +26,9 @@ phone). Validation belongs to the request schemas.
 
 import secrets
 import uuid
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
 from http import HTTPStatus
 
 from sqlalchemy import ColumnElement, func, select
@@ -36,8 +38,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import APIError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
-from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
+from app.modules.orders.models import (
+    DeliveryType,
+    Order,
+    OrderEvent,
+    OrderStatus,
+    TankType,
+    TransitionReason,
+    WaterSourcePreference,
+)
 from app.modules.orders.transitions import Actor, Requirement, check_transition
+from app.modules.pricing import quotes
+from app.modules.pricing import service as pricing
 from app.shared.lagos_time import lagos_day_start_utc
 
 # Crockford base32: digits and upper-case letters without I, L, O and U, so a
@@ -65,6 +77,15 @@ class NewOrder:
         landmark: Optional trimmed landmark.
         delivery_instructions: Optional trimmed instructions.
         preferred_delivery_date: Optional preferred date (Africa/Lagos).
+        delivery_type: Keke or Tanker, or ``None`` for the older
+            quantity-only request (order details contract).
+        keke_can_size_litres, keke_can_count: Keke details, else ``None``.
+        tanker_tank_type, tanker_quantity_local_gallons: Tanker details,
+            else ``None``.
+        water_source: Tanker only: the source preference.
+        service_zone_id: The zone the customer picked (FR-020), or ``None``.
+        quote_id: The server quote the customer accepted, or ``None`` for a
+            quote request (order details contract).
     """
 
     idempotency_key: uuid.UUID
@@ -75,6 +96,53 @@ class NewOrder:
     landmark: str | None = None
     delivery_instructions: str | None = None
     preferred_delivery_date: date | None = None
+    delivery_type: DeliveryType | None = None
+    keke_can_size_litres: int | None = None
+    keke_can_count: int | None = None
+    tanker_tank_type: TankType | None = None
+    tanker_quantity_local_gallons: int | None = None
+    water_source: WaterSourcePreference | None = None
+    service_zone_id: uuid.UUID | None = None
+    quote_id: uuid.UUID | None = None
+
+
+# The order columns a request sets beyond the receiver and quantity. A retry
+# with the same key must match all of them too (FR-026).
+_DETAIL_FIELDS = (
+    "delivery_type",
+    "keke_can_size_litres",
+    "keke_can_count",
+    "tanker_tank_type",
+    "tanker_quantity_local_gallons",
+    "water_source",
+    "service_zone_id",
+    "quote_id",
+)
+
+# Row 3's conditions, met by an order placed with a valid quote: the customer
+# accepted it, every pilot order is pay on delivery (F4), and a dispatcher
+# must still agree the source and window (row 7, F1, F3).
+_ROW_3_MET = (
+    Requirement.QUOTE_ACCEPTED,
+    Requirement.PAY_ON_DELIVERY,
+    Requirement.DISPATCHER_CHECK_NEEDED,
+)
+# Row 3's event is written just after row 1's, so the history lists them in order.
+_ROW_3_GAP = timedelta(microseconds=1)
+
+
+def _choice(request: NewOrder) -> quotes.Choice:
+    return quotes.Choice(
+        delivery_type=str(request.delivery_type),
+        keke_can_size_litres=request.keke_can_size_litres,
+        keke_can_count=request.keke_can_count,
+        tanker_tank_type=str(request.tanker_tank_type) if request.tanker_tank_type else None,
+        tanker_quantity_local_gallons=request.tanker_quantity_local_gallons,
+        water_source=str(request.water_source) if request.water_source else None,
+        quantity_litres=request.quantity_litres,
+        delivery_address=request.delivery_address,
+        service_zone_id=request.service_zone_id,
+    )
 
 
 def generate_order_reference() -> str:
@@ -128,6 +196,7 @@ def _matches_request(order: Order, request: NewOrder) -> bool:
         and order.landmark == request.landmark
         and order.delivery_instructions == request.delivery_instructions
         and order.preferred_delivery_date == request.preferred_delivery_date
+        and all(getattr(order, field) == getattr(request, field) for field in _DETAIL_FIELDS)
     )
 
 
@@ -177,6 +246,17 @@ async def create_order(
     there are no agreed prices in Sprint 1). Its creation is recorded as an
     ``order_events`` row with the customer as actor (NFR-004). Commits.
 
+    The delivery details and the picked zone are stored as sent (order
+    details contract). An unknown zone is refused; an inactive zone is
+    accepted, because a quote request is FR-010's request-assistance path
+    for an address outside the active zones.
+
+    **With a quote** (``quote_id``), on a new key only: the quote is checked
+    in the contract's order (:func:`pricing.quotes.check_quote_for_order`),
+    then the order is created by row 1 and moved by row 3 to
+    ``awaiting_confirmation`` in the same transaction (two events), and the
+    quote is frozen on it (FR-024). Without one, it stays ``quote_requested``.
+
     Idempotency (FR-026): the existing order for ``(customer_id,
     idempotency_key)`` is looked up first. If two requests with the same key
     race past that lookup, the database's unique constraint rejects the second
@@ -196,7 +276,11 @@ async def create_order(
 
     Raises:
         APIError: 409 ``idempotency_key_reused`` if the key was already used
-            with different details.
+            with different details; 404 ``service_zone_not_found`` for an
+            unknown zone (checked after the idempotency lookup, so a retry
+            always gets its original order); with a quote, 404
+            ``quote_not_found``, 409 ``quote_expired``, 422 ``quote_mismatch``
+            or 409 ``no_eligible_source``.
         IntegrityError: If inserting still fails after retries (for example the
             customer does not exist).
     """
@@ -204,6 +288,17 @@ async def create_order(
         existing = await _find_by_idempotency_key(session, customer_id, request.idempotency_key)
         if existing is not None:
             return _replay(existing, request)
+        if request.service_zone_id is not None:
+            await pricing.ensure_zone_exists(session, request.service_zone_id)
+        now = datetime.now(UTC)
+        if request.quote_id is not None:
+            await quotes.check_quote_for_order(
+                session,
+                quote_id=request.quote_id,
+                customer_id=customer_id,
+                choice=_choice(request),
+                now=now,
+            )
 
         order = Order(
             id=uuid.uuid4(),
@@ -219,12 +314,14 @@ async def create_order(
             delivery_instructions=request.delivery_instructions,
             preferred_delivery_date=request.preferred_delivery_date,
             is_simulated=is_simulated,
+            **{field: getattr(request, field) for field in _DETAIL_FIELDS},
         )
         event = OrderEvent(
             order_id=order.id,
             actor_id=customer_id,
             from_status=None,
             to_status=OrderStatus.QUOTE_REQUESTED,
+            created_at=now,
         )
         session.add(order)
         # Flush the order before adding the event so the event's foreign key
@@ -232,6 +329,18 @@ async def create_order(
         try:
             await session.flush()
             session.add(event)
+            if request.quote_id is not None:
+                await session.flush()
+                customer = await session.get(User, customer_id)
+                await transition_order(
+                    session,
+                    order_id=order.id,
+                    target=OrderStatus.AWAITING_CONFIRMATION,
+                    actor=customer,
+                    satisfied=_ROW_3_MET,
+                    occurred_at=now + _ROW_3_GAP,
+                    commit=False,
+                )
             await session.commit()
         except IntegrityError:
             await session.rollback()
@@ -243,6 +352,40 @@ async def create_order(
         await session.refresh(order)
         return order, True
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+@dataclass(frozen=True)
+class ReadLookups:
+    """What the order views need from other modules (order details contract).
+
+    The zone's current name (``service_zone``) and the quote's summary
+    (``quote``) are owned by the pricing module, so they are fetched once per
+    response through its service functions and passed to the view builders.
+
+    Attributes:
+        zone_names: Zone name by id.
+        quotes: Customer-visible summary by quote id (total only, decision 6).
+    """
+
+    zone_names: Mapping[uuid.UUID, str] = field(default_factory=dict)
+    quotes: Mapping[uuid.UUID, quotes.QuoteSummary] = field(default_factory=dict)
+
+
+async def read_lookups(session: AsyncSession, orders: Iterable[Order]) -> ReadLookups:
+    """Fetch the zone names and quote summaries the given orders' views need.
+
+    Args:
+        session: Database session.
+        orders: The orders about to be shown.
+
+    Returns:
+        The lookups, covering every zone and quote of ``orders``.
+    """
+    orders = list(orders)
+    return ReadLookups(
+        zone_names=await pricing.zone_names(session, (order.service_zone_id for order in orders)),
+        quotes=await quotes.quote_summaries(session, (order.quote_id for order in orders)),
+    )
 
 
 async def get_customer_order(

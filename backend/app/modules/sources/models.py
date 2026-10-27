@@ -1,7 +1,9 @@
 """Water source persistence (SRS §5, FR-011, FR-012, FR-014).
 
 - ``water_sources``: a supplier or source where water is collected, with an
-  approximate pickup location.
+  approximate pickup location and its **kind** (``ninth_mile`` or
+  ``borehole``, #21), which a Tanker customer's source preference matches.
+  The kind says where the water is collected, never its quality (FR-014).
 - ``water_categories``: the two categories the app offers, Potable Water and
   Utility Water (FR-014), seeded by migration ``0011``. Labels are
   admin-configured; a later change never alters a confirmed order, which
@@ -46,6 +48,17 @@ REPORT_REFERENCE_MAX_LENGTH = 100
 STATUS_REASON_MAX_LENGTH = 500
 
 
+class WaterSourceKind(StrEnum):
+    """Where a source collects water (order details contract, point 2).
+
+    The same values as ``orders.models.WaterSourcePreference``, which the
+    orders module defines itself; a test keeps the two equal.
+    """
+
+    NINTH_MILE = "ninth_mile"
+    BOREHOLE = "borehole"
+
+
 class WaterSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A supplier or source where water is collected.
 
@@ -56,6 +69,9 @@ class WaterSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         is_simulated: True for demo data (BR-09). A real order may still use
             a simulated source for now (order confirmation contract,
             decision 9); clients show its Simulated tag.
+        kind: :class:`WaterSourceKind`, or null until the technical lead sets
+            it. A source with no kind can serve a Keke order (no preference)
+            but never matches a Tanker customer's preference.
     """
 
     __tablename__ = "water_sources"
@@ -63,6 +79,16 @@ class WaterSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(SOURCE_NAME_MAX_LENGTH))
     approximate_location: Mapped[str] = mapped_column(String(APPROXIMATE_LOCATION_MAX_LENGTH))
     is_simulated: Mapped[bool] = mapped_column(default=False, server_default=false())
+    kind: Mapped[WaterSourceKind | None] = mapped_column(
+        Enum(
+            WaterSourceKind,
+            name="water_source_kind",
+            native_enum=False,
+            create_constraint=True,
+            length=12,
+            values_callable=lambda kinds: [kind.value for kind in kinds],
+        )
+    )
 
 
 class WaterCategory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
