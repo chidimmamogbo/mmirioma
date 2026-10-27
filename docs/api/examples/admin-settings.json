@@ -1,0 +1,16 @@
+{
+  "support": {
+    "phone": "+2348133774902",
+    "whatsapp_enabled": true
+  },
+  "delivery_code_validity_minutes": 10,
+  "staff": [
+    {
+      "id": "7d3c2e1f-4b5a-4c6d-8e9f-0a1b2c3d4e5f",
+      "name": "Sample Admin",
+      "phone": "+2348000000099",
+      "role": "admin",
+      "last_sign_in_at": "2026-10-27T07:58:00Z"
+    }
+  ]
+}

@@ -152,3 +152,21 @@ agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
 ([../auth.md](../auth.md#change-password-8)). The passwords are
 samples, not real ones. `public-contact.json` is `GET /public/contact`
 ([../public-site.md](../public-site.md#get-publiccontact)).
+
+## Admin operations (proposed, #22)
+
+Samples for [../admin-operations.md](../admin-operations.md), all from
+simulated records (`is_simulated: true`, as `simulated=only` returns them).
+Delivery type and zone are `null` (`by_delivery_type`, `by_zone`, the live
+map's `delivery_type` and `zone`) because orders gain them only in #21.
+
+- Dashboard and map: `admin-shell.json`, `admin-dashboard.json`,
+  `admin-live-map.json` (one delivery on its way; one usable and one
+  unusable source), `admin-activity.json`.
+- Reports: `admin-report.json` (last 7 days; no pay, refunds or costs).
+- Support: `admin-support-requests-page.json` (one open, one resolved),
+  `admin-support-request.json` (the resolved one),
+  `admin-support-resolve-request.json`,
+  `error-support-request-already-resolved.json`.
+- Audit log, notifications, settings: `admin-audit-logs-page.json`,
+  `admin-notifications-page.json` (two unread), `admin-settings.json`.

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "support_request_already_resolved",
+    "message": "This support request is already resolved",
+    "details": null
+  }
+}
