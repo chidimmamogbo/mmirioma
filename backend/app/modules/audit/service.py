@@ -1,8 +1,10 @@
 """Write audit log rows (NFR-004)."""
 
 import uuid
+from collections.abc import Collection
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.audit.models import AuditLog
@@ -43,3 +45,27 @@ def record(
     )
     session.add(row)
     return row
+
+
+async def actors_with_rows(
+    session: AsyncSession, *, user_ids: Collection[uuid.UUID]
+) -> set[uuid.UUID]:
+    """Return which of these users acted in at least one audit row.
+
+    ``audit_logs.actor_id`` is RESTRICT, so such an account cannot be
+    deleted without losing its NFR-004 records; the privacy tool anonymizes
+    it instead.
+
+    Args:
+        session: Database session.
+        user_ids: The accounts to check.
+
+    Returns:
+        The ids that appear as an actor.
+    """
+    if not user_ids:
+        return set()
+    rows = await session.scalars(
+        select(AuditLog.actor_id).where(AuditLog.actor_id.in_(user_ids)).distinct()
+    )
+    return set(rows)

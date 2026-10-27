@@ -201,6 +201,21 @@ async def unverified_customer_ids(
     )
 
 
+async def get_users(session: AsyncSession, *, user_ids: Collection[uuid.UUID]) -> list[User]:
+    """Load accounts by id, for the privacy steps that change them.
+
+    Args:
+        session: Database session.
+        user_ids: The accounts.
+
+    Returns:
+        The accounts found, in no particular order.
+    """
+    if not user_ids:
+        return []
+    return list(await session.scalars(select(User).where(User.id.in_(user_ids))))
+
+
 async def delete_accounts(session: AsyncSession, *, user_ids: Collection[uuid.UUID]) -> int:
     """Delete accounts. Does not commit.
 

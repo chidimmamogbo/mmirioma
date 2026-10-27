@@ -56,22 +56,25 @@ python -m app.modules.privacy.cli retention-review --by <admin phone> --apply
 | `backend/app/modules/orders/retention.py` | Finished/unfinished orders, order anonymization, orders due after 3 years, disputed orders, note count |
 | `backend/app/modules/deliveries/retention.py` | Open holds and reviews, GPS clearing, delivery codes, note count |
 | `backend/app/modules/payments/retention.py` | Unsettled cash (refusals), part payments and overpayments (warnings), cash note count |
+| `backend/app/modules/customers/retention.py` | Saved addresses deleted with the account (#82) |
+| `backend/app/modules/audit/service.py` | `actors_with_rows`: which never-verified accounts audit rows name, so they are anonymized, not deleted (#82) |
 | `backend/tests/test_privacy.py` | Arguments, output and helpers (no database) |
 | `backend/tests/test_privacy_integration.py` | Every step against a real database |
 
 ## 4. Database models and relationships
 
-No new tables or migrations. The tool changes existing rows:
+No tables of its own. The tool changes rows of other modules:
 
 | Table | Anonymize customer | Retention review |
 | --- | --- | --- |
-| `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted |
+| `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted; those that audit rows name as the actor are anonymized as in the first column instead (#82) |
+| `customer_addresses` | Deleted | Deleted for every never-verified account the review deletes or anonymizes |
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
 | `phone_verifications` | Deleted | `code_hash` blanked on expired codes; rows kept |
 | `orders` | Contact name and phone, address replaced; landmark and instructions cleared | Same, for orders finished over 3 years ago |
 | `delivery_attempts`, `delivery_proofs` | GPS point and accuracy cleared | GPS over 90 days old cleared, except disputed orders and open holds or reviews |
 | `delivery_codes` | Kept | `code_hash` blanked on expired codes; rows kept (proofs point at them) |
-| `audit_logs` | `customer_anonymized` (counts) | `retention_review_applied` (counts) |
+| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`) |
 
 `correct-name` changes `users.name` and writes `account_name_corrected`.
 Audit details hold ids and counts only.
@@ -116,6 +119,15 @@ None.
 - **Staff notes are kept** as incident and safety records; the anonymize
   report counts them so the privacy contact can check them for personal
   details (technical lead, 2026-10-23).
+- **Never-verified accounts with audit rows are anonymized, not deleted**
+  (technical lead, 2026-10-27, #82). A customer who changed their password
+  or saved an address is the actor of audit rows, and
+  `audit_logs.actor_id` is RESTRICT: deleting the account would lose those
+  NFR-004 records and fail the whole review. The account is anonymized and
+  deactivated exactly as `anonymize-customer` does, so no personal data
+  remains; an already anonymized account is left alone. Saved addresses
+  are deleted in both cases (notice section 8: profile data goes with the
+  account).
 - **Retention periods** (notice section 8): never-verified accounts 30 days,
   GPS 90 days, orders 3 years after their last status change.
 - **Idempotent:** every step is selected by time or by "not yet done", so a
@@ -138,6 +150,8 @@ tool acts on customer accounts only.
   audit row.
 - A never-verified customer with orders (for example an anonymized one) is
   never deleted by the review.
+- A never-verified customer with audit rows is anonymized once; later runs
+  count it neither as deleted nor as anonymized.
 
 ## 9. Testing instructions
 
@@ -158,3 +172,7 @@ rows 2017-2021 and run it with `now` in 2021, before any other test row.
 - Support-line messages, server logs, backups and the request register are
   outside the database; the review prints them as a manual checklist.
 - Staff, driver and admin accounts are out of scope.
+- `PRIVACY_NOTICE.md` section 8 says a never-verified account "is deleted".
+  An account with audit rows is anonymized instead (#82): no personal data
+  remains, but the row stays. Whether the notice wording should say so is
+  for the privacy contact to decide (NFR-005).
