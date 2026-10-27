@@ -197,7 +197,12 @@ export function Dashboard() {
                 { header: 'Customer', cell: (o) => o.customer_name },
                 {
                   header: 'Type',
-                  cell: (o) => <span className={o.choice.delivery_type === 'keke' ? 'font-bold text-primary' : 'font-bold text-violet'}>{o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'}</span>,
+                  cell: (o) =>
+                    o.choice ? (
+                      <span className={o.choice.delivery_type === 'keke' ? 'font-bold text-primary' : 'font-bold text-violet'}>{o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'}</span>
+                    ) : (
+                      <span className="text-mute">Not recorded</span>
+                    ),
                 },
                 { header: 'Quantity', cell: (o) => o.quantity },
                 { header: 'Amount', cell: (o) => (o.total_minor_units === null ? 'Quote' : formatNaira(o.total_minor_units)) },

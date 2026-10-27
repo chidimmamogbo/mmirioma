@@ -14,6 +14,8 @@ export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
   on_the_way: 'blue',
   delivered: 'green',
   cancelled: 'red',
+  failed: 'red',
+  disputed: 'amber',
 }
 
 export const PAYMENT_LABEL: Record<PaymentStatus, string> = {

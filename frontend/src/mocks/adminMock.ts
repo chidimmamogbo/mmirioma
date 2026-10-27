@@ -46,7 +46,7 @@ import type {
   StationInput,
 } from '../domain/admin'
 import { RESOLUTION_LABEL } from '../domain/admin'
-import type { PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
+import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { describeChoice } from '../domain/orders'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
@@ -100,7 +100,24 @@ function customerIdOf(s: MockState, data: CustomerData): string | null {
   return Object.entries(s.customers).find(([, d]) => d === data)?.[0] ?? null
 }
 
-function partnerSummary(s: MockState, id: string | null): AdminOrderPartner | null {
+/** A partner as the mock knows it: code, vehicle and plate are always set. */
+type MockOrderPartner = AdminOrderPartner & { code: string; vehicle: DeliveryType; plate: string }
+
+/**
+ * Admin's order as the mock builds it. The mock always knows the area, the
+ * choice, the payment status, the station and the partner's details, so they
+ * are never `null` here; screens get the wider `AdminOrder`, which also fits
+ * the real API.
+ */
+type MockAdminOrder = AdminOrder & {
+  area: string
+  choice: WaterChoice
+  payment: { method: PaymentMethod; status: PaymentStatus }
+  station_name: string
+  partner: MockOrderPartner | null
+}
+
+function partnerSummary(s: MockState, id: string | null): MockOrderPartner | null {
   if (!id) return null
   const user = s.users.find((u) => u.id === id)
   const p = s.partners[id]
@@ -151,7 +168,7 @@ function allReferences(s: MockState): string[] {
 }
 
 /** Admin's view of one order, joining the job (dispatch) and the customer order (payment, owner). */
-function orderRow(s: MockState, reference: string): AdminOrder | null {
+function orderRow(s: MockState, reference: string): MockAdminOrder | null {
   const job = s.jobs.find((j) => j.reference === reference)
   const found = findCustomerOrder(s, reference)
   if (!job && !found) return null
@@ -191,7 +208,7 @@ function orderRow(s: MockState, reference: string): AdminOrder | null {
   }
 }
 
-function allOrders(s: MockState): AdminOrder[] {
+function allOrders(s: MockState): MockAdminOrder[] {
   return allReferences(s)
     .map((r) => orderRow(s, r)!)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))

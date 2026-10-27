@@ -10,6 +10,7 @@
 
 import { apiClient, ApiError, type ApiClient } from './client'
 import { orderHoldSchema, type OrderHold } from './holdTypes'
+import type { DeliveryType, KekeDetails, OrderQuoteRead, TankerDetails, WaterSourcePreference } from './orders'
 
 /**
  * Order statuses from FR-033 that the customer screens can show. Terminal:
@@ -76,6 +77,15 @@ export interface AdminOrderRead {
    * R0). A hold is not a status: the order keeps its status while it is open.
    */
   hold: OrderHold | null
+  /** Delivery details (#21): `null` on orders sent before them (quantity only). */
+  delivery_type: DeliveryType | null
+  keke: KekeDetails | null
+  tanker: TankerDetails | null
+  water_source: WaterSourcePreference | null
+  /** The zone the customer picked (FR-020), or `null`. */
+  service_zone: { id: string; name: string } | null
+  /** The quote the order was placed with (FR-024), or `null` for a quote request. */
+  quote: OrderQuoteRead | null
 }
 
 /** Standard list envelope (docs/api/README.md "Pagination"). */

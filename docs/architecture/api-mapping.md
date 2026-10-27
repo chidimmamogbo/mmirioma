@@ -252,7 +252,14 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 | `collected`, `en_route`, `arrived`, `unloading` | `on_the_way` |
 | `delivered` | `delivered` |
 | `cancelled` | `cancelled` |
-| `failed`, `disputed` | see open question 5 |
+| `failed` | `failed` ("Delivery failed") |
+| `disputed` | `disputed` ("Disputed") |
+
+`failed` and `disputed` are admin statuses of their own (open question 5,
+decided in #15), with the agreed staff labels from docs/api/orders.md. The
+order's payment status maps only where the design has an exact equivalent
+(`unpaid`, `awaiting_verification`, `paid`, `refunded`); for the others the
+order shows no payment chip, and the cash pages show them in full (#19).
 
 ## Open questions
 
@@ -262,5 +269,5 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 | 2 | ~~Keke 25 L × 12 cans is 300 L, below the 600 L minimum~~ Decided: removed (decision 4) | done |
 | 3 | ~~A customer stage for a status the app does not know~~ Decided in #9: a new stage `order_update`, labelled "Order update" as the contract asks ([Customer order stage](#customer-order-stage)) | done |
 | 4 | ~~Partner stages for `failed` and `disputed`~~ Decided: `failed` and `under_review` ([Partner job stage](#partner-job-stage)) | done |
-| 5 | Admin statuses for `failed` and `disputed`. Staff may need the backend's own staff labels (docs/api/orders.md) rather than six design statuses, for example to confirm orders before dispatch | #15 |
+| 5 | ~~Admin statuses for `failed` and `disputed`~~ Decided in #15: their own admin statuses, "Delivery failed" and "Disputed" ([Admin order status](#admin-order-status)). Whether staff also need the backend's own labels to confirm orders before dispatch stays with #17 | done |
 | 6 | ~~The design's "available" job pool has no backend endpoint~~ Decided: no pool in the MVP; `listAvailableJobs` returns `[]` ([Available orders and declining](#available-orders-and-declining)) | done |
