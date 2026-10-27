@@ -417,6 +417,9 @@ class OrderEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """
 
     __tablename__ = "order_events"
+    # The dashboard and reports find deliveries by their ``delivered`` event
+    # time (docs/api/admin-operations.md, #102).
+    __table_args__ = (Index("ix_order_events_to_status_created_at", "to_status", "created_at"),)
 
     order_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("orders.id", ondelete="RESTRICT"), index=True

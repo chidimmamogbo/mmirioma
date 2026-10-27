@@ -63,6 +63,7 @@ saving settings are out of the MVP).
 | `backend/app/modules/deliveries/holds.py`, `deliveries/service.py` | Open holds count; pickups per source |
 | `backend/app/modules/payments/service.py` | `cash_totals`: cash collected and reconciled in a range |
 | `backend/app/modules/sources/service.py` | `source_usability` (FR-012) and `source_names` |
+| `backend/alembic/versions/20261027_0022_add_report_date_indexes.py` | The three date-filter indexes (contract decision 10) |
 | `backend/app/modules/customers/requests.py` (part 2) | `recent_support_requests` for the activity list |
 | `backend/app/modules/dispatch/service.py` | `count_orders_needing_action` (shell) and `accepted_driver` (support contacts) |
 | `backend/app/modules/auth/service.py` | `list_staff`: active admins with `last_sign_in_at` |
@@ -74,7 +75,8 @@ saving settings are out of the MVP).
 
 ## 4. Database models and relationships
 
-No migration. Part 1 uses existing tables:
+Part 1 needs no migration; part 2 adds revision `0022` (three indexes,
+see below). Both use existing tables:
 
 - `notifications` (channel `in_app`): admin rows have `user_id` the admin
   and `order_id` the order, or null for `partner_pending` and a support
@@ -89,13 +91,11 @@ No migration. Part 1 uses existing tables:
   `cash_collections`, `pickup_records`, `driver_profiles`, `water_sources`
   with their category activations, `service_zones`, `users`,
   `user_sessions`.
-- **Indexes checked** (the contract asks the build to): `orders` has
-  `(status, created_at)` and `(customer_id, created_at)`. There is no index
-  on `cash_collections.collected_at`, `order_events (to_status,
-  created_at)` or `pickup_records.picked_up_at`, so those range filters
-  scan the table. At pilot volumes (tens of orders a day) that is fast, and
-  #102 adds migrations only if needed, so none is added; see Known
-  limitations.
+- **Indexes** (revision `0022`, contract decision 10): `orders` already
+  had `(status, created_at)`; the migration adds
+  `ix_cash_collections_collected_at`, `ix_order_events_to_status_created_at`
+  and `ix_pickup_records_picked_up_at` for the date filters. Indexes only,
+  no data changed; the downgrade drops them.
 
 ## 5. API endpoints and request/response behavior
 
@@ -165,15 +165,18 @@ Shared errors on every endpoint: 401 `not_authenticated`, 403 `forbidden`,
 - **On time** (FR-052): delivered at or before the confirmed window's end;
   an order without a window is never on time. The screen computes the rate
   (`on_time / with_window`).
+- **`range` is required** on `GET /admin/reports` (contract decision 7):
+  a missing `range` is 422 `validation_error`.
 - **Buckets, never guessed.** Orders without a delivery type count as
   `not_recorded`; orders without a zone go in one `by_zone` row with `null`
   id and name, left out when empty. `by_zone[].delivered` counts the
   zone's deliveries in the range by delivery time, so the rows add up to
-  `deliveries.delivered`.
+  `deliveries.delivered` (contract decision 8).
 - **Per driver and per source.** A delivery's driver is the one on the
   order's `completed` assignment. Pickups at another source (no
   `source_id`) are not counted in `by_source`. No pay, refunds, costs or
   contribution are returned (F6, F7; partner pay is out of the MVP).
+  Contract decision 9.
 - **Usable sources** (FR-012): at least one category activation passes the
   shared eligibility check today.
 - **Live map** (FR-037): orders with an accepted assignment in `accepted`
@@ -228,15 +231,8 @@ in the database does not affect them.
   status), so the contract's "an offer times out" message has no trigger.
   Whoever builds offer expiry adds it to `admin_messages` (technical lead,
   2026-10-27).
-- `range` on `GET /admin/reports` has no default (the contract names
-  none), so it is required.
-- `by_zone[].delivered` counts deliveries in the range (see section 6);
-  the contract does not define it further.
 - `simulated=only` stays available in every deployment until open
   question 6 is decided.
-- No index on `cash_collections.collected_at`, `order_events (to_status,
-  created_at)` or `pickup_records.picked_up_at` (section 4). Add them in a
-  reviewed migration if report queries slow down as data grows.
 - The contract's open questions stay open: which events notify admins (1),
   urgent support requests (2), an order-level CSV (3), support hours (4),
   reopening a resolved request (5).
