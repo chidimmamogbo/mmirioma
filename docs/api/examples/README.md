@@ -153,7 +153,7 @@ agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
 samples, not real ones. `public-contact.json` is `GET /public/contact`
 ([../public-site.md](../public-site.md#get-publiccontact)).
 
-## Admin operations (proposed, #22)
+## Admin operations (agreed, #22)
 
 Samples for [../admin-operations.md](../admin-operations.md), all from
 simulated records (`is_simulated: true`, as `simulated=only` returns them).
