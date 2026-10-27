@@ -9,7 +9,6 @@ import { resetMockDb } from '../../mocks/db'
 import { FAQS, OBJECTIONS, filterFaqs } from './content'
 import { FaqPage } from './FaqPage'
 import { MarketingHeader } from './MarketingParts'
-import { NewsletterSignup } from './SiteExtras'
 
 beforeAll(() => {
   // jsdom has no layout, so scrolling is a no-op here.
@@ -110,23 +109,22 @@ describe('routes', () => {
     for (const link of apply) expect(link).toHaveAttribute('href', '/partner/signup')
   }, 20_000)
 
-  it('puts benefits before features, and the worries right before the closing button and the newsletter', async () => {
+  it('puts benefits before features, and the worries with the closing button last, with no newsletter (#8)', async () => {
     resetMockDb()
     renderAt('/')
     const benefits = await screen.findByRole('heading', { level: 2, name: 'Your water, sorted from your phone' }, { timeout: 10_000 })
     const how = screen.getByRole('heading', { level: 2, name: /How MmiriOma works/ })
     const worries = screen.getByRole('heading', { level: 2, name: /Worried about something/ })
-    const newsletter = screen.getByRole('heading', { level: 2, name: 'Hear first when we reach your area' })
     const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(follows(benefits, how)).toBe(true)
     expect(follows(how, worries)).toBe(true)
-    expect(follows(worries, newsletter)).toBe(true)
+    expect(screen.queryByRole('heading', { name: 'Hear first when we reach your area' })).not.toBeInTheDocument()
     for (const o of OBJECTIONS) expect(screen.getByRole('heading', { level: 3, name: o.q })).toBeInTheDocument()
     const closing = within(worries.closest('section')!).getByRole('link', { name: /Order Water/ })
     expect(closing).toHaveAttribute('href', '/order')
   }, 20_000)
 
-  it('has a floating WhatsApp chat button, the default number until admin sets one', async () => {
+  it('has a floating WhatsApp chat button on the support number from the server (FR-055)', async () => {
     resetMockDb()
     renderAt('/')
     const chat = await screen.findByRole('link', { name: /Chat with MmiriOma on WhatsApp/ }, { timeout: 10_000 })
@@ -155,35 +153,4 @@ describe('routes', () => {
     const router = renderAt('/app')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/signin'), { timeout: 10_000 })
   }, 20_000)
-})
-
-describe('NewsletterSignup', () => {
-  function renderSignup() {
-    render(
-      <AppProviders>
-        <MemoryRouter>
-          <NewsletterSignup />
-        </MemoryRouter>
-      </AppProviders>,
-    )
-  }
-
-  it('checks the email before sending and then confirms the sign-up', async () => {
-    resetMockDb()
-    const user = userEvent.setup()
-    renderSignup()
-    const email = screen.getByLabelText('Your email address')
-    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Enter your email address.')
-    expect(email).toHaveAttribute('aria-invalid', 'true')
-
-    await user.type(email, 'not-an-email')
-    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email address')
-
-    await user.clear(email)
-    await user.type(email, 'Ada@Example.com')
-    await user.click(screen.getByRole('button', { name: 'Get the updates' }))
-    expect(await screen.findByRole('status', {}, { timeout: 5000 })).toHaveTextContent("You're subscribed.")
-  })
 })

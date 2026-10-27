@@ -50,7 +50,7 @@ marked existing ones `approved`, and `set-driver` creates new ones
 | `backend/app/modules/partners/router.py` | `/driver/profile`, `/driver/availability`, `/driver/notifications` |
 | `backend/app/modules/auth/router.py` | `POST /auth/partner-register`; drivers on the two phone-verification endpoints |
 | `backend/app/modules/auth/dependencies.py` | `CurrentCustomerOrDriver` |
-| `backend/app/modules/notifications/` | The `notifications` table and its service (add, list, mark read) |
+| `backend/app/modules/notifications/` | The `notifications` table, its service (add, list, mark read) and the notification bodies shared with customers (`schemas.py`); see [notifications.md](notifications.md) |
 | `backend/app/modules/dispatch/models.py` | `ApprovalStatus`, `DeliveryType`, `TransferMethod`, the new `DriverProfile` columns, `DriverServiceZone` |
 | `backend/app/modules/dispatch/service.py` | The `not_approved` reason; the `assigned` and `reassigned` messages |
 | `backend/app/modules/dispatch/plates.py` | The plate rule, shared by sign-up and the command-line tool |

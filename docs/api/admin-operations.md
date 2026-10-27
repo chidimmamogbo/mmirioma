@@ -2,14 +2,18 @@
 
 Requirements: FR-001, FR-030, FR-032, FR-035, FR-036, FR-037, FR-041,
 FR-052, FR-053, FR-055, BR-09, BR-12, NFR-003, NFR-004 · Issue: #22 ·
-Built in: not yet (a build issue follows agreement)
+Built in: #102 (part 1: shell, support requests, audit log, admin
+notifications without `assignment_expired`, settings; part 2: dashboard,
+live map, activity, reports;
+[feature doc](../features/admin-operations.md))
 
 **Status: agreed** (G3) on 2026-10-27 by @nnamdi-security (technical lead,
 backend, contract owner) and @chidimmamogbo (frontend, approved PR #71).
-Proposed the same day by @nnamdi-security (+ Claude Code). Not built: a build
-issue follows. The [open questions](#open-questions) stay open; until each is
-decided, the build does exactly what the body says (for example, no reopen and
-no order-level CSV).
+Proposed the same day by @nnamdi-security (+ Claude Code). Built in #102
+(see "Built in" above). The
+[open questions](#open-questions) stay open; until each is decided, the build
+does exactly what the body says (for example, no reopen and no order-level
+CSV).
 
 The remaining admin screens run on mocks with no backend. This contract
 proposes the endpoints that let them leave the mocks, and says which mock
@@ -102,6 +106,24 @@ Agreed with the lane owner (@nnamdi-security, 2026-10-27) before writing:
    [customer-account.md](customer-account.md#decisions) decision 12, and
    `refundAsPoints` also conflicts with FR-043. Refunds are recorded outside
    the app in the pilot (F7, [payments.md](payments.md#decisions)).
+
+## Decisions taken in #102
+
+Points the body left open, decided by the technical lead
+(@nnamdi-security, 2026-10-27) during the build:
+
+7. **`range` is required** on `GET /admin/reports`. The screen always sends
+   a pill; a missing `range` is a client error (422 `validation_error`),
+   not a silent default.
+8. **`by_zone[].delivered`** counts the zone's deliveries in the range, by
+   the time of their `delivered` event (the rule of `deliveries.delivered`),
+   so the zone rows add up to the total.
+9. **Per driver and per source.** A delivery's driver is the one on the
+   order's `completed` assignment (the `delivered` event records no
+   assignment). Pickups at another source (FR-034) have no source row and
+   are left out of `by_source`.
+10. **Indexes added now** for the date filters (revision `0022`): cash
+    `collected_at`, delivered events, and pickup times.
 
 ## Access rules
 
@@ -297,7 +319,8 @@ as events. Staff actions appear in the [audit log](#get-adminaudit-logs).
 
 The Reports page and its CSV download (FR-052, FR-053). Query: `range`
 (`today`, `7d` or `30d`, the screen's pills; `7d` is the 7 Lagos days ending
-today) and `simulated`.
+today; **required**, 422 `validation_error` when missing: decision 7) and
+`simulated`.
 
 **200** ([examples/admin-report.json](examples/admin-report.json))
 
@@ -325,9 +348,9 @@ today) and `simulated`.
 | `orders` | Orders created in the range, by backend status |
 | `deliveries`, `cash` | As on the dashboard, over the range |
 | `by_delivery_type` | As on the dashboard, over the range |
-| `by_zone` | Orders in the range per `service_zone_id` (FR-052 "service-zone results"), most first. One row with `zone_id` and `name` `null` collects orders with no zone (created before #21, or the area was not listed); it is left out when empty |
-| `by_driver` | Deliveries in the range per driver, most first. No pay: partner pay is out of the MVP, so the design's "Earned" column is dropped |
-| `by_source` | Pickup records (FR-034) in the range per source, most first. The design's "loads by station" |
+| `by_zone` | Orders in the range per `service_zone_id` (FR-052 "service-zone results"), most first. One row with `zone_id` and `name` `null` collects orders with no zone (created before #21, or the area was not listed); it is left out when empty. `delivered` is the zone's deliveries in the range, by the time of their `delivered` event, so the rows add up to `deliveries.delivered` (decision 8) |
+| `by_driver` | Deliveries in the range per driver, most first. The driver is the one on the order's `completed` assignment (decision 9). No pay: partner pay is out of the MVP, so the design's "Earned" column is dropped |
+| `by_source` | Pickup records (FR-034) in the range per source, most first. The design's "loads by station". A pickup at another source has no source row and is not counted (decision 9) |
 
 Not returned, as on the dashboard: refunds, variable costs, contribution
 (F6, F7). FR-042 asks that contribution is never labelled net profit; it is
@@ -577,8 +600,10 @@ these rows in its own small PR when the link issue starts.
   or settings: they read existing tables (`orders`, `order_events`,
   `assignments`, `order_exceptions`, `cash_collections`, `pickup_records`,
   `driver_profiles`, `water_sources`, `audit_logs`, `user_sessions`).
-  Indexes for the date ranges (`orders.created_at`,
-  `cash_collections.collected_at`) are checked in the build.
+  Indexes for the date ranges were checked in the build: `orders` has
+  `(status, created_at)`, and revision `0022` adds
+  `cash_collections (collected_at)`, `order_events (to_status, created_at)`
+  and `pickup_records (picked_up_at)` (decision 10).
 - `support_requests` ([customer-account.md](customer-account.md#data-needed-for-the-build-issue))
   gains `resolution_note` (up to 500 characters). Its `resolved_by` must be
   an admin. The privacy tool blanks the note with the message at
@@ -609,6 +634,7 @@ on the current backend, including the delivery type and zone breakdowns
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Clarified in the build (#102): decisions 7-10 (`range` required, `by_zone[].delivered`, per-driver and per-source rules, indexes); `assignment_expired` not created while offers never expire | @nnamdi-security (technical lead) |
 | 2026-10-27 | Agreed (G3) | @nnamdi-security (technical lead) and @chidimmamogbo (PR #71) |
 | 2026-10-27 | Brought up to date with main: orders now carry `delivery_type` and `service_zone_id` (#21 built), so the breakdowns and the live map use them, with a `not_recorded` bucket and a no-zone row for orders without them; customer-account.md is agreed (#48) | Not yet |
 | 2026-10-27 | Proposed (#22): admin shell counts, dashboard, live map, activity, reports, support requests (list, detail, resolve), audit log, admin notifications, read-only settings. Payouts, points, refund as points and saving settings not proposed | Not yet |

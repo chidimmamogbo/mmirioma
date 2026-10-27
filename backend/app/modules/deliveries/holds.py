@@ -1256,3 +1256,25 @@ async def order_history(
 
     # Stable sort, newest first; status changes keep their order among ties.
     return sorted([*entries, *holds], key=created_at, reverse=True)
+
+
+async def count_open_holds(session: AsyncSession) -> int:
+    """Count the jobs with an open hold waiting for an administrator (dashboard ``holds_open``).
+
+    FR-032 asks for driver rejections and timeouts "through dashboard state";
+    holds are the reviews staff must act on (admin-operations.md). One job
+    with two open holds (a pickup at another source with a safety concern)
+    counts once. A "now" value: the same for real and simulated numbers.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The count.
+    """
+    count = await session.scalar(
+        select(func.count(OrderException.assignment_id.distinct()))
+        .join(Assignment, Assignment.id == OrderException.assignment_id)
+        .where(*_open_hold_filter())
+    )
+    return count or 0

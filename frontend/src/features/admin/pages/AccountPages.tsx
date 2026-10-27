@@ -116,8 +116,7 @@ export function Settings() {
 }
 
 function OperationsForm({ initial }: { initial: AdminSettings }) {
-  // The WhatsApp number is saved as +234...; show it the way people write it.
-  const [v, setV] = useState({ ...initial, support_whatsapp: initial.support_whatsapp && formatPhone(initial.support_whatsapp) })
+  const [v, setV] = useState(initial)
   const save = useAdminMutation(() => api.saveSettings(v))
   const field = (label: string, value: string | null, placeholder: string, onChange: (s: string) => void, hint?: string) => (
     <TextField label={label} optional value={value ?? ''} placeholder={placeholder} hint={hint} onChange={(e) => onChange(e.target.value)} />
@@ -133,13 +132,6 @@ function OperationsForm({ initial }: { initial: AdminSettings }) {
         }}
       >
         {field('Support phone', v.support_phone, '0800 000 0000', (s) => setV({ ...v, support_phone: s }), 'Shown in the apps instead of the placeholder number.')}
-        {field(
-          'Company WhatsApp',
-          v.support_whatsapp,
-          '0813 377 4902',
-          (s) => setV({ ...v, support_whatsapp: s }),
-          'Opens from the WhatsApp chat button on the website and the support page. Leave empty to use 0813 377 4902.',
-        )}
         {field('Support hours', v.support_hours, '[SUPPORT HOURS]', (s) => setV({ ...v, support_hours: s }), 'e.g. Mon to Sat, 7 AM to 7 PM')}
         {field('Delivery code time limit', v.code_time_limit, '[CODE TIME LIMIT]', (s) => setV({ ...v, code_time_limit: s }), 'How long a delivery code lasts, e.g. 24 hours')}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -152,8 +144,8 @@ function OperationsForm({ initial }: { initial: AdminSettings }) {
           Save settings
         </Button>
         <p className="m-0 text-caption text-mute">
-          These are open decisions (PRD §13). The company WhatsApp number is used straight away; the other values keep showing as bracket placeholders until
-          they are agreed and connected.
+          These are open decisions (PRD §13) and keep showing as bracket placeholders until they are agreed and connected. The support number and
+          WhatsApp come from the server's settings (FR-055), not from this form.
         </p>
       </form>
     </Panel>

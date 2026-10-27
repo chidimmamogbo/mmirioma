@@ -35,8 +35,12 @@ addresses, points, notifications, support and their profile.
    refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`, points,
    rating, "did they pour it in").
 7. **Account**: orders list and details (with receipt), points, saved
-   addresses, notifications, support (report a problem, contact), profile
-   (optional email, update preferences, change password, delete request).
+   addresses, notifications, support (report a problem, contact). **My
+   profile** (`/profile`): name, stats, phone and its verification. **Account
+   settings** (`/settings`, separate since #57, approved by @chidimmamogbo on
+   2026-10-27): change password, change phone number, privacy notice, delete
+   request, log out; the optional email and message switches show in mock
+   mode only (out of the pilot, customer-account.md decisions 1 and 3).
 
 ## 3. Important files
 
@@ -45,6 +49,7 @@ addresses, points, notifications, support and their profile.
 | `frontend/src/domain/orders.ts` | Order, quote, address, points, support and profile types; labels and display helpers |
 | `frontend/src/features/customer/customerApi.ts` | Typed API functions: mocks in mock mode; in real-API mode the linked ones call `real/`, the rest fail with `not_connected` |
 | `frontend/src/features/customer/real/order.ts` | Order adapters (#9): `createOrder`, `listOrders`, `getOrder` through `lib/api/orders.ts`, converted with `docs/architecture/api-mapping.md` |
+| `frontend/src/features/customer/real/account.ts` | Account adapters (#88 part 1): `getProfile`, `listAddresses`, `setDefaultAddress`, `removeAddress` through `lib/api/customerAccount.ts` |
 | `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
 | `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
 | `frontend/src/features/customer/real/notifications.ts` | Notification adapters (#88 part 2) through `lib/api/customerNotifications.ts` |
@@ -83,9 +88,27 @@ real API is on, and, since #9, the orders endpoints: `POST /orders`,
   litres.
 - **Unknown statuses** show the agreed neutral stage "Order update".
 
-The other customer screens (addresses, notifications, points, support,
-profile, feedback, account deletion) still use mocks: their contract
-([customer-account.md](../api/customer-account.md)) is agreed but not built.
+Since #88 part 1, also `GET /me/profile` and the saved addresses (list, set
+the default, remove) from [customer-account.md](../api/customer-account.md):
+
+- **The profile shows what the backend sends:** name, phone, verified,
+  customer since, order and address counts. In real mode there is no email
+  row, no message switches and no points stat (decisions 1, 3 and 12); the
+  photo stays initials. Changing the photo still says "not connected".
+- **Each saved address carries its area** (`zone`), kept for the live
+  prices design (#79).
+- **Adding or editing an address is not linked yet:** the backend needs an
+  area, and the area picker waits for the #79 design, so these say "not
+  connected" in real mode.
+
+The other account screens (notifications, support, feedback, account
+deletion) still use mocks until #82 builds them (#88 parts 2 and 3). Points
+stay on the mock: they are out of the MVP. Where a screen still has no data
+from the server, Home, the top bar, the menu and My profile take the name
+and phone from the session (`GET /auth/me`). Change password
+(`POST /auth/password`) and the support contact (`GET /public/contact`) are
+linked (#57); the email row and message switches sit on Account settings
+(`/settings`).
 
 **Notifications (#88 part 2):** `GET /me/notifications` and
 `POST /me/notifications/read` ([customer-account.md](../api/customer-account.md#notifications)),
@@ -135,6 +158,10 @@ another customer's order returns the same 404 as a missing one.
   your phone number first"; 409 `idempotency_key_reused` and 422
   `validation_error` show their message; 404 `order_not_found` shows the
   order screen's error state.
+- Feedback (#88 part 3, `PUT /orders/{reference}/feedback`, FR-051): one per
+  order, sending again replaces it; rating before delivery is 409
+  `order_not_delivered`. The screen sends its two answers; the optional ones
+  stay unsent (customer-account.md, decision 7).
 
 ## 9. Testing instructions
 
@@ -170,3 +197,9 @@ account in `src/mocks/seed.ts` (mock mode only), place a Keke order, use
 - Password reset is via support only (no reset endpoint).
 - The JS bundle is one 599 kB chunk (179 kB gzipped) until per-app code
   splitting is added.
+- Support and account deletion (#88 part 4) are linked: "Report a problem"
+  sends `POST /me/support-requests`, and the list also shows the open
+  deletion request (`GET /me/deletion-request`). The screen gives no
+  idempotency key, so the adapter keeps one per report until the server
+  answers: a retry after a lost connection files it once. Asking to delete
+  the account deletes nothing; staff verify it first (privacy notice §9).

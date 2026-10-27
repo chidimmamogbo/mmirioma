@@ -22,6 +22,7 @@ import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../..
 import type { PartnerJob } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { JobStep } from '../components/JobStep'
+import { placeAddress } from '../jobHelpers'
 import { directionsUrl } from '../maps'
 import { usePartnerApp } from '../partnerContext'
 import { readPickupPhoto } from '../photo'
@@ -71,7 +72,7 @@ export function DriverRefill() {
               <TurnRightIcon size={26} strokeWidth={2.4} />
               <div>
                 <div className="text-[16px] font-extrabold">Head to {j.station.name}</div>
-                <div className="text-caption text-[#DCFCE7]">{j.station.address}</div>
+                <div className="text-caption text-[#DCFCE7]">{placeAddress(j.station)}</div>
               </div>
             </div>
           </div>
@@ -93,7 +94,7 @@ export function DriverRefill() {
                 </div>
               )}
             </div>
-            <ExternalButton href={directionsUrl(j.station.address)} className={GREEN_BUTTON}>
+            <ExternalButton href={directionsUrl(placeAddress(j.station))} className={GREEN_BUTTON}>
               <NavigationIcon size={20} filled />
               Start navigation
             </ExternalButton>
@@ -290,18 +291,20 @@ export function DriverCustomer() {
                 </div>
               )}
               <Card className="rise-4 flex items-center gap-3 px-3.5 py-3">
-                <Avatar name={j.customer.contact_name} tone="plain" />
+                <Avatar name={j.customer.contact_name ?? j.customer.area} tone="plain" />
                 <div className="flex-1">
-                  <div className="font-extrabold">{j.customer.contact_name}</div>
-                  <div className="text-caption text-mute">{j.customer.address.split(', Enugu')[0]}</div>
+                  <div className="font-extrabold">{j.customer.contact_name ?? j.customer.area}</div>
+                  <div className="text-caption text-mute">{placeAddress(j.customer).split(', Enugu')[0]}</div>
                 </div>
-                <a href={`tel:${j.customer.phone}`} aria-label="Call customer" className="mo-ib bg-[#DCFCE7] text-[#15803D] hover:text-[#15803D]">
-                  <PhoneIcon size={20} />
-                </a>
+                {j.customer.phone && (
+                  <a href={`tel:${j.customer.phone}`} aria-label="Call customer" className="mo-ib bg-[#DCFCE7] text-[#15803D] hover:text-[#15803D]">
+                    <PhoneIcon size={20} />
+                  </a>
+                )}
               </Card>
             </ScrollArea>
             <Footer>
-              <ExternalButton href={directionsUrl(j.customer.address)} className={GREEN_BUTTON}>
+              <ExternalButton href={directionsUrl(placeAddress(j.customer))} className={GREEN_BUTTON}>
                 <NavigationIcon size={20} filled />
                 Start navigation
               </ExternalButton>

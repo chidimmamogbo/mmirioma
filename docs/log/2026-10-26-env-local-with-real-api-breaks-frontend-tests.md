@@ -14,4 +14,8 @@
   `VITE_USE_MOCKS=true npm test` (292 passed), or set `VITE_USE_MOCKS=true`
   in `.env.local` after a click-through.
 - **Status:** workaround
+- **Seen again:** 2026-10-27 (#82 part 3): 18 tests in 4 files failed
+  with `.env.local` at `VITE_USE_MOCKS=false`; all 353 passed with
+  `VITE_USE_MOCKS=true npm test`. Search the log before debugging a
+  frontend test failure on a branch that changes no frontend code.
 - **Refs:** #19, #21, `frontend/.env.example`

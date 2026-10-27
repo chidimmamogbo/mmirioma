@@ -46,7 +46,7 @@ import type {
   StationInput,
 } from '../domain/admin'
 import { RESOLUTION_LABEL } from '../domain/admin'
-import type { PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
+import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { describeChoice } from '../domain/orders'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
@@ -100,7 +100,24 @@ function customerIdOf(s: MockState, data: CustomerData): string | null {
   return Object.entries(s.customers).find(([, d]) => d === data)?.[0] ?? null
 }
 
-function partnerSummary(s: MockState, id: string | null): AdminOrderPartner | null {
+/** A partner as the mock knows it: code, vehicle and plate are always set. */
+type MockOrderPartner = AdminOrderPartner & { code: string; vehicle: DeliveryType; plate: string }
+
+/**
+ * Admin's order as the mock builds it. The mock always knows the area, the
+ * choice, the payment status, the station and the partner's details, so they
+ * are never `null` here; screens get the wider `AdminOrder`, which also fits
+ * the real API.
+ */
+type MockAdminOrder = AdminOrder & {
+  area: string
+  choice: WaterChoice
+  payment: { method: PaymentMethod; status: PaymentStatus }
+  station_name: string
+  partner: MockOrderPartner | null
+}
+
+function partnerSummary(s: MockState, id: string | null): MockOrderPartner | null {
   if (!id) return null
   const user = s.users.find((u) => u.id === id)
   const p = s.partners[id]
@@ -151,7 +168,7 @@ function allReferences(s: MockState): string[] {
 }
 
 /** Admin's view of one order, joining the job (dispatch) and the customer order (payment, owner). */
-function orderRow(s: MockState, reference: string): AdminOrder | null {
+function orderRow(s: MockState, reference: string): MockAdminOrder | null {
   const job = s.jobs.find((j) => j.reference === reference)
   const found = findCustomerOrder(s, reference)
   if (!job && !found) return null
@@ -191,7 +208,7 @@ function orderRow(s: MockState, reference: string): AdminOrder | null {
   }
 }
 
-function allOrders(s: MockState): AdminOrder[] {
+function allOrders(s: MockState): MockAdminOrder[] {
   return allReferences(s)
     .map((r) => orderRow(s, r)!)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
@@ -1204,27 +1221,16 @@ export async function getSettings(): Promise<{ settings: AdminSettings; staff: S
 }
 
 /**
- * Save the operations settings. The WhatsApp number opens the website's chat
- * button (wa.me needs a full international number), so it must be a Nigerian
- * mobile number and is stored as E.164; empty means "use the default".
- *
- * @throws ApiError 422 `validation_error` when the WhatsApp number is not a Nigerian mobile number.
+ * Save the operations settings (mock only). The support WhatsApp is not here:
+ * it comes from the backend's one configuration value (FR-055, #8).
  */
 export async function saveSettings(next: AdminSettings): Promise<AdminSettings> {
   await delay(null, 300)
   const clean = (v: string | null) => (v ?? '').trim() || null
-  const whatsappInput = clean(next.support_whatsapp)
-  const whatsapp = whatsappInput && normalizeNigerianPhone(whatsappInput)
   return mutate((s) => {
     requireAdmin(s)
-    if (whatsappInput && !whatsapp) {
-      throw mockError(422, 'validation_error', 'Enter the WhatsApp number as a Nigerian mobile number, like 0813 377 4902.', [
-        { loc: ['body', 'support_whatsapp'], msg: 'Not a Nigerian mobile number', type: 'value_error' },
-      ])
-    }
     s.admin.settings = {
       support_phone: clean(next.support_phone),
-      support_whatsapp: whatsapp,
       support_hours: clean(next.support_hours),
       code_time_limit: clean(next.code_time_limit),
       safe_load: { keke: clean(next.safe_load.keke), tanker: clean(next.safe_load.tanker) },

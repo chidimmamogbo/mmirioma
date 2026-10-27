@@ -1,6 +1,6 @@
 import pytest
 
-from app.shared.phone import normalize_nigerian_phone
+from app.shared.phone import format_phone_national, normalize_nigerian_phone
 
 
 @pytest.mark.parametrize(
@@ -42,3 +42,13 @@ def test_rejects_invalid_numbers_without_echoing_input(raw: str) -> None:
         normalize_nigerian_phone(raw)
 
     assert str(exc_info.value) == "Enter a Nigerian mobile number, for example 08000000001"
+
+
+def test_national_format_groups_like_the_app() -> None:
+    # The form the app's screens use (frontend formatPhone).
+    assert format_phone_national("+2348133774902") == "0813 377 4902"
+
+
+@pytest.mark.parametrize("value", ["", "08133774902", "+4478000000001", "+234813377490"])
+def test_national_format_leaves_other_values_unchanged(value: str) -> None:
+    assert format_phone_national(value) == value

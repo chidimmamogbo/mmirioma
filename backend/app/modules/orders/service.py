@@ -27,7 +27,7 @@ phone). Validation belongs to the request schemas.
 import secrets
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from http import HTTPStatus
 
@@ -38,10 +38,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import APIError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
+from app.modules.notifications import customer_messages
 from app.modules.orders.models import (
     DeliveryType,
     Order,
     OrderEvent,
+    OrderFeedback,
     OrderStatus,
     TankType,
     TransitionReason,
@@ -341,6 +343,9 @@ async def create_order(
                     occurred_at=now + _ROW_3_GAP,
                     commit=False,
                 )
+            # One "received" message, for the status the order starts in
+            # (FR-050; customer-account.md, "What creates a notification").
+            customer_messages.notify_status(session, order, order.status, created=True)
             await session.commit()
         except IntegrityError:
             await session.rollback()
@@ -365,27 +370,131 @@ class ReadLookups:
     Attributes:
         zone_names: Zone name by id.
         quotes: Customer-visible summary by quote id (total only, decision 6).
+        feedback: The customer's feedback by order id (FR-051), shown on the
+            customer's ``OrderRead`` only.
     """
 
     zone_names: Mapping[uuid.UUID, str] = field(default_factory=dict)
     quotes: Mapping[uuid.UUID, quotes.QuoteSummary] = field(default_factory=dict)
+    feedback: Mapping[uuid.UUID, OrderFeedback] = field(default_factory=dict)
 
 
-async def read_lookups(session: AsyncSession, orders: Iterable[Order]) -> ReadLookups:
+async def read_lookups(
+    session: AsyncSession, orders: Iterable[Order], *, with_feedback: bool = False
+) -> ReadLookups:
     """Fetch the zone names and quote summaries the given orders' views need.
 
     Args:
         session: Database session.
         orders: The orders about to be shown.
+        with_feedback: Also fetch the customer's feedback (customer views
+            only; staff views do not show it).
 
     Returns:
-        The lookups, covering every zone and quote of ``orders``.
+        The lookups, covering every zone and quote of ``orders``, and their
+        feedback when asked.
     """
     orders = list(orders)
     return ReadLookups(
         zone_names=await pricing.zone_names(session, (order.service_zone_id for order in orders)),
         quotes=await quotes.quote_summaries(session, (order.quote_id for order in orders)),
+        feedback=(
+            await feedback_by_order(session, [order.id for order in orders])
+            if with_feedback
+            else {}
+        ),
     )
+
+
+async def feedback_by_order(
+    session: AsyncSession, order_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, OrderFeedback]:
+    """Return the customer's feedback on these orders, by order id (FR-051).
+
+    Args:
+        session: Database session.
+        order_ids: The orders.
+
+    Returns:
+        Feedback by order id; orders without feedback are absent.
+    """
+    if not order_ids:
+        return {}
+    rows = await session.scalars(select(OrderFeedback).where(OrderFeedback.order_id.in_(order_ids)))
+    return {row.order_id: row for row in rows}
+
+
+@dataclass(frozen=True)
+class FeedbackAnswers:
+    """The customer's answers (already validated; FR-051).
+
+    Attributes:
+        rating: 1-5.
+        poured_by_partner: Whether the rider or driver unloaded the water.
+        on_time: Timeliness, or None.
+        quantity_as_ordered: Received quantity, or None.
+        would_reorder: Willingness to reorder, or None.
+        message: Trimmed text, or None.
+    """
+
+    rating: int
+    poured_by_partner: bool
+    on_time: bool | None
+    quantity_as_ordered: bool | None
+    would_reorder: bool | None
+    message: str | None
+
+
+async def put_feedback(
+    session: AsyncSession, *, customer_id: uuid.UUID, reference: str, answers: FeedbackAnswers
+) -> tuple[OrderFeedback, bool]:
+    """Create or replace the customer's feedback on a delivered order. Commits.
+
+    docs/api/customer-account.md, "Order feedback". One row per order, so a
+    double tap or a later edit replaces it instead of adding a second one
+    (FR-051 duplicate protection). No time limit after delivery (decision 7).
+    The order row is locked first, so two requests at once cannot both
+    insert.
+
+    Args:
+        session: Database session.
+        customer_id: The signed-in customer.
+        reference: The order's public reference.
+        answers: The validated answers.
+
+    Returns:
+        ``(feedback, created)``: created is True on the first submission.
+
+    Raises:
+        APIError: 404 ``order_not_found`` (not this customer's order, or
+            none); 409 ``order_not_delivered`` unless the order is
+            ``delivered``.
+    """
+    order = await session.scalar(
+        select(Order)
+        .where(Order.reference == reference, Order.customer_id == customer_id)
+        .with_for_update()
+    )
+    if order is None:
+        raise _order_not_found()
+    if order.status is not OrderStatus.DELIVERED:
+        raise APIError(
+            HTTPStatus.CONFLICT,
+            "order_not_delivered",
+            "You can rate an order once it has been delivered",
+        )
+    feedback = await session.scalar(select(OrderFeedback).where(OrderFeedback.order_id == order.id))
+    created = feedback is None
+    if feedback is None:
+        feedback = OrderFeedback(order_id=order.id, **asdict(answers))
+        session.add(feedback)
+    else:
+        for name, value in asdict(answers).items():
+            setattr(feedback, name, value)
+    await session.commit()
+    # Reload so the database's created_at and updated_at are returned.
+    await session.refresh(feedback)
+    return feedback, created
 
 
 async def get_customer_order(
@@ -703,6 +812,9 @@ async def transition_order(
         event.created_at = occurred_at
     session.add(event)
     order.status = target
+    # In the same transaction, so the message exists only if the change does
+    # (FR-050); statuses the customer is not told about add nothing.
+    customer_messages.notify_status(session, order, target)
     if not commit:
         await session.flush()
         return order

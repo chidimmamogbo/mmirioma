@@ -1,7 +1,7 @@
 """Request and response bodies for the partner account (docs/api/partners.md)."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date
 from typing import Annotated
 
 from pydantic import (
@@ -23,7 +23,6 @@ from app.modules.dispatch.models import (
     DeliveryType,
 )
 from app.modules.dispatch.plates import normalize_plate
-from app.modules.notifications.service import MARK_READ_MAX_IDS
 
 #: Local gallons to litres, exactly (FR-021; docs/architecture/api-mapping.md).
 LITRES_PER_LOCAL_GALLON = 4
@@ -137,33 +136,3 @@ class PartnerProfileRead(BaseModel):
     vehicle: PartnerVehicleRead
     service_zones: list[ZoneRead]
     preferences: PreferencesRead
-
-
-class NotificationRead(BaseModel):
-    """One in-app message (partners.md, "Notifications")."""
-
-    id: uuid.UUID
-    kind: str
-    title: str
-    body: str
-    reference: str | None
-    created_at: datetime
-    read_at: datetime | None
-
-
-class NotificationPageRead(BaseModel):
-    """A page of notifications plus the unread count across all pages."""
-
-    items: list[NotificationRead]
-    unread_count: int
-    total: int
-    limit: int
-    offset: int
-
-
-class MarkReadRequest(BaseModel):
-    """``POST /driver/notifications/read``. No ``ids`` marks every one read."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    ids: list[uuid.UUID] | None = Field(default=None, max_length=MARK_READ_MAX_IDS)
