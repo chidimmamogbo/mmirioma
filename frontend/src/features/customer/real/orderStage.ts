@@ -9,8 +9,9 @@ import type { DeliveryStage } from '../../../domain/orders'
 import type { AdminOrderStatus } from '../../../lib/api/adminOrders'
 
 const STAGE_BY_STATUS: Record<AdminOrderStatus, DeliveryStage> = {
-  quote_requested: 'waiting_rider',
-  awaiting_confirmation: 'waiting_rider',
+  // Before confirmation: never "Waiting for rider" (customer-live-prices.md, decision 3; FR-027).
+  quote_requested: 'request_received',
+  awaiting_confirmation: 'awaiting_confirmation',
   confirmed: 'waiting_rider',
   awaiting_payment: 'waiting_rider',
   // FR-032: the customer must not learn of an assignment before the driver accepts.

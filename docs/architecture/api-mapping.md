@@ -168,11 +168,18 @@ Source: SRS v0.3 FR-021 and `backend/app/modules/orders/quantities.py`.
 
 Backend `status` (docs/api/orders.md, "Order statuses") to the design's
 `DeliveryStage`. The customer must not learn of an assignment before the
-driver accepts it (FR-032).
+driver accepts it (FR-032). Before confirmation the order never reads as
+waiting for a rider (FR-027): a quote request is "Request received" and a
+priced order "Awaiting confirmation", the agreed label in
+[orders.md](../api/orders.md) (decided by @chidimmamogbo on #79,
+[customer-live-prices.md](../design/customer-live-prices.md), decision 3;
+built in #121).
 
 | Backend `status` | Design stage | Label |
 | --- | --- | --- |
-| `quote_requested`, `awaiting_confirmation`, `confirmed`, `awaiting_payment` | `waiting_rider` | Waiting for rider |
+| `quote_requested` | `request_received` (new) | Request received ("We're preparing your price.") |
+| `awaiting_confirmation` | `awaiting_confirmation` (new) | Awaiting confirmation |
+| `confirmed`, `awaiting_payment` | `waiting_rider` | Waiting for rider |
 | `assigned` | `waiting_rider` | Waiting for rider (FR-032: not accepted yet) |
 | `accepted`, `departed` | `rider_assigned` | Rider assigned |
 | `collected` | `picked_up` | Picked up |

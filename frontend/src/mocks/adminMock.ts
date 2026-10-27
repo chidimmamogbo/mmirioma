@@ -142,6 +142,9 @@ function statusFromJob(job: StoredJob): AdminOrderStatus {
 
 function statusFromOrder(o: MockCustomerOrder): AdminOrderStatus {
   switch (o.stage) {
+    // Before confirmation (#121): admin shows these as awaiting a rider, as the real adapter does.
+    case 'request_received':
+    case 'awaiting_confirmation':
     case 'waiting_rider':
       return 'awaiting_rider'
     case 'rider_assigned':
