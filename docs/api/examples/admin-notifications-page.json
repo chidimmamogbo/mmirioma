@@ -1,0 +1,35 @@
+{
+  "items": [
+    {
+      "id": "a1c3e5a7-9b1d-4f3c-8e5a-7c9e1b3d5f24",
+      "kind": "driver_declined",
+      "title": "A driver declined an order",
+      "body": "MO-3HT8WQ2KZP needs another driver.",
+      "reference": "MO-3HT8WQ2KZP",
+      "created_at": "2026-10-27T09:05:00Z",
+      "read_at": null
+    },
+    {
+      "id": "c3e5a7c9-1d3f-4a5e-9a7c-9e1b3d5f7a26",
+      "kind": "partner_pending",
+      "title": "A partner is waiting for approval",
+      "body": "Check their vehicle and phone, then approve or suspend.",
+      "reference": null,
+      "created_at": "2026-10-26T16:20:00Z",
+      "read_at": null
+    },
+    {
+      "id": "e5a7c9e1-3f5b-4c7a-8c9e-1b3d5f7a9c28",
+      "kind": "support_request",
+      "title": "New support request",
+      "body": "A customer reported a problem with MO-7KQ2M9XH4T.",
+      "reference": "MO-7KQ2M9XH4T",
+      "created_at": "2026-10-26T13:10:00Z",
+      "read_at": "2026-10-26T13:20:00Z"
+    }
+  ],
+  "unread_count": 2,
+  "total": 3,
+  "limit": 50,
+  "offset": 0
+}

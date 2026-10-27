@@ -1,0 +1,64 @@
+{
+  "range": "7d",
+  "from": "2026-10-21",
+  "to": "2026-10-27",
+  "is_simulated": true,
+  "orders": {
+    "total": 61,
+    "by_status": {
+      "delivered": 48,
+      "cancelled": 4,
+      "failed": 2,
+      "en_route": 3,
+      "confirmed": 4
+    }
+  },
+  "deliveries": {
+    "delivered": 48,
+    "with_window": 45,
+    "on_time": 39
+  },
+  "by_delivery_type": {
+    "keke": 40,
+    "tanker": 19,
+    "not_recorded": 2
+  },
+  "cash": {
+    "collected_minor_units": 28650000,
+    "reconciled_minor_units": 26100000
+  },
+  "by_zone": [
+    {
+      "zone_id": "2f4b6d8f-0a1c-4e3e-9a5c-7e9b1d3f5a06",
+      "name": "Sample Zone Independence Layout",
+      "orders": 58,
+      "delivered": 46
+    },
+    {
+      "zone_id": null,
+      "name": null,
+      "orders": 3,
+      "delivered": 2
+    }
+  ],
+  "by_driver": [
+    {
+      "driver_id": "5a0e6c2b-8d1f-4e3a-9b7c-2d4f6a8c0e11",
+      "name": "Sample Driver One",
+      "plate": "ENU-123-KK",
+      "delivered": 17
+    }
+  ],
+  "by_source": [
+    {
+      "source_id": "9c1d3e5f-7a2b-4c4d-8e6f-1a3b5c7d9e02",
+      "name": "Sample Borehole A",
+      "pickups": 30
+    },
+    {
+      "source_id": "1e3f5a7b-9c2d-4e4f-8a6b-3c5d7e9f1a04",
+      "name": "Sample Borehole B",
+      "pickups": 18
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "deliveries": [
+    {
+      "reference": "MO-7KQ2M9XH4T",
+      "status": "en_route",
+      "delivery_type": "keke",
+      "driver": {
+        "id": "5a0e6c2b-8d1f-4e3a-9b7c-2d4f6a8c0e11",
+        "name": "Sample Driver One",
+        "plate": "ENU-123-KK"
+      },
+      "source": {
+        "id": "9c1d3e5f-7a2b-4c4d-8e6f-1a3b5c7d9e02",
+        "name": "Sample Borehole A"
+      },
+      "zone": {
+        "id": "2f4b6d8f-0a1c-4e3e-9a5c-7e9b1d3f5a06",
+        "name": "Sample Zone Independence Layout"
+      },
+      "is_simulated": true
+    }
+  ],
+  "sources": [
+    {
+      "id": "9c1d3e5f-7a2b-4c4d-8e6f-1a3b5c7d9e02",
+      "name": "Sample Borehole A",
+      "approximate_location": "Off Ogui Road",
+      "usable": true,
+      "is_simulated": true
+    },
+    {
+      "id": "1e3f5a7b-9c2d-4e4f-8a6b-3c5d7e9f1a04",
+      "name": "Sample Borehole B",
+      "approximate_location": "Near Abakpa market",
+      "usable": false,
+      "is_simulated": true
+    }
+  ]
+}

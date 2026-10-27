@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-27",
+  "is_simulated": true,
+  "orders": {
+    "total": 14,
+    "by_status": {
+      "confirmed": 2,
+      "assigned": 1,
+      "en_route": 3,
+      "delivered": 7,
+      "cancelled": 1
+    },
+    "oldest_waiting_minutes": 42
+  },
+  "deliveries": {
+    "delivered": 7,
+    "with_window": 6,
+    "on_time": 5
+  },
+  "by_delivery_type": {
+    "keke": 9,
+    "tanker": 5,
+    "not_recorded": 0
+  },
+  "holds_open": 1,
+  "support_requests_open": 1,
+  "drivers_available": {
+    "total": 4,
+    "keke": 3,
+    "tanker": 1
+  },
+  "sources": {
+    "usable": 2,
+    "not_usable": 1
+  },
+  "cash": {
+    "collected_minor_units": 4130000,
+    "reconciled_minor_units": 2950000
+  }
+}
