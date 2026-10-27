@@ -8,7 +8,8 @@ import { Avatar } from '../../../../components/ui/Avatar'
 import { Card } from '../../../../components/ui/Card'
 import { IconBadge, ScreenHeading } from '../../../../components/ui/Content'
 import { IconLink } from '../../../../components/ui/IconButton'
-import { choiceLitres, describeChoice, isActiveStage, type CustomerOrder } from '../../../../domain/orders'
+import { choiceLitres, isActiveStage, type CustomerOrder } from '../../../../domain/orders'
+import { orderIllustration, orderQuantityText } from '../../orderHelpers'
 import { describeQuantity } from '../../../../domain/quantity'
 import { USE_MOCKS } from '../../../../lib/api/mode'
 import { cx } from '../../../../lib/cx'
@@ -36,10 +37,11 @@ function currentStep(o: CustomerOrder): number {
 
 function headline(o: CustomerOrder): { title: string; sub: string } {
   const first = o.partner?.name.split(' ')[0]
-  const litres = choiceLitres(o.choice)
+  // An order sent before #21 has no cans or tank, only the server's litres (FR-021).
+  const litres = o.choice ? choiceLitres(o.choice) : (o.quantity_litres ?? null)
   const qty =
     o.delivered_quantity ??
-    (litres !== null ? describeQuantity(litres, o.choice.delivery_type === 'tanker' ? 'gallons' : 'litres', 'short') : describeChoice(o.choice))
+    (litres !== null ? describeQuantity(litres, o.choice?.delivery_type === 'tanker' ? 'gallons' : 'litres', 'short') : orderQuantityText(o, 'short'))
   switch (o.stage) {
     case 'waiting_rider':
       return { title: 'Finding a rider', sub: 'You will see them here the moment one accepts.' }
@@ -121,8 +123,8 @@ export function Track() {
               <TrackMapArt />
               {hasRider && (
                 <Illustration
-                  name={o.choice.delivery_type}
-                  alt={o.choice.delivery_type === 'keke' ? "Rider's keke" : "Driver's tanker"}
+                  name={orderIllustration(o)}
+                  alt={o.choice ? (o.choice.delivery_type === 'keke' ? "Rider's keke" : "Driver's tanker") : 'Delivery partner'}
                   className="animate-drive absolute top-[48%] left-[37%] w-[76px] drop-shadow-[0_6px_8px_rgba(10,37,64,0.25)]"
                 />
               )}

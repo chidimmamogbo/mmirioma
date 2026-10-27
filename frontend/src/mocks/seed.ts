@@ -15,8 +15,10 @@ import type {
   CustomerNotification,
   CustomerOrder,
   CustomerProfile,
+  PaymentMethod,
   PaymentStatus,
   PointsEntry,
+  Quote,
   SavedAddress,
   SupportTicket,
   WaterChoice,
@@ -42,10 +44,23 @@ export interface MockUser extends User {
   password: string
 }
 
+/**
+ * A customer order as the mock stores it. The mock always knows the choice,
+ * the full sample quote, the address label and the payment status, so those
+ * are never `null` here; screens get the wider `CustomerOrder`, which also
+ * fits the real API.
+ */
+export interface MockCustomerOrder extends CustomerOrder {
+  choice: WaterChoice
+  address_label: string
+  payment: { method: PaymentMethod; status: PaymentStatus }
+  quote: Extract<Quote, { status: 'quote_available' }>
+}
+
 export interface CustomerData {
   profile: Omit<CustomerProfile, 'stats' | 'name' | 'phone' | 'phone_verified'>
   addresses: SavedAddress[]
-  orders: CustomerOrder[]
+  orders: MockCustomerOrder[]
   notifications: CustomerNotification[]
   points: { balance: number; history: PointsEntry[] }
   tickets: SupportTicket[]
@@ -150,7 +165,7 @@ export const DEMO_CUSTOMER_ID = 'user-adaeze'
 const CHINEDU = { name: 'Chinedu Okafor', vehicle: 'keke' as const, plate: 'ENU 482 KK', rating: 4.8, phone: '+2348000000101' }
 const EMEKA = { name: 'Emeka David', vehicle: 'tanker' as const, plate: 'ENU 115 XA', rating: 4.7, phone: '+2348000000102' }
 
-function kekeOrder(partial: Partial<CustomerOrder> & Pick<CustomerOrder, 'reference' | 'created_at' | 'stage'>, size: 25 | 50, count: number): CustomerOrder {
+function kekeOrder(partial: Partial<MockCustomerOrder> & Pick<MockCustomerOrder, 'reference' | 'created_at' | 'stage'>, size: 25 | 50, count: number): MockCustomerOrder {
   const choice = { delivery_type: 'keke' as const, can_size_litres: size, can_count: count }
   const quote = quoteFor(choice, ANY_PLACE)
   if (quote.status !== 'quote_available') throw new Error('seed quote')
@@ -184,7 +199,7 @@ export function seedState(now = new Date()): MockState {
   const tankerQuote = quoteFor(tankerChoice, ANY_PLACE)
   if (tankerQuote.status !== 'quote_available') throw new Error('seed quote')
 
-  const orders: CustomerOrder[] = [
+  const orders: MockCustomerOrder[] = [
     kekeOrder(
       {
         reference: 'MO-7KQ2M9XH4T',
@@ -354,10 +369,10 @@ const PARTNER_FOR_ORDER: Record<string, typeof CHINEDU | typeof EMEKA> = {
 }
 
 /** The customer's view of a seeded job, so the admin, customer and partner screens show one order. */
-function orderFromJob(job: StoredJob, payment: CustomerOrder['payment'], addressLabel: string): CustomerOrder {
+function orderFromJob(job: StoredJob, payment: MockCustomerOrder['payment'], addressLabel: string): MockCustomerOrder {
   const quote = quoteFor(job.choice, ANY_PLACE)
   if (quote.status !== 'quote_available') throw new Error('seed quote')
-  const stage: CustomerOrder['stage'] =
+  const stage: MockCustomerOrder['stage'] =
     job.stage === 'accepted'
       ? 'rider_assigned'
       : job.stage === 'collected'
@@ -408,8 +423,8 @@ function pastOrder(
   count: number,
   owner: SeedPerson,
   stage: 'delivered' | 'cancelled',
-  payment: CustomerOrder['payment'],
-): CustomerOrder {
+  payment: MockCustomerOrder['payment'],
+): MockCustomerOrder {
   const delivered = stage === 'delivered'
   return kekeOrder(
     {
@@ -437,7 +452,7 @@ function pastOrder(
   )
 }
 
-function customerData(since: string, addresses: SavedAddress[], orders: CustomerOrder[], points: number): CustomerData {
+function customerData(since: string, addresses: SavedAddress[], orders: MockCustomerOrder[], points: number): CustomerData {
   return {
     profile: { email: null, customer_since: since, photo_url: null, preferences: { sms_updates: true, whatsapp_updates: false, offers_and_news: false } },
     addresses,

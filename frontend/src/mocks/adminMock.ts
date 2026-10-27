@@ -46,7 +46,7 @@ import type {
   StationInput,
 } from '../domain/admin'
 import { RESOLUTION_LABEL } from '../domain/admin'
-import type { CustomerOrder, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
+import type { PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { describeChoice } from '../domain/orders'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
@@ -59,7 +59,7 @@ import { eligible } from './eligibility'
 import { alertPartnersOfNewJob, completeDelivery, findCustomerOrder, jobForNewOrder } from './orderSync'
 import { newPartnerData } from './partnerMock'
 import { ANY_PLACE, areaForAddress, quoteFor } from './pricing'
-import { emptyCustomerData, type CustomerData, type MockState, type PartnerData, type StoredJob } from './seed'
+import { emptyCustomerData, type CustomerData, type MockCustomerOrder, type MockState, type PartnerData, type StoredJob } from './seed'
 import { clone, delay, mockError, newDeliveryCode, newId, newReference } from './store'
 
 /* ---------- Access and small helpers ---------- */
@@ -123,7 +123,7 @@ function statusFromJob(job: StoredJob): AdminOrderStatus {
   }
 }
 
-function statusFromOrder(o: CustomerOrder): AdminOrderStatus {
+function statusFromOrder(o: MockCustomerOrder): AdminOrderStatus {
   switch (o.stage) {
     case 'waiting_rider':
       return 'awaiting_rider'
@@ -134,6 +134,7 @@ function statusFromOrder(o: CustomerOrder): AdminOrderStatus {
       return 'on_the_way'
     case 'failed':
     case 'under_review':
+    case 'order_update':
       // The admin design has no status for these yet (api-mapping.md, open
       // question 5), and no mock order reaches them; fail loudly, never guess.
       throw new Error(`Admin mock has no status for customer stage "${o.stage}"`)
@@ -463,7 +464,7 @@ export async function createOrderForCustomer(input: CreateOrderByAdminInput): Pr
     if (!stationForAddress(s, address.address)) throw mockError(409, 'no_station_open', 'No refill station is open with valid papers for this area')
     const now = new Date().toISOString()
     const actor = actorName(s)
-    const order: CustomerOrder = {
+    const order: MockCustomerOrder = {
       reference: newReference(),
       created_at: now,
       choice: input.choice,
@@ -962,7 +963,7 @@ export async function listPayments(filter: PaymentFilter = 'all', customerId?: s
   return { payments: rows.filter(keep[filter]), counts }
 }
 
-function setPayment(s: MockState, reference: string, status: PaymentStatus): { data: CustomerData | null; order: CustomerOrder | null } {
+function setPayment(s: MockState, reference: string, status: PaymentStatus): { data: CustomerData | null; order: MockCustomerOrder | null } {
   const found = findCustomerOrder(s, reference)
   const job = s.jobs.find((j) => j.reference === reference)
   if (!found && !job) throw mockError(404, 'order_not_found', 'Order not found')

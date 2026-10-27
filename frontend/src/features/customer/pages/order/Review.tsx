@@ -12,6 +12,7 @@ import { IconBadge, KeyValue, SectionHeader, TextLink } from '../../../../compon
 import { Notice } from '../../../../components/ui/Notice'
 import { WATER_SOURCE_LABEL, describeTankSize, kekeTotalLitres } from '../../../../domain/orders'
 import { describeQuantity } from '../../../../domain/quantity'
+import { parseGallons } from '../../../../domain/tankCapacity'
 import { ApiError } from '../../../../lib/api/client'
 import { errorMessage } from '../../../../lib/api/errorMessage'
 import { formatNaira } from '../../../../lib/format/money'
@@ -53,6 +54,10 @@ export function Review() {
 
   const q = quote.data?.status === 'quote_available' ? quote.data : undefined
   const needsQuote = quote.data?.status === 'manual_quote_required'
+  // Live prices are not linked in real-API mode yet (#9): the order goes as a
+  // quote request, and the office calls to agree the price and the delivery
+  // window (FR-022 manual fallback; FR-023 table in order-details-and-price.md).
+  const priceLater = quote.error instanceof ApiError && quote.error.code === 'not_connected'
   const editPath = draft.delivery_type === 'keke' ? '/order/keke' : '/order/tanker'
 
   function place() {
@@ -67,6 +72,7 @@ export function Review() {
         receiver_name: receiverName,
         receiver_phone: normalizeNigerianPhone(receiverPhone) ?? receiverPhone,
         instructions: draft.instructions || null,
+        custom_gallons: choice.delivery_type === 'tanker' && choice.tank_size_gallons === null ? parseGallons(draft.tanker.custom_gallons) : null,
       },
       {
         onSuccess: (order) => {
@@ -158,7 +164,13 @@ export function Review() {
           </div>
         </Card>
 
-        {quote.isError && <ErrorBlock error={quote.error} onRetry={() => quote.refetch()} />}
+        {quote.isError && !priceLater && <ErrorBlock error={quote.error} onRetry={() => quote.refetch()} />}
+        {priceLater && (
+          <Notice tone="info" className="rise-5">
+            <b>We'll call you with the price.</b> Your order goes to our office as a request. We call you to agree the price and the
+            delivery time before anything is booked. There is no charge to cancel or redeliver.
+          </Notice>
+        )}
         {needsQuote && (
           <Notice tone="info" className="rise-5">
             <b>Quote needed.</b> Custom tank sizes are priced by our team. Send your request and we will call you with a price before
@@ -199,7 +211,11 @@ export function Review() {
           ))}
       </ScrollArea>
       <Footer>
-        {needsQuote ? (
+        {priceLater ? (
+          <Button onClick={place} loading={createOrder.isPending} disabled={!address || unverified}>
+            Send request
+          </Button>
+        ) : needsQuote ? (
           <Button onClick={sendQuoteRequest} loading={requestQuote.isPending} disabled={!address || unverified}>
             Request a quote
           </Button>

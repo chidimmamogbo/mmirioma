@@ -10,7 +10,8 @@ import { Chip } from '../../../components/ui/Chip'
 import { ActionTile, IconBadge, SectionTitle } from '../../../components/ui/Content'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
-import { PROBLEM_LABEL, describeChoice, isActiveStage, shortReference, type ProblemType } from '../../../domain/orders'
+import { PROBLEM_LABEL, isActiveStage, shortReference, type ProblemType } from '../../../domain/orders'
+import { orderQuantityText } from '../orderHelpers'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatShortDate } from '../../../lib/format/datetime'
@@ -68,7 +69,7 @@ export function Support() {
         <Card pad className="rise-3">
           <SectionTitle>Report a problem</SectionTitle>
           <p className="mt-[3px] mb-2.5 text-sub text-mute">
-            {about ? `About ${shortReference(about.reference)} · ${describeChoice(about.choice)}` : 'About your account'}
+            {about ? `About ${shortReference(about.reference)} · ${orderQuantityText(about)}` : 'About your account'}
           </p>
           <div role="radiogroup" aria-label="Problem type" className="flex flex-wrap gap-2">
             {TYPES.map((t) => {

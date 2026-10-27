@@ -68,7 +68,7 @@ export function Delivered() {
             </div>
             <h1 className="rise-1 m-0 text-[26px] font-extrabold tracking-[-0.5px]">Water delivered!</h1>
             <p className="rise-2 m-0 text-sub text-mute">
-              {o.delivered_quantity ?? 'Your water'} {o.choice.delivery_type === 'keke' ? 'poured into your tank' : 'pumped into your tank'}
+              {o.delivered_quantity ?? 'Your water'} {o.choice ? (o.choice.delivery_type === 'keke' ? 'poured into your tank' : 'pumped into your tank') : 'delivered'}
               {o.delivered_at ? ` at ${formatTime(o.delivered_at)}` : ''}. Code confirmed.
             </p>
             {o.points_earned !== null && (
@@ -107,7 +107,7 @@ export function Delivered() {
                 ))}
               </div>
               <div className="mb-2 text-sub font-bold">
-                Did the {o.choice.delivery_type === 'keke' ? 'rider' : 'driver'} pour it in for you?
+                Did the {o.choice ? (o.choice.delivery_type === 'keke' ? 'rider' : 'driver') : 'partner'} pour it in for you?
               </div>
               <div role="radiogroup" aria-label="Did they pour it in?" className="grid grid-cols-2 gap-2">
                 <Button

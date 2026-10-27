@@ -90,9 +90,24 @@ export type Quote =
   | { status: 'manual_quote_required'; reason: string }
 
 /**
+ * The price an order was placed with (FR-024). The server sends the total
+ * only (docs/api/order-details-and-price.md, decision 6), so `water` and
+ * `delivery` are `null` for real orders; only the mock fills them.
+ */
+export interface OrderPrice {
+  currency: 'NGN'
+  total_minor_units: number
+  water: QuoteLine | null
+  delivery: QuoteLine | null
+  is_sample: boolean
+}
+
+/**
  * Customer-facing delivery stage, shown with the design's labels (decision 12).
  * `failed` and `under_review` show the backend's `failed` and `disputed`
  * statuses (decision of 2026-10-26, docs/architecture/api-mapping.md).
+ * `order_update` is the neutral stage for a status the app does not know
+ * (docs/api/orders.md: "Clients must never fail on an unknown `status`").
  */
 export type DeliveryStage =
   | 'waiting_rider'
@@ -103,6 +118,7 @@ export type DeliveryStage =
   | 'cancelled'
   | 'failed'
   | 'under_review'
+  | 'order_update'
 
 export const STAGE_LABEL: Record<DeliveryStage, string> = {
   waiting_rider: 'Waiting for rider',
@@ -113,6 +129,8 @@ export const STAGE_LABEL: Record<DeliveryStage, string> = {
   cancelled: 'Cancelled',
   failed: 'Delivery failed',
   under_review: 'Under review',
+  // The agreed fallback wording (docs/api/orders.md, #82).
+  order_update: 'Order update',
 }
 
 /**
@@ -151,17 +169,22 @@ export interface TimelineEvent {
 export interface CustomerOrder {
   reference: string
   created_at: string
-  choice: WaterChoice
-  /** Short label of where it goes, e.g. "Home". */
-  address_label: string
+  /** `null` for an order sent before #21, which carries only its quantity. */
+  choice: WaterChoice | null
+  /** Whole litres as the server stored them (FR-021). Set by the real adapter; mock orders use `choice`. */
+  quantity_litres?: number
+  /** Short label of where it goes, e.g. "Home". `null` when the server does not send one. */
+  address_label: string | null
   address: string
   landmark: string | null
   receiver_name: string
   receiver_phone: string
   instructions: string | null
   stage: DeliveryStage
-  payment: { method: PaymentMethod; status: PaymentStatus }
-  quote: Extract<Quote, { status: 'quote_available' }>
+  /** `status` is `null` until customers are sent a payment status (docs/api/orders.md, decided question 3). */
+  payment: { method: PaymentMethod; status: PaymentStatus | null }
+  /** `null` for a quote request: the office calls with the price (FR-022 manual fallback). */
+  quote: OrderPrice | null
   partner: DeliveryPartner | null
   /** Station where the water is collected, once known. */
   station_name: string | null

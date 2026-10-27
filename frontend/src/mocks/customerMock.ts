@@ -23,7 +23,7 @@ import { mutate, read } from './db'
 import { alertPartnersOfNewJob, applyDelivered, jobForNewOrder } from './orderSync'
 import { addActivity, addAdminNotification, currentPrices, nextIssueNumber, stationForAddress } from './adminState'
 import { areaForAddress, quoteFor } from './pricing'
-import type { CustomerData, MockState } from './seed'
+import type { CustomerData, MockCustomerOrder, MockState } from './seed'
 import { clone, delay, mockError, newDeliveryCode, newId, newReference } from './store'
 
 function data(): CustomerData {
@@ -38,7 +38,7 @@ function change<T>(fn: (d: CustomerData & { idempotency?: Record<string, string>
   return mutate((s) => fn(s.customers[id], s))
 }
 
-function findOrder(d: CustomerData, reference: string): CustomerOrder {
+function findOrder(d: CustomerData, reference: string): MockCustomerOrder {
   const order = d.orders.find((o) => o.reference === reference)
   // Same 404 for "not yours" and "does not exist", so references cannot be probed (orders.md).
   if (!order) throw mockError(404, 'order_not_found', 'Order not found')
@@ -182,6 +182,12 @@ export interface CreateOrderInput {
   receiver_name: string
   receiver_phone: string
   instructions: string | null
+  /**
+   * The gallons typed for a custom tank size (`choice.tank_size_gallons` null).
+   * The real adapter sends it as the order quantity; the mock ignores it,
+   * because its quote step refuses custom sizes.
+   */
+  custom_gallons?: number | null
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CustomerOrder> {
@@ -210,7 +216,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CustomerOrde
       const existing = d.idempotency[input.idempotency_key]
       if (existing) return findOrder(d, existing)
       const now = new Date().toISOString()
-      const order: CustomerOrder = {
+      const order: MockCustomerOrder = {
         reference: newReference(),
         created_at: now,
         choice: input.choice,

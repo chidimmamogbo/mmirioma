@@ -160,7 +160,7 @@ describe('prices (FR-024)', () => {
     const q = await getQuote(KEKE, null)
     if (q.status !== 'quote_available') throw new Error('expected a quote')
     expect(q.water.amount_minor_units).toBe(24 * 30_000)
-    expect((await getOrder(read().customers['user-adaeze'].orders[0].reference)).quote.total_minor_units).toBe(placed)
+    expect((await getOrder(read().customers['user-adaeze'].orders[0].reference)).quote?.total_minor_units).toBe(placed)
   })
 
   it('refuses a save with nothing changed', async () => {

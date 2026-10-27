@@ -1,13 +1,11 @@
 /**
  * Typed customer API functions used by the customer screens.
  *
- * None of these endpoints has an agreed contract yet (the Sprint 1 orders
- * contract has no delivery type, price, address book, points or support).
- * In mock mode they use `src/mocks/customerMock.ts`; in real-API mode they
- * fail with `not_connected` until the backend exists. When an endpoint is
- * added, replace its `notConnected(...)` with an adapter from `./real/` that
- * calls `src/lib/api/` and converts with docs/architecture/api-mapping.md;
- * screens do not change.
+ * In mock mode they use `src/mocks/customerMock.ts`. In real-API mode the
+ * linked ones call an adapter from `./real/`, which calls `src/lib/api/` and
+ * converts with docs/architecture/api-mapping.md; the rest fail with
+ * `not_connected` until their backend exists. Linked so far: `createOrder`,
+ * `listOrders`, `getOrder` (#9).
  */
 import type {
   CustomerNotification,
@@ -23,6 +21,7 @@ import type {
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as mock from '../../mocks/customerMock'
+import * as realOrder from './real/order'
 
 export type { AddressInput, CreateOrderInput, ProfileUpdate } from '../../mocks/customerMock'
 
@@ -39,9 +38,9 @@ export const removeAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.re
 
 export const getQuote = (choice: WaterChoice, address: string | null): Promise<Quote> =>
   USE_MOCKS ? mock.getQuote(choice, address) : notConnected('Prices')
-export const createOrder = (i: mock.CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : notConnected('Ordering'))
-export const listOrders = (): Promise<CustomerOrder[]> => (USE_MOCKS ? mock.listOrders() : notConnected('Your orders'))
-export const getOrder = (reference: string): Promise<CustomerOrder> => (USE_MOCKS ? mock.getOrder(reference) : notConnected('Your orders'))
+export const createOrder = (i: mock.CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : realOrder.createOrder(i))
+export const listOrders = (): Promise<CustomerOrder[]> => (USE_MOCKS ? mock.listOrders() : realOrder.listOrders())
+export const getOrder = (reference: string): Promise<CustomerOrder> => (USE_MOCKS ? mock.getOrder(reference) : realOrder.getOrder(reference))
 export const submitFeedback = (reference: string, f: { rating: number; poured_by_partner: boolean }): Promise<CustomerOrder> =>
   USE_MOCKS ? mock.submitFeedback(reference, f) : notConnected('Feedback')
 

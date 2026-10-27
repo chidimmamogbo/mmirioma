@@ -32,7 +32,7 @@ export function Orders() {
   const orders = useOrders()
   const [filter, setFilter] = useState<Filter>('all')
   const list = (orders.data ?? []).filter(MATCH[filter])
-  const anySample = orders.data?.some((o) => o.quote.is_sample)
+  const anySample = orders.data?.some((o) => o.quote?.is_sample)
 
   return (
     <MobileShell>

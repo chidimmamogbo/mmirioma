@@ -43,7 +43,10 @@ addresses, points, notifications, support and their profile.
 | Path | Responsibility |
 | --- | --- |
 | `frontend/src/domain/orders.ts` | Order, quote, address, points, support and profile types; labels and display helpers |
-| `frontend/src/features/customer/customerApi.ts` | Typed API functions: mocks in mock mode, `not_connected` error in real-API mode |
+| `frontend/src/features/customer/customerApi.ts` | Typed API functions: mocks in mock mode; in real-API mode the linked ones call `real/`, the rest fail with `not_connected` |
+| `frontend/src/features/customer/real/order.ts` | Order adapters (#9): `createOrder`, `listOrders`, `getOrder` through `lib/api/orders.ts`, converted with `docs/architecture/api-mapping.md` |
+| `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
+| `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
 | `frontend/src/features/customer/queries.ts` | TanStack Query hooks and cache refresh after changes |
 | `frontend/src/features/customer/order/` | Order draft (sessionStorage), reorder and flow helpers |
 | `frontend/src/features/customer/pages/` | One component per screen |
@@ -60,12 +63,28 @@ need an agreed contract first.
 ## 5. API endpoints and request/response behavior
 
 Uses the agreed auth contract ([docs/api/auth.md](../api/auth.md)) when the
-real API is on. Everything else has no agreed contract yet; the shapes are
-in `domain/orders.ts` and follow the API conventions (snake_case, integer kobo
-in `*_minor_units`, UTC timestamps). Contracts needed before integration:
-quotes, orders (delivery type, jerrycans, tanks, source, stages, delivery
-code), addresses, notifications, points, support tickets, profile and
-preferences, feedback, password change, account deletion request.
+real API is on, and, since #9, the orders endpoints: `POST /orders`,
+`GET /orders` (every page) and `GET /orders/{reference}`
+([orders.md](../api/orders.md),
+[order-details-and-price.md](../api/order-details-and-price.md)).
+
+- **Orders are quote requests for now.** Live prices (`POST /quotes`) and the
+  service-zone picker are not linked yet, so `createOrder` sends the delivery
+  details with no `quote_id` and the order starts in `quote_requested`. Review
+  says the office calls to agree the price and delivery time, with no charge
+  to cancel or redeliver (the agreed fallbacks F3 and F5), and the button is
+  "Send request".
+- **What the backend does not send is shown as missing**, never filled in:
+  the price lines (total only), the saved address name, the payment status
+  ("Pay on delivery" only), the rider, station, ETA, delivery code (sent by
+  SMS), timeline events after "Order placed", points and feedback. A quote
+  request shows "Preparing your price". An order sent before #21 has only its
+  litres.
+- **Unknown statuses** show the agreed neutral stage "Order update".
+
+The other customer screens (addresses, notifications, points, support,
+profile, feedback, account deletion) still use mocks: their contract
+([customer-account.md](../api/customer-account.md)) is agreed but not built.
 
 ## 6. Important business rules
 
@@ -101,7 +120,12 @@ another customer's order returns the same 404 as a missing one.
 - A lost connection keeps the order draft (sessionStorage); retrying "Place
   order" reuses the same idempotency key.
 - In real-API mode, features without a backend show "… is not connected to
-  the server yet." instead of pretending to work.
+  the server yet." instead of pretending to work. Prices are the exception on
+  Review: the order goes as a quote request instead (above).
+- Order errors pass through unchanged: 403 `phone_not_verified` shows "Verify
+  your phone number first"; 409 `idempotency_key_reused` and 422
+  `validation_error` show their message; 404 `order_not_found` shows the
+  order screen's error state.
 
 ## 9. Testing instructions
 
