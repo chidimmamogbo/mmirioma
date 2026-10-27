@@ -593,6 +593,42 @@ async def count_open_support_requests(session: AsyncSession) -> int:
     return count or 0
 
 
+@dataclass(frozen=True)
+class NewSupportRequest:
+    """A support request for the dashboard's recent activity.
+
+    No customer name or message: the activity line says only that a request
+    came in, for which order (admin-operations.md, ``GET /admin/activity``).
+    """
+
+    id: uuid.UUID
+    created_at: datetime
+    order_reference: str | None
+    is_simulated: bool
+
+
+async def recent_support_requests(session: AsyncSession, *, limit: int) -> list[NewSupportRequest]:
+    """Return the newest support requests, newest first, for the activity list.
+
+    Args:
+        session: Database session.
+        limit: How many (1-20, checked by the router).
+
+    Returns:
+        The requests; ``is_simulated`` follows the order, False without one.
+    """
+    rows = await session.execute(
+        select(SupportRequest.id, SupportRequest.created_at, Order.reference, Order.is_simulated)
+        .outerjoin(Order, Order.id == SupportRequest.order_id)
+        .order_by(SupportRequest.created_at.desc(), SupportRequest.id.desc())
+        .limit(limit)
+    )
+    return [
+        NewSupportRequest(id=request_id, created_at=at, order_reference=ref, is_simulated=bool(sim))
+        for request_id, at, ref, sim in rows
+    ]
+
+
 async def _admin_support_by_reference(session: AsyncSession, reference: str) -> AdminSupportView:
     row = (await session.execute(_admin_query(SupportRequest.reference == reference))).one_or_none()
     if row is None:

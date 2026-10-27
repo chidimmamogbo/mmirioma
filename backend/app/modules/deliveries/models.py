@@ -174,6 +174,8 @@ class PickupRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("volume_collected_litres > 0", name="volume_positive"),
         CheckConstraint("(source_id IS NULL) <> (other_source_name IS NULL)", name="one_source"),
+        # The report's pickups per source over a date range (#102).
+        Index("ix_pickup_records_picked_up_at", "picked_up_at"),
     )
 
     assignment_id: Mapped[uuid.UUID] = mapped_column(

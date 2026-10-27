@@ -86,6 +86,9 @@ def created(monkeypatch: pytest.MonkeyPatch) -> Iterator[Created]:
             "(SELECT id FROM orders WHERE customer_id = ANY(%s))",
             "DELETE FROM order_price_snapshots WHERE order_id IN "
             "(SELECT id FROM orders WHERE customer_id = ANY(%s))",
+            "DELETE FROM cash_collections WHERE order_id IN "
+            "(SELECT id FROM orders WHERE customer_id = ANY(%s))",
+            "DELETE FROM cash_remittances WHERE driver_id = ANY(%s)",
             "DELETE FROM order_events WHERE order_id IN "
             "(SELECT id FROM orders WHERE customer_id = ANY(%s))",
             "DELETE FROM assignments WHERE order_id IN "

@@ -179,6 +179,9 @@ class CashCollection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="reconciled_fields_match_status",
         ),
         Index("ix_cash_collections_driver_id_status", "driver_id", "status"),
+        # Cash collected on a date or over a range, for the dashboard and
+        # reports (#102).
+        Index("ix_cash_collections_collected_at", "collected_at"),
     )
 
     order_id: Mapped[uuid.UUID] = mapped_column(

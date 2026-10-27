@@ -1931,3 +1931,37 @@ async def submit_proof(
     )
     await session.commit()
     return (await _build_jobs(session, [(assignment, order)], now=now))[0], True
+
+
+async def pickups_by_source(
+    session: AsyncSession, *, picked_up_from: datetime, picked_up_to: datetime, simulated: bool
+) -> list[tuple[uuid.UUID, int]]:
+    """Count pickup records (FR-034) per assigned source in a time range, most first.
+
+    The report's "loads by station". A pickup at another source has no
+    ``source_id`` and is not counted: it has no source row to name.
+
+    Args:
+        session: Database session.
+        picked_up_from: First instant, inclusive (UTC).
+        picked_up_to: Last instant, exclusive (UTC).
+        simulated: Pickups of simulated orders only (True) or real ones only
+            (False), following their order (BR-09).
+
+    Returns:
+        ``(source_id, pickups)`` pairs, most first.
+    """
+    pickups = func.count()
+    rows = await session.execute(
+        select(PickupRecord.source_id, pickups)
+        .join(Order, Order.id == PickupRecord.order_id)
+        .where(
+            PickupRecord.source_id.is_not(None),
+            PickupRecord.picked_up_at >= picked_up_from,
+            PickupRecord.picked_up_at < picked_up_to,
+            Order.is_simulated.is_(simulated),
+        )
+        .group_by(PickupRecord.source_id)
+        .order_by(pickups.desc(), PickupRecord.source_id)
+    )
+    return [(source_id, count) for source_id, count in rows if source_id is not None]

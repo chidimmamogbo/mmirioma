@@ -992,3 +992,172 @@ async def accepted_driver(session: AsyncSession, order_id: uuid.UUID) -> User | 
     if driver_id is None:
         return None
     return (await auth_service.get_users_by_ids(session, {driver_id})).get(driver_id)
+
+
+async def oldest_waiting_created_at(session: AsyncSession, *, simulated: bool) -> datetime | None:
+    """When the oldest order waiting on staff was created, for the dashboard.
+
+    The same orders as :func:`count_orders_needing_action`, but only simulated
+    or only real ones (BR-09), since the dashboard's order numbers never mix
+    them.
+
+    Args:
+        session: Database session.
+        simulated: Simulated orders only (True) or real ones only (False).
+
+    Returns:
+        The oldest ``created_at``, or None when no order waits.
+    """
+    live = exists().where(
+        Assignment.order_id == Order.id, Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES)
+    )
+    return await session.scalar(
+        select(func.min(Order.created_at)).where(
+            Order.status.in_(WAITING_FOR_STAFF_STATUSES),
+            Order.is_simulated.is_(simulated),
+            ~live,
+        )
+    )
+
+
+@dataclass(frozen=True)
+class AvailableDrivers:
+    """Drivers who can take a job now (FR-031), by delivery type.
+
+    Attributes:
+        total: Every such driver, including those with no delivery type.
+        keke: Keke riders.
+        tanker: Tanker drivers.
+    """
+
+    total: int
+    keke: int
+    tanker: int
+
+
+async def available_drivers(session: AsyncSession) -> AvailableDrivers:
+    """Count active, approved drivers whose availability is on (FR-031).
+
+    A "now" value for the dashboard: the same whatever its date or
+    ``simulated`` value. Drivers with no delivery type count in ``total``
+    only.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The counts.
+    """
+    rows = (
+        await session.execute(
+            select(DriverProfile.delivery_type, func.count())
+            .join(User, User.id == DriverProfile.user_id)
+            .where(
+                User.is_active.is_(True),
+                User.role == UserRole.DRIVER,
+                DriverProfile.approval_status == ApprovalStatus.APPROVED,
+                DriverProfile.is_available.is_(True),
+            )
+            .group_by(DriverProfile.delivery_type)
+        )
+    ).all()
+    counts = {delivery_type: count for delivery_type, count in rows}
+    return AvailableDrivers(
+        total=sum(counts.values()),
+        keke=counts.get(DeliveryType.KEKE, 0),
+        tanker=counts.get(DeliveryType.TANKER, 0),
+    )
+
+
+#: Order statuses of a job on the road, from acceptance to unloading (the live map).
+ON_THE_ROAD_STATUSES = (
+    OrderStatus.ACCEPTED,
+    OrderStatus.DEPARTED,
+    OrderStatus.COLLECTED,
+    OrderStatus.EN_ROUTE,
+    OrderStatus.ARRIVED,
+    OrderStatus.UNLOADING,
+)
+
+
+@dataclass(frozen=True)
+class LiveJob:
+    """An accepted job on the road, for the live map (no GPS, FR-037).
+
+    Attributes:
+        order: The order (status, delivery type, source, zone, flag).
+        driver: The driver who accepted it.
+        plate: Their plate, or None if not recorded.
+    """
+
+    order: Order
+    driver: User
+    plate: str | None
+
+
+async def live_jobs(session: AsyncSession) -> list[LiveJob]:
+    """Return the orders with an accepted assignment that are on the road, oldest first.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The jobs; every order is included with its ``is_simulated`` flag.
+    """
+    rows = (
+        await session.execute(
+            select(Order, User, DriverProfile.plate)
+            .join(Assignment, Assignment.order_id == Order.id)
+            .join(User, User.id == Assignment.driver_user_id)
+            .outerjoin(DriverProfile, DriverProfile.user_id == User.id)
+            .where(
+                Assignment.status == AssignmentStatus.ACCEPTED,
+                Order.status.in_(ON_THE_ROAD_STATUSES),
+            )
+            .order_by(Order.created_at, Order.id)
+        )
+    ).all()
+    return [LiveJob(order=order, driver=driver, plate=plate) for order, driver, plate in rows]
+
+
+@dataclass(frozen=True)
+class DriverDeliveries:
+    """How many of the given deliveries one driver made."""
+
+    driver: User
+    plate: str | None
+    delivered: int
+
+
+async def deliveries_by_driver(
+    session: AsyncSession, order_ids: Collection[uuid.UUID]
+) -> list[DriverDeliveries]:
+    """Count the given delivered orders per driver, most first.
+
+    The driver of a delivered order is the one on its ``completed``
+    assignment (the job that ended with the delivery).
+
+    Args:
+        session: Database session.
+        order_ids: Delivered orders (from ``orders.reporting.count_deliveries``).
+
+    Returns:
+        One row per driver with at least one of them, most first, then by name.
+    """
+    if not order_ids:
+        return []
+    delivered = func.count(Assignment.order_id.distinct())
+    rows = (
+        await session.execute(
+            select(User, DriverProfile.plate, delivered)
+            .join(Assignment, Assignment.driver_user_id == User.id)
+            .outerjoin(DriverProfile, DriverProfile.user_id == User.id)
+            .where(
+                Assignment.order_id.in_(set(order_ids)),
+                Assignment.status == AssignmentStatus.COMPLETED,
+            )
+            .group_by(User.id, DriverProfile.plate)
+            .order_by(delivered.desc(), User.name, User.id)
+        )
+    ).all()
+    return [DriverDeliveries(driver=user, plate=plate, delivered=n) for user, plate, n in rows]
