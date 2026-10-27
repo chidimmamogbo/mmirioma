@@ -5,7 +5,7 @@
  * (`features/partner/real/account.ts`): `read` is `read_at !== null`, and a
  * kind this build does not know is shown, never hidden or failed on.
  */
-import type { CustomerNotification } from '../../../domain/orders'
+import type { CustomerNotification, CustomerNotificationList } from '../../../domain/orders'
 import { apiClient, type ApiClient } from '../../../lib/api/client'
 import {
   listCustomerNotifications,
@@ -41,9 +41,14 @@ export function customerNotificationsFromRead(items: CustomerNotificationRead[])
   }))
 }
 
-/** The newest page (50) of the customer's notifications (`GET /me/notifications`). */
-export async function listNotifications(client: ApiClient = apiClient): Promise<CustomerNotification[]> {
-  return customerNotificationsFromRead((await listCustomerNotifications({}, undefined, client)).items)
+/**
+ * The newest page (50) of the customer's notifications
+ * (`GET /me/notifications`), with the server's `unread_count` across all
+ * pages for the bell, the menu badge and "Mark all read".
+ */
+export async function listNotifications(client: ApiClient = apiClient): Promise<CustomerNotificationList> {
+  const page = await listCustomerNotifications({}, undefined, client)
+  return { items: customerNotificationsFromRead(page.items), unread_count: page.unread_count }
 }
 
 /** Mark those messages read, or every unread one without `ids` (`POST /me/notifications/read`). */

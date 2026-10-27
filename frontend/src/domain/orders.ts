@@ -281,6 +281,17 @@ export interface CustomerNotification {
   reference: string | null
 }
 
+/**
+ * The newest notifications, plus the unread count across all of them. The
+ * list may be one page (the real API sends the newest 50), so the bell, the
+ * menu badge and "Mark all read" use `unread_count`, never the unread items
+ * in the list (the same rule as the partner app, #80).
+ */
+export interface CustomerNotificationList {
+  items: CustomerNotification[]
+  unread_count: number
+}
+
 export interface PointsEntry {
   id: string
   label: string

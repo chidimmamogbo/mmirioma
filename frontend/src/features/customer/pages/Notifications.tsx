@@ -38,10 +38,11 @@ export function Notifications() {
   const list = useNotifications()
   const markRead = useMarkNotificationsRead()
   const today = formatDate(new Date())
-  const items = list.data ?? []
+  const items = list.data?.items ?? []
   const todays = items.filter((n) => formatDate(n.at) === today)
   const earlier = items.filter((n) => formatDate(n.at) !== today)
-  const unread = items.some((n) => !n.read)
+  // The server's count: unread messages may be older than the page shown.
+  const unread = (list.data?.unread_count ?? 0) > 0
 
   function row(n: CustomerNotification, anim: string) {
     const k = KIND[n.kind]

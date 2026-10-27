@@ -116,7 +116,10 @@ the same shape as the partner app's. `read` is `read_at !== null`. The
 kinds the server adds (`order_confirmed`, `cancelled`, `delivery_failed`)
 have their own icons from the existing set; any kind the app does not know
 shows as a neutral "update" with the server's title and body, never hidden.
-The list is the newest 50.
+The list is the newest 50, so the bell, the Menu badge and "Mark all read"
+use the server's `unread_count` across all pages, never the unread items in
+the list: unread messages older than the newest 50 still show and can be
+marked read (the partner app's rule, #80).
 
 ## 6. Important business rules
 

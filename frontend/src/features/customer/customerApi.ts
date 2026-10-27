@@ -9,7 +9,7 @@
  * `setDefaultAddress`, `removeAddress` (#88).
  */
 import type {
-  CustomerNotification,
+  CustomerNotificationList,
   CustomerOrder,
   CustomerProfile,
   PointsSummary,
@@ -56,8 +56,11 @@ export const submitFeedback = (reference: string, f: { rating: number; poured_by
 export const demoAdvanceOrder = (reference: string, to: 'delivered' | 'next' = 'next'): Promise<CustomerOrder> =>
   USE_MOCKS ? mock.demoAdvanceOrder(reference, to) : notConnected('Demo controls')
 
-export const listNotifications = (): Promise<CustomerNotification[]> =>
-  USE_MOCKS ? mock.listNotifications() : realNotifications.listNotifications()
+/** The mock has no pages, so counting its unread items gives the true count. */
+export const listNotifications = (): Promise<CustomerNotificationList> =>
+  USE_MOCKS
+    ? mock.listNotifications().then((items) => ({ items, unread_count: items.filter((n) => !n.read).length }))
+    : realNotifications.listNotifications()
 export const markNotificationsRead = (ids?: string[]): Promise<void> =>
   USE_MOCKS ? mock.markNotificationsRead(ids) : realNotifications.markNotificationsRead(ids)
 

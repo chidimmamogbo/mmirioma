@@ -40,10 +40,20 @@ describe('customerNotificationsFromRead', () => {
 })
 
 describe('listNotifications (real)', () => {
-  it('loads the newest page from the customer path', async () => {
+  it('loads the newest page from the customer path, with the server\'s unread count', async () => {
     const { fetch, client } = clientReturning(PAGE)
-    expect((await listNotifications(client)).map((n) => n.kind)).toEqual(['order_received', 'delivered'])
+    const list = await listNotifications(client)
+    expect(list.items.map((n) => n.kind)).toEqual(['order_received', 'delivered'])
+    expect(list.unread_count).toBe(PAGE.unread_count)
     expect(fetch.mock.calls[0][0]).toBe('http://api.test/api/v1/me/notifications')
+  })
+
+  it('keeps unread_count when every listed message is read but older ones are not (#80 rule)', async () => {
+    const read = PAGE.items.map((n) => ({ ...n, read_at: '2026-10-27T08:00:00Z' }))
+    const { client } = clientReturning({ ...PAGE, items: read, unread_count: 7, total: 57 })
+    const list = await listNotifications(client)
+    expect(list.items.every((n) => n.read)).toBe(true)
+    expect(list.unread_count).toBe(7)
   })
 
   it('refuses a body that is not the agreed shape (invalid_response)', async () => {
