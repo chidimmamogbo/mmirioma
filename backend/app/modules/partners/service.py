@@ -38,6 +38,7 @@ from app.modules.dispatch.models import (
     DriverServiceZone,
     VehicleProfile,
 )
+from app.modules.notifications import admin_messages
 from app.modules.pricing.models import ServiceZone
 
 
@@ -150,6 +151,9 @@ async def register_partner(
         target_id=user.id,
         details={"delivery_type": delivery_type.value, "zone_id": str(zone.id)},
     )
+    # "A notice for admin that a partner is waiting" (partners.md), in the
+    # same transaction (admin-operations.md, "Notifications (admin)").
+    await admin_messages.partner_pending(session)
     await session.commit()
     return user
 

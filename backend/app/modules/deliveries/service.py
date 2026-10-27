@@ -131,6 +131,7 @@ from app.modules.dispatch.models import (
     DeclineReason,
 )
 from app.modules.messaging.sms import SmsDeliveryError, SmsProvider
+from app.modules.notifications import admin_messages
 from app.modules.orders import service as orders_service
 from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
 from app.modules.orders.transitions import Requirement
@@ -1122,6 +1123,9 @@ async def record_pickup(
             f"Collected {pickup.volume_collected_litres} L of {order.quantity_litres} L ordered",
             None,
         )
+    # One admin message for the pickup, even if it opened two holds.
+    if not pickup.assigned_source or pickup.safety_concern:
+        await admin_messages.hold_opened(session, order_id=order.id, reference=order.reference)
     await session.commit()
     return await get_driver_job(session, driver_id=driver.id, reference=reference, now=now)
 
@@ -1304,6 +1308,8 @@ async def report_incident(
         updated_at=now,
     )
     session.add(exception)
+    if exception.hold_kind is not None:
+        await admin_messages.hold_opened(session, order_id=order.id, reference=order.reference)
     await session.commit()
     return exception, await _open_hold(session, assignment.id)
 
@@ -1876,6 +1882,7 @@ async def submit_proof(
             litres=proof.delivered_litres,
             driver=driver,
         )
+        await admin_messages.hold_opened(session, order_id=order.id, reference=order.reference)
         await session.commit()
         job = await get_driver_job(session, driver_id=driver.id, reference=reference, now=now)
         return job, False

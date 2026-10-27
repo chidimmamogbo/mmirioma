@@ -6,8 +6,10 @@ decisions 9-11):
 - **Own records only** (FR-001): a customer reads and writes only their own
   requests. An ``order_reference`` that is not theirs is 404
   ``order_not_found``, the same as one that does not exist.
-- **Support requests never change the order** (decision 9). Staff resolve
-  them (admin endpoints, docs/api/admin-operations.md, #22).
+- **Support requests never change the order** (decision 9). Staff list
+  and resolve them with the admin functions at the end of this module
+  (docs/api/admin-operations.md, "Support requests (admin)", #102); a new
+  request tells every active admin (``notifications.admin_messages``).
 - **Idempotent sending** (the FR-026 pattern): a retry with the same
   ``idempotency_key`` and the same details returns the stored request with
   200; the same key with different details is 409 ``idempotency_key_reused``.
@@ -26,11 +28,14 @@ one after the other.
 
 import secrets
 import uuid
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from http import HTTPStatus
+from typing import Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, Row, Select, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.errors import APIError
 from app.modules.audit import service as audit_service
@@ -40,8 +45,11 @@ from app.modules.customers.models import (
     DeletionRequest,
     DeletionRequestStatus,
     SupportRequest,
+    SupportRequestStatus,
     SupportRequestType,
 )
+from app.modules.dispatch import service as dispatch_service
+from app.modules.notifications import admin_messages
 from app.modules.orders.models import Order
 from app.modules.orders.service import IDEMPOTENCY_KEY_REUSED_MESSAGE, REFERENCE_ALPHABET
 from app.shared.lagos_time import LAGOS_TZ
@@ -181,6 +189,9 @@ async def create_support_request(
         idempotency_key=idempotency_key,
     )
     session.add(request)
+    # Admins are told in the same transaction; a retry above adds nothing
+    # (admin-operations.md, "Notifications (admin)").
+    await admin_messages.support_request(session, order_id=order_id, reference=order_reference)
     await session.commit()
     await session.refresh(request)
     return request, order_reference, True
@@ -353,3 +364,241 @@ def set_deletion_status(
     else:
         request.refused_at = now
         request.refusal_reason = refusal_reason
+
+
+# --- Admin side of support requests (docs/api/admin-operations.md, #102) -----------------
+
+
+@dataclass(frozen=True)
+class AdminSupportView:
+    """A support request as staff see it.
+
+    Attributes:
+        request: The stored request.
+        order_reference: Its order's public reference, or None.
+        is_simulated: The order's flag; False without an order (BR-09).
+        customer: The customer who wrote it (NFR-003: staff only).
+        resolver: The admin who resolved it, or None while open.
+    """
+
+    request: SupportRequest
+    order_reference: str | None
+    is_simulated: bool
+    customer: User
+    resolver: User | None
+
+
+#: Who a support contact is: the order's receiver, or its driver.
+ContactRole = Literal["customer", "driver"]
+
+
+@dataclass(frozen=True)
+class SupportContact:
+    """A person the support screen's "Call" buttons dial."""
+
+    name: str
+    role: ContactRole
+    phone: str
+
+
+#: A support request row for staff: the request, its order's reference and
+#: flag (None without an order), the customer, and the resolver (or None).
+_AdminRow = tuple[SupportRequest, str | None, bool | None, User, User | None]
+
+#: Characters that are wildcards in a SQL ``LIKE`` pattern, and its escape.
+_LIKE_ESCAPE = "\\"
+
+
+def _contains(text: str) -> str:
+    """A case-insensitive ``LIKE`` pattern matching ``text`` literally anywhere."""
+    escaped = text.replace(_LIKE_ESCAPE, _LIKE_ESCAPE * 2).replace("%", r"\%").replace("_", r"\_")
+    return f"%{escaped}%"
+
+
+def _admin_query(*filters: ColumnElement[bool]) -> Select[_AdminRow]:
+    resolver = aliased(User)
+    return (
+        select(SupportRequest, Order.reference, Order.is_simulated, User, resolver)
+        .join(User, User.id == SupportRequest.user_id)
+        .outerjoin(Order, Order.id == SupportRequest.order_id)
+        .outerjoin(resolver, resolver.id == SupportRequest.resolved_by)
+        .where(*filters)
+    )
+
+
+def _admin_view(row: Row[_AdminRow]) -> AdminSupportView:
+    request, order_reference, is_simulated, customer, resolver = row
+    return AdminSupportView(
+        request=request,
+        order_reference=order_reference,
+        is_simulated=bool(is_simulated),
+        customer=customer,
+        resolver=resolver,
+    )
+
+
+async def list_admin_support_requests(
+    session: AsyncSession,
+    *,
+    status: SupportRequestStatus | None,
+    q: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[AdminSupportView], int]:
+    """Return a page of every customer's support requests for staff.
+
+    Open requests first, then newest first (admin-operations.md). ``q``
+    matches the request reference, the order reference or the customer
+    name, ignoring case; its ``%`` and ``_`` are matched literally.
+
+    Args:
+        session: Database session.
+        status: Only ``open`` or only ``resolved``; None for both.
+        q: Search text (1-100 characters, checked by the router), or None.
+        limit: Page size.
+        offset: Rows to skip.
+
+    Returns:
+        ``(views, total)``.
+    """
+    filters: list[ColumnElement[bool]] = []
+    if status is not None:
+        filters.append(SupportRequest.status == status)
+    if q is not None:
+        pattern = _contains(q)
+        filters.append(
+            or_(
+                SupportRequest.reference.ilike(pattern, escape=_LIKE_ESCAPE),
+                Order.reference.ilike(pattern, escape=_LIKE_ESCAPE),
+                User.name.ilike(pattern, escape=_LIKE_ESCAPE),
+            )
+        )
+    open_first = case((SupportRequest.status == SupportRequestStatus.OPEN, 0), else_=1)
+    rows = await session.execute(
+        _admin_query(*filters)
+        .order_by(open_first, SupportRequest.created_at.desc(), SupportRequest.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    total = await session.scalar(
+        select(func.count())
+        .select_from(SupportRequest)
+        .join(User, User.id == SupportRequest.user_id)
+        .outerjoin(Order, Order.id == SupportRequest.order_id)
+        .where(*filters)
+    )
+    return [_admin_view(row) for row in rows], total or 0
+
+
+async def get_admin_support_request(
+    session: AsyncSession, *, reference: str
+) -> tuple[AdminSupportView, list[SupportContact]]:
+    """Return one support request with the people staff may call.
+
+    ``contacts``: the order's receiver (its contact name and phone) and the
+    driver of its current or last accepted assignment, if any; without an
+    order, only the customer who wrote the request (admin-operations.md).
+
+    Args:
+        session: Database session.
+        reference: The request's ``SR-`` reference.
+
+    Returns:
+        ``(view, contacts)``.
+
+    Raises:
+        APIError: 404 ``support_request_not_found``.
+    """
+    view = await _admin_support_by_reference(session, reference)
+    request = view.request
+    if request.order_id is None:
+        return view, [SupportContact(view.customer.name, "customer", view.customer.phone)]
+    order = await session.get(Order, request.order_id)
+    contacts: list[SupportContact] = []
+    if order is not None:
+        contacts.append(SupportContact(order.contact_name, "customer", order.contact_phone))
+    driver = await dispatch_service.accepted_driver(session, request.order_id)
+    if driver is not None:
+        contacts.append(SupportContact(driver.name, "driver", driver.phone))
+    return view, contacts
+
+
+async def resolve_support_request(
+    session: AsyncSession, *, reference: str, admin: User, note: str, now: datetime | None = None
+) -> AdminSupportView:
+    """Resolve a support request with the admin's note. Commits.
+
+    Resolving is final (no reopen: contract open question 5) and changes
+    nothing on the order: an action the request needs goes through its own
+    endpoint first (alternative proof, withdraw, cancel). Audited as
+    ``support_request_resolved`` with the request id only; the note stays on
+    the request (NFR-004, audit module rule).
+
+    Args:
+        session: Database session; committed here.
+        reference: The request's ``SR-`` reference.
+        admin: The signed-in admin.
+        note: Trimmed, 5-500 characters (checked by the schema).
+        now: The time to record; defaults to the current time.
+
+    Returns:
+        The resolved request.
+
+    Raises:
+        APIError: 404 ``support_request_not_found``; 409
+            ``support_request_already_resolved``.
+    """
+    # Lock the row so two admins resolving at once cannot both succeed.
+    request = await session.scalar(
+        select(SupportRequest).where(SupportRequest.reference == reference).with_for_update()
+    )
+    if request is None:
+        raise _support_request_not_found()
+    if request.status is SupportRequestStatus.RESOLVED:
+        await session.rollback()
+        raise APIError(
+            HTTPStatus.CONFLICT,
+            "support_request_already_resolved",
+            "This support request is already resolved",
+        )
+    request.status = SupportRequestStatus.RESOLVED
+    request.resolved_at = now or datetime.now(UTC)
+    request.resolved_by = admin.id
+    request.resolution_note = note
+    audit_service.record(
+        session,
+        actor_id=admin.id,
+        action="support_request_resolved",
+        target_type="support_request",
+        target_id=request.id,
+    )
+    await session.commit()
+    return await _admin_support_by_reference(session, reference)
+
+
+async def count_open_support_requests(session: AsyncSession) -> int:
+    """Count support requests still ``open`` (the shell badge and dashboard).
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The count.
+    """
+    count = await session.scalar(
+        select(func.count())
+        .select_from(SupportRequest)
+        .where(SupportRequest.status == SupportRequestStatus.OPEN)
+    )
+    return count or 0
+
+
+async def _admin_support_by_reference(session: AsyncSession, reference: str) -> AdminSupportView:
+    row = (await session.execute(_admin_query(SupportRequest.reference == reference))).one_or_none()
+    if row is None:
+        raise _support_request_not_found()
+    return _admin_view(row)
+
+
+def _support_request_not_found() -> APIError:
+    return APIError(HTTPStatus.NOT_FOUND, "support_request_not_found", "Support request not found")

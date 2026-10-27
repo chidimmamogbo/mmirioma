@@ -1,13 +1,14 @@
-"""Write audit log rows (NFR-004)."""
+"""Write and read audit log rows (NFR-004)."""
 
 import uuid
 from collections.abc import Collection
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.audit.models import AuditLog
+from app.modules.auth.models import User
 
 
 def record(
@@ -69,3 +70,42 @@ async def actors_with_rows(
         select(AuditLog.actor_id).where(AuditLog.actor_id.in_(user_ids)).distinct()
     )
     return set(rows)
+
+
+async def list_logs(
+    session: AsyncSession,
+    *,
+    target_type: str | None,
+    target_id: uuid.UUID | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[tuple[AuditLog, User]], int]:
+    """Return a page of audit rows with their actors, newest first.
+
+    ``GET /admin/audit-logs`` (docs/api/admin-operations.md). With
+    ``target_type`` and ``target_id`` (the router requires both or neither),
+    only that record's rows. Reading the log is not itself audited.
+
+    Args:
+        session: Database session.
+        target_type: Kind of record, e.g. ``order``, or None for every row.
+        target_id: Its id, or None.
+        limit: Page size.
+        offset: Rows to skip.
+
+    Returns:
+        ``(rows, total)``: each row with the user who acted.
+    """
+    filters: list[ColumnElement[bool]] = []
+    if target_type is not None and target_id is not None:
+        filters = [AuditLog.target_type == target_type, AuditLog.target_id == target_id]
+    rows = await session.execute(
+        select(AuditLog, User)
+        .join(User, User.id == AuditLog.actor_id)
+        .where(*filters)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    total = await session.scalar(select(func.count()).select_from(AuditLog).where(*filters))
+    return [(log, actor) for log, actor in rows], total or 0
