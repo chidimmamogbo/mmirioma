@@ -66,8 +66,10 @@ and the screen-to-endpoint table.
 
 ### 3. Approval (gate G2)
 
-The technical lead checks the design before anyone builds it, then sets
-`Status: approved` with their name and the date in `docs/design/<slice>.md`:
+One reviewer who is not the designer (in the fork: @chidimmamogbo,
+@nnamdi-security or @Cloudcrackamara) checks the design before anyone builds
+it, then sets `Status: approved` with their name and the date in
+`docs/design/<slice>.md`:
 
 - every screen and state from the prompt exists;
 - nothing contradicts the SRS (see the honesty rules below);
@@ -77,9 +79,9 @@ The technical lead checks the design before anyone builds it, then sets
 ### 4. API Contracts (gate G3)
 
 From the screen-to-endpoint table, create or update `docs/api/<area>.md` and its
-mock JSON in `docs/api/examples/`. The frontend and backend owners both review
-it, and the document is marked `Status: agreed` with their names. The technical
-lead may instead agree it alone, and the document then names only them.
+mock JSON in `docs/api/examples/`. One reviewer who is not the author agrees
+it, and the document is marked `Status: agreed` with their name and the date.
+Others may comment before it merges.
 **Nothing is built until the contract is agreed.** If the design asks for a
 field the SRS does not support, change the design, not the rules.
 

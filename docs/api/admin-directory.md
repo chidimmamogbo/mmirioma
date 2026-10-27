@@ -1,9 +1,9 @@
 # Admin directory contract: customers, drivers, service zones, price lists
 
 **Status: proposed** on 2026-10-26 by @Cloudcrackamara (+ Claude Code), for
-review by @nnamdi-security and @chidimmamogbo (#18). Not agreed, not built.
-It becomes `Status: agreed` when both have approved it (CLAUDE.md, "Team fork
-workflow").
+review by @nnamdi-security or @chidimmamogbo (#18). Not agreed, not built.
+It becomes `Status: agreed` when one reviewer other than its author has agreed
+it (CLAUDE.md, "Team fork workflow", since 2026-10-27).
 
 **Amended 2026-10-26 for #30** (service zones): open questions 5, 6, 13, 14
 and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee
