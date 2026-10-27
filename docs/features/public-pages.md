@@ -74,6 +74,12 @@ on (`lib/whatsapp.ts`), so help is always reachable.
   keep (live tracking, choosing a delivery time). Changed lines are listed in
   landing-v1.md.
 - Service areas are a sample list until the pilot zone is confirmed.
+- The Terms and the FAQ describe the pilot as it works (#107): cash on
+  delivery after unloading (F4), the window agreed on the confirmation call
+  (F3), no cancellation or redelivery charge (F5), refunds reviewed and paid
+  outside the app (F7), the delivery code by SMS after unloading (FR-035),
+  48 hours for an ordinary dispute (FR-036), no points and no partner pay
+  in the app. The Terms' contact is the privacy notice's (phone and email).
 - Support contact (FR-055): the backend's `SUPPORT_PHONE` and
   `SUPPORT_WHATSAPP_ENABLED`, never an admin screen. With `whatsapp: null`,
   every WhatsApp button is hidden and the 404 page, FAQ, landing page and
@@ -104,10 +110,12 @@ npm test
 ```
 
 `src/features/marketing/marketing.test.tsx`: FAQ filter and counts, copy
-checks (FAQs and worries), FAQ empty state and Clear search, mobile menu, `/`
+checks (FAQs and worries, including no Paystack, points or payouts), FAQ empty state and Clear search, mobile menu, `/`
 with its order and apply links, section order (benefits before how it
 works; worries last, no newsletter), the WhatsApp button link, the 404 page
 and its driver-app variant, `/app` still redirecting.
+`src/features/marketing/termsPage.test.tsx`: none of the old Terms
+promises, the pilot rules, and the notice's contact.
 `src/features/marketing/supportContact.test.tsx`: WhatsApp hidden and the
 phone offered while it is off, shown when on, Contact us with the real
 number. `src/lib/api/publicSite.test.ts`: the client with the contract
@@ -117,11 +125,11 @@ and the mock contact. Manual: compare with
 
 ## 10. Known limitations
 
-- The legal text needs review before launch (open items in landing-v1.md).
+- The Terms are reviewed by the legal operator (@nnamdi-security) on #107's
+  PR before launch; the 18+ age rule and the keke cans wording come from the
+  handoff, not the SRS.
 - Social links and real partner logos are hidden until they exist. The footer's "Staff Login" opens `/admin/login`.
 - The public pages ship in the main bundle (about 113 kB gzipped) so a shared
   link opens at once; every app page loads as its own chunk.
-- The website's Privacy page still lists rider and driver data the pilot
-  does not collect (photo, ID and vehicle papers, bank details for payouts,
-  live location, earnings; #47 decisions). It needs the legal review and an
-  edit to match `PRIVACY_NOTICE.md`.
+- The Privacy page is a hand-made copy of `PRIVACY_NOTICE.md`
+  (`LegalPages.tsx`), so both change together.

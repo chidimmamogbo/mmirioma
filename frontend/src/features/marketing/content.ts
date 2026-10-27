@@ -58,7 +58,7 @@ export const FAQS: Faq[] = [
   {
     cat: 'Ordering',
     q: 'How do I place an order?',
-    a: 'Open the customer app, choose Keke or Tanker, pick your size and quantity, then confirm your delivery address. You will see the full price before you confirm.',
+    a: 'Open the customer app, choose Keke or Tanker, pick your size and quantity, then confirm your delivery address. Our team then calls you to agree the delivery window, and the price if the app could not show one, before we confirm your order.',
   },
   {
     cat: 'Ordering',
@@ -78,7 +78,7 @@ export const FAQS: Faq[] = [
   {
     cat: 'Delivery',
     q: 'How long does delivery take?',
-    a: 'It depends on demand and distance. The app shows each step of your delivery, and an arrival time once your rider has one.',
+    a: 'We agree a delivery window with you on the confirmation call. The app then shows each step of your delivery.',
   },
   {
     cat: 'Delivery',
@@ -93,7 +93,7 @@ export const FAQS: Faq[] = [
   {
     cat: 'Delivery code',
     q: 'How do I receive my delivery code (OTP)?',
-    a: 'Your one-time code appears in the app once a rider is on the way. It is unique to that order.',
+    a: 'We send it by SMS to the order’s contact number when the rider or driver has finished unloading. It is valid for a short time only and is unique to that order.',
   },
   {
     cat: 'Delivery code',
@@ -108,17 +108,17 @@ export const FAQS: Faq[] = [
   {
     cat: 'Payments',
     q: 'What payment methods do you accept?',
-    a: 'We take payments through Paystack. You pay securely in the app when you confirm your order.',
+    a: 'During the pilot you pay in cash on delivery, to the rider or driver, after the water has been unloaded. The app does not take card or online payments.',
   },
   {
     cat: 'Payments',
     q: 'Can I get a refund?',
-    a: 'We do not give cash refunds. If you request one, for example because a delivery was short or not made, our team reviews it. If approved, your payment is converted to MmiriOma points that you can use on your next order.',
+    a: 'Contact us, for example if a delivery was short. Our team reviews each request, and any refund we approve is paid to you outside the app, for example by bank transfer.',
   },
   {
     cat: 'Riders & drivers',
     q: 'How do I become a rider or driver?',
-    a: 'Install the driver app, apply with a valid ID, driver’s licence and vehicle papers, and wait for our team to verify you. Once approved, go online and start accepting orders.',
+    a: 'Sign up in the driver app with your vehicle type, plate number and the tank capacity you carry, then wait for our team to check your vehicle and approve you. Once approved, go online and start accepting jobs.',
   },
   {
     cat: 'Riders & drivers',
@@ -128,12 +128,12 @@ export const FAQS: Faq[] = [
   {
     cat: 'Riders & drivers',
     q: 'How do I get paid?',
-    a: 'Your earnings for each completed delivery show in the driver app, and payouts go to the bank account you add in your profile.',
+    a: 'During the pilot the driver app does not show earnings or make payments. How you are paid is agreed with our team outside the app.',
   },
   {
     cat: 'Account & safety',
     q: 'Where does your water come from?',
-    a: 'We supply borehole water. Please keep your own drums and tanks clean and covered, because the water’s condition after delivery also depends on them.',
+    a: 'From water sources our team has checked and approved. Each order states its water category, Potable Water or Utility Water, and only Potable Water is described as drinking water. Please keep your own drums and tanks clean and covered, because the water’s condition after delivery also depends on them.',
   },
   {
     cat: 'Account & safety',
@@ -146,7 +146,7 @@ export const FAQS: Faq[] = [
 export const LANDING_FAQS: { q: string; a: string }[] = [
   {
     q: 'How do I place an order?',
-    a: "Open the customer app, choose Keke or Tanker, pick your size and quantity, then confirm your delivery address. You'll see the price before you confirm.",
+    a: "Open the customer app, choose Keke or Tanker, pick your size and quantity, then confirm your delivery address. Our team calls you to agree the delivery window before we confirm.",
   },
   {
     q: 'What is the difference between Keke and Tanker delivery?',
@@ -158,11 +158,11 @@ export const LANDING_FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How do I receive my delivery code (OTP)?',
-    a: 'Your code shows in the app once a rider is on the way. Only share it after your water has been poured.',
+    a: 'We send it by SMS when the rider or driver has finished unloading. Only give it after your water has been poured.',
   },
   {
     q: 'What payment methods do you accept?',
-    a: 'We take payments through Paystack. You pay securely in the app when you confirm your order.',
+    a: 'During the pilot you pay in cash on delivery, after the water has been unloaded.',
   },
   {
     q: 'Can I order a custom tanker quantity?',
@@ -170,21 +170,21 @@ export const LANDING_FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How do I become a rider or driver?',
-    a: 'Install the driver app, apply with your documents and wait for our team to verify you. Once approved, go online and start accepting orders.',
+    a: 'Sign up in the driver app with your vehicle details and wait for our team to check your vehicle and approve you. Once approved, go online and start accepting jobs.',
   },
 ]
 
 /**
  * The worries people have before a first order, answered right above the
  * landing page's closing button. Every answer restates a rule the app keeps:
- * refunds as points (FAQ "Can I get a refund?"), the order keeps its quote
+ * refunds reviewed by our team (FAQ "Can I get a refund?"), the order keeps its quote
  * (FR-024), custom tanker sizes priced by the team (FR-021), the delivery code
  * (FAQ "Delivery code"), and the sample areas list (decision Q5).
  */
 export const OBJECTIONS: { q: string; a: string }[] = [
   {
     q: 'What if I get less water than I paid for?',
-    a: 'Do not give your delivery code. Report it in the app. If our team confirms the problem, you get your payment back as MmiriOma points.',
+    a: 'Do not give your delivery code. Call us or report it in the app, and our team will sort it out with you.',
   },
   {
     q: 'Can the price change after I order?',

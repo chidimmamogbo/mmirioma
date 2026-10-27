@@ -9,7 +9,8 @@ backend endpoints exist for most of it yet. Design source:
 
 The mobile web app customers use to order water by Keke (jerrycans) or
 Tanker, follow the delivery, give the delivery code, rate it, and manage
-addresses, points, notifications, support and their profile.
+addresses, notifications, support and their profile. Points are built but
+hidden for the pilot (see section 6).
 
 ## 2. Feature workflow
 
@@ -17,7 +18,7 @@ addresses, points, notifications, support and their profile.
    password only. New accounts go straight to home; the phone stays
    unverified until staff verify it manually (FR-003).
 2. **Home** (`/home`): delivery address, order by Keke or Tanker, quick
-   actions (Reorder, Addresses, Points, My orders), latest order.
+   actions (Reorder, Addresses, My orders), latest order.
 3. **Order** (`/order` → `/order/keke` or `/order/tanker`):
    - Keke: jerrycan size (25 or 50 L) and count (12, 24, 30, 60). No water source.
    - Tanker: tank type (ground, overhead), size (500, 750, 1,000 gallons or
@@ -32,9 +33,9 @@ addresses, points, notifications, support and their profile.
    delivery, place the order. A custom tank size sends a quote request to
    support instead.
 6. **Order placed** (`/orders/:ref/placed`) → **Track** (`/orders/:ref/track`,
-   refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`, points,
+   refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`,
    rating, "did they pour it in").
-7. **Account**: orders list and details (with receipt), points, saved
+7. **Account**: orders list and details (with receipt), saved
    addresses, notifications, support (report a problem, contact). **My
    profile** (`/profile`): name, stats, phone and its verification. **Account
    settings** (`/settings`, separate since #57, approved by @chidimmamogbo on
@@ -102,7 +103,7 @@ the default, remove) from [customer-account.md](../api/customer-account.md):
 
 The other account screens (notifications, support, feedback, account
 deletion) still use mocks until #82 builds them (#88 parts 2 and 3). Points
-stay on the mock: they are out of the MVP. Where a screen still has no data
+are out of the MVP and hidden in both modes (section 6). Where a screen still has no data
 from the server, Home, the top bar, the menu and My profile take the name
 and phone from the session (`GET /auth/me`). Change password
 (`POST /auth/password`) and the support contact (`GET /public/contact`) are
@@ -125,6 +126,16 @@ linked (#57); the email row and message switches sit on Account settings
   confirm it (FR-040, BR-07).
 - ETA and "Near you" show only when an estimate exists (decision 14).
 - No water-quality claims (decision 15).
+
+- **Points are hidden for the pilot** (owner's decision on #107,
+  2026-10-27): they are out of the MVP (`customer-account.md`, decision 12)
+  but kept in the code to return after it. `POINTS_ENABLED` in
+  `src/lib/features.ts` is `false`, so in mock and real mode alike the home
+  tile and banner, the menu entry and balance, the delivered reward, the
+  review estimate, order detail's points, the profile stat, the sign-in line
+  and the deletion warning are not shown; `usePoints` never runs;
+  `useNotifications` drops `points` messages; `/points` redirects to
+  `/home`. Tested in `src/features/customer/pointsHidden.test.tsx`.
 
 ## 7. Authentication and authorization
 
@@ -183,8 +194,9 @@ account in `src/mocks/seed.ts` (mock mode only), place a Keke order, use
   not available yet.
 - Support phone, WhatsApp and hours are placeholders. Terms and privacy are
   the public pages ([public-pages.md](public-pages.md)) and need legal review.
-- "Use points on my next order" starts an order; redeeming points at checkout
-  is not built (no agreed rules).
+- Points are hidden (`POINTS_ENABLED = false` in `src/lib/features.ts`).
+  Turning them back on needs SRS rules, a contract and a backend first;
+  redeeming points at checkout was never built.
 - Password reset is via support only (no reset endpoint).
 - The JS bundle is one 599 kB chunk (179 kB gzipped) until per-app code
   splitting is added.

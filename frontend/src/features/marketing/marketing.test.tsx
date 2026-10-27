@@ -18,7 +18,7 @@ beforeAll(() => {
 
 describe('filterFaqs', () => {
   it('matches the search in questions and answers, ignoring case', () => {
-    expect(filterFaqs('PAYSTACK', 'All').list.map((f) => f.q)).toEqual(['What payment methods do you accept?'])
+    expect(filterFaqs('CASH ON DELIVERY', 'All').list.map((f) => f.q)).toEqual(['What payment methods do you accept?'])
     expect(filterFaqs('gateman', 'All').list).toHaveLength(1)
     expect(filterFaqs('   ', 'All').list).toHaveLength(FAQS.length)
   })
@@ -32,7 +32,7 @@ describe('filterFaqs', () => {
 
   it('keeps no question that promises what the app does not do', () => {
     const text = [...FAQS, ...OBJECTIONS].map((f) => `${f.q} ${f.a}`).join(' ').toLowerCase()
-    expect(text).not.toMatch(/sealed|track your rider live|schedule|one tap|safe to drink|purified|minutes/)
+    expect(text).not.toMatch(/sealed|track your rider live|schedule|one tap|safe to drink|purified|minutes|paystack|points|payout/)
   })
 })
 

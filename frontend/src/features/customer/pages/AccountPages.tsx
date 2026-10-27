@@ -21,6 +21,7 @@ import { applyServerFieldErrors, newPasswordField, optionalEmailField } from '..
 import { changePassword } from '../../auth/authApi'
 import { waitText } from '../../auth/phoneCode'
 import { useProfile, useRequestAccountDeletion, useUpdateProfile } from '../queries'
+import { POINTS_ENABLED } from '../../../lib/features'
 
 function Page({ back, title, children, footer }: { back: string | -1; title: string; children: ReactNode; footer?: ReactNode }) {
   return (
@@ -169,7 +170,7 @@ export function DeleteAccount() {
   return (
     <Page back="/settings" title="Delete my account">
       <Notice tone="error" className="rise-1">
-        This asks our team to close your account and delete your details. Your points will be lost.
+        This asks our team to close your account and delete your details.{POINTS_ENABLED && ' Your points will be lost.'}
       </Notice>
       <p className="rise-2 m-0 text-sub text-mute">
         We keep order and payment records only as long as the law and our privacy notice require. We will confirm by SMS when it is done.
@@ -207,7 +208,7 @@ export function DeleteAccount() {
             onCancel={() => setAsking(false)}
             onConfirm={() => request.mutate(reason, { onSettled: () => setAsking(false) })}
           >
-            Our team will close your account and delete your details. Your points will be lost.
+            Our team will close your account and delete your details.{POINTS_ENABLED && ' Your points will be lost.'}
           </ConfirmDialog>
         </>
       )}

@@ -15,6 +15,7 @@ import { errorMessage } from '../../../../lib/api/errorMessage'
 import { formatTime } from '../../../../lib/format/datetime'
 import { useOrderDraft } from '../../order/orderDraftContext'
 import { draftFromOrder } from '../../order/reorder'
+import { POINTS_ENABLED } from '../../../../lib/features'
 import { useAddresses, useOrder, usePoints, useSubmitFeedback } from '../../queries'
 
 const CONFETTI = [
@@ -71,7 +72,7 @@ export function Delivered() {
               {o.delivered_quantity ?? 'Your water'} {o.choice ? (o.choice.delivery_type === 'keke' ? 'poured into your tank' : 'pumped into your tank') : 'delivered'}
               {o.delivered_at ? ` at ${formatTime(o.delivered_at)}` : ''}. Code confirmed.
             </p>
-            {o.points_earned !== null && (
+            {POINTS_ENABLED && o.points_earned !== null && (
               <div className="rise-3 relative box-border flex w-full items-center gap-3 overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#FFF7E2_0%,#FFE6A8_100%)] p-4 text-left">
                 <Illustration name="gift" className="animate-float w-28 shrink-0" />
                 <div>

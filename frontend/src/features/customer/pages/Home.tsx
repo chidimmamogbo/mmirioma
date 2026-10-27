@@ -8,6 +8,7 @@ import { ActionTile, IconBadge, SectionHeader, TextLink } from '../../../compone
 import { HomeAppCard } from '../../pwa/PushParts'
 import { ButtonLink } from '../../../components/ui/Button'
 import { useSession } from '../../auth/useSession'
+import { POINTS_ENABLED } from '../../../lib/features'
 import { CustomerTabs, CustomerTopBar } from '../components/CustomerChrome'
 import { RecentOrderCard } from '../components/OrderBits'
 import { VerifyPhoneBanner } from '../components/VerifyPhoneBanner'
@@ -111,30 +112,34 @@ export function Home() {
           />
         </div>
 
-        <div className="rise-4 grid grid-cols-4 gap-2.5">
+        <div className={`rise-4 grid gap-2.5 ${POINTS_ENABLED ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <ActionTile onClick={reorder} icon={<IconBadge tone="blue"><HistoryAltIcon size={22} /></IconBadge>} label="Reorder" />
           <ActionTile to="/addresses" icon={<IconBadge tone="green"><MapPinIcon size={22} /></IconBadge>} label="Addresses" />
-          <ActionTile
-            to="/points"
-            icon={<IconBadge tone="gold"><StarIcon size={22} filled /></IconBadge>}
-            label={points.data ? `${points.data.balance} pts` : 'Points'}
-          />
+          {POINTS_ENABLED && (
+            <ActionTile
+              to="/points"
+              icon={<IconBadge tone="gold"><StarIcon size={22} filled /></IconBadge>}
+              label={points.data ? `${points.data.balance} pts` : 'Points'}
+            />
+          )}
           <ActionTile to="/orders" icon={<IconBadge tone="violet"><DocumentLinesIcon size={22} /></IconBadge>} label="My orders" />
         </div>
 
-        <div className="rise-5 relative box-border min-h-32 overflow-hidden rounded-card bg-[linear-gradient(120deg,#FFF7E2_0%,#FFE9B8_100%)] py-4 pr-4 pl-[18px]">
-          <Illustration name="gift" className="animate-float absolute top-1.5 right-[-6px] w-[150px]" />
-          <div className="relative max-w-[190px]">
-            <div className="text-[17px] leading-[1.2] font-extrabold">Earn points on every delivery</div>
-            <p className="mt-1.5 mb-2.5 text-caption text-[#5A4310]">Collect points and use them for money off your next order.</p>
-            <Link
-              to="/points"
-              className="hit-44 inline-flex h-9 items-center rounded-chip bg-ink px-4 text-[13px] font-bold text-white no-underline hover:text-white"
-            >
-              See my points
-            </Link>
+        {POINTS_ENABLED && (
+          <div className="rise-5 relative box-border min-h-32 overflow-hidden rounded-card bg-[linear-gradient(120deg,#FFF7E2_0%,#FFE9B8_100%)] py-4 pr-4 pl-[18px]">
+            <Illustration name="gift" className="animate-float absolute top-1.5 right-[-6px] w-[150px]" />
+            <div className="relative max-w-[190px]">
+              <div className="text-[17px] leading-[1.2] font-extrabold">Earn points on every delivery</div>
+              <p className="mt-1.5 mb-2.5 text-caption text-[#5A4310]">Collect points and use them for money off your next order.</p>
+              <Link
+                to="/points"
+                className="hit-44 inline-flex h-9 items-center rounded-chip bg-ink px-4 text-[13px] font-bold text-white no-underline hover:text-white"
+              >
+                See my points
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
 
         <HomeAppCard app="customer" className="rise-5" />
 

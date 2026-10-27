@@ -4,6 +4,7 @@
  */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProblemType, WaterChoice } from '../../domain/orders'
+import { POINTS_ENABLED } from '../../lib/features'
 import * as api from './customerApi'
 
 export const customerKeys = {
@@ -20,8 +21,15 @@ export const customerKeys = {
 export const useProfile = () => useQuery({ queryKey: customerKeys.profile, queryFn: api.getProfile })
 export const useAddresses = () => useQuery({ queryKey: customerKeys.addresses, queryFn: api.listAddresses })
 export const useOrders = () => useQuery({ queryKey: customerKeys.orders, queryFn: api.listOrders })
-export const useNotifications = () => useQuery({ queryKey: customerKeys.notifications, queryFn: api.listNotifications })
-export const usePoints = () => useQuery({ queryKey: customerKeys.points, queryFn: api.getPoints })
+export const useNotifications = () =>
+  useQuery({
+    queryKey: customerKeys.notifications,
+    queryFn: api.listNotifications,
+    // Points are hidden for the pilot (POINTS_ENABLED), so are their messages.
+    select: (list) => (POINTS_ENABLED ? list : list.filter((n) => n.kind !== 'points')),
+  })
+/** Never runs while points are hidden (POINTS_ENABLED), so `data` stays undefined. */
+export const usePoints = () => useQuery({ queryKey: customerKeys.points, queryFn: api.getPoints, enabled: POINTS_ENABLED })
 export const useTickets = () => useQuery({ queryKey: customerKeys.tickets, queryFn: api.listTickets })
 
 /**

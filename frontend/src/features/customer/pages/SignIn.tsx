@@ -16,6 +16,7 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { phoneField, retryAfterSeconds } from '../../../lib/forms'
 import { HOME_PATH } from '../../auth/authPaths'
 import { useLogin } from '../../auth/useSession'
+import { POINTS_ENABLED } from '../../../lib/features'
 
 const schema = z.object({
   phone: phoneField,
@@ -64,7 +65,7 @@ export function SignIn() {
             className="rise-2"
             titleClassName="text-[26px]"
             title="Water at your gate, without the stress"
-            sub="Sign in to order, track your delivery and earn points."
+            sub={POINTS_ENABLED ? 'Sign in to order, track your delivery and earn points.' : 'Sign in to order and track your delivery.'}
           />
           <div className="rise-3">
             <PageTabs

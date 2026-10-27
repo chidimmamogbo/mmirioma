@@ -23,6 +23,7 @@ import { VerifyPhoneBanner } from '../../components/VerifyPhoneBanner'
 import { draftChoice } from '../../order/draft'
 import { useOrderDraft } from '../../order/orderDraftContext'
 import { useAddresses, useCreateOrder, useCreateTicket, useProfile, useQuote } from '../../queries'
+import { POINTS_ENABLED } from '../../../../lib/features'
 
 /** Review and place the order (`c-review`). */
 export function Review() {
@@ -188,7 +189,7 @@ export function Review() {
             </div>
             <div className="mt-1.5 flex items-center justify-between">
               {q.is_sample ? <SampleTag>SAMPLE PRICES</SampleTag> : <span />}
-              <span className="text-chip text-[#D6E7FB]">You earn about {q.points_estimate} points</span>
+              {POINTS_ENABLED && <span className="text-chip text-[#D6E7FB]">You earn about {q.points_estimate} points</span>}
             </div>
             <Wave fill="#FFFFFF" variant="low" height={34} className="bottom-[-12px] opacity-20" />
           </div>
