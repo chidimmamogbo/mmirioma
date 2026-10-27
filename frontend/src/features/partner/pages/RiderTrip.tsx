@@ -32,7 +32,7 @@ import { Notice } from '../../../components/ui/Notice'
 import { StepChip } from '../components/PartnerChrome'
 import { directionsUrl } from '../maps'
 import { readPickupPhoto } from '../photo'
-import { jobDeliveryType } from '../jobHelpers'
+import { jobDeliveryType, placeAddress } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useConfirmPickup } from '../queries'
 import { JobStep } from '../components/JobStep'
@@ -63,7 +63,7 @@ export function RefillStep() {
               </IconBadge>
               <div className="flex-1">
                 <div className="font-extrabold">{j.station.name}</div>
-                <div className="text-caption text-mute">{j.station.address}</div>
+                <div className="text-caption text-mute">{placeAddress(j.station)}</div>
               </div>
               {/* No road distance yet (no OSRM, SRS §12.1): nothing rather than a guess. */}
               {j.station.minutes !== null && j.station.distance_km !== null && (
@@ -94,7 +94,7 @@ export function RefillStep() {
             </MapFrame>
           </ScrollArea>
           <Footer>
-            <ExternalButton href={directionsUrl(j.station.address)}>
+            <ExternalButton href={directionsUrl(placeAddress(j.station))}>
               <NavigationIcon size={20} filled />
               Start navigation
             </ExternalButton>
@@ -274,21 +274,25 @@ export function CustomerStep() {
                 {eta && <MapBadge className="right-3 bottom-3.5 text-[14px]">{eta.minutes} min away</MapBadge>}
               </MapFrame>
               <Card className="rise-4 flex items-center gap-3 px-3.5 py-3">
-                <Avatar name={j.customer.contact_name} tone="plain" />
+                <Avatar name={j.customer.contact_name ?? j.customer.area} tone="plain" />
                 <div className="flex-1">
-                  <div className="font-extrabold">{j.customer.contact_name}</div>
+                  <div className="font-extrabold">{j.customer.contact_name ?? j.customer.area}</div>
                   <div className="text-caption text-mute">{j.instructions?.split('.')[0] ?? 'Call when you are close'}</div>
                 </div>
-                <a href={`sms:${j.customer.phone}`} aria-label="Message customer" className="mo-ib mo-ib-soft">
-                  <MessageSquareIcon size={20} />
-                </a>
-                <a href={`tel:${j.customer.phone}`} aria-label="Call customer" className="mo-ib bg-green-bg text-green hover:text-green">
-                  <PhoneIcon size={20} />
-                </a>
+                {j.customer.phone && (
+                  <>
+                    <a href={`sms:${j.customer.phone}`} aria-label="Message customer" className="mo-ib mo-ib-soft">
+                      <MessageSquareIcon size={20} />
+                    </a>
+                    <a href={`tel:${j.customer.phone}`} aria-label="Call customer" className="mo-ib bg-green-bg text-green hover:text-green">
+                      <PhoneIcon size={20} />
+                    </a>
+                  </>
+                )}
               </Card>
             </ScrollArea>
             <Footer>
-              <ExternalButton href={directionsUrl(j.customer.address)}>
+              <ExternalButton href={directionsUrl(placeAddress(j.customer))}>
                 <NavigationIcon size={20} filled />
                 Start navigation
               </ExternalButton>

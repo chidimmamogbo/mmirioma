@@ -217,6 +217,32 @@ out rather than fill them in:
 | `assigned_by` | `null`: the job does not name the dispatcher |
 | payment status | Not in `PartnerJob`: partners never see an order's payment status (FR-040, BR-13; docs/design/driver-cash.md, decision 3). The K1 Cash card (#20) takes its place |
 
+Also decided by @chidimmamogbo on #12 (2026-10-27), for fields missing on
+whole groups of jobs:
+
+| Design field | Rule |
+| --- | --- |
+| `customer.contact_name`, `customer.phone` | `null` on an offer (FR-032: no receiver before the driver accepts) and after the job ends (`DriverJobDetail.receiver`). Screens name the area only, leave out the "Customer" / "Delivered to" row, and show no call or message button |
+| `station.address`, `customer.address` | `null` when the job carries only summary fields (history, ended jobs) or no delivery address yet (offers). Screens show the area instead |
+| `code_tries_left` | `null` before the delivery code is issued (`delivery_code: null`). The code screen shows "Waiting for the delivery code", never "locked" |
+| ended jobs | `GET /driver/jobs/{reference}` answers 404 once a job is completed, so the adapter takes it from the `done` list of `GET /driver/jobs`, with the summary fields only |
+
+Mock mode keeps every value (`StoredJob` in `mocks/seed.ts`).
+
+How the #12 adapter (`features/partner/real/jobs.ts`) fills the rest,
+decided by @Bonvee120 for #12 (2026-10-27):
+
+| Design field | From the backend job |
+| --- | --- |
+| `station.name`, `station.area` | `source.name` or `source_name`; "Station not set yet" while the dispatcher has not picked a source |
+| `station.address` | `source.approximate_location` (detail only), else `null` |
+| `customer.name`, `customer.area` | `delivery_area` (the address's first line). No neighbourhood is invented; "Address not known yet" if the job has none |
+| `customer.address`, `customer.landmark`, `instructions` | `delivery_address`, `landmark`, `delivery_instructions` (detail only), else `null` |
+| `collected_at` | `pickup.picked_up_at` |
+| `delivered_at` | `ended_at` when the order is `delivered` |
+| `code_tries_left` | `delivery_code.attempts_left` |
+| `tank_note`, `accepted_at`, `code_resend_at`, `pickup`, `remaining` | `null`: the job does not carry them |
+
 ### Available orders and declining
 
 Decided by @chidimmamogbo on #12 (2026-10-26):
@@ -258,9 +284,10 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 `failed` and `disputed` are admin statuses of their own (open question 5,
 decided in #15), with the agreed staff labels from docs/api/orders.md. The
 order's payment status maps only where the design has an exact equivalent
-(`unpaid`, `awaiting_verification`, `paid`, `refunded`, and `partially_paid`
-as "Part paid" from the approved cash design, docs/design/cash-remittance.md);
-for the others the order shows no payment chip, and the cash pages show them
+(`unpaid`, `awaiting_verification`, `paid`, `refunded`), plus
+`pending_collection` shown as "Cash to collect" (@chidimmamogbo on PR #92)
+and `partially_paid` shown as "Part paid" (the approved cash design,
+docs/design/cash-remittance.md); for the others the order shows no payment chip, and the cash pages show them
 in full (#19).
 
 ## Open questions

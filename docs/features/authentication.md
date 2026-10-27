@@ -346,8 +346,9 @@ curl -b /tmp/jar http://localhost:8000/api/v1/auth/me
   dispatcher fallback FR-003 allows is not built.
 - **No admin user-management API.** Creating, activating and deactivating staff
   is CLI-only, and there is no password reset for a forgotten password.
-- **Change password has no screen connection yet:** the Change password
-  screens still use the mock until the link issue (#57).
+- **Change password screens are linked** (#57): customer, partner and admin
+  use `POST /auth/password`; a wrong current password shows on its field, a
+  429 shows the wait, and success says other devices were signed out.
 - **No audit log of sign-ins.** NFR-004 does not require it. A password
   change is audited (`password_changed`).
 - **Expired and revoked sessions are never deleted.** The table grows slowly; a
@@ -360,12 +361,10 @@ curl -b /tmp/jar http://localhost:8000/api/v1/auth/me
   design Decision 10). The X2 line "Your request has not been sent. What you
   typed is kept." holds while the app stays open; a page reload (including
   "Reload" on the X3 banner) loses the draft.
-- **Frontend: support contacts.** The Call button and the "Contact us" link
-  use the official support number, +234 813 377 4902 (`OFFICIAL_SUPPORT_PHONE`
-  in `frontend/src/features/auth/contact.ts`; `VITE_SUPPORT_PHONE` overrides
-  it). No WhatsApp number is approved, so the WhatsApp button stays hidden
-  until `VITE_SUPPORT_WHATSAPP` is set. The customer order screens still say
-  "contact us" as plain text, as in the approved design.
+- **Frontend: support contacts.** The support phone and WhatsApp come from
+  `GET /public/contact` (FR-055, [public-contact.md](public-contact.md));
+  WhatsApp buttons hide while it is off. The fallback while it cannot be read
+  is the official number, +234 813 377 4902 (`frontend/src/lib/whatsapp.ts`).
 - **Frontend: the rate-limit countdown re-enabling the button** is not
   exercised by a test (it needs fake timers across a 15-minute wait); the
   wording and the disabled state are.

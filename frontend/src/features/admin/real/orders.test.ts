@@ -51,9 +51,18 @@ describe('adminOrderFromRead', () => {
     expect(order.assigned_by).toBe(DETAIL.assignment!.offered_by.name)
     expect(order.station_name).toBe('Sample Borehole A')
     expect(order.total_minor_units).toBe(4_500_000)
-    // pending_collection has no design equivalent: no chip rather than a wrong one.
-    expect(order.payment).toEqual({ method: 'pay_on_delivery', status: null })
+    // pending_collection shows as "Cash to collect" (decided on PR #92).
+    expect(order.payment).toEqual({ method: 'pay_on_delivery', status: 'pending_collection' })
     expect(order.timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
+  })
+
+  it('shows a payment status without a label yet as no chip, never a guessed one', () => {
+    expect(adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_refunded' } }).payment.status).toBeNull()
+  })
+
+  it('shows a part-paid order as Part paid, from the cash design', () => {
+    const order = adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_paid' } })
+    expect(order.payment.status).toBe('partially_paid')
   })
 
   it('shows an ended assignment as no partner', () => {
@@ -75,11 +84,6 @@ describe('adminOrderFromRead', () => {
     expect(order.choice).toEqual({ delivery_type: 'keke', can_size_litres: 25, can_count: 24 })
     expect(order.area).toBe('Independence Layout')
     expect(order.tank_note).toBeNull()
-  })
-
-  it('shows a part-paid order as Part paid, from the cash design', () => {
-    const order = adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_paid' } })
-    expect(order.payment.status).toBe('partially_paid')
   })
 
   it('keeps a list row honest: litres only, no area, payment status or partner', () => {

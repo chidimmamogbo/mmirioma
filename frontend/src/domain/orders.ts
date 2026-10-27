@@ -247,6 +247,12 @@ export interface SavedAddress {
   address: string
   landmark: string | null
   is_default: boolean
+  /**
+   * The area (service zone) the customer picked for it (FR-020). Sent by the
+   * real API; mock addresses have none. `is_active` false: no longer served,
+   * so its quote answers `outside_service_zone` (docs/api/customer-account.md).
+   */
+  zone?: { id: string; name: string; is_active: boolean } | null
 }
 
 export interface CustomerNotification {
@@ -303,10 +309,16 @@ export interface CustomerProfile {
   name: string
   phone: string
   phone_verified: boolean
-  /** Optional, for updates, newsletters and promo alerts (decision 6). */
-  email: string | null
+  /**
+   * Optional, for updates, newsletters and promo alerts (decision 6).
+   * Absent when the app does not offer email: left out of the pilot
+   * (docs/api/customer-account.md, decision 1).
+   */
+  email?: string | null
   customer_since: string
   photo_url: string | null
-  preferences: { sms_updates: boolean; whatsapp_updates: boolean; offers_and_news: boolean }
-  stats: { orders: number; points: number; addresses: number }
+  /** `null` when the app does not offer these switches (customer-account.md, decision 3). */
+  preferences: { sms_updates: boolean; whatsapp_updates: boolean; offers_and_news: boolean } | null
+  /** `points` is `null` when the app has no points (out of the MVP, customer-account.md, decision 12). */
+  stats: { orders: number; points: number | null; addresses: number }
 }

@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 from functools import cache
 from http import HTTPStatus
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -338,3 +338,41 @@ async def get_user_by_phone(session: AsyncSession, phone: str) -> User | None:
         The user, or None if no account has this phone.
     """
     return await session.scalar(select(User).where(User.phone == phone))
+
+
+@dataclass(frozen=True)
+class StaffMember:
+    """An active administrator and when they last signed in.
+
+    Attributes:
+        user: The account (role ``admin``).
+        last_sign_in_at: The newest session's creation time, or None if
+            they never signed in. Sessions do not record later use, so this
+            is not "last active" (docs/api/admin-operations.md).
+    """
+
+    user: User
+    last_sign_in_at: datetime | None
+
+
+async def list_staff(session: AsyncSession) -> list[StaffMember]:
+    """Return every active administrator by name, for the read-only Settings page.
+
+    Staff are created with the command-line tool, and every staff member is
+    ``admin`` (one staff role, SRS §2).
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The staff, by name.
+    """
+    newest_session = func.max(UserSession.created_at)
+    rows = await session.execute(
+        select(User, newest_session)
+        .outerjoin(UserSession, UserSession.user_id == User.id)
+        .where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        .group_by(User.id)
+        .order_by(User.name, User.id)
+    )
+    return [StaffMember(user=user, last_sign_in_at=signed_in) for user, signed_in in rows]

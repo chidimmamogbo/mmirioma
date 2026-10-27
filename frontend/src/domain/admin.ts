@@ -32,11 +32,13 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
 }
 
 /**
- * Payment status on admin screens: the design's statuses plus `partially_paid`
- * ("Part paid", from the approved cash design, docs/design/cash-remittance.md),
- * which pay-on-delivery orders reach when the driver collects less than due.
+ * Payment status on admin screens: the design's statuses plus
+ * `pending_collection` ("Cash to collect", decided by @chidimmamogbo on PR #92),
+ * the status of a confirmed pay-on-delivery order before the driver collects;
+ * and `partially_paid` ("Part paid", from the approved cash design,
+ * docs/design/cash-remittance.md), when the driver collects less than due.
  */
-export type AdminPaymentStatus = PaymentStatus | 'partially_paid'
+export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
 export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
@@ -347,7 +349,6 @@ export interface StaffMember {
 
 export interface AdminSettings {
   support_phone: string | null
-  support_whatsapp: string | null
   /** `[SUPPORT HOURS]` until set. */
   support_hours: string | null
   /** `[CODE TIME LIMIT]` until set. */

@@ -81,7 +81,7 @@ export function ChangePhone() {
   const title = check.isSuccess ? 'Number changed' : 'Change phone number'
   return (
     <MobileShell background="white">
-      <TopBar left={<BackLink to="/profile" />} center={<TopBarTitle>{title}</TopBarTitle>} />
+      <TopBar left={<BackLink to="/settings" />} center={<TopBarTitle>{title}</TopBarTitle>} />
       {!user ? (
         <ScrollArea>
           <LoadingBlock label="Loading your account" />

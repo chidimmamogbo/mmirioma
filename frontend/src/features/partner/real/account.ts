@@ -13,10 +13,17 @@
  * - `payout_account_ending`: `null`; earnings and payouts stay unlinked
  *   (decision 7).
  *
- * Server errors pass through unchanged as `ApiError`, except the two sign-up
- * cases in `partnerSignup` the sign-up screen could not otherwise show.
+ * Server errors pass through unchanged as `ApiError`, except sign-up field
+ * errors, which `partnerSignup` renames to the form's fields.
  */
-import type { ApprovalStatus, PartnerNotification, PartnerProfile, PartnerSignupInput, VehicleType } from '../../../domain/partner'
+import type {
+  ApprovalStatus,
+  PartnerNotification,
+  PartnerNotificationList,
+  PartnerProfile,
+  PartnerSignupInput,
+  VehicleType,
+} from '../../../domain/partner'
 import { litresFromGallons } from '../../../domain/quantity'
 import type { Session } from '../../../lib/api/auth'
 import { apiClient, ApiError, type ApiClient } from '../../../lib/api/client'
@@ -44,14 +51,6 @@ const NOTIFICATION_KINDS: readonly PartnerNotification['kind'][] = [
   'reassigned',
   'account',
 ]
-
-/**
- * Client-side code for a typed sign-up area that matches no active zone.
- * Never sent by the server. Not `validation_error` on purpose: the sign-up
- * screen hides its top notice for `validation_error` and has no field error
- * for the area, so that code would show nothing.
- */
-export const SERVICE_AREA_NOT_SERVED = 'service_area_not_served'
 
 /**
  * The design's vehicle type. `delivery_type` is `null` only for drivers made
@@ -135,10 +134,13 @@ export function partnerNotificationsFromRead(items: NotificationRead[]): Partner
 
 const zoneKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase()
 
-function areaNotServed(area: string, zones: ZoneOption[]): ApiError {
+/** The form's message for an area no active zone matches. */
+function areaNotServedMessage(area: string, zones: ZoneOption[]): string {
   const served = zones.length ? ` Areas we serve: ${zones.map((z) => z.name).join(', ')}.` : ''
-  return new ApiError({ kind: 'http', status: 422, code: SERVICE_AREA_NOT_SERVED, message: `We do not serve "${area.trim()}" yet.${served}` })
+  return `We do not serve "${area.trim()}" yet.${served}`
 }
+
+type FieldError = { loc?: unknown[]; msg?: string; type?: string }
 
 /** Contract field names to the sign-up form's, so the screen puts server errors under the right field. */
 const SIGNUP_FIELD: Record<string, string> = { declared_capacity_gallons: 'tank_gallons', delivery_type: 'vehicle_type', service_zone_id: 'service_area' }
@@ -149,15 +151,25 @@ const SIGNUP_FIELD: Record<string, string> = { declared_capacity_gallons: 'tank_
  * and extra spaces (agreed for #67; partners.md maps `service_area` to
  * `service_zone_id`).
  *
- * @throws {ApiError} `service_area_not_served` (client-side: no zone matches,
- *   or the server refused the zone because it closed meanwhile);
- *   `phone_already_registered` (409); `validation_error` (422, `loc` renamed
- *   to the form's fields); `too_many_attempts` (429).
+ * @throws {ApiError} `validation_error` (422) with `details` named after the
+ *   form's fields: from the server, or made here for an area no zone matches
+ *   (`service_area`, nothing sent). A zone the server refuses keeps the other
+ *   field errors and gets the same area message. Also
+ *   `phone_already_registered` (409) and `too_many_attempts` (429).
  */
 export async function partnerSignup(input: PartnerSignupInput, client: ApiClient = apiClient): Promise<Session> {
   const zones = await listServiceZoneOptions(undefined, client)
   const zone = zones.find((z) => zoneKey(z.name) === zoneKey(input.service_area))
-  if (!zone) throw areaNotServed(input.service_area, zones)
+  if (!zone) {
+    const msg = areaNotServedMessage(input.service_area, zones)
+    throw new ApiError({
+      kind: 'http',
+      status: 422,
+      code: 'validation_error',
+      message: msg,
+      details: [{ loc: ['body', 'service_area'], msg, type: 'value_error' }],
+    })
+  }
   try {
     return await registerPartner(
       {
@@ -173,11 +185,14 @@ export async function partnerSignup(input: PartnerSignupInput, client: ApiClient
     )
   } catch (error) {
     if (!(error instanceof ApiError) || error.code !== 'validation_error' || !Array.isArray(error.details)) throw error
-    const details = (error.details as { loc?: unknown[] }[]).map((d) => {
+    const details = (error.details as FieldError[]).map((d): FieldError => {
       const last = d.loc?.at(-1)
-      return typeof last === 'string' && last in SIGNUP_FIELD ? { ...d, loc: [...d.loc!.slice(0, -1), SIGNUP_FIELD[last]] } : d
+      if (typeof last !== 'string' || !Object.hasOwn(SIGNUP_FIELD, last)) return d
+      const field = SIGNUP_FIELD[last]
+      // The zone closed between the list and the sign-up: say it in the form's words.
+      const msg = field === 'service_area' ? areaNotServedMessage(input.service_area, []) : d.msg
+      return { ...d, loc: [...d.loc!.slice(0, -1), field], msg }
     })
-    if (details.some((d) => d.loc?.at(-1) === 'service_area')) throw areaNotServed(input.service_area, [])
     throw new ApiError({ kind: error.kind, status: error.status, code: error.code, message: error.message, details, cause: error })
   }
 }
@@ -207,9 +222,14 @@ export async function setOnline(online: boolean, client: ApiClient = apiClient):
   return partnerProfileFromRead(await setDriverAvailability(online, client))
 }
 
-/** The newest page (50) of the partner's notifications (`GET /driver/notifications`). */
-export async function listPartnerNotifications(client: ApiClient = apiClient): Promise<PartnerNotification[]> {
-  return partnerNotificationsFromRead((await listDriverNotifications({}, undefined, client)).items)
+/**
+ * The newest page (50) of the partner's notifications
+ * (`GET /driver/notifications`), with the server's `unread_count` across all
+ * pages for the badges and "Mark all read".
+ */
+export async function listPartnerNotifications(client: ApiClient = apiClient): Promise<PartnerNotificationList> {
+  const page = await listDriverNotifications({}, undefined, client)
+  return { items: partnerNotificationsFromRead(page.items), unread_count: page.unread_count }
 }
 
 /** Mark every unread notification read (`POST /driver/notifications/read`, no ids). */

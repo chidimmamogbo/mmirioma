@@ -36,12 +36,15 @@ const STATUS_BY_BACKEND: Record<BackendStatus, AdminOrderStatus> = {
 }
 
 /**
- * Backend payment statuses with an exact design equivalent, `partially_paid`
- * from the approved cash design. The others (`pending_collection`,
- * `disputed`, `partially_refunded`) have none, so the order shows no payment
- * chip rather than a wrong one; the cash pages show them in full (#19).
+ * Backend payment statuses the admin screens show: the exact design
+ * equivalents, plus `pending_collection` as "Cash to collect" (decided on PR
+ * #92) and `partially_paid` as "Part paid" (the approved cash design). The
+ * others (`disputed`, `partially_refunded`) have no label yet, so the order
+ * shows no payment chip rather than a wrong one; the cash pages show them in
+ * full (#19).
  */
 const PAYMENT_BY_BACKEND: Partial<Record<string, AdminPaymentStatus>> = {
+  pending_collection: 'pending_collection',
   unpaid: 'unpaid',
   awaiting_verification: 'awaiting_verification',
   paid: 'paid',
