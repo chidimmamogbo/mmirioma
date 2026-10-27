@@ -188,3 +188,9 @@ account in `src/mocks/seed.ts` (mock mode only), place a Keke order, use
 - Password reset is via support only (no reset endpoint).
 - The JS bundle is one 599 kB chunk (179 kB gzipped) until per-app code
   splitting is added.
+- Support and account deletion (#88 part 4) are linked: "Report a problem"
+  sends `POST /me/support-requests`, and the list also shows the open
+  deletion request (`GET /me/deletion-request`). The screen gives no
+  idempotency key, so the adapter keeps one per report until the server
+  answers: a retry after a lost connection files it once. Asking to delete
+  the account deletes nothing; staff verify it first (privacy notice §9).

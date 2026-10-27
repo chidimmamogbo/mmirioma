@@ -21,6 +21,8 @@ import type {
 } from '../../domain/orders'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
+// Linked in #88 part 4: listTickets, createTicket, requestAccountDeletion.
+import * as realSupport from './real/support'
 import * as mock from '../../mocks/customerMock'
 import * as realAccount from './real/account'
 import * as realOrder from './real/order'
@@ -59,8 +61,9 @@ export const markNotificationsRead = (ids?: string[]): Promise<void> =>
 
 export const getPoints = (): Promise<PointsSummary> => (USE_MOCKS ? mock.getPoints() : notConnected('Points'))
 
-export const listTickets = (): Promise<SupportTicket[]> => (USE_MOCKS ? mock.listTickets() : notConnected('Support'))
+// Linked in #88 part 4.
+export const listTickets = (): Promise<SupportTicket[]> => (USE_MOCKS ? mock.listTickets() : realSupport.listTickets())
 export const createTicket = (i: { type: ProblemType; message: string; reference: string | null }): Promise<SupportTicket> =>
-  USE_MOCKS ? mock.createTicket(i) : notConnected('Support')
+  USE_MOCKS ? mock.createTicket(i) : realSupport.createTicket(i)
 export const requestAccountDeletion = (reason: string): Promise<SupportTicket> =>
-  USE_MOCKS ? mock.requestAccountDeletion(reason) : notConnected('Account deletion')
+  USE_MOCKS ? mock.requestAccountDeletion(reason) : realSupport.requestAccountDeletion(reason)
