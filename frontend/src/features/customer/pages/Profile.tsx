@@ -34,7 +34,7 @@ import { useProfile, useUpdateProfile } from '../queries'
 /** Largest photo accepted, before it is stored (keeps uploads small on mobile data). */
 const MAX_PHOTO_BYTES = 500_000
 
-const PREFS: { key: keyof CustomerProfile['preferences']; title: string; sub: string }[] = [
+const PREFS: { key: keyof NonNullable<CustomerProfile['preferences']>; title: string; sub: string }[] = [
   { key: 'sms_updates', title: 'SMS updates', sub: 'Order status and delivery codes' },
   { key: 'whatsapp_updates', title: 'WhatsApp updates', sub: 'Rider arrival and receipts' },
   { key: 'offers_and_news', title: 'Offers and news', sub: 'Points promos, now and then' },
@@ -121,11 +121,13 @@ export function Profile() {
           {photoError && <Notice tone="error">{photoError}</Notice>}
           {update.isError && <Notice tone="error">{errorMessage(update.error)}</Notice>}
           {p && (
-            <Card className="rise-2 grid grid-cols-3 py-3 text-center">
+            <Card className={`rise-2 grid py-3 text-center ${p.stats.points !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <Stat value={p.stats.orders} label="Orders" />
-              <div className="border-x border-solid border-hairline">
-                <Stat value={p.stats.points} label="Points" valueClass="text-gold-ink" />
-              </div>
+              {p.stats.points !== null && (
+                <div className="border-x border-solid border-hairline">
+                  <Stat value={p.stats.points} label="Points" valueClass="text-gold-ink" />
+                </div>
+              )}
               <Stat value={p.stats.addresses} label="Addresses" />
             </Card>
           )}
@@ -209,26 +211,30 @@ export function AccountSettings() {
           </Card>
           {p && (
             <>
-              <Card className="rise-3 px-4 py-1">
-                <div className="mo-li">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-chip text-mute">Email (optional)</span>
-                    <span className="block truncate font-bold">{p.email ?? 'Add an email for updates and offers'}</span>
-                  </span>
-                  <Link to="/profile/email" className="hit-44 text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
-                    {p.email ? 'Edit' : 'Add'}
-                  </Link>
-                </div>
-              </Card>
+              {/* Absent when the app does not offer email (customer-account.md, decision 1). */}
+              {p.email !== undefined && (
+                <Card className="rise-3 px-4 py-1">
+                  <div className="mo-li">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-chip text-mute">Email (optional)</span>
+                      <span className="block truncate font-bold">{p.email ?? 'Add an email for updates and offers'}</span>
+                    </span>
+                    <Link to="/profile/email" className="hit-44 text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
+                      {p.email ? 'Edit' : 'Add'}
+                    </Link>
+                  </div>
+                </Card>
+              )}
               <Card className="rise-3 px-4 py-1">
                 <PushSettingRows app="customer" />
-                {PREFS.map((pref) => (
+                {/* No switches when the app does not offer them (customer-account.md, decision 3). */}
+                {p.preferences && PREFS.map((pref) => (
                   <div key={pref.key} className="mo-li">
                     <span className="flex-1">
                       <span className="block font-bold">{pref.title}</span>
                       <span className="text-chip text-mute">{pref.sub}</span>
                     </span>
-                    <Toggle label={pref.title} checked={p.preferences[pref.key]} onChange={(v) => update.mutate({ preferences: { [pref.key]: v } })} />
+                    <Toggle label={pref.title} checked={p.preferences?.[pref.key] ?? false} onChange={(v) => update.mutate({ preferences: { [pref.key]: v } })} />
                   </div>
                 ))}
               </Card>

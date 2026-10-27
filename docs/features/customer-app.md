@@ -49,6 +49,7 @@ addresses, points, notifications, support and their profile.
 | `frontend/src/domain/orders.ts` | Order, quote, address, points, support and profile types; labels and display helpers |
 | `frontend/src/features/customer/customerApi.ts` | Typed API functions: mocks in mock mode; in real-API mode the linked ones call `real/`, the rest fail with `not_connected` |
 | `frontend/src/features/customer/real/order.ts` | Order adapters (#9): `createOrder`, `listOrders`, `getOrder` through `lib/api/orders.ts`, converted with `docs/architecture/api-mapping.md` |
+| `frontend/src/features/customer/real/account.ts` | Account adapters (#88 part 1): `getProfile`, `listAddresses`, `setDefaultAddress`, `removeAddress` through `lib/api/customerAccount.ts` |
 | `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
 | `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
 | `frontend/src/features/customer/queries.ts` | TanStack Query hooks and cache refresh after changes |
@@ -86,14 +87,27 @@ real API is on, and, since #9, the orders endpoints: `POST /orders`,
   litres.
 - **Unknown statuses** show the agreed neutral stage "Order update".
 
-The other customer screens (addresses, notifications, points, support,
-profile, feedback, account deletion) still use mocks: their contract
-([customer-account.md](../api/customer-account.md)) is agreed but not built
-(#82). Until then, with the real API, Home, the top bar, the menu and My
-profile take the name and phone from the session (`GET /auth/me`), and My
-profile hides its profile-only parts without an error. Change password
+Since #88 part 1, also `GET /me/profile` and the saved addresses (list, set
+the default, remove) from [customer-account.md](../api/customer-account.md):
+
+- **The profile shows what the backend sends:** name, phone, verified,
+  customer since, order and address counts. In real mode there is no email
+  row, no message switches and no points stat (decisions 1, 3 and 12); the
+  photo stays initials. Changing the photo still says "not connected".
+- **Each saved address carries its area** (`zone`), kept for the live
+  prices design (#79).
+- **Adding or editing an address is not linked yet:** the backend needs an
+  area, and the area picker waits for the #79 design, so these say "not
+  connected" in real mode.
+
+The other account screens (notifications, support, feedback, account
+deletion) still use mocks until #82 builds them (#88 parts 2 and 3). Points
+stay on the mock: they are out of the MVP. Where a screen still has no data
+from the server, Home, the top bar, the menu and My profile take the name
+and phone from the session (`GET /auth/me`). Change password
 (`POST /auth/password`) and the support contact (`GET /public/contact`) are
-linked (#57).
+linked (#57); the email row and message switches sit on Account settings
+(`/settings`).
 
 ## 6. Important business rules
 

@@ -59,7 +59,8 @@ export interface MockCustomerOrder extends CustomerOrder {
 }
 
 export interface CustomerData {
-  profile: Omit<CustomerProfile, 'stats' | 'name' | 'phone' | 'phone_verified'>
+  /** The mock always offers email and the switches, so they are never absent or `null` here. */
+  profile: { email: string | null; customer_since: string; photo_url: string | null; preferences: NonNullable<CustomerProfile['preferences']> }
   addresses: SavedAddress[]
   orders: MockCustomerOrder[]
   notifications: CustomerNotification[]
