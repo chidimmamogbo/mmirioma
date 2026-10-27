@@ -8,11 +8,13 @@
  * `not_connected` until the endpoints exist. Switching one is a change here
  * only; pages do not change.
  */
+import type { ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
+import * as areas from './real/areas'
 import * as cash from './real/cash'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -51,8 +53,10 @@ export const listStations = api('Refill stations', mock.listStations)
 export const setStationOpen = api('Refill stations', mock.setStationOpen)
 export const saveStation = api('Refill stations', mock.saveStation)
 export const uploadStationPapers = api('Refill stations', mock.uploadStationPapers)
-export const listAreas = api('Service areas', mock.listAreas)
-export const saveArea = api('Service areas', mock.saveArea)
+// Service areas (#74): linked to the agreed service zones; see real/areas.ts for what is not connected yet.
+export const listAreas = (): Promise<ServiceArea[]> => (USE_MOCKS ? mock.listAreas() : areas.listAreas())
+export const saveArea = (id: string | null, input: Omit<ServiceArea, 'id'>): Promise<ServiceArea> =>
+  USE_MOCKS ? mock.saveArea(id, input) : areas.saveArea(id, input)
 
 export const listPriceLists = api('Pricing', mock.listPriceLists)
 export const savePriceList = api('Pricing', mock.savePriceList)
