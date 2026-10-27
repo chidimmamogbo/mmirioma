@@ -81,7 +81,7 @@ when `VITE_USE_MOCKS=false` (#67):
 | `getPartnerProfile` | `GET /driver/profile` |
 | `updatePartnerProfile` | `PATCH /driver/profile` (preferences only) |
 | `setOnline` | `PUT /driver/availability` |
-| `listPartnerNotifications` | `GET /driver/notifications` (newest 50) |
+| `listPartnerNotifications` | `GET /driver/notifications` (newest 50, plus `unread_count` across all pages) |
 | `markPartnerNotificationsRead` | `POST /driver/notifications/read` with no ids (marks all) |
 
 Sign-up matches the typed area to an active zone by name, ignoring case and
@@ -142,11 +142,18 @@ active job, for calling.
   online while pending or suspended shows the server's `partner_not_approved`
   message. A driver with no driver profile gets the error screen
   (`no_driver_profile`).
-- Real API sign-up: an area that matches no active zone, or a zone the
-  server refuses, fails with the client-only code `service_area_not_served`
-  ("We do not serve "X" yet. Areas we serve: …"), shown as the top notice.
-  In a `validation_error`, `declared_capacity_gallons` is renamed
-  `tank_gallons` so the message appears under the field.
+- Real API sign-up: an area that matches no active zone fails as a
+  `validation_error` on `service_area` before anything is sent ("We do not
+  serve "X" yet. Areas we serve: …"), shown under the area field. A zone
+  the server refuses gets the same message and keeps the other field errors
+  (#80). In a `validation_error`, `declared_capacity_gallons` is renamed
+  `tank_gallons` and `service_zone_id` `service_area`, so each message
+  appears under its field.
+- Sign-up: a field error the form has no slot for (`vehicle_type`, or the
+  whole body, `loc: ["body"]`) shows in the top notice, next to the field
+  errors (#80). A refused sign-up never ends without a message.
+- Badges and "Mark all read" use the notification list's `unread_count`, so
+  unread messages older than the newest 50 still count (#80).
 - Real API: saving an email or changing "News and offers" fails with
   `not_connected` before any request is sent.
 - Real API: a notification `kind` this build does not know is shown with
@@ -183,7 +190,8 @@ finish with the code shown under the keypad (mock mode).
 - Real API sign-up takes a typed area, not a zone list, so a partner must
   spell the zone's name. The demo seed creates no zones; create one before
   trying sign-up locally.
-- Real API notifications show only the newest 50.
+- Real API notifications list only the newest 50; the unread count covers
+  them all.
 - Drivers made with the command-line tool before it asked for a delivery
   type are shown the tanker app when they have a declared capacity, else the
   Keke app.

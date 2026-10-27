@@ -154,7 +154,9 @@ export function PartnerNotifications() {
   const { base } = usePartnerApp()
   const notes = usePartnerNotifications()
   const mark = useMarkPartnerNotificationsRead()
-  const items = notes.data ?? []
+  const items = notes.data?.items ?? []
+  // The server's count: unread messages may be older than the page shown.
+  const unread = notes.data?.unread_count ?? 0
   const target = (n: PartnerNotification) =>
     n.kind === 'assigned' && n.reference
       ? `${base}/assigned/${n.reference}`
@@ -175,7 +177,7 @@ export function PartnerNotifications() {
         right={
           <button
             type="button"
-            disabled={!items.some((n) => !n.read) || mark.isPending}
+            disabled={unread === 0 || mark.isPending}
             onClick={() => mark.mutate()}
             className="cursor-pointer border-0 bg-transparent px-1 py-2.5 text-[13px] font-bold text-primary disabled:cursor-default disabled:text-mute"
           >
