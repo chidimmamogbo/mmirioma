@@ -17,6 +17,11 @@ charge, handling (per order) and margin, by zone, water category and quantity
 band. Saving creates a new version; versions are never edited, so a quote
 keeps the version it used (FR-024, T-09).
 
+**Quotes** (FR-022, FR-024, #21; contract: docs/api/order-details-and-price.md,
+agreed 2026-10-26): the server's price for a customer's choice, with every
+component kept for the admin views and the order's snapshot (FR-024). The
+customer only ever sees the total (decision 6).
+
 **Price snapshots:** the price frozen on an order when it is confirmed (FR-024).
 
 For the pilot the only price is a **manual quote** (pilot fallback F2,
@@ -78,7 +83,9 @@ class OrderPriceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             history shows the confirmation line on that entry.
         total_minor_units: The total the customer pays, in kobo.
         currency: Always ``NGN``.
-        is_manual: True for a manual quote (F2); every pilot price is manual.
+        is_manual: True for a manual quote entered by the dispatcher (F2);
+            False when the order's server quote was confirmed as it was
+            (#21, order details contract question 14).
         water_category_id: The category agreed with the customer.
         water_category_label: The category's label at confirmation, kept so
             a later label change does not alter the order (FR-014).
@@ -327,3 +334,111 @@ class PriceRule(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     margin_amount_minor_units: Mapped[int | None] = mapped_column(BigInteger)
     margin_basis_points: Mapped[int | None]
+
+
+class Quote(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A server quote a customer can order within its validity (FR-022 to FR-024).
+
+    Created by ``POST /quotes`` only when a price is available; a manual
+    quote answer stores nothing. An order placed with it freezes it
+    (``orders.quote_id``), so later price changes never touch the order
+    (T-09). Kept separate from :class:`OrderPriceSnapshot`, which keeps
+    meaning the **confirmed** price (contract question 11).
+
+    Amounts are integer kobo (BR-01). Rounding rule (decision C, documented
+    in the contract): water, delivery and handling are exact kobo; a
+    percentage margin is computed with ``Decimal`` and rounded half-up to
+    whole kobo; the sum is then rounded **up** to whole naira (FR-022), and
+    the difference is ``rounding_minor_units`` (0-99 kobo).
+
+    Attributes:
+        customer_id: Who asked; only they can order it.
+        delivery_type ... service_zone_id: The choice that was priced, kept
+            to check that an order matches its quote (``quote_mismatch``).
+        delivery_address: As sent; compared normalized.
+        quantity_litres: The server's conversion (FR-021).
+        water_category_id, water_category_label: The pilot category and its
+            label at quote time, frozen (FR-014, FR-024).
+        cost_per_litre_minor_units: The highest cost per litre among the
+            eligible sources of the preferred kind (decision 3).
+        water_minor_units: Cost per litre x litres.
+        delivery_minor_units: The zone's fee for the category, per order
+            (the FR-022 fallback while there is no road distance, decision B).
+        handling_minor_units: From the price rule, per order.
+        margin_type, margin_amount_minor_units, margin_basis_points: The rule's
+            margin as it was.
+        margin_minor_units: The margin in kobo.
+        rounding_minor_units: Added to reach whole naira.
+        total_minor_units: What the customer pays.
+        price_list_version_id, price_rule_id: The rule used.
+        vehicle_profile_id, safe_payload_litres, trips: The vehicle plan
+            (FR-013); trips do not change the pilot price (decision B).
+        price_valid_until: After it the quote cannot be ordered (SRS §8).
+    """
+
+    __tablename__ = "quotes"
+    __table_args__ = (
+        CheckConstraint(
+            "water_minor_units >= 0 AND delivery_minor_units >= 0 AND handling_minor_units >= 0"
+            " AND margin_minor_units >= 0 AND cost_per_litre_minor_units >= 0",
+            name="components_not_negative",
+        ),
+        CheckConstraint("rounding_minor_units BETWEEN 0 AND 99", name="rounding_range"),
+        CheckConstraint(
+            "total_minor_units = water_minor_units + delivery_minor_units + handling_minor_units"
+            " + margin_minor_units + rounding_minor_units",
+            name="total_is_sum",
+        ),
+        CheckConstraint(f"total_minor_units % {KOBO_PER_NAIRA} = 0", name="total_whole_naira"),
+        CheckConstraint("trips BETWEEN 1 AND 2", name="trips_range"),
+    )
+
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    delivery_type: Mapped[str] = mapped_column(String(10))
+    keke_can_size_litres: Mapped[int | None]
+    keke_can_count: Mapped[int | None]
+    tanker_tank_type: Mapped[str | None] = mapped_column(String(10))
+    tanker_quantity_local_gallons: Mapped[int | None]
+    water_source: Mapped[str | None] = mapped_column(String(12))
+    delivery_address: Mapped[str] = mapped_column(String(500))
+    service_zone_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("service_zones.id", ondelete="RESTRICT")
+    )
+    quantity_litres: Mapped[int]
+    water_category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("water_categories.id", ondelete="RESTRICT")
+    )
+    water_category_label: Mapped[str] = mapped_column(String(CATEGORY_LABEL_MAX_LENGTH))
+    cost_per_litre_minor_units: Mapped[int] = mapped_column(BigInteger)
+    water_minor_units: Mapped[int] = mapped_column(BigInteger)
+    delivery_minor_units: Mapped[int] = mapped_column(BigInteger)
+    handling_minor_units: Mapped[int] = mapped_column(BigInteger)
+    margin_type: Mapped[MarginType] = mapped_column(
+        Enum(
+            MarginType,
+            name="quote_margin_type",
+            native_enum=False,
+            create_constraint=True,
+            length=10,
+            values_callable=lambda types: [t.value for t in types],
+        )
+    )
+    margin_amount_minor_units: Mapped[int | None] = mapped_column(BigInteger)
+    margin_basis_points: Mapped[int | None]
+    margin_minor_units: Mapped[int] = mapped_column(BigInteger)
+    rounding_minor_units: Mapped[int] = mapped_column(BigInteger)
+    total_minor_units: Mapped[int] = mapped_column(BigInteger)
+    price_list_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("price_list_versions.id", ondelete="RESTRICT")
+    )
+    price_rule_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("price_rules.id", ondelete="RESTRICT")
+    )
+    vehicle_profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("vehicle_profiles.id", ondelete="RESTRICT")
+    )
+    safe_payload_litres: Mapped[int]
+    trips: Mapped[int]
+    price_valid_until: Mapped[datetime]

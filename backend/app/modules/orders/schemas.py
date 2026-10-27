@@ -6,7 +6,6 @@ and the delivery details from docs/api/order-details-and-price.md
 """
 
 import uuid
-from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Annotated, Literal, cast
 
@@ -41,7 +40,7 @@ from app.modules.orders.quantities import (
     MIN_ORDER_LOCAL_GALLONS,
     litres_from_local_gallons,
 )
-from app.modules.orders.service import NewOrder
+from app.modules.orders.service import NewOrder, ReadLookups
 from app.shared import lagos_time
 from app.shared.phone import normalize_nigerian_phone
 
@@ -123,6 +122,39 @@ class TankerDetails(BaseModel):
     quantity_local_gallons: QuantityLocalGallons
 
 
+def details_problem(
+    delivery_type: DeliveryType,
+    keke: KekeDetails | None,
+    tanker: TankerDetails | None,
+    water_source: WaterSourcePreference | None,
+) -> str | None:
+    """Why a delivery details choice is inconsistent, or None (order details contract).
+
+    Shared by ``OrderCreate`` and ``QuoteCreate`` (pricing), which accept the
+    same choice.
+    """
+    if delivery_type is DeliveryType.KEKE:
+        if keke is None or tanker is not None:
+            return "A Keke order needs keke details and no tanker details"
+        if water_source is not None:
+            return "A Keke order has no water_source"
+        return None
+    if tanker is None or keke is not None:
+        return "A Tanker order needs tanker details and no keke details"
+    if water_source is None:
+        return "A Tanker order needs a water_source"
+    return None
+
+
+def details_litres(keke: KekeDetails | None, tanker: TankerDetails | None) -> int:
+    """The quantity the details give, in litres (FR-021): Keke size x count, Tanker gallons x 4."""
+    if keke is not None:
+        return keke.can_size_litres * keke.can_count
+    if tanker is not None:
+        return litres_from_local_gallons(tanker.quantity_local_gallons)
+    raise ValueError("No delivery details")
+
+
 class OrderCreate(BaseModel):
     """Body of ``POST /orders``, in one of two shapes.
 
@@ -134,7 +166,9 @@ class OrderCreate(BaseModel):
       ``quantity_litres`` or ``quantity_local_gallons``.
 
     ``service_zone_id`` is the zone the customer picked (FR-020), in either
-    shape. Unknown fields (price, status, customer, ``is_simulated``, a
+    shape. ``quote_id`` (details shape only) names the server quote the
+    customer accepted; the server checks it and freezes it on the order
+    (FR-024). Unknown fields (price, status, customer, ``is_simulated``, a
     category) are rejected: the server sets those.
     """
 
@@ -148,6 +182,7 @@ class OrderCreate(BaseModel):
     tanker: TankerDetails | None = None
     water_source: WaterSourcePreference | None = None
     service_zone_id: uuid.UUID | None = None
+    quote_id: uuid.UUID | None = None
     contact_name: ContactName
     contact_phone: ContactPhone
     delivery_address: DeliveryAddress
@@ -168,33 +203,24 @@ class OrderCreate(BaseModel):
     def _one_shape(self) -> OrderCreate:
         quantity_given = self.quantity_litres is not None or self.quantity_local_gallons is not None
         if self.delivery_type is None:
-            if self.keke or self.tanker or self.water_source:
-                raise ValueError("keke, tanker and water_source need delivery_type")
+            if self.keke or self.tanker or self.water_source or self.quote_id:
+                raise ValueError("keke, tanker, water_source and quote_id need delivery_type")
             if (self.quantity_litres is None) == (self.quantity_local_gallons is None):
                 raise ValueError("Give exactly one of quantity_litres or quantity_local_gallons")
             return self
         # The details are the single source of the quantity.
         if quantity_given:
             raise ValueError("With delivery_type, the quantity comes from keke or tanker only")
-        if self.delivery_type is DeliveryType.KEKE:
-            if self.keke is None or self.tanker is not None:
-                raise ValueError("A Keke order needs keke details and no tanker details")
-            if self.water_source is not None:
-                raise ValueError("A Keke order has no water_source")
-        else:
-            if self.tanker is None or self.keke is not None:
-                raise ValueError("A Tanker order needs tanker details and no keke details")
-            if self.water_source is None:
-                raise ValueError("A Tanker order needs a water_source")
+        problem = details_problem(self.delivery_type, self.keke, self.tanker, self.water_source)
+        if problem:
+            raise ValueError(problem)
         return self
 
     @property
     def litres(self) -> int:
         """The requested quantity in litres, converted exactly (FR-021)."""
-        if self.keke is not None:
-            return self.keke.can_size_litres * self.keke.can_count
-        if self.tanker is not None:
-            return litres_from_local_gallons(self.tanker.quantity_local_gallons)
+        if self.delivery_type is not None:
+            return details_litres(self.keke, self.tanker)
         if self.quantity_local_gallons is not None:
             return litres_from_local_gallons(self.quantity_local_gallons)
         # _one_shape guarantees quantity_litres is set here.
@@ -241,17 +267,35 @@ class ServiceZoneRef(BaseModel):
     name: str
 
 
+class QuoteCategoryRead(BaseModel):
+    """The category the customer accepted with the quote (FR-023)."""
+
+    label: str
+    supported_uses: str | None
+
+
+class OrderQuoteRead(BaseModel):
+    """The quote frozen on the order at creation (FR-024): total only (decision 6)."""
+
+    currency: Literal["NGN"] = "NGN"
+    total_minor_units: int
+    water_category: QuoteCategoryRead
+
+
 class OrderRead(BaseModel):
     """An order as its customer sees it (``OrderRead`` in the contract).
 
     Has no internal ID, customer ID or ``is_simulated``: customers never see
     them (BR-09). Build it with :meth:`from_order`, which needs the zone's
-    name from the pricing module.
+    name and the quote's summary from the pricing module
+    (``orders.service.read_lookups``).
 
     Attributes:
         delivery_type, keke, tanker, water_source: As sent; ``null`` on
             orders created in the quantity-only shape (before #21).
         service_zone: The zone sent with the order, or ``null``.
+        quote: The quote the order was placed with (FR-024), or ``null`` for
+            a quote request. Never the breakdown (decision 6).
     """
 
     reference: str
@@ -270,20 +314,22 @@ class OrderRead(BaseModel):
     tanker: TankerRead | None
     water_source: WaterSourcePreference | None
     service_zone: ServiceZoneRef | None
+    quote: OrderQuoteRead | None
 
     @classmethod
-    def from_order(cls, order: Order, zone_names: Mapping[uuid.UUID, str]) -> OrderRead:
+    def from_order(cls, order: Order, lookups: ReadLookups) -> OrderRead:
         """Build the customer view of an order.
 
         Args:
             order: The order.
-            zone_names: Zone names by id (``pricing.service.zone_names``),
-                covering ``order.service_zone_id``.
+            lookups: Zone names and quote summaries covering the order
+                (``orders.service.read_lookups``).
 
         Returns:
             The customer representation.
         """
         zone_id = order.service_zone_id
+        summary = lookups.quotes.get(order.quote_id) if order.quote_id is not None else None
         return cls(
             reference=order.reference,
             status=order.status,
@@ -313,8 +359,19 @@ class OrderRead(BaseModel):
             ),
             water_source=order.water_source,
             service_zone=(
-                ServiceZoneRef(id=zone_id, name=zone_names[zone_id])
-                if zone_id is not None and zone_id in zone_names
+                ServiceZoneRef(id=zone_id, name=lookups.zone_names[zone_id])
+                if zone_id is not None and zone_id in lookups.zone_names
+                else None
+            ),
+            quote=(
+                OrderQuoteRead(
+                    total_minor_units=summary.total_minor_units,
+                    water_category=QuoteCategoryRead(
+                        label=summary.water_category_label,
+                        supported_uses=summary.supported_uses,
+                    ),
+                )
+                if summary is not None
                 else None
             ),
         )
@@ -377,7 +434,7 @@ class AdminOrderRead(OrderRead):
         customer: User,
         hold: OrderHoldRead | None = None,
         *,
-        zone_names: Mapping[uuid.UUID, str],
+        lookups: ReadLookups,
     ) -> AdminOrderRead:
         """Build the staff view of an order.
 
@@ -385,13 +442,13 @@ class AdminOrderRead(OrderRead):
             order: The order.
             customer: The account that placed it.
             hold: The open hold on its current job, if any.
-            zone_names: Zone names by id, covering the order's zone.
+            lookups: Zone names and quote summaries covering the order.
 
         Returns:
             The admin representation.
         """
         return cls(
-            **OrderRead.from_order(order, zone_names).model_dump(),
+            **OrderRead.from_order(order, lookups).model_dump(),
             id=order.id,
             customer=OrderCustomer(
                 id=customer.id,

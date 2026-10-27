@@ -42,6 +42,8 @@ ignored. Application code must read configuration only through `get_settings()`.
 | `SESSION_MAX_AGE_SECONDS` | int, 300 to 2592000 (30 days)      | `604800` (7 days)       |
 | `SESSION_COOKIE_SECURE` | bool, or unset                       | unset: on in production only |
 | `SESSION_COOKIE_SAMESITE` | `lax`, `strict`, `none`            | `lax`                   |
+| `PILOT_WATER_CATEGORY` | `utility`, `potable` (category code)  | `utility`               |
+| `QUOTE_VALIDITY_MINUTES` | int, 1 to 1440                     | `60`                    |
 
 Validation rules:
 

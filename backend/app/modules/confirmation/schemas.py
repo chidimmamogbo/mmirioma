@@ -14,6 +14,8 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    ValidationInfo,
+    field_validator,
     model_validator,
 )
 
@@ -25,7 +27,12 @@ from app.modules.confirmation.service import (
     ConfirmInput,
     SourceOption,
 )
-from app.modules.orders.models import EVENT_NOTE_MAX_LENGTH, ConfirmationSmsStatus, Order
+from app.modules.orders.models import (
+    EVENT_NOTE_MAX_LENGTH,
+    ConfirmationSmsStatus,
+    Order,
+    OrderStatus,
+)
 from app.modules.pricing.models import (
     KOBO_PER_NAIRA,
     MIN_MANUAL_QUOTE_MINOR_UNITS,
@@ -74,23 +81,39 @@ class ConfirmRequest(_Request):
     """Body of ``POST /admin/orders/{reference}/transition`` with ``to: confirmed``.
 
     Attributes:
-        expected_status: The status the dispatcher saw; only
-            ``quote_requested`` can be confirmed in the pilot.
+        expected_status: The status the dispatcher saw: ``quote_requested``
+            (a quote request, priced by hand) or ``awaiting_confirmation`` (an
+            order placed with a server quote, #21).
         manual_quote_total_minor_units: Whole naira in kobo (a multiple of
-            100), at least ₦1.00, no upper limit (decision 7).
+            100), at least ₦1.00, no upper limit (decision 7). Required from
+            ``quote_requested``; refused from ``awaiting_confirmation``,
+            where the quote's total is confirmed (question 14 of the order
+            details contract: a changed price is a repricing, BR-05).
         note: Optional; required when the customer agreed some ``other`` way.
     """
 
     to: Literal["confirmed"]
-    expected_status: Literal["quote_requested"]
+    expected_status: Literal["quote_requested", "awaiting_confirmation"]
     water_category_id: uuid.UUID
     source_id: uuid.UUID
     delivery_window: DeliveryWindowIn
     manual_quote_total_minor_units: Annotated[
-        int, Field(strict=True, ge=MIN_MANUAL_QUOTE_MINOR_UNITS, multiple_of=KOBO_PER_NAIRA)
-    ]
+        int | None,
+        Field(strict=True, ge=MIN_MANUAL_QUOTE_MINOR_UNITS, multiple_of=KOBO_PER_NAIRA),
+    ] = Field(default=None, validate_default=True)
     customer_agreement: CustomerAgreementIn
     note: Note | None = None
+
+    @field_validator("manual_quote_total_minor_units")
+    @classmethod
+    def _total_for_quote_requests_only(cls, total: int | None, info: ValidationInfo) -> int | None:
+        # A missing expected_status is reported on its own field.
+        expected = info.data.get("expected_status")
+        if expected == "quote_requested" and total is None:
+            raise ValueError("Enter the total agreed with the customer")
+        if expected == "awaiting_confirmation" and total is not None:
+            raise ValueError("This order has a quote; its total is confirmed as it is")
+        return total
 
     @model_validator(mode="after")
     def _note_with_other(self) -> Self:
@@ -103,6 +126,7 @@ class ConfirmRequest(_Request):
     def to_input(self) -> ConfirmInput:
         """The service's input."""
         return ConfirmInput(
+            expected_status=OrderStatus(self.expected_status),
             water_category_id=self.water_category_id,
             source_id=self.source_id,
             window_start_at=self.delivery_window.start_at,

@@ -156,8 +156,10 @@ separate rule: Ninth Mile sources have a higher cost per litre.
 ## `POST /quotes`
 
 Prices a choice on the server (FR-022, SRS §6). Customer only. Rate-limited
-(NFR-002: "rate-limit ... quote ... endpoints"); the limit's numbers are set
-in #21, with the `too_many_attempts` error below.
+(NFR-002: "rate-limit ... quote ... endpoints"): **30 quotes per customer
+per 10 minutes and 120 per client IP per hour** (decided in #21 by the
+technical lead), with the `too_many_attempts` error below. Every request
+counts, whatever its answer.
 
 ### Request (`QuoteCreate`)
 
@@ -221,7 +223,7 @@ answer, not an error ("If no price is reliable, use a structured
 | `quote_id` | UUID, always set on `quote_available`. It is `null` only on `manual_quote_required` |
 | `quantity_litres` | The server's conversion (FR-021). The client shows this value, not its own |
 | `water_category` | The pilot category's label and supported uses, as on `OrderRead` (FR-023) |
-| `total_minor_units` | The payable amount in kobo (water + delivery + handling + margin, FR-022), a whole number of naira (rounded up) |
+| `total_minor_units` | The payable amount in kobo (water + delivery + handling + margin, FR-022), a whole number of naira (rounded up; see [How the total is computed](#how-the-total-is-computed)) |
 | `price_valid_until` | UTC. After it, the quote cannot be ordered (SRS §8). **1 hour** after the quote by default, a server setting in the pilot ([open question 7](#open-questions), decided; an admin screen for it belongs to #22) |
 
 **Customers see the total only** (open question 6, decided by
@@ -252,6 +254,12 @@ belong to #11).
 | `category_unavailable` | No source is activated for the category | FR-014 |
 | `no_vehicle_plan` | No configured vehicle can carry the quantity in at most two trips | FR-013, FR-021, T-03 |
 | `delivery_cost_unavailable` | No road distance, and the zone has no fee for the category | FR-022, T-18 |
+| `no_price_rule` | No rule in the current price list covers the zone, category and litres, so handling and margin are unknown (decided in #21, additive) | FR-022, FR-021 |
+
+When several apply, the first in this table's order is sent
+(`outside_service_zone`, `category_unavailable`, `no_eligible_source`,
+`no_vehicle_plan`, `delivery_cost_unavailable`, `no_price_rule`; decided in
+#21). Nothing is stored for a manual answer.
 
 The client shows its own wording per `reason` (clients branch on codes, not
 messages, [README](README.md#errors)). An unknown `reason` gets the generic
@@ -261,10 +269,31 @@ quote request (`quote_requested`), as today.
 **Pilot note:** the backend has no OSRM yet (SRS §12.1: OSRM hosting is
 open). The delivery cost is the picked zone's fee for the category, once per
 order (built in **#30**; rules in
-[admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)). No fee
+[admin-directory.md](admin-directory.md#delivery-cost-from-the-zone)). The
+zone fee replaces the **whole** FR-022 delivery cost (base fee, distance and
+extra trips); the price rule contributes only handling and margin (decided
+in #21). No fee
 for the category answers `delivery_cost_unavailable`; no zone or an inactive
 one answers `outside_service_zone` (FR-010, T-02). Never an estimated
 delivery fee ("No fabricated route estimates", FR-022).
+
+### How the total is computed
+
+Decided in #21 by the technical lead (FR-022, BR-01):
+
+- **Water:** the highest cost per litre among the sources eligible today for
+  the category and of the preferred kind ([question 3](#open-questions);
+  Keke: any kind), times the litres. Exact kobo.
+- **Delivery:** the zone's fee ([Pilot note](#response-200-quoteread)).
+- **Handling and margin:** from the price rule matching the zone, category
+  and litres (#37). A fixed margin is exact kobo; a percentage margin applies
+  to water + delivery + handling, computed with decimals and rounded
+  **half-up** to whole kobo.
+- **Total:** the sum, rounded **up** to whole naira. The rounding
+  adjustment (0-99 kobo) is stored with the components.
+- **Vehicle plan:** any active vehicle whose safe payload carries the order
+  in at most two trips (FR-013); the plan records the fewest trips, then the
+  smallest such vehicle. None gives `no_vehicle_plan`.
 
 ### Errors
 
@@ -559,6 +588,7 @@ questions are settled; the contract is agreed.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-26 | Built in #21: reason `no_price_rule` added (additive); the reason order; the zone fee replaces the whole delivery cost; the rounding rule ([How the total is computed](#how-the-total-is-computed)); quote rate limits 30 per customer per 10 minutes and 120 per IP per hour; question 14's confirm change written into [deliveries.md](deliveries.md#confirmation-rules) | @nnamdi-security (technical lead, decisions A-F on #21) |
 | 2026-10-26 | Agreed (G3): questions 12 and 13 confirmed (pilot fallbacks F3 and F5); question 14 decided (#21 extends the confirm endpoint to accept `awaiting_confirmation`, additive) | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #42 |
 | 2026-10-26 | Open questions 12 and 13 resolved by the agreed pilot fallbacks F3 (window agreed on the confirmation call) and F5 (no cancellation or redelivery charge); FR-023 table updated; the proposed `delivery_charge_minor_units` dropped; new question 14 (quoted orders cannot be confirmed with the agreed confirm endpoint; #21 extends it) | Applies agreed fallbacks; @nnamdi-security to confirm on PR #59 |
 | 2026-10-26 | Brought to agreement (#42): `delivery_address` required on `POST /quotes`, water-only answer and `includes_delivery` removed; FR-023 disclosure table (payment method fixed "Pay on delivery"); pilot category Utility Water; technical lead's answers to questions 3, 4, 5, 7, 8, 9, 11 recorded; driver cash label reference fixed (payments.md amendment 3 is agreed); #18 → #37 for price lists; quote rate limit numbers set in #21; new open questions 12 (window) and 13 (cancellation and redelivery charges) | Decisions by @chidimmamogbo and @nnamdi-security; contract not yet agreed (questions 12, 13) |

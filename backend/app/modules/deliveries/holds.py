@@ -47,7 +47,7 @@ do, so concurrent decisions cannot both win.
 """
 
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
@@ -87,7 +87,6 @@ from app.modules.orders.models import Order, OrderEvent, OrderStatus, Transition
 from app.modules.orders.service import StaffOrder
 from app.modules.orders.transitions import Actor, Requirement, check_transition
 from app.modules.payments import service as payments_service
-from app.modules.pricing import service as pricing_service
 from app.modules.sources.eligibility import EligibilityReason, source_reasons
 from app.modules.sources.models import WaterSource
 from app.shared.lagos_time import lagos_today
@@ -182,8 +181,8 @@ class OrderDetail:
     confirmation: confirmation_service.ConfirmationView
     #: The payment card (K6, docs/api/payments.md); None before confirmation.
     payment: payments_service.PaymentView | None = None
-    #: The order's zone name by id, for ``service_zone`` (order details contract).
-    zone_names: Mapping[uuid.UUID, str] = field(default_factory=dict)
+    #: The order's zone name and quote summary (order details contract).
+    lookups: orders_service.ReadLookups = field(default_factory=orders_service.ReadLookups)
 
 
 @dataclass(frozen=True)
@@ -409,7 +408,7 @@ async def get_order_detail(session: AsyncSession, *, reference: str) -> OrderDet
         hold=holds.get(order.id),
         confirmation=await confirmation_service.confirmation_view(session, order),
         payment=await payments_service.payment_view(session, order),
-        zone_names=await pricing_service.zone_names(session, [order.service_zone_id]),
+        lookups=await orders_service.read_lookups(session, [order]),
     )
 
 

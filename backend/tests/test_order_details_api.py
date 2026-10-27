@@ -208,3 +208,34 @@ def test_older_orders_have_no_details(api: TestClient) -> None:
     assert [
         body[key] for key in ("delivery_type", "keke", "tanker", "water_source", "service_zone")
     ] == [None] * 5
+
+
+# --- quote_id (#21) ----------------------------------------------------------------------
+
+
+def test_quote_id_is_passed_to_the_service(api: TestClient, fake_orders: FakeOrders) -> None:
+    quote_id = uuid.uuid4()
+    assert post(api, {**TANKER, "quote_id": str(quote_id)}).status_code == 201
+    assert sent(fake_orders).quote_id == quote_id
+
+
+def test_quote_id_needs_the_delivery_details(api: TestClient, fake_orders: FakeOrders) -> None:
+    response = post(api, {**VALID_BODY, "quote_id": str(uuid.uuid4())})
+    assert error(response) == (422, "validation_error")
+    assert fake_orders.calls == []
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        (404, "quote_not_found"),
+        (409, "quote_expired"),
+        (422, "quote_mismatch"),
+        (409, "no_eligible_source"),
+    ],
+)
+def test_quote_refusals_pass_through(
+    api: TestClient, fake_orders: FakeOrders, status: int, code: str
+) -> None:
+    fake_orders.error = APIError(status, code, "Sample message")
+    assert error(post(api, {**TANKER, "quote_id": str(uuid.uuid4())})) == (status, code)

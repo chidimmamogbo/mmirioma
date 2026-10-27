@@ -28,11 +28,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.audit import service as audit_service
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
+from app.modules.sources.eligibility import eligibility_reasons
 from app.modules.sources.models import (
     ActivationStatus,
     WaterCategory,
     WaterSource,
     WaterSourceCategory,
+    WaterSourceKind,
 )
 
 AUDIT_TARGET_TYPE = "water_source"
@@ -72,6 +74,7 @@ async def add_source(
     name: str,
     approximate_location: str,
     is_simulated: bool = False,
+    kind: WaterSourceKind | None = None,
 ) -> WaterSource:
     """Add a water source (FR-011). Commits.
 
@@ -81,12 +84,13 @@ async def add_source(
         name: Supplier or source name (validated by the caller).
         approximate_location: Pickup location in words.
         is_simulated: True for demo data (BR-09).
+        kind: Ninth Mile or borehole (#21), or None to set it later.
 
     Returns:
         The new source, with no activations: it serves no category yet.
     """
     source = WaterSource(
-        name=name, approximate_location=approximate_location, is_simulated=is_simulated
+        name=name, approximate_location=approximate_location, is_simulated=is_simulated, kind=kind
     )
     session.add(source)
     await session.flush()
@@ -94,6 +98,86 @@ async def add_source(
     await session.commit()
     await session.refresh(source)
     return source
+
+
+async def set_kind(
+    session: AsyncSession, *, actor: User, source_id: uuid.UUID, kind: WaterSourceKind
+) -> WaterSource:
+    """Set where a source collects water (#21), for Tanker preferences. Commits.
+
+    Args:
+        session: Database session.
+        actor: The admin making the change.
+        source_id: The source.
+        kind: Ninth Mile or borehole.
+
+    Returns:
+        The source.
+
+    Raises:
+        LookupError: No source has this id.
+    """
+    source = await session.get(WaterSource, source_id, with_for_update=True)
+    if source is None:
+        raise LookupError("no water source has this id")
+    source.kind = kind
+    _audit(session, actor=actor, action="water_source_kind_set", source=source)
+    await session.commit()
+    await session.refresh(source)
+    return source
+
+
+async def eligible_costs_per_litre(
+    session: AsyncSession,
+    *,
+    water_category_id: uuid.UUID,
+    kind: WaterSourceKind | None,
+    today: date,
+) -> list[int]:
+    """Return the cost per litre of every source eligible for a category today.
+
+    Eligibility is the shared FR-012 check (:func:`eligibility.eligibility_reasons`:
+    activated, approval current on ``today`` in Lagos). The costs are for the
+    server's quote only and are never sent to a client (FR-011).
+
+    Args:
+        session: Database session.
+        water_category_id: The category.
+        kind: Only sources of this kind (a Tanker preference), or None for
+            every kind (a Keke order has no preference).
+        today: Today's date in Africa/Lagos.
+
+    Returns:
+        Kobo per litre, one per eligible source; empty when none is eligible.
+    """
+    query = (
+        select(WaterSourceCategory)
+        .join(WaterSource, WaterSource.id == WaterSourceCategory.source_id)
+        .where(WaterSourceCategory.water_category_id == water_category_id)
+    )
+    if kind is not None:
+        query = query.where(WaterSource.kind == kind)
+    return [
+        activation.cost_per_litre_minor_units
+        for activation in await session.scalars(query)
+        if not eligibility_reasons(activation, today=today)
+    ]
+
+
+async def has_activation(session: AsyncSession, *, water_category_id: uuid.UUID) -> bool:
+    """Whether any source is currently ``activated`` for the category (FR-014).
+
+    Approval dates are not checked here; :func:`eligible_costs_per_litre` does.
+    """
+    found = await session.scalar(
+        select(WaterSourceCategory.id)
+        .where(
+            WaterSourceCategory.water_category_id == water_category_id,
+            WaterSourceCategory.status == ActivationStatus.ACTIVATED,
+        )
+        .limit(1)
+    )
+    return found is not None
 
 
 async def list_categories(session: AsyncSession) -> list[WaterCategory]:

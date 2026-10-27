@@ -11,7 +11,7 @@ from app.modules.sources.eligibility import (
     EligibilityReason,
     eligibility_reasons,
 )
-from app.modules.sources.models import ActivationStatus, WaterSourceCategory
+from app.modules.sources.models import ActivationStatus, WaterSourceCategory, WaterSourceKind
 
 R = EligibilityReason
 TODAY = date(2026, 10, 22)
@@ -125,10 +125,29 @@ def test_cli_parses_add_source_and_suspend() -> None:
     assert (suspend.command, suspend.reason) == ("suspend", "Safety concern")
 
 
+def test_cli_parses_the_source_kind() -> None:
+    # #21: Tanker preferences match a source's kind.
+    add = build_parser().parse_args(
+        ["add-source", "--by", "08000000009", "--name", "A", "--location", "B",
+         "--kind", "ninth_mile"]
+    )  # fmt: skip
+    assert add.kind is WaterSourceKind.NINTH_MILE
+    no_kind = build_parser().parse_args(
+        ["add-source", "--by", "08000000009", "--name", "A", "--location", "B"]
+    )
+    assert no_kind.kind is None
+    set_kind = build_parser().parse_args(
+        ["set-kind", "--by", "08000000009", "--source", SOURCE, "--kind", "borehole"]
+    )
+    assert (set_kind.source, set_kind.kind) == (uuid.UUID(SOURCE), WaterSourceKind.BOREHOLE)
+
+
 @pytest.mark.parametrize(
     "argv",
     [
         ["add-source", "--name", "A", "--location", "B"],  # no --by
+        ["set-kind", "--by", "08000000009", "--source", SOURCE, "--kind", "river"],
+        ["set-kind", "--by", "08000000009", "--source", SOURCE],  # no --kind
         ["add-source", "--by", "123", "--name", "A", "--location", "B"],  # bad phone
         ["add-source", "--by", "08000000009", "--name", "  ", "--location", "B"],
         ["activate", "--by", "08000000009", "--source", "not-a-uuid", "--category", "potable",

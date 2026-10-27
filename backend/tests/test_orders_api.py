@@ -312,6 +312,7 @@ def test_customer_response_matches_contract(api: TestClient) -> None:
         "tanker",
         "water_source",
         "service_zone",
+        "quote",
     }
     assert order["status"] == "quote_requested"
     assert order["created_at"] == "2026-10-14T09:30:00Z"

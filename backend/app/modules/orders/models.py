@@ -270,6 +270,8 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         service_zone_id: The zone the customer picked (FR-020), or null when
             their area is not listed. Kept when the zone is later switched
             off (FR-024).
+        quote_id: The server quote the order was placed with (pricing
+            module), frozen (FR-024); null for a quote request.
     """
 
     __tablename__ = "orders"
@@ -384,6 +386,9 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     service_zone_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("service_zones.id", ondelete="RESTRICT"), index=True
+    )
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("quotes.id", ondelete="RESTRICT"), index=True
     )
 
 

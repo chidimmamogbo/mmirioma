@@ -177,6 +177,7 @@ async def new_order(sessions: Sessions, s: Setup) -> Order:
 
 def request(potable: WaterCategory, s: Setup, **changes: object) -> confirmation.ConfirmInput:
     values: dict[str, object] = {
+        "expected_status": OrderStatus.QUOTE_REQUESTED,
         "water_category_id": potable.id,
         "source_id": s.source_id,
         "window_start_at": WINDOW_START,
