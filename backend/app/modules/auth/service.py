@@ -9,6 +9,9 @@ Rules implemented here (docs/api/auth.md):
   costs one password hash, so response time does not reveal accounts.
 - A session is usable only while unrevoked, unexpired and owned by an active
   user, so deactivating an account cuts off access immediately (FR-002).
+- Changing the password (#8, :func:`change_password`) ends every other
+  session of the account, so a device signed in with a leaked password is
+  signed out; the session that made the change stays signed in.
 """
 
 import asyncio
@@ -25,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import APIError
+from app.modules.audit import service as audit_service
 from app.modules.auth import security
 from app.modules.auth.models import User, UserRole, UserSession
 
@@ -133,6 +137,45 @@ async def check_password(user: User, password: str) -> None:
     """
     if not await asyncio.to_thread(security.verify_password, password, user.password_hash):
         raise APIError(HTTPStatus.FORBIDDEN, "password_incorrect", "Your password is incorrect")
+
+
+async def change_password(
+    session: AsyncSession, *, auth: AuthenticatedSession, new_password: str
+) -> None:
+    """Store a new password and end the account's other sessions. Commits.
+
+    The caller has already checked the current password
+    (:func:`check_password`) under the sign-in failure limits. In one
+    transaction: the new salted scrypt hash, every other unrevoked session
+    revoked (decided by @chidimmamogbo on #8), and an audit row
+    ``password_changed`` with no password, hash or session data (NFR-004).
+    The current session and its CSRF token stay valid.
+
+    Args:
+        session: Database session.
+        auth: The signed-in session making the change.
+        new_password: The new plain-text password (validated by the schema).
+    """
+    user = auth.user
+    user.password_hash = await asyncio.to_thread(security.hash_password, new_password)
+    now = datetime.now(UTC)
+    await session.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == user.id,
+            UserSession.id != auth.session.id,
+            UserSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=now, updated_at=now)
+    )
+    audit_service.record(
+        session,
+        actor_id=user.id,
+        action="password_changed",
+        target_type="user",
+        target_id=user.id,
+    )
+    await session.commit()
 
 
 async def set_phone_verified(session: AsyncSession, user: User) -> None:

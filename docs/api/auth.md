@@ -18,7 +18,8 @@ on 2026-10-19; the screens are not built yet.
 from [partners.md](partners.md). See [Changes](#changes).
 
 **Change password (2026-10-26, #8): agreed** by @nnamdi-security
-(technical lead, #36), with @chidimmamogbo's decisions. See
+(technical lead, #36), with @chidimmamogbo's decisions, and **built in #56**
+([authentication.md](../features/authentication.md)). See
 [Change password](#change-password-8).
 
 ## Roles
@@ -184,7 +185,7 @@ Examples: [examples/auth-session.json](examples/auth-session.json),
 ## Change password (#8)
 
 The fork's Change password screen (`/profile/password` for customers, and the
-same screen in the partner and admin apps) has no endpoint. Agreed in #8 (build: #56):
+same screen in the partner and admin apps) had no endpoint. Agreed in #8, built in #56:
 
 | Method | Path | Auth | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
