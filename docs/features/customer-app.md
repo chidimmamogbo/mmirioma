@@ -52,6 +52,7 @@ addresses, points, notifications, support and their profile.
 | `frontend/src/features/customer/real/account.ts` | Account adapters (#88 part 1): `getProfile`, `listAddresses`, `setDefaultAddress`, `removeAddress` through `lib/api/customerAccount.ts` |
 | `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
 | `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
+| `frontend/src/features/customer/real/notifications.ts` | Notification adapters (#88 part 2) through `lib/api/customerNotifications.ts` |
 | `frontend/src/features/customer/queries.ts` | TanStack Query hooks and cache refresh after changes |
 | `frontend/src/features/customer/order/` | Order draft (sessionStorage), reorder and flow helpers |
 | `frontend/src/features/customer/pages/` | One component per screen |
@@ -108,6 +109,17 @@ and phone from the session (`GET /auth/me`). Change password
 (`POST /auth/password`) and the support contact (`GET /public/contact`) are
 linked (#57); the email row and message switches sit on Account settings
 (`/settings`).
+
+**Notifications (#88 part 2):** `GET /me/notifications` and
+`POST /me/notifications/read` ([customer-account.md](../api/customer-account.md#notifications)),
+the same shape as the partner app's. `read` is `read_at !== null`. The
+kinds the server adds (`order_confirmed`, `cancelled`, `delivery_failed`)
+have their own icons from the existing set; any kind the app does not know
+shows as a neutral "update" with the server's title and body, never hidden.
+The list is the newest 50, so the bell, the Menu badge and "Mark all read"
+use the server's `unread_count` across all pages, never the unread items in
+the list: unread messages older than the newest 50 still show and can be
+marked read (the partner app's rule, #80).
 
 ## 6. Important business rules
 

@@ -9,7 +9,7 @@
  * `setDefaultAddress`, `removeAddress` (#88).
  */
 import type {
-  CustomerNotification,
+  CustomerNotificationList,
   CustomerOrder,
   CustomerProfile,
   PointsSummary,
@@ -26,6 +26,8 @@ import * as realSupport from './real/support'
 import * as mock from '../../mocks/customerMock'
 import * as realAccount from './real/account'
 import * as realOrder from './real/order'
+// Linked in #88 part 2: listNotifications, markNotificationsRead.
+import * as realNotifications from './real/notifications'
 
 export type { AddressInput, CreateOrderInput, ProfileUpdate } from '../../mocks/customerMock'
 
@@ -54,10 +56,13 @@ export const submitFeedback = (reference: string, f: { rating: number; poured_by
 export const demoAdvanceOrder = (reference: string, to: 'delivered' | 'next' = 'next'): Promise<CustomerOrder> =>
   USE_MOCKS ? mock.demoAdvanceOrder(reference, to) : notConnected('Demo controls')
 
-export const listNotifications = (): Promise<CustomerNotification[]> =>
-  USE_MOCKS ? mock.listNotifications() : notConnected('Notifications')
+/** The mock has no pages, so counting its unread items gives the true count. */
+export const listNotifications = (): Promise<CustomerNotificationList> =>
+  USE_MOCKS
+    ? mock.listNotifications().then((items) => ({ items, unread_count: items.filter((n) => !n.read).length }))
+    : realNotifications.listNotifications()
 export const markNotificationsRead = (ids?: string[]): Promise<void> =>
-  USE_MOCKS ? mock.markNotificationsRead(ids) : notConnected('Notifications')
+  USE_MOCKS ? mock.markNotificationsRead(ids) : realNotifications.markNotificationsRead(ids)
 
 export const getPoints = (): Promise<PointsSummary> => (USE_MOCKS ? mock.getPoints() : notConnected('Points'))
 
