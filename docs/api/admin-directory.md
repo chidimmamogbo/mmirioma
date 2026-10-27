@@ -505,6 +505,43 @@ A category listed twice is 422 `validation_error`. Zones are never deleted
 
 The mock's 409 `area_exists` becomes `service_zone_name_taken`.
 
+#### Amendment (#74): the pilot category in the admin zone list
+
+**Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
+(technical lead), on PR #108. Proposed by @Cloudcrackamara (+ Claude Code).
+Not built yet: #109 builds it. The rest of [Service zones](#service-zones)
+stays agreed as it is.
+
+**Gap.** The Service areas screen edits one fee per area: the pilot water
+category's ([Mapping to the design types](#mapping-to-the-design-types)).
+The pilot category is the server setting `PILOT_WATER_CATEGORY`, a category
+code (`utility` by default; [order-details-and-price.md](order-details-and-price.md),
+open question 2). No admin endpoint returns that code, or the category's id:
+`fallback_delivery_fees[].water_category` has `id` and `label` only. So a
+client cannot tell which fee is the pilot one, and cannot write one for a
+zone that has none, without guessing from the label.
+
+**Proposal.** `GET /admin/service-zones` also returns the pilot category, as
+the same `{ id, label }` the fees use:
+
+```json
+{
+  "items": [ServiceZone],
+  "pilot_water_category": { "id": "3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b", "label": "Utility Water" }
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `pilot_water_category` | The water category whose `code` is the `PILOT_WATER_CATEGORY` setting, read when the list is requested; the same lookup quotes use. `null` when no category has that code (quotes then have no category either) |
+
+Additive: `items` is unchanged, and a client that ignores the new field keeps
+working. No new rule, setting or table: the server already resolves this
+category for every quote.
+
+Until it is built (#109), the Service areas link (#74) shows the fee as
+empty and refuses to write one ("not connected"), rather than guess.
+
 #### GET /service-zones
 
 The zones a customer can pick for an address (FR-020,
@@ -741,6 +778,7 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | `GET /service-zones` needs no session (any caller), for partner sign-up ([partners.md](partners.md) open question 2) | @nnamdi-security (technical lead) |
 | 2026-10-26 | Amended for #30: `fallback_delivery_fee_minor_units` replaced by `fallback_delivery_fees` (one fee per water category, per order); `GET /service-zones` for customers; [Which zone an address is in](#which-zone-an-address-is-in) and [Delivery cost from the zone](#delivery-cost-from-the-zone) added; open questions 5, 6, 13, 14 and 15 decided | Service zones section: @nnamdi-security (technical lead, PR #36). Rest: not yet |
