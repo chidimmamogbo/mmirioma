@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import health
 from app.modules.auth import router as auth
+from app.modules.customers import router as customers
 from app.modules.deliveries import admin_router as admin_orders
 from app.modules.deliveries import router as deliveries
 from app.modules.dispatch import router as dispatch
@@ -27,3 +28,4 @@ api_router.include_router(payments.router)
 api_router.include_router(pricing.router)
 api_router.include_router(partners.router)
 api_router.include_router(public.router)
+api_router.include_router(customers.router)
