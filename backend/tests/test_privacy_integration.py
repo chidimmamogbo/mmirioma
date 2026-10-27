@@ -452,7 +452,7 @@ def test_retention_review_dry_run_then_apply_then_nothing_left(created: Created)
         assert len(await gps_points(sessions, disputed)) == 2
 
         again = await review(apply=True)
-        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, 0, 0, applied=True)
+        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, 0, 0, 0, applied=True)
 
     run(scenario)
 
@@ -827,6 +827,86 @@ def test_review_deletes_complaints_resolved_over_three_years_ago(created: Create
         assert await exists(sessions, SupportRequest, still_open)
         assert await reload_user(sessions, due.id) is None
         assert not await exists(sessions, SupportRequest, due_request)
+
+    run(scenario)
+
+
+async def add_handled_request(
+    sessions: Sessions,
+    customer: User,
+    status: DeletionRequestStatus,
+    *,
+    at: datetime | None = None,
+) -> uuid.UUID:
+    """A deletion request in ``status``; ``at`` is when it was completed or refused."""
+    async with sessions() as session:
+        request = DeletionRequest(
+            reference=customer_requests.new_reference(customer_requests.DELETION_PREFIX),
+            user_id=customer.id,
+            status=status,
+            acknowledge_by=(at or OLD).date(),
+            completed_at=at if status is DeletionRequestStatus.COMPLETED else None,
+            refused_at=at if status is DeletionRequestStatus.REFUSED else None,
+            refusal_reason="Open dispute" if status is DeletionRequestStatus.REFUSED else None,
+            created_at=(at or OLD) - timedelta(days=5),
+        )
+        session.add(request)
+        await session.commit()
+        return request.id
+
+
+def test_review_deletes_deletion_requests_handled_over_three_years_ago(created: Created) -> None:
+    # #118: kept 3 years after completion or refusal; open ones never deleted.
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        cutoff = REVIEW_NOW.replace(year=REVIEW_NOW.year - 3)
+        just_outside = cutoff - timedelta(days=1)
+        just_inside = cutoff + timedelta(days=1)
+        completed_old = await add_handled_request(
+            sessions, s.customer, DeletionRequestStatus.COMPLETED, at=just_outside
+        )
+        refused_old = await add_handled_request(
+            sessions, s.customer, DeletionRequestStatus.REFUSED, at=just_outside
+        )
+        completed_recent = await add_handled_request(
+            sessions, s.customer, DeletionRequestStatus.COMPLETED, at=just_inside
+        )
+        refused_recent = await add_handled_request(
+            sessions, s.customer, DeletionRequestStatus.REFUSED, at=just_inside
+        )
+        # Open requests, however old: at most one per customer.
+        other = await add_user(sessions, created, UserRole.CUSTOMER)
+        received = await add_handled_request(sessions, s.customer, DeletionRequestStatus.RECEIVED)
+        acknowledged = await add_handled_request(
+            sessions, other, DeletionRequestStatus.ACKNOWLEDGED
+        )
+
+        async with sessions() as session:
+            dry = await service.retention_review(
+                session, actor=s.admin, now=REVIEW_NOW, apply=False
+            )
+        assert dry.deletion_requests_deleted == 2
+        assert await exists(sessions, DeletionRequest, completed_old)  # dry run saves nothing
+
+        async with sessions() as session:
+            result = await service.retention_review(
+                session, actor=s.admin, now=REVIEW_NOW, apply=True
+            )
+        assert result.deletion_requests_deleted == 2
+        assert not await exists(sessions, DeletionRequest, completed_old)
+        assert not await exists(sessions, DeletionRequest, refused_old)
+        for kept in (completed_recent, refused_recent, received, acknowledged):
+            assert await exists(sessions, DeletionRequest, kept)
+        async with sessions() as session:
+            audit = await session.scalar(
+                select(AuditLog)
+                .where(
+                    AuditLog.actor_id == s.admin.id, AuditLog.action == "retention_review_applied"
+                )
+                .order_by(AuditLog.created_at.desc())
+                .limit(1)
+            )
+        assert audit is not None and audit.details["deletion_requests_deleted"] == 2
 
     run(scenario)
 

@@ -111,6 +111,8 @@ async def _run(args: argparse.Namespace) -> str:
                 f"Orders anonymized (finished over 3 years ago): {review.orders_anonymized}",
                 "Support requests deleted (resolved over 3 years ago): "
                 f"{review.support_requests_deleted}",
+                "Deletion requests deleted (completed or refused over 3 years ago): "
+                f"{review.deletion_requests_deleted}",
                 _dry_run_line(review.applied),
                 "",
                 "Also by hand:",

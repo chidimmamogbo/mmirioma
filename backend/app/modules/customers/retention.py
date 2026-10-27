@@ -13,7 +13,8 @@ the caller's transaction and never commit, so a dry run can roll them back.
   #117); an account deleted by the review loses them; resolved requests over
   3 years old are deleted (technical lead, 2026-10-27, #82).
 - A deletion request's reason is blanked when the account is anonymized;
-  the request itself is kept as the record of what was asked and done.
+  the request itself is kept as the record of what was asked and done, and
+  deleted 3 years after it was completed or refused (#118).
 """
 
 import uuid
@@ -22,12 +23,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, func, update
+from sqlalchemy import CursorResult, delete, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.customers.models import (
     CustomerAddress,
     DeletionRequest,
+    DeletionRequestStatus,
     SupportRequest,
     SupportRequestStatus,
 )
@@ -154,6 +156,37 @@ async def delete_resolved_support_requests(
             delete(SupportRequest).where(
                 SupportRequest.status == SupportRequestStatus.RESOLVED,
                 SupportRequest.resolved_at < resolved_before,
+            )
+        )
+    )
+
+
+async def delete_handled_deletion_requests(
+    session: AsyncSession, *, handled_before: datetime
+) -> int:
+    """Delete deletion requests completed or refused before a cutoff. Does not commit.
+
+    Notice §8: kept 3 years after the request is completed or refused
+    (privacy contact, 2026-10-27, #118), as the record that it was handled.
+    Requests still ``received`` or ``acknowledged`` are never deleted: they
+    are open work.
+
+    Args:
+        session: Database session (the caller's transaction).
+        handled_before: Requests completed or refused before this are due.
+
+    Returns:
+        How many were deleted.
+    """
+    return _rowcount(
+        await session.execute(
+            delete(DeletionRequest).where(
+                or_(
+                    (DeletionRequest.status == DeletionRequestStatus.COMPLETED)
+                    & (DeletionRequest.completed_at < handled_before),
+                    (DeletionRequest.status == DeletionRequestStatus.REFUSED)
+                    & (DeletionRequest.refused_at < handled_before),
+                )
             )
         )
     )

@@ -457,8 +457,8 @@ const PRIVACY: Section[] = [
               "Deleted. If your account is closed sooner, your message and our staff's note about it are removed then, and the rest of the record is kept until the 3 years end.",
             ],
             [
-              'Account deletion requests: as long as we need to show that we handled your request',
-              'The reason you gave is removed when your account is closed; the reference, dates and outcome are kept as a record that the request was handled.',
+              'Account deletion requests: 3 years after we complete or refuse your request',
+              'Deleted. Until then, the reference, dates and outcome are kept as a record that the request was handled; the reason you gave is removed earlier, when your account is closed.',
             ],
             ['Sign-in sessions: a session lasts up to 7 days', 'Ended sessions are deleted at the next monthly review.'],
             ['Server logs: 90 days', 'Deleted, unless needed to investigate a security incident.'],

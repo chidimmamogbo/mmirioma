@@ -176,6 +176,7 @@ def test_review_output_lists_the_manual_checks(
             gps_points_cleared=0,
             orders_anonymized=0,
             support_requests_deleted=5,
+            deletion_requests_deleted=2,
             applied=True,
         )
 
@@ -187,6 +188,7 @@ def test_review_output_lists_the_manual_checks(
     assert "Phone codes cleared: 4" in out
     assert "Never-verified accounts anonymized (they have audit rows): 1" in out
     assert "Support requests deleted (resolved over 3 years ago): 5" in out
+    assert "Deletion requests deleted (completed or refused over 3 years ago): 2" in out
     assert "Saved." in out
     for check in cli.MANUAL_CHECKS:
         assert check in out

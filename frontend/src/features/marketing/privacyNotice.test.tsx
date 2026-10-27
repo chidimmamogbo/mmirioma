@@ -54,6 +54,11 @@ describe('the /privacy page mirrors PRIVACY_NOTICE.md (#93)', () => {
     }
   })
 
+  it('states how long deletion requests are kept (section 8, #118)', () => {
+    renderPage()
+    expect(screen.getByText('Account deletion requests: 3 years after we complete or refuse your request')).toBeInTheDocument()
+  })
+
   it('offers the app for deletion requests, with the identity check (section 9)', () => {
     renderPage()
     expect(screen.getByText(/use "Delete my account" in the app; we still call you back to confirm it is you/)).toBeInTheDocument()
