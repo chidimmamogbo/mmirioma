@@ -42,13 +42,12 @@ when those issues close.
 
 ## Review
 
-- `frontend/`: @chidimmamogbo, backup @nnamdi-security.
-- `backend/` and `docs/api/`: @nnamdi-security, backup @chidimmamogbo.
-- A contract is agreed when both have approved it. A new screen is approved
-  (G2) by @chidimmamogbo.
-- The technical lead (@nnamdi-security) may also agree a contract (G3) or
-  approve a design (G2) alone. The pull request that records it still needs
-  a code owner other than its author (branch protection).
+- Reviewers: @chidimmamogbo, @nnamdi-security and @Cloudcrackamara, for any
+  part of the repository (`.github/CODEOWNERS`). **One approval suffices**, so
+  a PR never waits on one person (owner's decision, 2026-10-27).
+- An author never approves their own PR, design or contract.
+- A contract is agreed (G3), and a new screen approved (G2), by one reviewer
+  who is not its author; the document names who and when.
 
 ## Not in the backend yet
 
