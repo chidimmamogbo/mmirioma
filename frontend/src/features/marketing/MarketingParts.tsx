@@ -229,7 +229,7 @@ export function MarketingFooter({ variant }: { variant: 'full' | 'short' }) {
               Terms of Service
             </Link>
             <Link to="/privacy" className={FOOT_LINK}>
-              Privacy Policy
+              Privacy Notice
             </Link>
             {full && (
               <Link to="/privacy#cookies" className={FOOT_LINK}>
