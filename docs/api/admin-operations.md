@@ -2,15 +2,15 @@
 
 Requirements: FR-001, FR-030, FR-032, FR-035, FR-036, FR-037, FR-041,
 FR-052, FR-053, FR-055, BR-09, BR-12, NFR-003, NFR-004 · Issue: #22 ·
-Built in: #102 part 1 (shell, support requests, audit log, admin
-notifications without `assignment_expired`, settings;
-[feature doc](../features/admin-operations.md)); part 2 (dashboard, live
-map, activity, reports) not yet
+Built in: #102 (part 1: shell, support requests, audit log, admin
+notifications without `assignment_expired`, settings; part 2: dashboard,
+live map, activity, reports;
+[feature doc](../features/admin-operations.md))
 
 **Status: agreed** (G3) on 2026-10-27 by @nnamdi-security (technical lead,
 backend, contract owner) and @chidimmamogbo (frontend, approved PR #71).
-Proposed the same day by @nnamdi-security (+ Claude Code). Being built in
-#102 (part 1 done; see "Built in" above). The
+Proposed the same day by @nnamdi-security (+ Claude Code). Built in #102
+(see "Built in" above). The
 [open questions](#open-questions) stay open; until each is decided, the build
 does exactly what the body says (for example, no reopen and no order-level
 CSV).
