@@ -12,7 +12,7 @@ import type { AdminOrder, AdminOrderFilter, AdminOrderStatus, AdminPaymentStatus
 import { describeChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
-import { getAdminOrderDetail, type AdminOrderDetail } from '../../../lib/api/adminDispatch'
+import { getAdminOrderDetail, getOrderHistory, type AdminOrderDetail, type AdminOrderEvent } from '../../../lib/api/adminDispatch'
 import { listAdminOrders, type AdminOrderRead, type AdminOrderStatus as BackendStatus } from '../../../lib/api/adminOrders'
 import type { OrderList } from '../../../mocks/adminMock'
 import { choiceFromRead } from '../../customer/real/order'
@@ -130,7 +130,7 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
       : null,
     assigned_by: live?.offered_by.name ?? null,
     station_name: detail?.source?.name ?? null,
-    // The full history is a separate endpoint, linked with dispatch (#16).
+    // The history is a separate endpoint; `getOrder` adds its assignment events (#16).
     timeline: [{ label: 'Order placed', at: read.created_at }],
     instructions: read.delivery_instructions,
     tank_note: read.tanker ? (read.tanker.tank_type === 'overhead' ? 'Overhead tank' : 'Ground tank') : null,
@@ -183,11 +183,54 @@ export async function listOrders(filter: AdminOrderFilter = 'all', query?: strin
   return { orders: page.items.map(adminOrderFromRead), counts }
 }
 
+type TimelineEntry = AdminOrder['timeline'][number]
+
 /**
- * One order with its live assignment, confirmation and payment.
+ * The line for an assignment event, in the contract's words (deliveries.md,
+ * "AdminOrderEvent"), or `null` for every other event: their wording is not
+ * decided yet (#16), so they are left out rather than guessed.
+ */
+function assignmentLine(event: AdminOrderEvent): string | null {
+  if (!event.assignment) return null
+  const driver = event.assignment.driver.name
+  if (event.reason_code === 'driver_declined') return `Declined by ${driver}`
+  if (event.reason_code === 'reassigned') {
+    if (event.from_status === 'assigned') return `Offer to ${driver} withdrawn`
+    if (event.from_status === 'accepted') return `Job withdrawn from ${driver}`
+    return null
+  }
+  if (event.to_status === 'assigned') return `Offered to ${driver}`
+  if (event.from_status === 'assigned' && event.to_status === 'accepted') return `Accepted by ${driver}`
+  return null
+}
+
+/**
+ * The order's timeline: "Order placed", then its assignment events, oldest
+ * first (the history comes newest first). An event's note is its detail.
+ */
+export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
+  const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
+    const label = assignmentLine(event)
+    return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
+  })
+  return [{ label: 'Order placed', at: createdAt }, ...lines]
+}
+
+/**
+ * One order with its live assignment, confirmation, payment and assignment
+ * history.
+ *
+ * The history is a separate read that can fail on its own (deliveries.md,
+ * H1). The detail page has no state for that, so a failed history leaves
+ * the timeline at "Order placed" and the order still shows.
  *
  * @throws {ApiError} 404 `order_not_found`.
  */
 export async function getOrder(reference: string, client: ApiClient = apiClient): Promise<AdminOrder> {
-  return adminOrderFromRead(await getAdminOrderDetail(reference, undefined, client))
+  const [detail, history] = await Promise.all([
+    getAdminOrderDetail(reference, undefined, client),
+    getOrderHistory(reference, undefined, client).catch(() => null),
+  ])
+  const order = adminOrderFromRead(detail)
+  return history ? { ...order, timeline: timelineFromHistory(detail.created_at, history) } : order
 }
