@@ -11,10 +11,12 @@
 - **Cause:** the fork copied the main repo's backend (PR #4,
   `mmiri-oma/mmirioma@adc8654`) and its privacy tool, but not the process
   document the tool carries out. The main repo has it.
-- **Fix / workaround:** none yet. The tool's steps are described in
-  `docs/features/privacy-tool.md`. A follow-up should copy the procedure into
-  the fork and add the steps #82 introduced: `set-deletion-status` after a
-  deletion request made in the app, and support requests in the monthly
-  review.
-- **Status:** open
-- **Refs:** #82, PR #4, `docs/features/privacy-tool.md`
+- **Fix / workaround:** #104 copied the procedure from the main repo
+  (`c4d972c`) into `docs/process/privacy-retention.md` and extended it with
+  what the fork's tool does: `set-deletion-status` for deletion requests made
+  in the app, what anonymizing also removes, never-verified accounts with
+  audit rows, support requests in the monthly review, rider and driver
+  accounts as an open item, and the website copy of the notice. Every link to
+  it resolves.
+- **Status:** resolved
+- **Refs:** #82, #104, PR #4, `docs/features/privacy-tool.md`

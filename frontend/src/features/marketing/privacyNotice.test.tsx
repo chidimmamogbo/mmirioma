@@ -8,7 +8,7 @@ import { PrivacyPage } from './LegalPages'
 
 // PRIVACY_NOTICE.md is the source (Vite will not load files outside frontend/).
 // When the notice changes, update these two and the page together (#93).
-const NOTICE_VERSION = '1.2'
+const NOTICE_VERSION = '2.0'
 const NOTICE_SECTIONS = [
   '1. Who operates MmiriOma?',
   '2. What information do we collect?',
@@ -52,5 +52,10 @@ describe('the /privacy page mirrors PRIVACY_NOTICE.md (#93)', () => {
     for (const claim of [/live location while online/i, /Paystack/, /Bank details for payouts/i]) {
       expect(screen.queryByText(claim)).not.toBeInTheDocument()
     }
+  })
+
+  it('offers the app for deletion requests, with the identity check (section 9)', () => {
+    renderPage()
+    expect(screen.getByText(/use "Delete my account" in the app; we still call you back to confirm it is you/)).toBeInTheDocument()
   })
 })

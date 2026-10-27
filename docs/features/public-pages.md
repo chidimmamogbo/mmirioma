@@ -30,7 +30,7 @@ the legal pages. Anyone can open them, signed in or not.
   the search; "Clear search" resets both.
 - `/terms`, `/privacy`: "On this page" links to each section; `/privacy#cookies`
   jumps to section 13. `/privacy` is the website copy of `PRIVACY_NOTICE.md`
-  (version 1.2, #93), section by section; change both together.
+  (version 2.0, #93, #104), section by section; change both together.
 
 ## 3. Important files
 

@@ -200,4 +200,4 @@ rows 2017-2021 and run it with `now` in 2021, before any other test row.
 - Staff, driver and admin accounts are out of scope.
 - A never-verified account that audit rows name is anonymized and closed
   instead of deleted (#82), so the audit log keeps its reference. The privacy
-  notice says so since version 1.2 (#93).
+  notice says so since version 2.0 (#93, #104).
