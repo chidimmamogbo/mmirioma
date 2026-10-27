@@ -145,6 +145,58 @@ def test_refusal_lists_blocking_orders_and_exits_1(
     assert "- MO-BBBB: open hold or review" in err
 
 
+def test_anonymize_partner_output_has_ids_and_counts_but_no_phone(
+    fake_service: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def anonymize(session: object, **kwargs: Any) -> service.PartnerAnonymizeResult:
+        fake_service.update(kwargs)
+        return service.PartnerAnonymizeResult(
+            partner_id=CUSTOMER_ID,
+            zones_removed=1,
+            decline_notes_removed=2,
+            gps_points_cleared=3,
+            notifications_deleted=4,
+            notes_to_review=5,
+            applied=False,
+        )
+
+    monkeypatch.setattr(service, "anonymize_partner", anonymize)
+    code = cli.main(["anonymize-partner", "--by", "08000000009", "--partner", "08000000011"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert fake_service["partner_phone"] == "+2348000000011"
+    assert fake_service["apply"] is False
+    assert f"Rider or driver {CUSTOMER_ID}: account anonymized and deactivated." in out
+    assert "Service zones removed: 1" in out
+    assert "Decline notes removed: 2" in out
+    assert "GPS points cleared: 3" in out
+    assert "Notifications deleted: 4" in out
+    assert "Incident and pickup notes kept, to check by hand: 5" in out
+    assert "Dry run: nothing was saved" in out
+    assert "0800" not in out and "+234" not in out
+
+
+def test_anonymize_partner_refusal_lists_the_blockers(
+    fake_service: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def refuse(session: object, **kwargs: Any) -> service.PartnerAnonymizeResult:
+        raise service.PartnerNotReady(["MO-AAAA: job accepted", "MO-BBBB: cash collected"])
+
+    monkeypatch.setattr(service, "anonymize_partner", refuse)
+    code = cli.main(["anonymize-partner", "--by", "08000000009", "--partner", "08000000011"])
+    err = capsys.readouterr().err
+
+    assert code == 1
+    assert "nothing was changed" in err
+    assert "- MO-AAAA: job accepted" in err
+    assert "- MO-BBBB: cash collected" in err
+
+
 def test_unknown_admin_exits_1(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

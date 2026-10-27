@@ -158,10 +158,36 @@ number, or by email to an address the requester confirms on that call.
 6. **Confirm** the outcome to the requester on the confirmed number and
    record it. The app does not send it.
 
-**Rider and driver accounts.** The tool anonymizes customer accounts only.
-For a rider or driver, deactivate the account (step 1), record the request,
-and handle the rest by hand with the privacy contact until a tool step
-exists (open item 4, #119).
+### Deletion: riders and drivers
+
+A rider or driver asks by the support line or the privacy email (the
+partner app has no "Delete my account"); confirm identity by call-back as
+above. Rules confirmed by the privacy contact on #119 (2026-10-27).
+
+1. **Close access now:** `python -m app.modules.auth.cli deactivate --phone <phone>`.
+2. **Check what must stay** with a dry run, which changes nothing:
+
+   ```bash
+   python -m app.modules.privacy.cli anonymize-partner --by <your admin phone> --partner <phone>
+   ```
+
+   It refuses, listing each order, while they have a live job (offered or
+   accepted), cash not reconciled (`collected`, `awaiting_remittance`,
+   `remitted`: settle it while the account still identifies who owes it,
+   FR-041), or an open hold or review, or a dispute, on a job they accepted.
+   Read the count of incident and pickup notes they wrote and check them for
+   personal details.
+3. **Anonymize:** run the same command with `--apply`, and record the
+   account id and the counts it prints in the register.
+
+   | Kept | Removed or anonymized |
+   | --- | --- |
+   | Assignments (who did which job), pickup records, delivery attempts and proofs (without GPS), incidents and their notes | Name ("Former rider or driver") and phone; the account is closed and its sessions end |
+   | Cash collections and remittances (6 years, notice section 8) | Plate, declared capacity and availability; alert and SMS switches and transfer methods reset; service zones |
+   | The approval status, as a historical record; audit rows | Their own words on declines (replaced by "Removed at the partner's request.") and in-app messages |
+   | GPS points on disputed orders or orders with an open matter (evidence, notice section 8) | Every other GPS point they recorded |
+
+4. **Confirm** the outcome on the confirmed number and record it.
 
 ## Monthly retention review
 
@@ -208,7 +234,8 @@ restore in the register (notice section 10).
 
 ## Tooling
 
-Deactivation is `app.modules.auth.cli deactivate`. Anonymizing a customer,
+Deactivation is `app.modules.auth.cli deactivate`. Anonymizing a customer
+or (with `anonymize-partner`) a rider or driver,
 correcting a name, recording the outcome of a deletion request made in the
 app (`set-deletion-status`) and the monthly database steps are
 `app.modules.privacy.cli` (how it works:
@@ -230,10 +257,8 @@ admin account and writes an audit row.
    the fork is hosted elsewhere.
 3. **Accounting retention:** confirm the 6-year period against the legal
    operator's status and Nigerian accounting and tax law.
-4. **Rider and driver deletion:** the notice now covers rider and driver
-   data (section 2), but the tool anonymizes customer accounts only. Until
-   `anonymize-partner` exists (#119), a partner's deletion request is
-   handled by hand by the privacy contact (Deletion, last paragraph).
+4. **Rider and driver deletion:** done: `anonymize-partner` (#119; "Deletion:
+   riders and drivers").
 
 ## Changing the notice
 
@@ -253,4 +278,5 @@ admin account and writes an audit row.
 
 | Date | Change | By |
 | --- | --- | --- |
+| 2026-10-27 | "Deletion: riders and drivers" with `anonymize-partner`, by the rules the privacy contact confirmed on #119; open item 4 closed | @nnamdi-security (+ Claude Code), #119 |
 | 2026-10-27 | Copied into the fork from the main repo (`c4d972c`) and extended: deletion requests made in the app (`set-deletion-status`), what anonymizing also removes (saved addresses, in-app messages, support request messages, the deletion reason, feedback messages), never-verified accounts with audit rows anonymized, support requests in the monthly review, rider and driver accounts (open item 4), and the website copy of the notice. The notice question in #104 (section 8, never-verified accounts) is decided: the wording from PR #106, accepted by the privacy contact. Privacy contact's decisions (2026-10-27): the notice becomes 2.0, as the version rule asks when what is collected changes (it had been numbered 1.2 and was never published); section 9 names "Delete my account" in the app; rider and driver deletion gets its own issue (#119) | @nnamdi-security (+ Claude Code), #104 |

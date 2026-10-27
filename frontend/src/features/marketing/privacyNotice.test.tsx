@@ -56,6 +56,6 @@ describe('the /privacy page mirrors PRIVACY_NOTICE.md (#93)', () => {
 
   it('offers the app for deletion requests, with the identity check (section 9)', () => {
     renderPage()
-    expect(screen.getByText(/use "Delete my account" in the app; we still call you back to confirm it is you/)).toBeInTheDocument()
+    expect(screen.getByText(/use "Delete my account" in the customer app; we still call you back to confirm it is you/)).toBeInTheDocument()
   })
 })
