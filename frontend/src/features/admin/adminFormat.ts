@@ -2,9 +2,9 @@
  * Labels and colours for admin statuses. Every status shows a word, never
  * colour alone (handoff README, "Colour").
  */
-import type { AdminOrderStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
+import type { AdminOrderStatus, AdminPaymentStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
 import type { ChipTone } from '../../components/ui/Chip'
-import type { PaymentMethod, PaymentStatus } from '../../domain/orders'
+import type { PaymentMethod } from '../../domain/orders'
 import type { ApprovalStatus } from '../../domain/partner'
 
 export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
@@ -18,18 +18,21 @@ export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
   disputed: 'amber',
 }
 
-export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
+export const PAYMENT_LABEL: Record<AdminPaymentStatus, string> = {
   unpaid: 'Unpaid',
   awaiting_verification: 'To verify',
   paid: 'Paid',
+  // The approved cash design's label (docs/design/cash-remittance.md).
+  partially_paid: 'Part paid',
   refund_due: 'Refund due',
   refunded: 'Refunded as points',
 }
 
-export const PAYMENT_TONE: Record<PaymentStatus, ChipTone> = {
+export const PAYMENT_TONE: Record<AdminPaymentStatus, ChipTone> = {
   unpaid: 'gray',
   awaiting_verification: 'amber',
   paid: 'green',
+  partially_paid: 'amber',
   refund_due: 'red',
   refunded: 'gray',
 }

@@ -77,6 +77,11 @@ describe('adminOrderFromRead', () => {
     expect(order.tank_note).toBeNull()
   })
 
+  it('shows a part-paid order as Part paid, from the cash design', () => {
+    const order = adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_paid' } })
+    expect(order.payment.status).toBe('partially_paid')
+  })
+
   it('keeps a list row honest: litres only, no area, payment status or partner', () => {
     const order = adminOrderFromRead({ ...ROW, delivery_type: null, keke: null, tanker: null, water_source: null, service_zone: null, quote: null })
     expect(order.choice).toBeNull()

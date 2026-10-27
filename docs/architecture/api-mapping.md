@@ -258,8 +258,10 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 `failed` and `disputed` are admin statuses of their own (open question 5,
 decided in #15), with the agreed staff labels from docs/api/orders.md. The
 order's payment status maps only where the design has an exact equivalent
-(`unpaid`, `awaiting_verification`, `paid`, `refunded`); for the others the
-order shows no payment chip, and the cash pages show them in full (#19).
+(`unpaid`, `awaiting_verification`, `paid`, `refunded`, and `partially_paid`
+as "Part paid" from the approved cash design, docs/design/cash-remittance.md);
+for the others the order shows no payment chip, and the cash pages show them
+in full (#19).
 
 ## Open questions
 
