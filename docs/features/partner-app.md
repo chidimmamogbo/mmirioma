@@ -118,6 +118,11 @@ Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
   times (no OSRM) or pay (out of the MVP). Screens show the ordered litres in
   litres and gallons, and leave the rest out
   ([api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send)).
+- A job may also come without the receiver (offers, FR-032, and ended
+  jobs), the full addresses (offers and history) or the code tries (before
+  the code is issued). Screens then name the area, leave out the customer
+  row and the call buttons, and the code screen says it is waiting for the
+  code. Mock mode keeps every value.
 - Failed and disputed jobs show in history as "Delivery failed" and "Under
   review"; they are never hidden.
 - No invented turn-by-turn directions: the map badge says where to head;
