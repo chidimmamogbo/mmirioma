@@ -72,6 +72,7 @@ No tables of its own. The tool changes rows of other modules:
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
 | `phone_verifications` | Deleted | `code_hash` blanked on expired codes; rows kept |
 | `orders` | Contact name and phone, address replaced; landmark and instructions cleared | Same, for orders finished over 3 years ago |
+| `feedback` | Message blanked; ratings kept (#82) | Same, for those orders |
 | `delivery_attempts`, `delivery_proofs` | GPS point and accuracy cleared | GPS over 90 days old cleared, except disputed orders and open holds or reviews |
 | `delivery_codes` | Kept | `code_hash` blanked on expired codes; rows kept (proofs point at them) |
 | `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`) |

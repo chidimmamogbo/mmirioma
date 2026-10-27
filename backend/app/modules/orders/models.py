@@ -30,6 +30,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
     UniqueConstraint,
     false,
@@ -439,3 +440,49 @@ class OrderEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     assignment_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("assignments.id", ondelete="RESTRICT"), index=True, default=None
     )
+
+
+#: FR-051 rating scale and the message limit (docs/api/customer-account.md).
+FEEDBACK_RATING_MIN = 1
+FEEDBACK_RATING_MAX = 5
+FEEDBACK_MESSAGE_MAX_LENGTH = 500
+
+
+class OrderFeedback(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The customer's feedback on one delivered order (FR-051, SRS §5 ``feedback``).
+
+    One row per order, enforced by the unique ``order_id``: submitting again
+    replaces it, which is the duplicate protection FR-051 asks for
+    (docs/api/customer-account.md, "Order feedback"). ``created_at`` is when
+    it was first submitted.
+
+    Attributes:
+        order_id: The order. CASCADE: feedback goes with its order (only
+            simulated and test orders are ever deleted).
+        rating: 1-5 (checked by the database too).
+        poured_by_partner: Whether the rider or driver unloaded the water
+            (FR-051 "unloading experience", BR-04).
+        on_time: FR-051 "timeliness"; optional.
+        quantity_as_ordered: FR-051 "received quantity"; optional.
+        would_reorder: FR-051 "willingness to reorder"; optional.
+        message: Optional free text, up to 500 characters. Blanked by the
+            privacy tool when the order is anonymized.
+    """
+
+    __tablename__ = "feedback"
+    __table_args__ = (
+        CheckConstraint(
+            f"rating BETWEEN {FEEDBACK_RATING_MIN} AND {FEEDBACK_RATING_MAX}",
+            name="rating_range",
+        ),
+    )
+
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), unique=True
+    )
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    poured_by_partner: Mapped[bool]
+    on_time: Mapped[bool | None]
+    quantity_as_ordered: Mapped[bool | None]
+    would_reorder: Mapped[bool | None]
+    message: Mapped[str | None] = mapped_column(String(FEEDBACK_MESSAGE_MAX_LENGTH))

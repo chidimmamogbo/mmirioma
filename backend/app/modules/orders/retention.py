@@ -10,7 +10,8 @@ Rules (technical lead, 2026-10-23, #129):
   is open, so both block anonymizing the customer; staff cancel a failed
   order that will not be rescheduled first.
 - Anonymizing an order replaces the contact name and phone and the address,
-  and clears the landmark and instructions. Reference, quantities, statuses,
+  and clears the landmark, the instructions and the customer's feedback
+  message (#82). Reference, quantities, statuses,
   times, source and price stay, for accounting and safety records.
 - Free-text notes on order events are kept (incident records, notice
   section 8); :func:`count_event_notes` lets the privacy contact review them.
@@ -24,7 +25,7 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.orders.models import Order, OrderEvent, OrderStatus
+from app.modules.orders.models import Order, OrderEvent, OrderFeedback, OrderStatus
 
 FINISHED_STATUSES = frozenset({OrderStatus.DELIVERED, OrderStatus.CANCELLED})
 ANONYMIZED_CONTACT_NAME = "Deleted"
@@ -77,7 +78,9 @@ async def anonymize_orders(
     """Remove the contact and address details from orders. Does not commit.
 
     Orders already anonymized are skipped, so running it twice changes
-    nothing.
+    nothing. The customer's feedback message on these orders is blanked too
+    (docs/api/customer-account.md, "Data needed"); the ratings stay, as
+    they hold no personal data.
 
     Args:
         session: Database session.
@@ -100,6 +103,11 @@ async def anonymize_orders(
             delivery_instructions=None,
             updated_at=now,
         )
+    )
+    await session.execute(
+        update(OrderFeedback)
+        .where(OrderFeedback.order_id.in_(order_ids), OrderFeedback.message.is_not(None))
+        .values(message=None, updated_at=now)
     )
     # An UPDATE returns a CursorResult; Session.execute is typed with Result.
     return cast("CursorResult[Any]", result).rowcount
