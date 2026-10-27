@@ -442,6 +442,22 @@ async def list_customer_orders(
     return list(orders), total or 0
 
 
+async def count_customer_orders(session: AsyncSession, *, customer_id: uuid.UUID) -> int:
+    """Count the customer's orders, every status (customer profile ``stats.orders``).
+
+    Args:
+        session: Database session.
+        customer_id: The customer.
+
+    Returns:
+        The number of orders.
+    """
+    total = await session.scalar(
+        select(func.count()).select_from(Order).where(Order.customer_id == customer_id)
+    )
+    return total or 0
+
+
 @dataclass(frozen=True)
 class StaffOrder:
     """An order together with the account that placed it, for staff views.

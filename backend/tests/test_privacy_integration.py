@@ -26,6 +26,7 @@ from app.core.errors import APIError
 from app.modules.audit.models import AuditLog
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import PhoneVerification, User, UserRole, UserSession
+from app.modules.customers.models import CustomerAddress
 from app.modules.deliveries.models import (
     AcknowledgementMethod,
     DeliveryAttempt,
@@ -43,6 +44,7 @@ from app.modules.payments.models import (
     CashCollectionStatus,
     CashRemittance,
 )
+from app.modules.pricing.models import ServiceZone
 from app.modules.privacy import service
 from tests import test_deliveries_integration as part1
 from tests.test_deliveries_integration import (
@@ -66,6 +68,8 @@ created = part1.created
 REVIEW_NOW = datetime(2021, 6, 1, 9, 0, tzinfo=UTC)
 OLD = datetime(2020, 1, 15, 9, 0, tzinfo=UTC)
 POINT = "POINT(7.4951 6.4584)"
+# Zones made by the saved-address tests, deleted after their addresses.
+ZONE_IDS: list[uuid.UUID] = []
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +82,9 @@ def delete_audit_rows(created: Created) -> Iterator[None]:
         connection.execute("DELETE FROM cash_collections WHERE driver_id = ANY(%s)", users)
         connection.execute("DELETE FROM cash_remittances WHERE driver_id = ANY(%s)", users)
         connection.execute("DELETE FROM audit_logs WHERE actor_id = ANY(%s)", users)
+        connection.execute("DELETE FROM customer_addresses WHERE customer_id = ANY(%s)", users)
+        connection.execute("DELETE FROM service_zones WHERE id = ANY(%s)", (ZONE_IDS,))
+    ZONE_IDS.clear()
 
 
 async def finished_job(sessions: Sessions, s: Setup, driver: User, **fields: object) -> str:
@@ -283,7 +290,10 @@ def test_anonymize_dry_run_saves_nothing_and_apply_removes_the_details(created: 
                 await session.scalars(select(AuditLog).where(AuditLog.target_id == user.id))
             )
         assert [(row.action, row.details) for row in audit] == [
-            ("customer_anonymized", {"orders_anonymized": 2, "gps_points_cleared": 2})
+            (
+                "customer_anonymized",
+                {"orders_anonymized": 2, "gps_points_cleared": 2, "addresses_removed": 0},
+            )
         ]
         assert await gps_points(sessions, delivered) == []
 
@@ -423,7 +433,7 @@ def test_retention_review_dry_run_then_apply_then_nothing_left(created: Created)
         assert len(await gps_points(sessions, disputed)) == 2
 
         again = await review(apply=True)
-        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, applied=True)
+        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, 0, applied=True)
 
     run(scenario)
 
@@ -579,5 +589,108 @@ def test_anonymize_refuses_unsettled_cash_and_warns_on_outside_balances(
         )
         assert result.notes_to_review == 1  # the driver's cash note
         assert result.orders_anonymized == 5
+
+    run(scenario)
+
+
+async def add_saved_address(sessions: Sessions, customer: User) -> None:
+    """One saved address in a new zone, as ``POST /me/addresses`` would store it."""
+    async with sessions() as session:
+        zone = ServiceZone(
+            name=f"Sample zone {uuid.uuid4().hex[:8]}",
+            is_active=True,
+            centre=WKTElement(POINT, srid=4326),
+        )
+        session.add(zone)
+        await session.flush()
+        ZONE_IDS.append(zone.id)
+        session.add(
+            CustomerAddress(
+                customer_id=customer.id,
+                zone_id=zone.id,
+                label="Home",
+                address="12 Sample Close, Enugu",
+                is_default=True,
+            )
+        )
+        await session.commit()
+
+
+async def addresses_of(sessions: Sessions, customer_id: uuid.UUID) -> list[CustomerAddress]:
+    async with sessions() as session:
+        rows = await session.scalars(
+            select(CustomerAddress).where(CustomerAddress.customer_id == customer_id)
+        )
+        return list(rows)
+
+
+def test_anonymize_removes_saved_addresses(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        await add_saved_address(sessions, s.customer)
+
+        dry = await anonymize(sessions, s, apply=False)
+        assert dry.addresses_removed == 1
+        assert len(await addresses_of(sessions, s.customer.id)) == 1
+
+        done = await anonymize(sessions, s, apply=True)
+        assert done.addresses_removed == 1
+        assert await addresses_of(sessions, s.customer.id) == []
+
+    run(scenario)
+
+
+def test_review_anonymizes_unverified_accounts_that_audit_rows_name(created: Created) -> None:
+    """An account with audit rows is anonymized, not deleted (#82, technical lead).
+
+    Deleting it would break ``audit_logs.actor_id`` (RESTRICT) and fail the
+    whole review. Either way its saved addresses go.
+    """
+
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        # Never verified, due, with an address and an audit row of its own
+        # (it saved the address).
+        audited = await add_user(sessions, created, UserRole.CUSTOMER)
+        await backdate_user(sessions, audited, REVIEW_NOW - timedelta(days=31))
+        await add_saved_address(sessions, audited)
+        async with sessions() as session:
+            session.add(
+                AuditLog(
+                    actor_id=audited.id,
+                    action="customer_address_added",
+                    target_type="customer_address",
+                    target_id=uuid.uuid4(),
+                    details={},
+                    created_at=REVIEW_NOW - timedelta(days=31),
+                )
+            )
+            await session.commit()
+        # Never verified, due, with an address but no audit row: deleted.
+        plain = await add_user(sessions, created, UserRole.CUSTOMER)
+        await backdate_user(sessions, plain, REVIEW_NOW - timedelta(days=31))
+        await add_saved_address(sessions, plain)
+
+        async def review() -> service.ReviewResult:
+            async with sessions() as session:
+                return await service.retention_review(
+                    session, actor=s.admin, now=REVIEW_NOW, apply=True
+                )
+
+        result = await review()
+        assert result.unverified_accounts_deleted >= 1
+        assert result.unverified_accounts_anonymized == 1
+
+        assert await reload_user(sessions, plain.id) is None
+        kept = await reload_user(sessions, audited.id)
+        assert kept is not None
+        assert (kept.name, kept.is_active) == ("Deleted customer", False)
+        assert kept.phone.startswith("+0")
+        assert await addresses_of(sessions, audited.id) == []
+
+        # A second run finds the anonymized account and leaves it alone.
+        again = await review()
+        assert again.unverified_accounts_anonymized == 0
+        assert again.unverified_accounts_deleted == 0
 
     run(scenario)

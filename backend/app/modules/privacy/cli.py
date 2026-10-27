@@ -59,6 +59,7 @@ async def _run(args: argparse.Namespace) -> str:
                     f"Customer {result.customer_id}: account anonymized and deactivated.",
                     f"Orders anonymized: {result.orders_anonymized}",
                     f"GPS points cleared: {result.gps_points_cleared}",
+                    f"Saved addresses deleted: {result.addresses_removed}",
                     f"Staff notes kept on these orders, to check by hand: {result.notes_to_review}",
                     *(f"Check: {warning}" for warning in result.cash_warnings),
                     _dry_run_line(result.applied),
@@ -76,6 +77,8 @@ async def _run(args: argparse.Namespace) -> str:
                 f"Delivery codes cleared: {review.delivery_codes_cleared}",
                 f"Ended sessions deleted: {review.sessions_deleted}",
                 f"Never-verified accounts deleted: {review.unverified_accounts_deleted}",
+                "Never-verified accounts anonymized (they have audit rows): "
+                f"{review.unverified_accounts_anonymized}",
                 f"GPS points cleared: {review.gps_points_cleared}",
                 f"Orders anonymized (finished over 3 years ago): {review.orders_anonymized}",
                 _dry_run_line(review.applied),
