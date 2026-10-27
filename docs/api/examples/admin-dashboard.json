@@ -17,7 +17,11 @@
     "with_window": 6,
     "on_time": 5
   },
-  "by_delivery_type": null,
+  "by_delivery_type": {
+    "keke": 9,
+    "tanker": 5,
+    "not_recorded": 0
+  },
   "holds_open": 1,
   "support_requests_open": 1,
   "drivers_available": {

@@ -18,12 +18,29 @@
     "with_window": 45,
     "on_time": 39
   },
-  "by_delivery_type": null,
+  "by_delivery_type": {
+    "keke": 40,
+    "tanker": 19,
+    "not_recorded": 2
+  },
   "cash": {
     "collected_minor_units": 28650000,
     "reconciled_minor_units": 26100000
   },
-  "by_zone": null,
+  "by_zone": [
+    {
+      "zone_id": "2f4b6d8f-0a1c-4e3e-9a5c-7e9b1d3f5a06",
+      "name": "Sample Zone Independence Layout",
+      "orders": 58,
+      "delivered": 46
+    },
+    {
+      "zone_id": null,
+      "name": null,
+      "orders": 3,
+      "delivered": 2
+    }
+  ],
   "by_driver": [
     {
       "driver_id": "5a0e6c2b-8d1f-4e3a-9b7c-2d4f6a8c0e11",

@@ -50,7 +50,7 @@ screen shows the "not connected yet" state, as the
 | `frontend/src/mocks/adminMock.ts` | Each function's behavior and refusals (`issue_not_found`, `already_resolved`, reason of at least 5 characters, staff only) |
 | `frontend/src/features/admin/pages/` | What each screen shows: `Dashboard.tsx`, `Reports.tsx`, `Support.tsx`, `AccountPages.tsx` (settings, audit log, notifications, account, live map), `Earnings.tsx`, `Loyalty.tsx` |
 | [handoff-v1.md](../design/handoff-v1.md) | Decision 14 (map and ETA only where real data backs them), decision 16 (points, wallet, payouts, rider pay are SAMPLE) |
-| [customer-account.md](customer-account.md#support-requests) | The customer side of support requests (proposed, #11) and the `support_requests` table |
+| [customer-account.md](customer-account.md#support-requests) | The customer side of support requests (agreed, #11 and #48) and the `support_requests` table |
 | [partners.md](partners.md#notifications), [customer-account.md](customer-account.md#notifications) | The shared notification shape |
 | [public-site.md](public-site.md) | Support contact from backend settings only (FR-055) |
 | [payments.md](payments.md) | Cash collections (the pilot's only payments, F4) and their statuses |
@@ -177,7 +177,7 @@ the future, else 422 `validation_error`) and `simulated`.
     "oldest_waiting_minutes": 42
   },
   "deliveries": { "delivered": 7, "with_window": 6, "on_time": 5 },
-  "by_delivery_type": { "keke": 9, "tanker": 5 },
+  "by_delivery_type": { "keke": 9, "tanker": 5, "not_recorded": 0 },
   "holds_open": 1,
   "support_requests_open": 1,
   "drivers_available": { "total": 4, "keke": 3, "tanker": 1 },
@@ -194,7 +194,7 @@ the future, else 422 `validation_error`) and `simulated`.
 | `deliveries.delivered` | Orders delivered on `date` |
 | `deliveries.with_window` | Of those, the ones with a confirmed delivery window |
 | `deliveries.on_time` | Of those, the ones delivered at or before the window's end (FR-052 on-time count; the rate is `on_time / with_window`, computed by the screen). An order without a window is never counted as on time |
-| `by_delivery_type` | `orders.total` split by the order's delivery type ([order-details-and-price.md](order-details-and-price.md), built in #21). `null` until #21 adds the field |
+| `by_delivery_type` | `orders.total` split by the order's `delivery_type` ([order-details-and-price.md](order-details-and-price.md), built in #21). `not_recorded` counts orders without one (created before #21); they are never guessed into a type |
 | `holds_open` | Jobs with an open hold waiting for an administrator ([deliveries.md](deliveries.md#admin-hold-review-endpoints)): FR-032 asks for driver rejection and timeouts "through dashboard state", and holds are the reviews staff must act on |
 | `support_requests_open` | Open support requests (the design's "issues open") |
 | `drivers_available` | Active, approved drivers with `is_available = true` (FR-031), split by delivery type. Drivers with no delivery type count in `total` only |
@@ -242,7 +242,7 @@ delivery by its source and zone, and says so.
 | --- | --- |
 | `deliveries` | Orders with an accepted assignment in `accepted`, `departed`, `collected`, `en_route`, `arrived` or `unloading`, oldest first |
 | `status` | Backend order status; the adapter maps it ([api-mapping.md](../architecture/api-mapping.md#admin-order-status)) |
-| `delivery_type`, `zone` | From the order once #21 adds them; `null` until then |
+| `delivery_type`, `zone` | The order's `delivery_type` and `service_zone_id` (#21). `null` when the order has none: created before #21, or (zone) the customer's area is not listed |
 | `source` | The order's confirmed source; `null` if none is set yet |
 | `sources` | Every water source, with `usable` as in the dashboard |
 
@@ -307,9 +307,12 @@ today) and `simulated`.
   "is_simulated": false,
   "orders": { "total": 61, "by_status": { "delivered": 48, "cancelled": 4, "failed": 2, "en_route": 3, "confirmed": 4 } },
   "deliveries": { "delivered": 48, "with_window": 45, "on_time": 39 },
-  "by_delivery_type": { "keke": 40, "tanker": 21 },
+  "by_delivery_type": { "keke": 40, "tanker": 21, "not_recorded": 0 },
   "cash": { "collected_minor_units": 28650000, "reconciled_minor_units": 26100000 },
-  "by_zone": [{ "zone_id": "2f4b...", "name": "Independence Layout", "orders": 22, "delivered": 18 }],
+  "by_zone": [
+    { "zone_id": "2f4b...", "name": "Independence Layout", "orders": 22, "delivered": 18 },
+    { "zone_id": null, "name": null, "orders": 3, "delivered": 2 }
+  ],
   "by_driver": [{ "driver_id": "5a0e...", "name": "Sample Driver One", "plate": "ENU-123-KK", "delivered": 17 }],
   "by_source": [{ "source_id": "9c1d...", "name": "Sample Borehole A", "pickups": 30 }]
 }
@@ -319,7 +322,8 @@ today) and `simulated`.
 | --- | --- |
 | `orders` | Orders created in the range, by backend status |
 | `deliveries`, `cash` | As on the dashboard, over the range |
-| `by_delivery_type`, `by_zone` | Need the order's delivery type and zone (#21). `null` until then. FR-052 "service-zone results" |
+| `by_delivery_type` | As on the dashboard, over the range |
+| `by_zone` | Orders in the range per `service_zone_id` (FR-052 "service-zone results"), most first. One row with `zone_id` and `name` `null` collects orders with no zone (created before #21, or the area was not listed); it is left out when empty |
 | `by_driver` | Deliveries in the range per driver, most first. No pay: partner pay is out of the MVP, so the design's "Earned" column is dropped |
 | `by_source` | Pickup records (FR-034) in the range per source, most first. The design's "loads by station" |
 
@@ -335,8 +339,8 @@ customer data. An order-level CSV export is not proposed
 ## Support requests (admin)
 
 The admin side of the customer's "Report a problem"
-([customer-account.md](customer-account.md#support-requests), proposed in
-#11). That contract defines the `support_requests` table, the customer
+([customer-account.md](customer-account.md#support-requests), agreed in
+#11 and #48, not built yet). That contract defines the `support_requests` table, the customer
 endpoints and the rule that **a support request never changes the order**
 (its decision 9). This side lists the requests and resolves them.
 
@@ -556,7 +560,7 @@ these rows in its own small PR when the link issue starts.
 | --- | --- | --- |
 | `GET /auth/me` + `GET /admin/shell` | `AdminShellData` | `user.name` from `/auth/me`, `user.role` "Admin"; `counts.orders` = `orders_needing_action`; `counts.support` = `support_requests_open`; `unread` = `notifications_unread` |
 | `AdminDashboardRead` | `AdminDashboard` | `orders.awaiting_rider`, `in_progress`, `delivered`, `cancelled` grouped from `by_status` with the admin status table; `failed` and `disputed` follow api-mapping open question 5. `disputes_open` = `support_requests_open`. `riders_online` = `drivers_available`. `stations.open` / `closed` = `sources.usable` / `not_usable`. `revenue_today_minor_units` = `cash.collected_minor_units`. `payouts_due` and `payments_to_verify` have no source: the type needs them made optional and the cards hidden (screen change in the link issue). `is_sample` = `is_simulated` |
-| `LiveMapRead` | `LiveMapData` | `code` = driver `plate`; `vehicle` = `delivery_type` (`null` until #21: the screen draws a neutral marker); `station_area` = source `approximate_location`; `customer_area` = zone name |
+| `LiveMapRead` | `LiveMapData` | `code` = driver `plate`; `vehicle` = `delivery_type` (`null` for an order without one: the screen draws a neutral marker); `station_area` = source `approximate_location`; `customer_area` = zone name |
 | `ActivityItem` | `ActivityEntry` | `to_status` `quote_requested` → `new_order`, `accepted` → `accepted`, `delivered` → `delivered`, other statuses → `admin`; `support_request` → `complaint`. `text` built by the adapter |
 | `AdminReportRead` | `AdminReport` | `by_rider[].earned_minor_units` has no source (the column is hidden); `by_station` = `by_source` with `loads` = `pickups`; `revenue_minor_units` = `cash.collected_minor_units` |
 | `AdminSupportRequest` | `AdminIssue` | `id` and `number` = `reference`; `type`: `late` → `late`, `wrong_quantity` → `wrong_quantity`, others → `other`; `title` from the type; `reported_by` `customer`; `urgent` `false`; `resolution.action` has no source (the screen shows the note only) |
@@ -584,8 +588,9 @@ these rows in its own small PR when the link issue starts.
 - All reviewed Alembic migrations; no new library.
 
 **Build order.** Support requests need the `support_requests` table from
-#11's build issue. Delivery type and zone breakdowns need #21. Everything
-else can be built on the current backend.
+the customer account build issue (#11, #48). Everything else can be built
+on the current backend, including the delivery type and zone breakdowns
+(#21 is built).
 
 ## Open questions
 
@@ -602,4 +607,5 @@ else can be built on the current backend.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Brought up to date with main: orders now carry `delivery_type` and `service_zone_id` (#21 built), so the breakdowns and the live map use them, with a `not_recorded` bucket and a no-zone row for orders without them; customer-account.md is agreed (#48) | Not yet |
 | 2026-10-27 | Proposed (#22): admin shell counts, dashboard, live map, activity, reports, support requests (list, detail, resolve), audit log, admin notifications, read-only settings. Payouts, points, refund as points and saving settings not proposed | Not yet |

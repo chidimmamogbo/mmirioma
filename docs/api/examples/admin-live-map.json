@@ -3,7 +3,7 @@
     {
       "reference": "MO-7KQ2M9XH4T",
       "status": "en_route",
-      "delivery_type": null,
+      "delivery_type": "keke",
       "driver": {
         "id": "5a0e6c2b-8d1f-4e3a-9b7c-2d4f6a8c0e11",
         "name": "Sample Driver One",
@@ -13,7 +13,10 @@
         "id": "9c1d3e5f-7a2b-4c4d-8e6f-1a3b5c7d9e02",
         "name": "Sample Borehole A"
       },
-      "zone": null,
+      "zone": {
+        "id": "2f4b6d8f-0a1c-4e3e-9a5c-7e9b1d3f5a06",
+        "name": "Sample Zone Independence Layout"
+      },
       "is_simulated": true
     }
   ],

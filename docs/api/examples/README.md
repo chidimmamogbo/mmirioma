@@ -157,8 +157,8 @@ samples, not real ones. `public-contact.json` is `GET /public/contact`
 
 Samples for [../admin-operations.md](../admin-operations.md), all from
 simulated records (`is_simulated: true`, as `simulated=only` returns them).
-Delivery type and zone are `null` (`by_delivery_type`, `by_zone`, the live
-map's `delivery_type` and `zone`) because orders gain them only in #21.
+`admin-report.json` shows the buckets for orders without a delivery type
+(`not_recorded`, created before #21) and without a zone (the `null` row).
 
 - Dashboard and map: `admin-shell.json`, `admin-dashboard.json`,
   `admin-live-map.json` (one delivery on its way; one usable and one
