@@ -32,8 +32,9 @@ with the customer's delivery code, and follow their sample earnings.
    enter the customer's 6-digit code (`code`: 3 tries, resend after 2 minutes,
    then ask admin) → done (`done`).
 6. **Account**: earnings and withdraw request, history, notifications,
-   vehicle and papers (upload), report a problem, profile, settings (optional
-   email), change password.
+   vehicle and papers (upload), report a problem, profile, settings (new
+   order alerts and SMS updates), change password. Partners have no email and
+   no "News and offers" switch in the pilot (#85).
 7. **Tanker drivers** (`/partner/driver`, green theme, `t-*`): the dashboard lists
    tanker orders near you; the orders list filters by Ground or Overhead tank
    and only shows orders the driver's tank can carry. The trip is a
@@ -174,8 +175,10 @@ active job, for calling.
   errors (#80). A refused sign-up never ends without a message.
 - Badges and "Mark all read" use the notification list's `unread_count`, so
   unread messages older than the newest 50 still count (#80).
-- Real API: saving an email or changing "News and offers" fails with
-  `not_connected` before any request is sent.
+- The profile and settings screens show no email and no "News and offers"
+  switch, in mock and real mode (#85). Until the fields leave
+  `PartnerProfile`, the real adapter still refuses them with `not_connected`
+  before any request is sent.
 - Real API: a notification `kind` this build does not know is shown with
   the `account` style (shield icon; tapping it opens the profile) and the
   server's title and body. An `approval_status` it does not know is read as
