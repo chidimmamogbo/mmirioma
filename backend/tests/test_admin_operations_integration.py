@@ -33,6 +33,7 @@ from app.modules.dispatch import service as dispatch_service
 from app.modules.notifications import admin_messages
 from app.modules.notifications.models import Notification
 from app.modules.orders.models import OrderStatus
+from app.modules.privacy import service as privacy_service
 from app.modules.reporting import service as reporting
 from tests import test_deliveries_integration as deliveries_tests
 from tests import test_dispatch_integration as dispatch_tests
@@ -432,5 +433,43 @@ def test_shell_counts_and_staff_last_sign_in(created: Created) -> None:
         assert staff[never.id].last_sign_in_at is None
         assert inactive.id not in staff
         assert driver.id not in staff
+
+    run(scenario)
+
+
+def test_an_anonymized_customers_request_still_reads_for_staff(created: Created) -> None:
+    # #117: anonymizing replaces the message and the staff note with the same
+    # text, so the admin view keeps its agreed shape (resolution.note is a string).
+    async def scenario(sessions: Sessions) -> None:
+        admin = await add_admin(sessions, created)
+        customer = await dispatch_tests.add_user(sessions, created, UserRole.CUSTOMER)  # type: ignore[arg-type]
+        reference = await send_request(sessions, customer, order_reference=None)
+        async with sessions() as session:
+            await requests.resolve_support_request(
+                session,
+                reference=reference,
+                admin=admin,
+                note=f"Called {customer.name} back on {customer.phone}.",
+            )
+        async with sessions() as session:
+            await privacy_service.anonymize_customer(
+                session,
+                actor=admin,
+                customer_phone=customer.phone,
+                now=datetime.now(UTC),
+                apply=True,
+            )
+        async with sessions() as session:
+            view, contacts = await requests.get_admin_support_request(session, reference=reference)
+            page, _ = await requests.list_admin_support_requests(
+                session, status=SupportRequestStatus.RESOLVED, q=reference, limit=50, offset=0
+            )
+        removed = "Removed at the customer's request."
+        assert (view.request.message, view.request.resolution_note) == (removed, removed)
+        assert view.request.status is SupportRequestStatus.RESOLVED
+        assert view.resolver is not None and view.resolver.id == admin.id
+        assert view.customer.name == "Deleted customer"
+        assert customer.phone not in {c.phone for c in contacts}
+        assert [v.request.reference for v in page] == [reference]
 
     run(scenario)
