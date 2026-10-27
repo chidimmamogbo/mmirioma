@@ -11,7 +11,7 @@ Prompt: [prompts/13-customer-live-prices.md](prompts/13-customer-live-prices.md)
 [order-details-and-price.md](../api/order-details-and-price.md),
 [admin-directory.md](../api/admin-directory.md#get-service-zones),
 [customer-account.md](../api/customer-account.md#saved-addresses)
-Designer: @Daveoski + Claude Code · Reviewed by: pending · Status: **ready for review (G2)**
+Designer: @Daveoski + Claude Code · Reviewed by: @chidimmamogbo on 2026-10-27 · Status: approved
 
 Customers see a real server price before they order. Before Review the app
 shows no price and asks for the area (service zone); Review shows the total,
@@ -104,10 +104,13 @@ No row needs a contract change.
 7. **Total only:** never a water, delivery, handling or margin line
    (order-details-and-price.md, decision 6).
 
-## Open questions
+**Approved (G2)** by @chidimmamogbo on 2026-10-27, at preview version
+`1793103271-a331`, including the three lines below.
 
-Wording the brief's questions did not cover, drafted in the preview; confirm
-or change at review:
+## Wording decided at review
+
+Wording the brief's questions did not cover, drafted in the preview and kept
+as written (@chidimmamogbo, 2026-10-27):
 
 1. Keke and Tanker screens: "You'll see your price on the review screen, after
    you add the delivery address and your area."
