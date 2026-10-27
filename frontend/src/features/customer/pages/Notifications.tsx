@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CheckIcon, NavigationIcon, PersonSolidIcon, StarIcon, TagIcon } from '../../../components/icons/icons'
+import { AlertCircleIcon, BellIcon, CheckIcon, CloseIcon, NavigationIcon, PersonSolidIcon, StarIcon, TagIcon } from '../../../components/icons/icons'
 import { BackLink, MobileShell, ScrollArea, TopBar, TopBarTitle } from '../../../components/layout/MobileShell'
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { CardLink } from '../../../components/ui/Card'
@@ -16,13 +16,19 @@ const KIND: Record<CustomerNotification['kind'], { tone: IconBadgeTone; icon: Re
   delivered: { tone: 'green', icon: <CheckIcon size={20} /> },
   points: { tone: 'gold', icon: <StarIcon size={20} /> },
   payment: { tone: 'violet', icon: <TagIcon size={20} /> },
+  // Kinds the server adds (customer-account.md); existing icons, no new ones.
+  order_confirmed: { tone: 'green', icon: <CheckIcon size={20} /> },
+  cancelled: { tone: 'red', icon: <CloseIcon size={20} /> },
+  delivery_failed: { tone: 'red', icon: <AlertCircleIcon size={20} /> },
+  update: { tone: 'blue', icon: <BellIcon size={20} /> },
 }
 
 /** Where a notification leads, as linked in the design. */
 function target(n: CustomerNotification): string {
   if (n.kind === 'points') return '/points'
   if (!n.reference) return '/orders'
-  if (n.kind === 'payment') return `/orders/${n.reference}`
+  // An ended order, or a message this build does not know: the order's details, not tracking.
+  if (n.kind === 'payment' || n.kind === 'cancelled' || n.kind === 'delivery_failed' || n.kind === 'update') return `/orders/${n.reference}`
   if (n.kind === 'delivered') return `/orders/${n.reference}/delivered`
   return `/orders/${n.reference}/track`
 }
@@ -32,10 +38,11 @@ export function Notifications() {
   const list = useNotifications()
   const markRead = useMarkNotificationsRead()
   const today = formatDate(new Date())
-  const items = list.data ?? []
+  const items = list.data?.items ?? []
   const todays = items.filter((n) => formatDate(n.at) === today)
   const earlier = items.filter((n) => formatDate(n.at) !== today)
-  const unread = items.some((n) => !n.read)
+  // The server's count: unread messages may be older than the page shown.
+  const unread = (list.data?.unread_count ?? 0) > 0
 
   function row(n: CustomerNotification, anim: string) {
     const k = KIND[n.kind]

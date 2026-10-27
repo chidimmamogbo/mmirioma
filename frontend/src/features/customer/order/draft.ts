@@ -5,6 +5,7 @@
  * secrets and no prices: prices always come from the server.
  */
 import type { CanSizeLitres, TankSizeGallons, TankType, WaterChoice, WaterSource } from '../../../domain/orders'
+import type { AreaChoice } from './livePrice'
 
 export type SaveMode = 'default' | 'another' | 'once'
 
@@ -16,7 +17,8 @@ export interface OrderDraft {
   source: WaterSource
   /** A saved address id, or `null` when entering a new address. */
   address_id: string | null
-  new_address: { address: string; landmark: string; label: string; save: SaveMode }
+  /** `zone`: the area picked for it (FR-020), "My area is not listed", or none yet. */
+  new_address: { address: string; landmark: string; label: string; save: SaveMode; zone: AreaChoice }
   receiver_name: string
   receiver_phone: string
   instructions: string
@@ -37,7 +39,7 @@ export function newDraft(): OrderDraft {
     tanker: { tank_type: 'ground', tank_size_gallons: 750, custom_gallons: '' },
     source: 'borehole',
     address_id: null,
-    new_address: { address: '', landmark: '', label: '', save: 'another' },
+    new_address: { address: '', landmark: '', label: '', save: 'another', zone: null },
     receiver_name: '',
     receiver_phone: '',
     instructions: '',
@@ -48,7 +50,12 @@ export function newDraft(): OrderDraft {
 export function loadDraft(): OrderDraft {
   try {
     const raw = sessionStorage.getItem(KEY)
-    if (raw) return { ...newDraft(), ...(JSON.parse(raw) as Partial<OrderDraft>) }
+    if (raw) {
+      const base = newDraft()
+      const saved = JSON.parse(raw) as Partial<OrderDraft>
+      // Merge the nested address too, so a draft saved before a field existed gets its default.
+      return { ...base, ...saved, new_address: { ...base.new_address, ...saved.new_address } }
+    }
   } catch {
     // Unreadable storage: start a fresh draft.
   }

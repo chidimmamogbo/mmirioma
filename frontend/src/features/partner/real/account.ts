@@ -5,10 +5,6 @@
  * docs/architecture/api-mapping.md. Fields the contract does not return keep
  * the screen's empty or "not connected yet" state, never made-up values:
  *
- * - `email`: `null`; saving one fails with `not_connected` (no partner email
- *   in the pilot, partners.md decision 5).
- * - `preferences.offers_and_news`: `false`; changing it fails with
- *   `not_connected` (decision 5).
  * - `documents`: `[]`; uploads stay on their own `notConnected` (decision 6).
  * - `payout_account_ending`: `null`; earnings and payouts stay unlinked
  *   (decision 7).
@@ -27,7 +23,6 @@ import type {
 import { litresFromGallons } from '../../../domain/quantity'
 import type { Session } from '../../../lib/api/auth'
 import { apiClient, ApiError, type ApiClient } from '../../../lib/api/client'
-import { notConnected } from '../../../lib/api/notConnected'
 import {
   getDriverProfile,
   listDriverNotifications,
@@ -92,7 +87,6 @@ export function partnerProfileFromRead(read: PartnerProfileRead): PartnerProfile
   return {
     name: read.name,
     phone: read.phone,
-    email: null,
     approval: APPROVAL_STATUSES.find((s) => s === read.approval_status) ?? 'pending',
     online: read.is_available,
     partner_since: read.partner_since,
@@ -106,7 +100,7 @@ export function partnerProfileFromRead(read: PartnerProfileRead): PartnerProfile
     },
     service_areas: read.service_zones.map((zone) => zone.name),
     documents: [],
-    preferences: { ...read.preferences, offers_and_news: false },
+    preferences: { ...read.preferences },
     payout_account_ending: null,
   }
 }
@@ -202,19 +196,12 @@ export async function getPartnerProfile(client: ApiClient = apiClient): Promise<
   return partnerProfileFromRead(await getDriverProfile(undefined, client))
 }
 
-/**
- * Change preferences (`PATCH /driver/profile`). Email and "News and offers"
- * have no field in the contract (decision 5), so a change to either fails
- * with `not_connected` before anything is sent.
- */
+/** Change preferences (`PATCH /driver/profile`). */
 export async function updatePartnerProfile(
-  update: { email?: string | null; preferences?: Partial<PartnerProfile['preferences']> },
+  update: { preferences?: Partial<PartnerProfile['preferences']> },
   client: ApiClient = apiClient,
 ): Promise<PartnerProfile> {
-  if (update.email !== undefined) return notConnected('Email')
-  const { offers_and_news: offers, ...preferences } = update.preferences ?? {}
-  if (offers !== undefined) return notConnected('News and offers')
-  return partnerProfileFromRead(await updateDriverProfile({ preferences }, client))
+  return partnerProfileFromRead(await updateDriverProfile({ preferences: update.preferences ?? {} }, client))
 }
 
 /** Go online or offline (`PUT /driver/availability`). */

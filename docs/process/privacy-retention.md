@@ -141,7 +141,7 @@ number, or by email to an address the requester confirms on that call.
    | Cash payment and refund records with their amounts and dates (6 years, notice section 8) | Account name and phone number; the account is closed and can no longer sign in |
    | Order reference, quantities, statuses, times, source and price (for accounting and safety records) | Each order's contact name and phone, delivery address, landmark and instructions |
    | Order feedback ratings and answers (they no longer identify the customer) | The feedback message |
-   | Support request records: type, order, status, dates, and the staff resolution note (#117 will remove the note too) | The customer's message on each support request (replaced) |
+   | Support request records: type, order, status and dates | The customer's message and the staff's resolution note on each support request (both replaced by "Removed at the customer's request.", #117) |
    | Deletion request records: reference, dates and outcome | The reason the customer gave |
    | Records under a documented exception (notice section 10), with the reason in the register | Saved addresses, in-app messages, phone verification codes, sessions, driver GPS points for those orders |
 

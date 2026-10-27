@@ -41,7 +41,7 @@ export function Menu() {
   const notifications = useNotifications()
 
   const active = orders.data?.filter((o) => isActiveStage(o.stage)).length ?? 0
-  const unread = notifications.data?.filter((n) => !n.read).length ?? 0
+  const unread = notifications.data?.unread_count ?? 0
   const toNext = points.data ? Math.max(0, points.data.next_reward.target - points.data.balance) : null
 
   return (

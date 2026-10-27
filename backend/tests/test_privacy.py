@@ -100,6 +100,7 @@ def test_anonymize_output_has_ids_and_counts_but_no_phone(
             gps_points_cleared=1,
             addresses_removed=2,
             support_messages_removed=1,
+            resolution_notes_removed=1,
             notifications_deleted=4,
             notes_to_review=3,
             cash_warnings=["MO-CCCC: part paid, ₦500.00 outstanding; check (F9)"],
@@ -116,6 +117,7 @@ def test_anonymize_output_has_ids_and_counts_but_no_phone(
     assert str(CUSTOMER_ID) in out
     assert "Orders anonymized: 2" in out
     assert "Support request messages removed: 1" in out
+    assert "Staff notes on support requests removed: 1" in out
     assert "Notifications deleted: 4" in out
     assert "Staff notes kept on these orders, to check by hand: 3" in out
     assert "Check: MO-CCCC: part paid, ₦500.00 outstanding; check (F9)" in out

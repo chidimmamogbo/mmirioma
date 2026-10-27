@@ -7,15 +7,18 @@ the caller's transaction and never commit, so a dry run can roll them back.
 
 - Saved addresses are profile data, removed with the account (notice §8).
 - Support requests are complaints (notice §8: 3 years after resolution).
-  Anonymizing an account replaces their messages; an account deleted by the
-  review loses them; resolved requests over 3 years old are deleted
-  (technical lead, 2026-10-27, #82).
+  Anonymizing an account replaces their messages and the staff's resolution
+  notes, which can name the customer or their address
+  (docs/api/admin-operations.md, "Data needed"; privacy contact, 2026-10-27,
+  #117); an account deleted by the review loses them; resolved requests over
+  3 years old are deleted (technical lead, 2026-10-27, #82).
 - A deletion request's reason is blanked when the account is anonymized;
   the request itself is kept as the record of what was asked and done.
 """
 
 import uuid
 from collections.abc import Collection
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
@@ -29,8 +32,24 @@ from app.modules.customers.models import (
     SupportRequestStatus,
 )
 
-#: Replaces a support request's message when the account is anonymized.
+#: Replaces a support request's message, and its staff resolution note, when
+#: the account is anonymized. The note is replaced rather than blanked, so a
+#: resolved request still has a note and the admin response keeps its agreed
+#: shape (``resolution.note`` is a string; #117).
 REMOVED_MESSAGE = "Removed at the customer's request."
+
+
+@dataclass(frozen=True)
+class RequestsCleared:
+    """What :func:`clear_requests` replaced.
+
+    Attributes:
+        messages: Support request messages replaced.
+        resolution_notes: Staff resolution notes replaced.
+    """
+
+    messages: int
+    resolution_notes: int
 
 
 async def delete_addresses(session: AsyncSession, *, customer_ids: Collection[uuid.UUID]) -> int:
@@ -51,23 +70,27 @@ async def delete_addresses(session: AsyncSession, *, customer_ids: Collection[uu
     return _rowcount(result)
 
 
-async def clear_requests(session: AsyncSession, *, customer_ids: Collection[uuid.UUID]) -> int:
+async def clear_requests(
+    session: AsyncSession, *, customer_ids: Collection[uuid.UUID]
+) -> RequestsCleared:
     """Remove the personal text from these customers' requests. Does not commit.
 
-    Support request messages are replaced and deletion reasons blanked; the
-    rows stay (complaint and request records). Staff resolution notes and
-    refusal reasons are kept, as staff notes are elsewhere.
+    Support request messages and staff resolution notes are replaced by
+    :data:`REMOVED_MESSAGE`, and deletion reasons blanked; the rows stay
+    (complaint and request records). Refusal reasons on deletion requests
+    are kept: they are the record of why staff refused, and no rule removes
+    them. Running it twice changes nothing.
 
     Args:
         session: Database session (the caller's transaction).
         customer_ids: The customers.
 
     Returns:
-        How many support request messages were replaced.
+        How many messages and notes were replaced.
     """
     if not customer_ids:
-        return 0
-    result = await session.execute(
+        return RequestsCleared(messages=0, resolution_notes=0)
+    messages = await session.execute(
         update(SupportRequest)
         .where(
             SupportRequest.user_id.in_(customer_ids),
@@ -75,12 +98,21 @@ async def clear_requests(session: AsyncSession, *, customer_ids: Collection[uuid
         )
         .values(message=REMOVED_MESSAGE, updated_at=func.now())
     )
+    notes = await session.execute(
+        update(SupportRequest)
+        .where(
+            SupportRequest.user_id.in_(customer_ids),
+            SupportRequest.resolution_note.is_not(None),
+            SupportRequest.resolution_note != REMOVED_MESSAGE,
+        )
+        .values(resolution_note=REMOVED_MESSAGE, updated_at=func.now())
+    )
     await session.execute(
         update(DeletionRequest)
         .where(DeletionRequest.user_id.in_(customer_ids), DeletionRequest.reason.is_not(None))
         .values(reason=None, updated_at=func.now())
     )
-    return _rowcount(result)
+    return RequestsCleared(messages=_rowcount(messages), resolution_notes=_rowcount(notes))
 
 
 async def delete_requests(session: AsyncSession, *, customer_ids: Collection[uuid.UUID]) -> int:

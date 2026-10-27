@@ -43,6 +43,11 @@ function headline(o: CustomerOrder): { title: string; sub: string } {
     o.delivered_quantity ??
     (litres !== null ? describeQuantity(litres, o.choice?.delivery_type === 'tanker' ? 'gallons' : 'litres', 'short') : orderQuantityText(o, 'short'))
   switch (o.stage) {
+    // Before confirmation no rider is looked for yet (FR-027; customer-live-prices.md, screen 6).
+    case 'request_received':
+      return { title: 'Request received', sub: "We're preparing your price." }
+    case 'awaiting_confirmation':
+      return { title: 'Awaiting confirmation', sub: "We'll call you to agree the delivery time." }
     case 'waiting_rider':
       return { title: 'Finding a rider', sub: 'You will see them here the moment one accepts.' }
     case 'rider_assigned':

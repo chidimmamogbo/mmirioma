@@ -13,9 +13,11 @@ import { Notice } from '../../../../components/ui/Notice'
 import { cx } from '../../../../lib/cx'
 import { formatPhone } from '../../../../lib/format/phone'
 import { phoneField } from '../../../../lib/forms'
+import { AreaPicker } from '../../components/AreaPicker'
 import { OrderStepHeading } from '../../components/OrderParts'
+import type { AreaChoice } from '../../order/livePrice'
 import { useOrderDraft } from '../../order/orderDraftContext'
-import { useAddresses, useProfile } from '../../queries'
+import { useAddresses, useProfile, useServiceZones } from '../../queries'
 
 const NEW = 'new'
 
@@ -34,7 +36,11 @@ const schema = z
   })
 type Values = z.infer<typeof schema>
 
-/** Delivery details (`c-details`): receiver, address, landmark, instructions. */
+/**
+ * Delivery details (`c-details`): receiver, address, area, landmark,
+ * instructions. The area picker (customer-live-prices.md, screen 2) shows for
+ * a new address; a saved address keeps its own area.
+ */
 export function DeliveryDetails() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -88,14 +94,23 @@ export function DeliveryDetails() {
 
   const addressId = useWatch({ control, name: 'address_id' })
   const isNew = addressId === NEW
+  // A new address needs its area for the price (FR-020); a saved one has its own.
+  const [area, setArea] = useState<AreaChoice>(draft.new_address.zone)
+  const [areaError, setAreaError] = useState<string | undefined>()
+  const zones = useServiceZones()
+  const areasReady = !isNew || zones.isSuccess
 
   const onSubmit = handleSubmit((v) => {
+    if (isNew && area === null) {
+      setAreaError('Choose your area, or "My area is not listed".')
+      return
+    }
     update((d) => ({
       receiver_name: v.receiver_name,
       receiver_phone: v.receiver_phone,
       instructions: v.instructions,
       address_id: isNew ? null : v.address_id,
-      new_address: isNew ? { ...d.new_address, address: v.address, landmark: v.landmark } : d.new_address,
+      new_address: isNew ? { ...d.new_address, address: v.address, landmark: v.landmark, zone: area } : d.new_address,
     }))
     navigate(isNew ? '/order/save-address' : '/order/review')
   })
@@ -165,6 +180,22 @@ export function DeliveryDetails() {
               />
             )}
           </div>
+          {isNew && (
+            <AreaPicker
+              className="rise-3 m-0 border-0 p-0"
+              value={area}
+              onChange={(choice) => {
+                setArea(choice)
+                setAreaError(undefined)
+              }}
+              error={areaError}
+              notListedNote={
+                <>
+                  <b>We can't price this address in the app.</b> You can still send a request, and our team will call you with a price.
+                </>
+              }
+            />
+          )}
           <MapFrame height={132} className="rise-3">
             <DetailsMapArt />
             <MapPin color="#1570D8" ringColor="rgba(21,112,216,.35)" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[88%]" />
@@ -194,7 +225,7 @@ export function DeliveryDetails() {
         </form>
       </ScrollArea>
       <Footer>
-        <Button type="submit" form="details-form">
+        <Button type="submit" form="details-form" disabled={!areasReady}>
           Continue
         </Button>
       </Footer>

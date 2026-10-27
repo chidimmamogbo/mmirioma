@@ -12,6 +12,7 @@ import { Notice } from '../../../components/ui/Notice'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { AddressIcon } from '../components/AddressIcon'
+import { AddressArea } from '../components/AreaPicker'
 import { useAddresses, useRemoveAddress, useSetDefaultAddress } from '../queries'
 
 /** Saved addresses (`c-saved`): make default, edit, remove, add. */
@@ -51,6 +52,7 @@ export function SavedAddresses() {
                 </div>
                 <div className="text-[13px] text-slate">{a.address}</div>
                 {a.landmark && <div className="text-chip text-mute">{a.landmark}</div>}
+                <AddressArea zone={a.zone} />
               </div>
               <IconLink to={`/addresses/${a.id}/edit`} label={`Edit ${a.label}`} className="size-[38px] text-mute">
                 <PencilIcon size={18} />

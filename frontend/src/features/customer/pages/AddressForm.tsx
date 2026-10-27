@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -13,6 +14,8 @@ import { Notice } from '../../../components/ui/Notice'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { applyServerFieldErrors } from '../../../lib/forms'
 import type { SavedAddress } from '../../../domain/orders'
+import { AreaPicker } from '../components/AreaPicker'
+import type { AreaChoice } from '../order/livePrice'
 import { useAddAddress, useAddresses, useUpdateAddress } from '../queries'
 
 const schema = z.object({
@@ -26,7 +29,7 @@ type Values = z.infer<typeof schema>
 /**
  * Add or edit a saved address. Not a separate screen in the handoff (its
  * "Edit" links open `c-details`); built from the same fields so editing does
- * not start an order.
+ * not start an order, the area picker included (customer-live-prices.md).
  */
 export function AddressForm() {
   const { id } = useParams()
@@ -82,9 +85,16 @@ function AddressFormBody({ existing, isFirst }: { existing?: SavedAddress; isFir
     },
   })
   const makeDefault = useWatch({ control, name: 'make_default' })
+  // An address is saved only with an area (FR-020). A no-longer-served area must be picked again.
+  const [area, setArea] = useState<AreaChoice>(existing?.zone?.is_active ? { id: existing.zone.id, name: existing.zone.name } : null)
+  const [areaError, setAreaError] = useState<string | undefined>()
 
   const onSubmit = handleSubmit((v) => {
-    const input = { label: v.label, address: v.address, landmark: v.landmark || null, make_default: v.make_default }
+    if (area === null || area === 'not_listed') {
+      setAreaError(area === null ? 'Choose the area of this address.' : undefined)
+      return
+    }
+    const input = { label: v.label, address: v.address, landmark: v.landmark || null, zone_id: area.id, make_default: v.make_default }
     const options = {
       onSuccess: () => navigate('/addresses'),
       onError: (e: unknown) => applyServerFieldErrors(e, setError, { label: 'label', address: 'address' }),
@@ -98,7 +108,7 @@ function AddressFormBody({ existing, isFirst }: { existing?: SavedAddress; isFir
       title={existing ? 'Edit address' : 'New address'}
       footer={
         <Footer>
-          <Button type="submit" form="address-form" loading={mutation.isPending}>
+          <Button type="submit" form="address-form" loading={mutation.isPending} disabled={area === 'not_listed'}>
             Save address
           </Button>
         </Footer>
@@ -118,6 +128,20 @@ function AddressFormBody({ existing, isFirst }: { existing?: SavedAddress; isFir
           <DetailsMapArt />
           <MapPin color="#1570D8" ringColor="rgba(21,112,216,.35)" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[88%]" />
         </MapFrame>
+        <AreaPicker
+          className="rise-3 m-0 border-0 p-0"
+          value={area}
+          onChange={(choice) => {
+            setArea(choice)
+            setAreaError(undefined)
+          }}
+          error={areaError}
+          notListedNote={
+            <>
+              <b>This address can't be saved yet,</b> because it is outside the areas we serve.
+            </>
+          }
+        />
         <TextField className="rise-3" label="Landmark" optional error={errors.landmark?.message} {...register('landmark')} />
         <Card className="rise-4 flex items-center justify-between gap-3 px-4 py-3">
           <span>

@@ -309,6 +309,7 @@ def test_anonymize_dry_run_saves_nothing_and_apply_removes_the_details(created: 
                     "gps_points_cleared": 2,
                     "addresses_removed": 0,
                     "support_messages_removed": 0,
+                    "resolution_notes_removed": 0,
                     "notifications_deleted": 0,
                 },
             )
@@ -720,6 +721,7 @@ async def add_support_request(
     *,
     resolved_at: datetime | None = None,
     message: str = "The water has not arrived yet.",
+    resolution_note: str | None = None,
 ) -> uuid.UUID:
     async with sessions() as session:
         request = SupportRequest(
@@ -730,6 +732,7 @@ async def add_support_request(
             status=SupportRequestStatus.RESOLVED if resolved_at else SupportRequestStatus.OPEN,
             idempotency_key=uuid.uuid4(),
             resolved_at=resolved_at,
+            resolution_note=resolution_note,
             created_at=(resolved_at or OLD) - timedelta(days=1),
         )
         session.add(request)
@@ -754,6 +757,13 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
     async def scenario(sessions: Sessions) -> None:
         s = await setup(sessions, created)
         support_id = await add_support_request(sessions, s.customer)
+        # A resolved request's staff note can name the customer (#117).
+        resolved_id = await add_support_request(
+            sessions,
+            s.customer,
+            resolved_at=OLD + timedelta(days=2),
+            resolution_note="Called Ngozi at 12 Sample Close: delivered in full.",
+        )
         deletion = await add_deletion_request(sessions, s.customer)
         async with sessions() as session:
             session.add(
@@ -762,10 +772,12 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
             await session.commit()
 
         done = await anonymize(sessions, s, apply=True)
-        assert (done.support_messages_removed, done.notifications_deleted) == (1, 1)
+        assert (done.support_messages_removed, done.notifications_deleted) == (2, 1)
+        assert done.resolution_notes_removed == 1
 
         async with sessions() as session:
             support = await session.get(SupportRequest, support_id)
+            resolved = await session.get(SupportRequest, resolved_id)
             request = await session.get(DeletionRequest, deletion.id)
             left = list(
                 await session.scalars(
@@ -773,6 +785,15 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
                 )
             )
         assert support is not None and support.message == "Removed at the customer's request."
+        # The open request had no note and still has none; the resolved one's
+        # note is replaced, so the admin view keeps a note string.
+        assert support.resolution_note is None
+        assert resolved is not None
+        assert (resolved.message, resolved.resolution_note) == (
+            "Removed at the customer's request.",
+            "Removed at the customer's request.",
+        )
+        assert resolved.status is SupportRequestStatus.RESOLVED
         assert request is not None and request.reason is None
         assert request.status is DeletionRequestStatus.RECEIVED  # set separately
         assert left == []

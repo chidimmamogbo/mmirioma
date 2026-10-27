@@ -56,19 +56,21 @@ describe('points are hidden for the pilot (#107)', () => {
     expect(screen.queryByText('Points')).not.toBeInTheDocument()
   })
 
-  it('never asks for points, and leaves points messages out of the notifications', async () => {
+  it('never asks for points, and leaves points messages out of the notifications and the bell', async () => {
     const getPoints = vi.spyOn(api, 'getPoints')
     const at = '2026-10-27T09:00:00Z'
     const list: CustomerNotification[] = [
       { id: 'a', kind: 'points', title: 'You earned 60 points', body: '', at, read: false, reference: 'MO-1' },
       { id: 'b', kind: 'delivered', title: 'Delivered', body: '', at, read: false, reference: 'MO-1' },
     ] as CustomerNotification[]
-    vi.spyOn(api, 'listNotifications').mockResolvedValue(list)
+    vi.spyOn(api, 'listNotifications').mockResolvedValue({ items: list, unread_count: 2 })
 
     const points = renderHook(() => usePoints(), { wrapper })
     const notes = renderHook(() => useNotifications(), { wrapper })
     await waitFor(() => expect(notes.result.current.data).toBeDefined())
-    expect(notes.result.current.data?.map((n) => n.id)).toEqual(['b'])
+    expect(notes.result.current.data?.items.map((n) => n.id)).toEqual(['b'])
+    // The hidden unread points message is not counted on the bell.
+    expect(notes.result.current.data?.unread_count).toBe(1)
     expect(points.result.current.data).toBeUndefined()
     expect(getPoints).not.toHaveBeenCalled()
   })

@@ -2,17 +2,19 @@
  * TanStack Query hooks for the customer app. Screens use these, never the API
  * functions directly, so caching and refresh after changes live in one place.
  */
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ProblemType, WaterChoice } from '../../domain/orders'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { ProblemType } from '../../domain/orders'
 import { POINTS_ENABLED } from '../../lib/features'
 import * as api from './customerApi'
+import type { PriceRequest } from './order/livePrice'
 
 export const customerKeys = {
   profile: ['customer', 'profile'] as const,
   addresses: ['customer', 'addresses'] as const,
   orders: ['customer', 'orders'] as const,
   order: (reference: string) => ['customer', 'orders', reference] as const,
-  quote: (choice: WaterChoice | null, address: string | null) => ['customer', 'quote', choice, address] as const,
+  quote: (request: PriceRequest | null) => ['customer', 'quote', request] as const,
+  zones: ['customer', 'zones'] as const,
   notifications: ['customer', 'notifications'] as const,
   points: ['customer', 'points'] as const,
   tickets: ['customer', 'tickets'] as const,
@@ -25,8 +27,17 @@ export const useNotifications = () =>
   useQuery({
     queryKey: customerKeys.notifications,
     queryFn: api.listNotifications,
-    // Points are hidden for the pilot (POINTS_ENABLED), so are their messages.
-    select: (list) => (POINTS_ENABLED ? list : list.filter((n) => n.kind !== 'points')),
+    // Points are hidden for the pilot (POINTS_ENABLED), so are their messages,
+    // and the unread count leaves out the hidden ones so the bell matches what
+    // is shown. The server never sends `points`; only the mock does.
+    select: (list) => {
+      if (POINTS_ENABLED) return list
+      const hiddenUnread = list.items.filter((n) => n.kind === 'points' && !n.read).length
+      return {
+        items: list.items.filter((n) => n.kind !== 'points'),
+        unread_count: Math.max(0, list.unread_count - hiddenUnread),
+      }
+    },
   })
 /** Never runs while points are hidden (POINTS_ENABLED), so `data` stays undefined. */
 export const usePoints = () => useQuery({ queryKey: customerKeys.points, queryFn: api.getPoints, enabled: POINTS_ENABLED })
@@ -49,18 +60,26 @@ export function useOrder(reference: string | undefined) {
   })
 }
 
+/** The areas a customer can pick (FR-020); they rarely change, so kept for 10 minutes. */
+export const useServiceZones = () => useQuery({ queryKey: customerKeys.zones, queryFn: api.listServiceZones, staleTime: 10 * 60_000 })
+
 /**
- * Server price for a choice. `address` null prices the water only; with an
- * address the delivery fee is included (it depends on the area, decision
- * 10a). Keeps the previous price on screen while a new one loads, so the
- * summary does not flash empty on every tap.
+ * The server price for the order on Review, once the address and area are
+ * known (no price before the address, #42). Every check counts toward the
+ * limit of 30 per 10 minutes, so it is never retried or refreshed on its
+ * own: a new price only when asked ("Get a new price", decision 4) or after a
+ * 409 `quote_expired` when placing (`refetch`).
  */
-export function useQuote(choice: WaterChoice | null, address: string | null) {
+export function useQuote(request: PriceRequest | null) {
   return useQuery({
-    queryKey: customerKeys.quote(choice, address),
-    queryFn: () => api.getQuote(choice!, address),
-    enabled: choice !== null,
-    placeholderData: keepPreviousData,
+    queryKey: customerKeys.quote(request),
+    queryFn: () => api.getQuote(request!),
+    enabled: request !== null,
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 }
 

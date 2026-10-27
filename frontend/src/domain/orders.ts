@@ -100,6 +100,8 @@ export interface OrderPrice {
   water: QuoteLine | null
   delivery: QuoteLine | null
   is_sample: boolean
+  /** The water category accepted with the price (FR-023). Sent for real orders; the mock has none. */
+  category_label?: string | null
 }
 
 /**
@@ -108,8 +110,13 @@ export interface OrderPrice {
  * statuses (decision of 2026-10-26, docs/architecture/api-mapping.md).
  * `order_update` is the neutral stage for a status the app does not know
  * (docs/api/orders.md: "Clients must never fail on an unknown `status`").
+ * `request_received` (a quote request) and `awaiting_confirmation` (a priced
+ * order the office has not confirmed) come before any rider, so they never
+ * read as a confirmed delivery (FR-027; customer-live-prices.md, decision 3).
  */
 export type DeliveryStage =
+  | 'request_received'
+  | 'awaiting_confirmation'
   | 'waiting_rider'
   | 'rider_assigned'
   | 'picked_up'
@@ -121,6 +128,9 @@ export type DeliveryStage =
   | 'order_update'
 
 export const STAGE_LABEL: Record<DeliveryStage, string> = {
+  request_received: 'Request received',
+  // The agreed label in docs/api/orders.md (customer-live-prices.md, decision 3).
+  awaiting_confirmation: 'Awaiting confirmation',
   waiting_rider: 'Waiting for rider',
   rider_assigned: 'Rider assigned',
   picked_up: 'Picked up',
@@ -261,9 +271,35 @@ export interface CustomerNotification {
   body: string
   at: string
   read: boolean
-  kind: 'on_the_way' | 'rider_assigned' | 'order_received' | 'delivered' | 'points' | 'payment'
+  /**
+   * `order_confirmed`, `cancelled` and `delivery_failed` come from the server
+   * (docs/api/customer-account.md); `update` is the neutral style for a kind
+   * this build does not know, shown with the server's own title and body.
+   */
+  kind:
+    | 'on_the_way'
+    | 'rider_assigned'
+    | 'order_received'
+    | 'delivered'
+    | 'points'
+    | 'payment'
+    | 'order_confirmed'
+    | 'cancelled'
+    | 'delivery_failed'
+    | 'update'
   /** Order the notification is about, if any. */
   reference: string | null
+}
+
+/**
+ * The newest notifications, plus the unread count across all of them. The
+ * list may be one page (the real API sends the newest 50), so the bell, the
+ * menu badge and "Mark all read" use `unread_count`, never the unread items
+ * in the list (the same rule as the partner app, #80).
+ */
+export interface CustomerNotificationList {
+  items: CustomerNotification[]
+  unread_count: number
 }
 
 export interface PointsEntry {

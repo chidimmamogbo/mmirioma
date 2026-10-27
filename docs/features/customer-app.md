@@ -24,14 +24,13 @@ hidden for the pilot (see section 6).
    - Tanker: tank type (ground, overhead), size (500, 750, 1,000 gallons or
      custom), approximate litres shown, water source (Ninth Mile or any
      borehole).
-   - The summary shows the water price from the server. The delivery fee is
-     added once the address is known.
+   - No price yet: it comes on Review, after the address and area (#42).
 4. **Address**: returning customers pick a saved address (`/order/address`);
-   others enter details (`/order/details`), then choose how to keep a new
-   address (`/order/save-address`).
-5. **Review** (`/order/review`): price with the delivery fee, pay on
-   delivery, place the order. A custom tank size sends a quote request to
-   support instead.
+   others enter details and the area (`/order/details`), then choose how to
+   keep a new address (`/order/save-address`).
+5. **Review** (`/order/review`): the server's total, pay on delivery, place
+   the order; or "Send request" when the app has no price. In mock mode a
+   request goes to support (the mock has no quote requests).
 6. **Order placed** (`/orders/:ref/placed`) → **Track** (`/orders/:ref/track`,
    refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`,
    rating, "did they pour it in").
@@ -51,8 +50,12 @@ hidden for the pilot (see section 6).
 | `frontend/src/features/customer/customerApi.ts` | Typed API functions: mocks in mock mode; in real-API mode the linked ones call `real/`, the rest fail with `not_connected` |
 | `frontend/src/features/customer/real/order.ts` | Order adapters (#9): `createOrder`, `listOrders`, `getOrder` through `lib/api/orders.ts`, converted with `docs/architecture/api-mapping.md` |
 | `frontend/src/features/customer/real/account.ts` | Account adapters (#88 part 1): `getProfile`, `listAddresses`, `setDefaultAddress`, `removeAddress` through `lib/api/customerAccount.ts` |
+| `frontend/src/features/customer/real/quote.ts` | Live price adapters (#121): `listServiceZones`, `getQuote` through `lib/api/quotes.ts` |
+| `frontend/src/features/customer/order/livePrice.ts` | Price types and the approved wording for every reason and error (customer-live-prices.md) |
+| `frontend/src/features/customer/components/AreaPicker.tsx` | The area picker and the "Area / No longer served" line |
 | `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
 | `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
+| `frontend/src/features/customer/real/notifications.ts` | Notification adapters (#88 part 2) through `lib/api/customerNotifications.ts` |
 | `frontend/src/features/customer/queries.ts` | TanStack Query hooks and cache refresh after changes |
 | `frontend/src/features/customer/order/` | Order draft (sessionStorage), reorder and flow helpers |
 | `frontend/src/features/customer/pages/` | One component per screen |
@@ -74,12 +77,27 @@ real API is on, and, since #9, the orders endpoints: `POST /orders`,
 ([orders.md](../api/orders.md),
 [order-details-and-price.md](../api/order-details-and-price.md)).
 
-- **Orders are quote requests for now.** Live prices (`POST /quotes`) and the
-  service-zone picker are not linked yet, so `createOrder` sends the delivery
-  details with no `quote_id` and the order starts in `quote_requested`. Review
-  says the office calls to agree the price and delivery time, with no charge
-  to cancel or redeliver (the agreed fallbacks F3 and F5), and the button is
-  "Send request".
+- **Live prices (#121)**, as designed in
+  [customer-live-prices.md](../design/customer-live-prices.md) (#79):
+  - The quantity screens show no price; the price comes on Review, after the
+    address and area (#42).
+  - Delivery details has an area picker for a new address (`GET
+    /service-zones`, FR-020) with "My area is not listed". Saved addresses
+    show their area, and "No longer served" (still selectable) for an
+    inactive one.
+  - Review asks `POST /quotes` once per address, area and order details:
+    never retried or refreshed on its own (each check counts toward 30 per
+    10 minutes), a new price only on "Get a new price", or straight away
+    after 409 `quote_expired` or 422 `quote_mismatch` when placing. The
+    screen shows the total only, the water category, the validity, pay on
+    delivery (F4), the window agreed by call (F3) and no charges (F5).
+  - With a price, `createOrder` sends `quote_id` and `service_zone_id`, and
+    the order starts in `awaiting_confirmation` ("Order received").
+    Without one (a reason per the design, or "not listed"), "Send request"
+    sends it with no `quote_id` (`quote_requested`, "Request received").
+  - Every reason and placing error has its approved message
+    (`order/livePrice.ts`); a lost connection says the retry won't place a
+    second order (FR-026).
 - **What the backend does not send is shown as missing**, never filled in:
   the price lines (total only), the saved address name, the payment status
   ("Pay on delivery" only), the rider, station, ETA, delivery code (sent by
@@ -95,11 +113,10 @@ the default, remove) from [customer-account.md](../api/customer-account.md):
   customer since, order and address counts. In real mode there is no email
   row, no message switches and no points stat (decisions 1, 3 and 12); the
   photo stays initials. Changing the photo still says "not connected".
-- **Each saved address carries its area** (`zone`), kept for the live
-  prices design (#79).
-- **Adding or editing an address is not linked yet:** the backend needs an
-  area, and the area picker waits for the #79 design, so these say "not
-  connected" in real mode.
+- **Each saved address carries its area** (`zone`).
+- **Adding or editing an address** (#121) needs an area, picked with the
+  same area picker; an address in no listed area cannot be saved (an order
+  to it goes as a request).
 
 The other account screens (notifications, support, feedback, account
 deletion) still use mocks until #82 builds them (#88 parts 2 and 3). Points
@@ -110,14 +127,27 @@ and phone from the session (`GET /auth/me`). Change password
 linked (#57); the email row and message switches sit on Account settings
 (`/settings`).
 
+**Notifications (#88 part 2):** `GET /me/notifications` and
+`POST /me/notifications/read` ([customer-account.md](../api/customer-account.md#notifications)),
+the same shape as the partner app's. `read` is `read_at !== null`. The
+kinds the server adds (`order_confirmed`, `cancelled`, `delivery_failed`)
+have their own icons from the existing set; any kind the app does not know
+shows as a neutral "update" with the server's title and body, never hidden.
+The list is the newest 50, so the bell, the Menu badge and "Mark all read"
+use the server's `unread_count` across all pages, never the unread items in
+the list: unread messages older than the newest 50 still show and can be
+marked read (the partner app's rule, #80).
+
 ## 6. Important business rules
 
 - Prices come only from the server (FR-022). The client never adds up
   prices; the mock server does it in `mocks/pricing.ts`. All amounts are
   SAMPLE and labelled.
-- Delivery fee only once the address is known (decision 10).
+- No price before the address and area (#42); the total only, never a
+  breakdown (order-details-and-price.md, decision 6).
 - Water source for tanker orders only; Ninth Mile costs more (decision 10b).
-- Custom tank sizes need a manual quote (FR-021).
+- In mock mode, custom tank sizes need a manual quote (FR-021); the server
+  prices them.
 - One order per checkout attempt: one idempotency key per draft, reused on
   every retry (FR-026).
 - "Order placed" never claims the order is confirmed (FR-027). Unverified
@@ -154,8 +184,7 @@ another customer's order returns the same 404 as a missing one.
 - A lost connection keeps the order draft (sessionStorage); retrying "Place
   order" reuses the same idempotency key.
 - In real-API mode, features without a backend show "… is not connected to
-  the server yet." instead of pretending to work. Prices are the exception on
-  Review: the order goes as a quote request instead (above).
+  the server yet." instead of pretending to work.
 - Order errors pass through unchanged: 403 `phone_not_verified` shows "Verify
   your phone number first"; 409 `idempotency_key_reused` and 422
   `validation_error` show their message; 404 `order_not_found` shows the

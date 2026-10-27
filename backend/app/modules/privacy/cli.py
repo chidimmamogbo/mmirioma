@@ -76,6 +76,7 @@ async def _run(args: argparse.Namespace) -> str:
                     f"GPS points cleared: {result.gps_points_cleared}",
                     f"Saved addresses deleted: {result.addresses_removed}",
                     f"Support request messages removed: {result.support_messages_removed}",
+                    f"Staff notes on support requests removed: {result.resolution_notes_removed}",
                     f"Notifications deleted: {result.notifications_deleted}",
                     f"Staff notes kept on these orders, to check by hand: {result.notes_to_review}",
                     *(f"Check: {warning}" for warning in result.cash_warnings),

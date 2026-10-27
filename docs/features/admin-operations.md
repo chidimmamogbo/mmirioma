@@ -206,6 +206,10 @@ notifications; unknown ids and other people's ids are ignored.
   never changes an order (FR-050).
 - An admin who is deactivated gets no new messages; their old rows stay.
 - A request whose order has no accepted assignment lists only the receiver.
+- A request from a customer who was later anonymized still lists and opens:
+  its message and the staff's resolution note both read "Removed at the
+  customer's request." (#117), so `resolution` keeps its agreed shape; the
+  customer shows as "Deleted customer" with the anonymized phone marker.
 - Errors use the standard envelope; no message text, SQL or stack trace
   leaks.
 

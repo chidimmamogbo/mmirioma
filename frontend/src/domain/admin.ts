@@ -34,9 +34,11 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
 /**
  * Payment status on admin screens: the design's statuses plus
  * `pending_collection` ("Cash to collect", decided by @chidimmamogbo on PR #92),
- * the status of a confirmed pay-on-delivery order before the driver collects.
+ * the status of a confirmed pay-on-delivery order before the driver collects;
+ * and `partially_paid` ("Part paid", from the approved cash design,
+ * docs/design/cash-remittance.md), when the driver collects less than due.
  */
-export type AdminPaymentStatus = PaymentStatus | 'pending_collection'
+export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
 export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'

@@ -1,22 +1,18 @@
 import { GroundTankArt, OverheadTankArt } from '../../../../components/art/Art'
 import { Illustration } from '../../../../components/brand/Illustration'
 import { BackLink, Footer, MobileShell, ScrollArea, TopBar } from '../../../../components/layout/MobileShell'
-import { ErrorBlock } from '../../../../components/layout/StateScreens'
 import { Button, ButtonLink } from '../../../../components/ui/Button'
 import { Card } from '../../../../components/ui/Card'
-import { SampleTag } from '../../../../components/ui/Chip'
 import { OptionTile } from '../../../../components/ui/Choice'
-import { KeyValue, SectionHeader, Separator } from '../../../../components/ui/Content'
+import { KeyValue, SectionHeader } from '../../../../components/ui/Content'
 import { TextField } from '../../../../components/ui/Field'
 import { TANK_SIZES, WATER_SOURCE_LABEL, describeTankSize, type TankType } from '../../../../domain/orders'
 import { litresFromGallons } from '../../../../domain/quantity'
 import { parseGallons } from '../../../../domain/tankCapacity'
-import { formatNaira } from '../../../../lib/format/money'
-import { OptionGroup, OrderStepHeading, SummaryTotal, WaterSourcePicker } from '../../components/OrderParts'
-import { draftChoice } from '../../order/draft'
-import { addressStepPath } from '../../order/flow'
+import { OptionGroup, OrderStepHeading, PriceComesLater, WaterSourcePicker } from '../../components/OrderParts'
 import { useOrderDraft } from '../../order/orderDraftContext'
-import { useAddresses, useQuote } from '../../queries'
+import { addressStepPath } from '../../order/flow'
+import { useAddresses } from '../../queries'
 
 const TANK_TYPES: { value: TankType; title: string; sub: string }[] = [
   { value: 'ground', title: 'Ground tank', sub: 'At ground level' },
@@ -26,15 +22,12 @@ const TANK_TYPES: { value: TankType; title: string; sub: string }[] = [
 /**
  * Tanker order: tank type, capacity and water source (`c-tanker`). Sizes are
  * in gallons as designed, always shown with their exact litres (1 local
- * gallon = 4 L, FR-021; decision of 2026-10-26). "Custom" sizes need a quote
- * from the team (FR-021).
+ * gallon = 4 L, FR-021; decision of 2026-10-26). No price here: it comes on
+ * Review, after the address and area (#42; customer-live-prices.md).
  */
 export function TankerOrder() {
   const { draft, update } = useOrderDraft()
   const addresses = useAddresses()
-  const choice = draftChoice({ ...draft, delivery_type: 'tanker' })
-  const quote = useQuote(choice, null)
-  const q = quote.data?.status === 'quote_available' ? quote.data : undefined
   const size = draft.tanker.tank_size_gallons
   const customMissing = size === null && draft.tanker.custom_gallons.trim() === ''
   const customGallons = size === null ? parseGallons(draft.tanker.custom_gallons) : null
@@ -96,36 +89,25 @@ export function TankerOrder() {
               label="Your tank size in gallons"
               inputMode="numeric"
               placeholder="e.g. 2,000"
-              hint={
-                customGallons !== null
-                  ? `That is ${litresFromGallons(customGallons).toLocaleString('en-NG')} litres. Our team will call you with a price for this size.`
-                  : 'Our team will call you with a price for this size.'
-              }
+              hint={customGallons !== null ? `That is ${litresFromGallons(customGallons).toLocaleString('en-NG')} litres.` : undefined}
               value={draft.tanker.custom_gallons}
               onChange={(e) => update((d) => ({ tanker: { ...d.tanker, custom_gallons: e.target.value.replace(/[^\d,]/g, '') } }))}
             />
           )}
         </OptionGroup>
         <WaterSourcePicker className="rise-3" value={draft.source} onChange={(source) => update({ source })} />
-        {quote.isError ? (
-          <ErrorBlock error={quote.error} onRetry={() => quote.refetch()} />
-        ) : (
-          <Card pad className="rise-4">
-            <SectionHeader title="Order summary" action={<SampleTag>SAMPLE PRICES</SampleTag>} className="mb-2" />
-            <div className="flex items-center gap-3">
-              <Illustration name="tanker" className="animate-drive h-auto w-[124px] shrink-0" />
-              <div className="flex-1">
-                <KeyValue label="Tank" value={draft.tanker.tank_type === 'ground' ? 'Ground tank' : 'Overhead tank'} />
-                <KeyValue label="Capacity" value={sizeText ?? 'Custom'} />
-                <KeyValue label="Source" value={WATER_SOURCE_LABEL[draft.source]} />
-                {q && <KeyValue label="Water" value={formatNaira(q.water.amount_minor_units)} />}
-                <KeyValue label="Delivery" value={<span className="font-semibold text-mute">After address</span>} />
-              </div>
+        <Card pad className="rise-4">
+          <SectionHeader title="Order summary" className="mb-2" />
+          <div className="flex items-center gap-3">
+            <Illustration name="tanker" className="animate-drive h-auto w-[124px] shrink-0" />
+            <div className="flex-1">
+              <KeyValue label="Tank" value={draft.tanker.tank_type === 'ground' ? 'Ground tank' : 'Overhead tank'} />
+              <KeyValue label="Capacity" value={sizeText ?? 'Custom'} />
+              <KeyValue label="Source" value={WATER_SOURCE_LABEL[draft.source]} />
             </div>
-            <Separator />
-            <SummaryTotal quote={quote.data} label="Water total" loading={quote.isFetching} />
-          </Card>
-        )}
+          </div>
+        </Card>
+        <PriceComesLater className="rise-5" />
       </ScrollArea>
       <Footer>
         {customMissing ? (
