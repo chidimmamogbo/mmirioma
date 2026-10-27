@@ -1,7 +1,9 @@
 /**
  * Typed API functions for the partner apps (Keke rider and tanker driver).
- * No partner contract exists yet: mock mode uses `src/mocks/partnerMock.ts`,
- * real-API mode fails with `not_connected` until the endpoints exist
+ * Mock mode uses `src/mocks/partnerMock.ts`. In real-API mode the account
+ * functions (sign-up, profile, going online, notifications) call
+ * docs/api/partners.md through `real/account.ts` (#67); the rest fail with
+ * `not_connected` until they are linked
  * (SRS §6 suggests `/driver/jobs/{id}/accept`, `/transition`, `/proof`).
  */
 import type {
@@ -17,16 +19,17 @@ import type { Session } from '../../lib/api/auth'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as mock from '../../mocks/partnerMock'
+import * as real from './real/account'
 
 type Pickup = { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null }
 
-export const getPartnerProfile = (): Promise<PartnerProfile> => (USE_MOCKS ? mock.getPartnerProfile() : notConnected('Your partner account'))
+export const getPartnerProfile = (): Promise<PartnerProfile> => (USE_MOCKS ? mock.getPartnerProfile() : real.getPartnerProfile())
 export const updatePartnerProfile = (u: { email?: string | null; preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> =>
-  USE_MOCKS ? mock.updatePartnerProfile(u) : notConnected('Your partner account')
-export const setOnline = (online: boolean): Promise<PartnerProfile> => (USE_MOCKS ? mock.setOnline(online) : notConnected('Going online'))
+  USE_MOCKS ? mock.updatePartnerProfile(u) : real.updatePartnerProfile(u)
+export const setOnline = (online: boolean): Promise<PartnerProfile> => (USE_MOCKS ? mock.setOnline(online) : real.setOnline(online))
 export const uploadDocument = (id: string, fileName: string): Promise<PartnerProfile> =>
   USE_MOCKS ? mock.uploadDocument(id, fileName) : notConnected('Document upload')
-export const partnerSignup = (i: PartnerSignupInput): Promise<Session> => (USE_MOCKS ? mock.partnerSignup(i) : notConnected('Partner sign-up'))
+export const partnerSignup = (i: PartnerSignupInput): Promise<Session> => (USE_MOCKS ? mock.partnerSignup(i) : real.partnerSignup(i))
 
 export const listAvailableJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listAvailableJobs() : notConnected('Available orders'))
 export const listMyActiveJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listMyActiveJobs() : notConnected('Your orders'))
@@ -42,7 +45,7 @@ export const getEarnings = (): Promise<PartnerEarnings> => (USE_MOCKS ? mock.get
 export const requestPayout = (amount: number): Promise<PartnerEarnings> => (USE_MOCKS ? mock.requestPayout(amount) : notConnected('Payouts'))
 export const listHistory = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listHistory() : notConnected('Order history'))
 export const listPartnerNotifications = (): Promise<PartnerNotification[]> =>
-  USE_MOCKS ? mock.listPartnerNotifications() : notConnected('Notifications')
-export const markPartnerNotificationsRead = (): Promise<void> => (USE_MOCKS ? mock.markPartnerNotificationsRead() : notConnected('Notifications'))
+  USE_MOCKS ? mock.listPartnerNotifications() : real.listPartnerNotifications()
+export const markPartnerNotificationsRead = (): Promise<void> => (USE_MOCKS ? mock.markPartnerNotificationsRead() : real.markPartnerNotificationsRead())
 export const reportIssue = (i: { type: PartnerIssueType; note: string; reference: string | null }): Promise<{ id: string }> =>
   USE_MOCKS ? mock.reportIssue(i) : notConnected('Reporting a problem')
