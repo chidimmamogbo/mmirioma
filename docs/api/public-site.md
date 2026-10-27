@@ -1,11 +1,11 @@
 # Public website endpoints (v1)
 
-Requirements: FR-055, NFR-002 · Issue: #8 · Built in: not yet
+Requirements: FR-055, NFR-002 · Issue: #8 · Built in: #56
 
 **Status: agreed** (G3) on 2026-10-26 by @nnamdi-security, technical lead
 (#36). Proposed on 2026-10-21 by the new-design fork, **revised 2026-10-26 in
-#8** after decisions by @chidimmamogbo (see [Changes](#changes)). Not built
-yet (#56).
+#8** after decisions by @chidimmamogbo (see [Changes](#changes)). Built in
+#56 ([public-contact.md](../features/public-contact.md)).
 
 The frontend uses a mock (`frontend/src/mocks/publicMock.ts`); with the real
 API it reports "not connected yet" until the endpoint exists. Conventions
@@ -19,7 +19,10 @@ page. FR-055: the official support number is **+234 813 377 4902**, used
 consistently in every customer-facing contact interface, and it "SHALL come
 from one central configuration value rather than being repeated in code".
 
-**Public:** no session cookie, no CSRF token. Rate limited per IP (NFR-002).
+**Public:** no session cookie, no CSRF token. Rate limited per IP (NFR-002):
+**120 requests per client IP per 10 minutes** (decided by the technical lead
+in #56; generous for carrier NAT, and browsers cache the answer for 5
+minutes).
 
 **200** ([examples/public-contact.json](examples/public-contact.json))
 
@@ -84,5 +87,6 @@ git history of this file, for when an email provider is approved.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Built in #56; the per-IP limit set to 120 requests per 10 minutes | @nnamdi-security (technical lead, #56) |
 | 2026-10-26 | Revised in #8: contact read from backend settings only (FR-055), `phone` always set, `whatsapp` on by a setting (WhatsApp confirmed active); admin "Support WhatsApp" field removed; newsletter left out of the pilot | @nnamdi-security (technical lead, #36), with @chidimmamogbo's decisions on #8 |
 | 2026-10-21 | Proposed: contact numbers from admin Settings, newsletter sign-up | Superseded |

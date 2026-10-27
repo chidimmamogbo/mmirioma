@@ -104,6 +104,20 @@ class VerifyCodeRequest(BaseModel):
     code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{6}$")]
 
 
+class ChangePasswordRequest(BaseModel):
+    """Change the signed-in account's password (docs/api/auth.md, "Change password").
+
+    ``current_password`` checks only the maximum, as at sign-in: a too-short
+    value simply does not match. ``new_password`` follows the password rules.
+    The screen's "New password again" field is checked on the screen only.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: Annotated[str, Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)]
+    new_password: Password
+
+
 class PhoneChangeRequest(BaseModel):
     """Start a phone number change (FR-004).
 

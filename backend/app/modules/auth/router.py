@@ -1,4 +1,4 @@
-"""Auth endpoints: register, login, logout, me, phone verification (docs/api/auth.md).
+"""Auth endpoints: register, login, logout, me, phone verification, password (docs/api/auth.md).
 
 Partner sign-up (``POST /auth/partner-register``, docs/api/partners.md) is
 here too, because it starts a session like registration.
@@ -23,6 +23,7 @@ from app.modules.auth.dependencies import (
 from app.modules.auth.models import UserRole, VerificationPurpose
 from app.modules.auth.rate_limit import AuthRateLimits, get_auth_rate_limits
 from app.modules.auth.schemas import (
+    ChangePasswordRequest,
     LoginRequest,
     PhoneChangeRequest,
     PhoneCodeSentRead,
@@ -202,6 +203,41 @@ async def logout(auth: AuthSession, db: DbSession) -> Response:
         samesite=settings.session_cookie_samesite,
     )
     return response
+
+
+@router.post(
+    "/password",
+    status_code=HTTPStatus.NO_CONTENT,
+    responses={
+        HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse},
+        HTTPStatus.FORBIDDEN: {"model": ErrorResponse},
+        HTTPStatus.TOO_MANY_REQUESTS: {"model": ErrorResponse},
+    },
+)
+async def change_password(
+    body: ChangePasswordRequest,
+    request: Request,
+    auth: AuthSession,
+    db: DbSession,
+    limits: RateLimits,
+) -> Response:
+    """Change the signed-in account's password; other sessions end (#8). Any role.
+
+    The current password is checked under the same per-phone and per-IP
+    failure limits as sign-in, so this endpoint cannot guess passwords faster
+    than login (NFR-002). This session stays signed in with its CSRF token.
+
+    Raises:
+        APIError: 401 ``not_authenticated``; 403 ``csrf_failed`` or
+            ``password_incorrect``; 422 ``validation_error``; 429
+            ``too_many_attempts``.
+    """
+    ip = _client_ip(request)
+    limits.begin_login(auth.user.phone, ip)
+    await service.check_password(auth.user, body.current_password)
+    limits.login_succeeded(auth.user.phone, ip)
+    await service.change_password(db, auth=auth, new_password=body.new_password)
+    return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
 @router.get("/me", responses={HTTPStatus.UNAUTHORIZED: {"model": ErrorResponse}})
