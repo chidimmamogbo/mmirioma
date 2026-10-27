@@ -1,8 +1,6 @@
-# Who must approve a PR into main (branch protection requires a code owner).
-# Each area has a backup owner, so an author never has to approve their own PR.
-# The last matching line wins.
+# Who may approve a PR into main (branch protection requires one code owner's
+# approval). Any one of the three reviewers suffices, so work never waits on a
+# single person; an author never approves their own PR (owner's decision,
+# 2026-10-27). The last matching line wins.
 
-*            @chidimmamogbo @nnamdi-security
-/frontend/   @chidimmamogbo @nnamdi-security
-/backend/    @nnamdi-security @chidimmamogbo
-/docs/api/   @nnamdi-security @chidimmamogbo
+*            @chidimmamogbo @nnamdi-security @Cloudcrackamara

@@ -2,8 +2,10 @@
  * Typed API functions for the partner apps (Keke rider and tanker driver).
  * Mock mode uses `src/mocks/partnerMock.ts`. In real-API mode the account
  * functions (sign-up, profile, going online, notifications) call
- * docs/api/partners.md through `real/account.ts` (#67); the rest fail with
- * `not_connected` until they are linked
+ * docs/api/partners.md through `real/account.ts` (#67), and the job lists,
+ * one job, accept and decline call docs/api/deliveries.md through
+ * `real/jobs.ts` (#12); the rest fail with `not_connected` until they are
+ * linked
  * (SRS §6 suggests `/driver/jobs/{id}/accept`, `/transition`, `/proof`).
  */
 import type {
@@ -20,6 +22,7 @@ import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as mock from '../../mocks/partnerMock'
 import * as real from './real/account'
+import * as realJobs from './real/jobs'
 
 type Pickup = { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null }
 
@@ -31,19 +34,19 @@ export const uploadDocument = (id: string, fileName: string): Promise<PartnerPro
   USE_MOCKS ? mock.uploadDocument(id, fileName) : notConnected('Document upload')
 export const partnerSignup = (i: PartnerSignupInput): Promise<Session> => (USE_MOCKS ? mock.partnerSignup(i) : real.partnerSignup(i))
 
-export const listAvailableJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listAvailableJobs() : notConnected('Available orders'))
-export const listMyActiveJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listMyActiveJobs() : notConnected('Your orders'))
-export const getJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.getJob(ref) : notConnected('Order details'))
-export const acceptJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.acceptJob(ref) : notConnected('Accepting orders'))
+export const listAvailableJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listAvailableJobs() : realJobs.listAvailableJobs())
+export const listMyActiveJobs = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listMyActiveJobs() : realJobs.listMyActiveJobs())
+export const getJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.getJob(ref) : realJobs.getJob(ref))
+export const acceptJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.acceptJob(ref) : realJobs.acceptJob(ref))
 export const declineJob = (ref: string, reason: DeclineReason, note: string): Promise<void> =>
-  USE_MOCKS ? mock.declineJob(ref, reason, note) : notConnected('Declining orders')
+  USE_MOCKS ? mock.declineJob(ref, reason, note) : realJobs.declineJob(ref, reason, note)
 export const confirmPickup = (ref: string, p: Pickup): Promise<PartnerJob> => (USE_MOCKS ? mock.confirmPickup(ref, p) : notConnected('Pickup'))
 export const verifyCode = (ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : notConnected('Delivery code'))
 export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.resendCode(ref) : notConnected('Delivery code'))
 
 export const getEarnings = (): Promise<PartnerEarnings> => (USE_MOCKS ? mock.getEarnings() : notConnected('Earnings'))
 export const requestPayout = (amount: number): Promise<PartnerEarnings> => (USE_MOCKS ? mock.requestPayout(amount) : notConnected('Payouts'))
-export const listHistory = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listHistory() : notConnected('Order history'))
+export const listHistory = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listHistory() : realJobs.listHistory())
 /** The mock has no pages, so counting its unread items gives the true count. */
 export const listPartnerNotifications = (): Promise<PartnerNotificationList> =>
   USE_MOCKS

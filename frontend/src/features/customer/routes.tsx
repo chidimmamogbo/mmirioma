@@ -39,7 +39,8 @@ export const customerRoutes: RouteObject[] = [
       { path: '/support', lazy: () => import('./pages/Support').then((m) => ({ Component: m.Support })) }, // c-support
       { path: '/profile', lazy: () => import('./pages/Profile').then((m) => ({ Component: m.Profile })) }, // c-profile
       { path: '/profile/email', lazy: () => import('./pages/AccountPages').then((m) => ({ Component: m.EmailSettings })) }, // added
-      { path: '/profile/password', lazy: () => import('./pages/AccountPages').then((m) => ({ Component: m.ChangePassword })) }, // added
+      { path: '/settings', lazy: () => import('./pages/Profile').then((m) => ({ Component: m.AccountSettings })) }, // added (#57)
+      { path: '/profile/password', lazy: () => import('./pages/AccountPages').then((m) => ({ element: <m.ChangePassword back="/settings" /> })) }, // added
       { path: '/profile/phone', lazy: () => import('./pages/ChangePhone').then((m) => ({ Component: m.ChangePhone })) }, // P1-P3 (docs/design/phone-verification.md)
       { path: '/verify-phone', lazy: () => import('./pages/VerifyPhone').then((m) => ({ Component: m.VerifyPhone })) }, // V1-V3 (docs/design/phone-verification.md)
       { path: '/profile/delete', lazy: () => import('./pages/AccountPages').then((m) => ({ Component: m.DeleteAccount })) }, // added

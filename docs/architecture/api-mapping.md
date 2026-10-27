@@ -229,6 +229,20 @@ whole groups of jobs:
 
 Mock mode keeps every value (`StoredJob` in `mocks/seed.ts`).
 
+How the #12 adapter (`features/partner/real/jobs.ts`) fills the rest,
+decided by @Bonvee120 for #12 (2026-10-27):
+
+| Design field | From the backend job |
+| --- | --- |
+| `station.name`, `station.area` | `source.name` or `source_name`; "Station not set yet" while the dispatcher has not picked a source |
+| `station.address` | `source.approximate_location` (detail only), else `null` |
+| `customer.name`, `customer.area` | `delivery_area` (the address's first line). No neighbourhood is invented; "Address not known yet" if the job has none |
+| `customer.address`, `customer.landmark`, `instructions` | `delivery_address`, `landmark`, `delivery_instructions` (detail only), else `null` |
+| `collected_at` | `pickup.picked_up_at` |
+| `delivered_at` | `ended_at` when the order is `delivered` |
+| `code_tries_left` | `delivery_code.attempts_left` |
+| `tank_note`, `accepted_at`, `code_resend_at`, `pickup`, `remaining` | `null`: the job does not carry them |
+
 ### Available orders and declining
 
 Decided by @chidimmamogbo on #12 (2026-10-26):

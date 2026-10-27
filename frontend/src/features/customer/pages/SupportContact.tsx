@@ -6,17 +6,17 @@ import { IconBadge } from '../../../components/ui/Content'
 import { Notice } from '../../../components/ui/Notice'
 import { formatPhone } from '../../../lib/format/phone'
 import { WHATSAPP_GREETING, whatsappLink } from '../../../lib/whatsapp'
-import { useWhatsappNumber } from '../../marketing/queries'
+import { useSupportContact } from '../../marketing/queries'
 
 /**
  * Contact channels behind the Call us / WhatsApp / Chat tiles. Not in the
- * handoff. The phone line and hours are not decided yet, so they are shown
- * as placeholders in the design's square-bracket style; the screen never
- * invents a number to dial. WhatsApp uses the company number from admin
- * Settings, or the interim number the owner chose (lib/whatsapp.ts).
+ * handoff. The phone and WhatsApp come from the backend's support contact
+ * (`GET /public/contact`, FR-055); the WhatsApp tile is hidden while WhatsApp
+ * support is off. Support hours are not decided yet, so they stay a
+ * placeholder in the design's square-bracket style.
  */
 export function SupportContact({ back = '/support' }: { back?: string | -1 }) {
-  const whatsapp = useWhatsappNumber()
+  const { phone, whatsapp } = useSupportContact()
   return (
     <MobileShell>
       <TopBar left={<BackLink to={back} />} center={<TopBarTitle>Contact us</TopBarTitle>} right={<TopBarSpacer />} />
@@ -28,23 +28,25 @@ export function SupportContact({ back = '/support' }: { back?: string | -1 }) {
           </IconBadge>
           <div className="flex-1">
             <div className="font-extrabold">Call us</div>
-            <div className="text-[13px] text-slate">[SUPPORT PHONE NUMBER]</div>
+            <div className="text-[13px] text-slate">{formatPhone(phone)}</div>
           </div>
         </Card>
-        <Card id="whatsapp" className="rise-2 flex flex-col gap-3 p-3.5">
-          <div className="flex items-center gap-3">
-            <IconBadge tone="teal">
-              <MessageCircleIcon size={20} />
-            </IconBadge>
-            <div className="flex-1">
-              <div className="font-extrabold">WhatsApp</div>
-              <div className="text-[13px] text-slate">{formatPhone(whatsapp)}</div>
+        {whatsapp && (
+          <Card id="whatsapp" className="rise-2 flex flex-col gap-3 p-3.5">
+            <div className="flex items-center gap-3">
+              <IconBadge tone="teal">
+                <MessageCircleIcon size={20} />
+              </IconBadge>
+              <div className="flex-1">
+                <div className="font-extrabold">WhatsApp</div>
+                <div className="text-[13px] text-slate">{formatPhone(whatsapp)}</div>
+              </div>
             </div>
-          </div>
-          <ExternalButton href={whatsappLink(whatsapp, WHATSAPP_GREETING)} variant="alt" size="sm">
-            Chat on WhatsApp
-          </ExternalButton>
-        </Card>
+            <ExternalButton href={whatsappLink(whatsapp, WHATSAPP_GREETING)} variant="alt" size="sm">
+              Chat on WhatsApp
+            </ExternalButton>
+          </Card>
+        )}
         <Card id="chat" className="rise-3 flex items-center gap-3 p-3.5">
           <IconBadge tone="blue">
             <MessageSquareIcon size={20} />
@@ -54,7 +56,7 @@ export function SupportContact({ back = '/support' }: { back?: string | -1 }) {
             <div className="text-[13px] text-slate">In-app chat is not available yet. Send us a message with the form on Support.</div>
           </div>
         </Card>
-        <Notice className="rise-4">The phone number and hours will be added once the support line is set up.</Notice>
+        <Notice className="rise-4">Our support hours will be added once they are agreed.</Notice>
         {back === '/support' && (
           <ButtonLink to="/support" variant="alt" className="rise-4">
             Report a problem instead

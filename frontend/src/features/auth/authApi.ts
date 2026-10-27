@@ -6,7 +6,6 @@
 import * as real from '../../lib/api/auth'
 import type { LoginInput, RegisterInput, Session, User } from '../../lib/api/auth'
 import { USE_MOCKS } from '../../lib/api/mode'
-import { notConnected } from '../../lib/api/notConnected'
 import * as realPhone from '../../lib/api/phoneVerification'
 import type { PhoneChangeInput, PhoneCodeSent } from '../../lib/api/phoneVerification'
 import * as mock from '../../mocks/authMock'
@@ -28,9 +27,9 @@ export function logout(): Promise<void> {
   return USE_MOCKS ? mock.mockLogout() : real.logout()
 }
 
-/** Change password. Not in the auth contract yet (planned). */
+/** Change password (`POST /auth/password`); the account's other sessions end. */
 export function changePassword(current: string, next: string): Promise<void> {
-  return USE_MOCKS ? mock.mockChangePassword(current, next) : notConnected('Changing your password')
+  return USE_MOCKS ? mock.mockChangePassword(current, next) : real.changePassword({ current_password: current, new_password: next })
 }
 
 /** Send an SMS code to the account's phone (FR-003). */

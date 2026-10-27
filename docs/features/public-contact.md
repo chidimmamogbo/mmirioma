@@ -90,7 +90,8 @@ cache header, the 121st request is 429, `POST` is 405.
 
 ## 10. Known limitations
 
-- The screens still read the mock or the interim number until #57 links them.
+- While the contact cannot be read, the screens fall back to the official
+  number with WhatsApp on (`frontend/src/lib/whatsapp.ts`), linked in #57.
 - The rate-limit counter lives in the process (cleared on restart, separate
   per worker), like the auth limits; behind a reverse proxy, run uvicorn with
   `--proxy-headers` or every client shares the proxy's limit.

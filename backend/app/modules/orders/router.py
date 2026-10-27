@@ -20,6 +20,8 @@ from app.core.errors import ErrorResponse
 from app.modules.auth.dependencies import CurrentCustomer
 from app.modules.orders import service
 from app.modules.orders.schemas import (
+    FeedbackInput,
+    FeedbackRead,
     OrderCreate,
     OrderPage,
     OrderRead,
@@ -74,7 +76,7 @@ async def create_order(
     )
     if not created:
         response.status_code = HTTPStatus.OK
-    return OrderRead.from_order(order, await service.read_lookups(db, [order]))
+    return OrderRead.from_order(order, await service.read_lookups(db, [order], with_feedback=True))
 
 
 @router.get("/orders", responses=_AUTH_ERRORS)
@@ -85,7 +87,7 @@ async def list_my_orders(
     orders, total = await service.list_customer_orders(
         db, customer_id=customer.id, limit=page.limit, offset=page.offset
     )
-    lookups = await service.read_lookups(db, orders)
+    lookups = await service.read_lookups(db, orders, with_feedback=True)
     return OrderPage(
         items=[OrderRead.from_order(order, lookups) for order in orders],
         total=total,
@@ -103,4 +105,45 @@ async def get_my_order(reference: str, customer: CurrentCustomer, db: DbSession)
             (T-07).
     """
     order = await service.get_customer_order(db, customer_id=customer.id, reference=reference)
-    return OrderRead.from_order(order, await service.read_lookups(db, [order]))
+    return OrderRead.from_order(order, await service.read_lookups(db, [order], with_feedback=True))
+
+
+@router.put(
+    "/orders/{reference}/feedback",
+    responses={
+        **_AUTH_ERRORS,
+        **_NOT_FOUND,
+        HTTPStatus.CREATED: {"model": FeedbackRead, "description": "First submission"},
+        HTTPStatus.CONFLICT: {"model": ErrorResponse},
+    },
+)
+async def put_feedback(
+    reference: str,
+    body: FeedbackInput,
+    customer: CurrentCustomer,
+    db: DbSession,
+    response: Response,
+) -> FeedbackRead:
+    """Rate a delivered order (FR-051); sending it again replaces the feedback.
+
+    Returns 201 on the first submission and 200 when it replaces earlier
+    feedback, so a double tap never adds a second one.
+
+    Raises:
+        APIError: 404 ``order_not_found``; 409 ``order_not_delivered``.
+    """
+    feedback, created = await service.put_feedback(
+        db,
+        customer_id=customer.id,
+        reference=reference,
+        answers=service.FeedbackAnswers(
+            rating=body.rating,
+            poured_by_partner=body.poured_by_partner,
+            on_time=body.on_time,
+            quantity_as_ordered=body.quantity_as_ordered,
+            would_reorder=body.would_reorder,
+            message=body.message,
+        ),
+    )
+    response.status_code = HTTPStatus.CREATED if created else HTTPStatus.OK
+    return FeedbackRead.from_feedback(feedback)

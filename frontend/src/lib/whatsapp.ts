@@ -1,13 +1,16 @@
 /**
- * Company WhatsApp chat links (owner decision 2026-10-21).
+ * Company WhatsApp chat links.
  *
- * The number is set by admin in Settings ("Support WhatsApp"). Until admin
- * saves one, or while the website cannot read it, chats go to the interim
- * number below, which the owner chose until the company line is bought.
+ * The support number and whether WhatsApp is on come from the backend's one
+ * configuration value (`GET /public/contact`, FR-055, docs/api/public-site.md).
+ * The official number below is used only while the website cannot read it.
  */
 
-/** Interim company WhatsApp number (E.164). Replace by saving the new one in admin Settings. */
-export const DEFAULT_WHATSAPP = '+2348133774902'
+/** The official support number (SRS FR-055), E.164. Fallback only; the server's value wins. */
+export const DEFAULT_SUPPORT_PHONE = '+2348133774902'
+
+/** WhatsApp is confirmed active on the support number (#8), so the fallback chats there too. */
+export const DEFAULT_WHATSAPP = DEFAULT_SUPPORT_PHONE
 
 /** The greeting already typed in the chat when someone taps the button. */
 export const WHATSAPP_GREETING = "Hello MmiriOma, I'd like to order water."

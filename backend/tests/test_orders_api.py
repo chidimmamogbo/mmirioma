@@ -130,6 +130,12 @@ def fake_orders(monkeypatch: pytest.MonkeyPatch) -> FakeOrders:
         return {}
 
     monkeypatch.setattr(holds, "current_holds", no_holds)
+
+    # Customer views add the order's feedback (#82); no order here has any.
+    async def no_feedback(_: object, order_ids: object) -> dict[object, object]:
+        return {}
+
+    monkeypatch.setattr(service, "feedback_by_order", no_feedback)
     return fake
 
 
@@ -313,6 +319,8 @@ def test_customer_response_matches_contract(api: TestClient) -> None:
         "water_source",
         "service_zone",
         "quote",
+        # Customer account contract (#82): the customer's feedback, or null.
+        "feedback",
     }
     assert order["status"] == "quote_requested"
     assert order["created_at"] == "2026-10-14T09:30:00Z"

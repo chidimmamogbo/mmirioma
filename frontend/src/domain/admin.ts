@@ -327,7 +327,6 @@ export interface StaffMember {
 
 export interface AdminSettings {
   support_phone: string | null
-  support_whatsapp: string | null
   /** `[SUPPORT HOURS]` until set. */
   support_hours: string | null
   /** `[CODE TIME LIMIT]` until set. */

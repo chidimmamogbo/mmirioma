@@ -35,8 +35,12 @@ addresses, points, notifications, support and their profile.
    refreshes every 20 s) → **Delivered** (`/orders/:ref/delivered`, points,
    rating, "did they pour it in").
 7. **Account**: orders list and details (with receipt), points, saved
-   addresses, notifications, support (report a problem, contact), profile
-   (optional email, update preferences, change password, delete request).
+   addresses, notifications, support (report a problem, contact). **My
+   profile** (`/profile`): name, stats, phone and its verification. **Account
+   settings** (`/settings`, separate since #57, approved by @chidimmamogbo on
+   2026-10-27): change password, change phone number, privacy notice, delete
+   request, log out; the optional email and message switches show in mock
+   mode only (out of the pilot, customer-account.md decisions 1 and 3).
 
 ## 3. Important files
 
@@ -84,7 +88,12 @@ real API is on, and, since #9, the orders endpoints: `POST /orders`,
 
 The other customer screens (addresses, notifications, points, support,
 profile, feedback, account deletion) still use mocks: their contract
-([customer-account.md](../api/customer-account.md)) is agreed but not built.
+([customer-account.md](../api/customer-account.md)) is agreed but not built
+(#82). Until then, with the real API, Home, the top bar, the menu and My
+profile take the name and phone from the session (`GET /auth/me`), and My
+profile hides its profile-only parts without an error. Change password
+(`POST /auth/password`) and the support contact (`GET /public/contact`) are
+linked (#57).
 
 ## 6. Important business rules
 

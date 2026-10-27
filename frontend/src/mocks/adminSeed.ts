@@ -259,6 +259,6 @@ export function seedAdmin(now = new Date()): AdminData {
     activity,
     notifications,
     staff,
-    settings: { support_phone: null, support_whatsapp: null, support_hours: null, code_time_limit: null, safe_load: { keke: null, tanker: null } },
+    settings: { support_phone: null, support_hours: null, code_time_limit: null, safe_load: { keke: null, tanker: null } },
   }
 }

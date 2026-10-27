@@ -5,8 +5,9 @@ import { WHATSAPP_GREETING, whatsappLink } from '../../lib/whatsapp'
 import { CONTACT, FAQ_CATEGORIES, filterFaqs, type FaqFilter } from './content'
 import { ArrowRightIcon, ChevronIcon, MailIcon, SearchIcon, WhatsAppIcon } from './icons'
 import { Kicker, MarketingFooter, MarketingHeader, Pic } from './MarketingParts'
-import { useWhatsappNumber } from './queries'
-import { FloatingActions, NewsletterSignup } from './SiteExtras'
+import { formatPhone } from '../../lib/format/phone'
+import { useSupportContact } from './queries'
+import { FloatingActions } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 const CARD_BUTTON =
@@ -22,7 +23,7 @@ export function FaqPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<FaqFilter>('All')
   const { list, counts } = filterFaqs(search, category)
-  const whatsapp = useWhatsappNumber()
+  const { phone, whatsapp } = useSupportContact()
 
   return (
     <div className="mk-page min-w-0 overflow-x-clip bg-white font-marketing text-[16px] leading-normal text-ink">
@@ -138,15 +139,21 @@ export function FaqPage() {
                   <p className="m-0 font-display text-[22px] font-bold">Didn't find your answer?</p>
                   <p className="m-0 text-[15px] leading-[1.6] text-mk-on-navy">Ask us about an order, a delivery or a payment.</p>
                   <div className="mt-auto flex flex-wrap gap-2.5 pt-1">
-                    <a
-                      href={whatsappLink(whatsapp, WHATSAPP_GREETING)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cx(CARD_BUTTON, 'bg-[#1DA851] text-white hover:bg-[#178A43] hover:text-white')}
-                    >
-                      <WhatsAppIcon size={18} />
-                      Chat on WhatsApp
-                    </a>
+                    {whatsapp ? (
+                      <a
+                        href={whatsappLink(whatsapp, WHATSAPP_GREETING)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cx(CARD_BUTTON, 'bg-[#1DA851] text-white hover:bg-[#178A43] hover:text-white')}
+                      >
+                        <WhatsAppIcon size={18} />
+                        Chat on WhatsApp
+                      </a>
+                    ) : (
+                      <a href={`tel:${phone}`} className={cx(CARD_BUTTON, 'bg-white text-ink hover:bg-mk-panel hover:text-ink')}>
+                        Call {formatPhone(phone)}
+                      </a>
+                    )}
                     <a href={`mailto:${CONTACT.email}`} className={cx(CARD_BUTTON, 'bg-white text-ink hover:bg-mk-panel hover:text-ink')}>
                       <MailIcon />
                       Email support
@@ -165,7 +172,6 @@ export function FaqPage() {
             </div>
           </div>
         </section>
-        <NewsletterSignup />
       </main>
       <MarketingFooter variant="short" />
       <FloatingActions />
