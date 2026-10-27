@@ -42,9 +42,11 @@ describe('CodeStep before the code is issued (#13)', () => {
   it('sends the code when unloading is done, then shows the keypad', async () => {
     renderCodeStep(await collectedJob())
     expect(await screen.findByText('Waiting for the delivery code.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Verify code' })).not.toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Unloading done, send the code' }))
     expect(await screen.findByText('Code sent to customer')).toBeInTheDocument()
     expect(screen.queryByText('Waiting for the delivery code.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Verify code' })).toBeInTheDocument()
   })
 
   it('shows the server message when sending the code fails', async () => {

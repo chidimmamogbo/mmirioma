@@ -187,7 +187,8 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           </>
         )}
       </ScrollArea>
-      {!showError && (
+      {/* While waiting, "Unloading done, send the code" is the only action (G2 on #133). */}
+      {!showError && !waiting && (
         <Footer>
           <Button disabled={code.length !== 6} loading={verify.isPending} onClick={submit}>
             Verify code

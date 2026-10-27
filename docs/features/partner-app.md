@@ -30,8 +30,10 @@ with the customer's delivery code, and follow their sample earnings.
 5. **Trip**: go to the station (`refill`) → confirm pickup (`pickup`: full load
    required, receipt and photo optional) → go to the customer (`customer`) →
    unload, then tap "Unloading done, send the code" (`code`: the customer's
-   code is sent only now, FR-035, #13) → enter the customer's 6-digit code
-   (3 tries, resend after 2 minutes, then ask admin) → done (`done`).
+   code is sent only now, FR-035, #13; until then that button is the only
+   action, with no keypad and no "Verify code" footer) → enter the
+   customer's 6-digit code (3 tries, resend after 2 minutes, then ask admin)
+   → done (`done`).
 6. **Account**: earnings and withdraw request, history, notifications,
    vehicle and papers (upload), report a problem, profile, settings (new
    order alerts and SMS updates), change password. Partners have no email and
