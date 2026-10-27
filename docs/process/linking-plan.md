@@ -61,5 +61,7 @@ real API until a contract is agreed and the endpoint is built in this fork.
 | Order price | #10 (built in #21) |
 | Customer profile, addresses, points, notifications, support, feedback | #11 |
 | Partner profile, going online, documents, sign-up, earnings, payouts | #14 |
-| Admin customers, riders, stations, service areas, price lists | #18 |
+| Admin customers, riders, stations | #18 (customers and drivers to be built in #45; stations stay on the command-line tool) |
+| Admin service areas | #18 (built in #30; screen linked in #74) |
+| Admin price lists | #18 (built in #37; screen needs the redesign in #44 first) |
 | Dashboard, live map, reports, support, audit log, settings, rider payouts | #22 |
