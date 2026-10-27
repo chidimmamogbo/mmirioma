@@ -17,7 +17,8 @@ protection on every authenticated write.
 Customers register themselves. Admin and driver accounts are created by the
 technical lead with a command-line tool. Deactivating an account signs it out
 everywhere at once (FR-002). Login and registration are rate limited
-(NFR-002).
+(NFR-002). Any signed-in account can change its password (#8, built in
+#56), which signs out its other devices.
 
 The frontend (S1-17) implements the approved sign-in, account and session
 screens for the **customer app** (`/`) and the **staff app** (`/admin`) of
@@ -71,9 +72,9 @@ navigations as transitions, which would lose to the guards' own redirects.
 | --- | --- |
 | `backend/app/modules/auth/models.py` | `User`, `UserSession`, `UserRole` |
 | `backend/app/modules/auth/security.py` | scrypt hashing, session token generation and hashing, CSRF derivation |
-| `backend/app/modules/auth/service.py` | Create user, authenticate, start/look up/revoke sessions, activate/deactivate |
+| `backend/app/modules/auth/service.py` | Create user, authenticate, check and change the password, start/look up/revoke sessions, activate/deactivate |
 | `backend/app/modules/auth/dependencies.py` | `get_auth_session`, `require_roles`, `CurrentUser` / `CurrentCustomer` / `CurrentAdmin` / `CurrentDriver` |
-| `backend/app/modules/auth/router.py` | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me` |
+| `backend/app/modules/auth/router.py` | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/password`, `/auth/me` (and phone verification, partner sign-up) |
 | `backend/app/modules/auth/rate_limit.py` | In-memory sliding-window limits for login and registration |
 | `backend/app/modules/auth/cli.py` | `create-user`, `activate`, `deactivate` commands |
 | `backend/app/modules/auth/schemas.py` | Request/response models and password/name limits |
@@ -136,6 +137,7 @@ All under `/api/v1`.
 | POST | `/auth/login` | public | `{phone, password}` | 200 `{user, csrf_token, expires_at}` + cookie | 401 `invalid_credentials`, 422 `validation_error`, 429 `too_many_attempts` |
 | POST | `/auth/logout` | any signed-in | none; `X-CSRF-Token` header | 204, cookie cleared | 401 `not_authenticated`, 403 `csrf_failed` |
 | GET | `/auth/me` | any signed-in | none | 200 `{user, csrf_token, expires_at}` | 401 `not_authenticated` |
+| POST | `/auth/password` | any signed-in | `{current_password, new_password}`; `X-CSRF-Token` header | 204 | 401 `not_authenticated`, 403 `csrf_failed`, 403 `password_incorrect`, 422 `validation_error`, 429 `too_many_attempts` |
 
 `user` is `{id, name, phone, role, phone_verified}`. The full contract and
 examples are in [docs/api/auth.md](../api/auth.md). The phone verification
@@ -173,6 +175,17 @@ and their `/verify`) are documented in
   A successful login clears the phone's count but withdraws only that one
   attempt from the IP count. While limited, even the correct password gets 429,
   and the password is not checked at all.
+- **Changing the password** (`POST /auth/password`, #8, built in #56): any
+  role. The current password is checked under the **sign-in failure limits**
+  for the account's phone and the client IP (counted when the attempt
+  starts, withdrawn on success), so the endpoint cannot guess passwords
+  faster than login. A wrong one is 403 `password_incorrect`, not 401: the
+  session is still valid. On success, in one transaction, the new hash is
+  stored, **every other session of the account is revoked** (decided by
+  @chidimmamogbo on #8), and an audit row `password_changed` is written
+  with no password, hash or session data (NFR-004). This session keeps its
+  cookie and CSRF token. The new password may equal the old one (no SRS
+  rule). No SMS is sent about the change (FR-050 lists none).
 - **Passwords:** 8–128 characters, no composition rules (NIST SP 800-63B).
   scrypt N=2^16, r=8, p=2 (OWASP equivalent-strength setting, about 64 MiB per
   hash), 16-byte random salt. Parameters are stored per hash so they can be
@@ -225,6 +238,9 @@ and their `/verify`) are documented in
 | `SESSION_SECRET` changes (or is unset in development and the process restarts) | Every existing session becomes invalid and users must sign in again |
 | Logged-out cookie replayed | 401: revocation is server-side, not just cookie deletion |
 | Too many failed logins for a phone or IP, or registrations from an IP | 429 `too_many_attempts`, `Retry-After` header and `details.retry_after_seconds`. Same answer for registered and unknown phones |
+| Change password with a wrong current password | 403 `password_incorrect`; nothing changes; counted as a failed sign-in for the phone |
+| Change password while the phone is limited | 429 `too_many_attempts`, even with the right password, which is not checked |
+| Change password: new password under 8 or over 128 characters, or an extra field (such as a "new password again") | 422 `validation_error` on that field |
 
 Passwords and session tokens are never logged or returned. Phone numbers are not
 logged.
@@ -271,6 +287,13 @@ TEST_DATABASE_URL="$(grep '^DATABASE_URL=' ../.env | cut -d= -f2-)" pytest tests
   deactivation (FR-002), expiry, staff login with its role, lockout after five
   failures. Test accounts use
   random phones and are deleted afterwards.
+- `test_change_password_api.py` (no database): every role, signed out,
+  CSRF, `password_incorrect`, wrong passwords using up the sign-in limit
+  then 429, the right password not using it up, every validation rule.
+- `test_change_password_integration.py` (real database): the change keeps
+  this session and its CSRF token, signs out another device, only the new
+  password signs in, one `password_changed` audit row with empty metadata;
+  a wrong current password changes nothing and keeps the session.
 - Migration: `alembic upgrade head`, `alembic downgrade -1`,
   `alembic upgrade head`, `alembic check`.
 
@@ -322,9 +345,11 @@ curl -b /tmp/jar http://localhost:8000/api/v1/auth/me
 - **No manual phone verification.** Customers verify by SMS code; the
   dispatcher fallback FR-003 allows is not built.
 - **No admin user-management API.** Creating, activating and deactivating staff
-  is CLI-only, and there is no password reset.
-- **No audit log of sign-ins or account changes.** NFR-004 does not require
-  these, but `audit_logs` will be the place when it exists.
+  is CLI-only, and there is no password reset for a forgotten password.
+- **Change password has no screen connection yet:** the Change password
+  screens still use the mock until the link issue (#57).
+- **No audit log of sign-ins.** NFR-004 does not require it. A password
+  change is audited (`password_changed`).
 - **Expired and revoked sessions are never deleted.** The table grows slowly; a
   cleanup job can be added when it matters.
 - **Absolute session lifetime only.** No idle timeout.

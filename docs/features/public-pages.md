@@ -53,17 +53,20 @@ the legal pages. Anyone can open them, signed in or not.
 
 ## 4. Database models and relationships
 
-None in the backend yet. The proposed contract stores newsletter emails;
-the mock keeps them in `MockState.newsletter`.
+None. The support contact comes from backend settings
+([public-contact.md](public-contact.md)). The newsletter is left out of the
+pilot (#8), so nothing stores emails; the mock still keeps them in
+`MockState.newsletter` until the link issue (#57) removes the form.
 
 ## 5. API endpoints and request/response behavior
 
-[docs/api/public-site.md](../api/public-site.md) (**proposed**):
-`GET /public/contact` for the WhatsApp number and
-`POST /newsletter/subscriptions`. In mock mode both work against the mock
-database. With the real API, the WhatsApp button falls back to the interim
-number and the newsletter form shows "Newsletter sign-up is not connected to
-the server yet.".
+[docs/api/public-site.md](../api/public-site.md) (**agreed**, #8):
+`GET /public/contact` for the support phone and WhatsApp number, built in
+#56 ([public-contact.md](public-contact.md)). The newsletter endpoint was
+dropped (out of the pilot). The screens are not linked yet (#57): in mock
+mode both work against the mock database; with the real API, the WhatsApp
+button falls back to the interim number and the newsletter form shows
+"Newsletter sign-up is not connected to the server yet.".
 
 ## 6. Important business rules
 
