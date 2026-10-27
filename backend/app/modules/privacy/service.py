@@ -67,6 +67,8 @@ class AnonymizeResult:
         addresses_removed: Saved addresses deleted (profile data, notice §8).
         support_messages_removed: Support request messages replaced; the
             deletion request's reason is blanked too.
+        resolution_notes_removed: Staff resolution notes on those support
+            requests replaced (#117).
         notifications_deleted: In-app notifications deleted (contract
             decision 8).
         notes_to_review: Free-text notes kept on those orders and their cash
@@ -82,6 +84,7 @@ class AnonymizeResult:
     gps_points_cleared: int
     addresses_removed: int
     support_messages_removed: int
+    resolution_notes_removed: int
     notifications_deleted: int
     notes_to_review: int
     cash_warnings: list[str]
@@ -217,7 +220,7 @@ async def anonymize_customer(
     anonymized = await orders.anonymize_orders(session, order_ids=order_ids, now=now)
     gps = await deliveries.clear_order_gps(session, order_ids=order_ids, now=now)
     removed = await addresses.delete_addresses(session, customer_ids=[customer_id])
-    messages = await addresses.clear_requests(session, customer_ids=[customer_id])
+    cleared = await addresses.clear_requests(session, customer_ids=[customer_id])
     deleted_notes = await notifications.delete_for_users(session, user_ids=[customer_id])
     audit.record(
         session,
@@ -229,7 +232,8 @@ async def anonymize_customer(
             "orders_anonymized": anonymized,
             "gps_points_cleared": gps,
             "addresses_removed": removed,
-            "support_messages_removed": messages,
+            "support_messages_removed": cleared.messages,
+            "resolution_notes_removed": cleared.resolution_notes,
             "notifications_deleted": deleted_notes,
         },
     )
@@ -239,7 +243,8 @@ async def anonymize_customer(
         orders_anonymized=anonymized,
         gps_points_cleared=gps,
         addresses_removed=removed,
-        support_messages_removed=messages,
+        support_messages_removed=cleared.messages,
+        resolution_notes_removed=cleared.resolution_notes,
         notifications_deleted=deleted_notes,
         notes_to_review=notes,
         cash_warnings=warnings,

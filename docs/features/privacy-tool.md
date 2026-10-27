@@ -75,7 +75,7 @@ No tables of its own. The tool changes rows of other modules:
 | --- | --- | --- |
 | `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted; those that audit rows name as the actor are anonymized as in the first column instead (#82) |
 | `customer_addresses` | Deleted | Deleted for every never-verified account the review deletes or anonymizes |
-| `support_requests` | Message replaced by "Removed at the customer's request."; row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
+| `support_requests` | Message and the staff's resolution note replaced by "Removed at the customer's request." (#117); row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
 | `deletion_requests` | Reason blanked; status set separately with `set-deletion-status` | Deleted with a never-verified account the review deletes |
 | `notifications` | Deleted (contract decision 8) | Deleted when the review anonymizes an account; they go with a deleted one (cascade) |
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
@@ -84,7 +84,7 @@ No tables of its own. The tool changes rows of other modules:
 | `feedback` | Message blanked; ratings kept (#82) | Same, for those orders |
 | `delivery_attempts`, `delivery_proofs` | GPS point and accuracy cleared | GPS over 90 days old cleared, except disputed orders and open holds or reviews |
 | `delivery_codes` | Kept | `code_hash` blanked on expired codes; rows kept (proofs point at them) |
-| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`, `support_messages_removed`, `notifications_deleted`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`, `support_requests_deleted`) |
+| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`, `support_messages_removed`, `resolution_notes_removed`, `notifications_deleted`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`, `support_requests_deleted`) |
 
 `correct-name` changes `users.name` and writes `account_name_corrected`.
 `set-deletion-status` changes the request's status, time, `handled_by` and
@@ -129,6 +129,11 @@ None.
 - **Code records:** expired phone and delivery codes keep their rows (the
   verification and phone-change record, NFR-004; proofs reference delivery
   codes); only the hash is blanked (technical lead, 2026-10-23).
+- **Support request notes are replaced, not kept** (privacy contact,
+  2026-10-27, #117): a resolution note can name the customer or their
+  address, so anonymizing replaces it with the same text as the message.
+  Replacing rather than blanking keeps `resolution.note` a string, so the
+  admin support endpoints keep their agreed shape.
 - **Staff notes are kept** as incident and safety records; the anonymize
   report counts them so the privacy contact can check them for personal
   details (technical lead, 2026-10-23).
