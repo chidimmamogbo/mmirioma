@@ -96,6 +96,7 @@ def test_anonymize_output_has_ids_and_counts_but_no_phone(
             customer_id=CUSTOMER_ID,
             orders_anonymized=2,
             gps_points_cleared=1,
+            addresses_removed=2,
             notes_to_review=3,
             cash_warnings=["MO-CCCC: part paid, ₦500.00 outstanding; check (F9)"],
             applied=False,
@@ -163,6 +164,7 @@ def test_review_output_lists_the_manual_checks(
             delivery_codes_cleared=1,
             sessions_deleted=2,
             unverified_accounts_deleted=0,
+            unverified_accounts_anonymized=1,
             gps_points_cleared=0,
             orders_anonymized=0,
             applied=True,
@@ -174,6 +176,7 @@ def test_review_output_lists_the_manual_checks(
 
     assert fake_service["apply"] is True
     assert "Phone codes cleared: 4" in out
+    assert "Never-verified accounts anonymized (they have audit rows): 1" in out
     assert "Saved." in out
     for check in cli.MANUAL_CHECKS:
         assert check in out

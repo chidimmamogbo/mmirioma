@@ -15,7 +15,7 @@ import { formatNaira } from '../../../lib/format/money'
 import { AssignedSheet } from '../components/AssignedSheet'
 import { PartnerHomeTopBar, PartnerTabs } from '../components/PartnerChrome'
 import { greeting } from '../greeting'
-import { jobQuantity, tripMinutes } from '../jobHelpers'
+import { jobQuantity, placeAddress, tripMinutes } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useAvailableJobs, useEarnings, usePartnerProfile, useSetOnline } from '../queries'
 
@@ -114,7 +114,7 @@ export function RiderHome() {
                     {inProgress.reference} · {jobQuantity(inProgress, 'short')}
                   </span>
                   <span className="text-caption text-[#DCEBFD]">
-                    {inProgress.stage === 'accepted' ? `Go to ${inProgress.station.name}` : `Head to ${inProgress.customer.address.split(',')[0]}`}
+                    {inProgress.stage === 'accepted' ? `Go to ${inProgress.station.name}` : `Head to ${placeAddress(inProgress.customer).split(',')[0]}`}
                   </span>
                 </span>
                 <ChevronRightIcon size={20} strokeWidth={2.4} color="#fff" roundJoin={false} />

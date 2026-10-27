@@ -35,14 +35,6 @@ export const optionalEmailField = z
   .max(EMAIL_MAX_LENGTH, 'This email is too long.')
   .refine((v) => v === '' || EMAIL_PATTERN.test(v), EMAIL_MESSAGE)
 
-/** Required email (newsletter sign-up). */
-export const emailField = z
-  .string()
-  .trim()
-  .min(1, 'Enter your email address.')
-  .max(EMAIL_MAX_LENGTH, 'This email is too long.')
-  .refine((v) => EMAIL_PATTERN.test(v), EMAIL_MESSAGE)
-
 /**
  * Put a backend `validation_error` (details `[{loc, msg}]`) on the matching
  * form fields. `loc` is like `["body", "phone"]`; `fields` maps API field

@@ -11,7 +11,7 @@ import type {
   PartnerEarnings,
   PartnerIssueType,
   PartnerJob,
-  PartnerNotification,
+  PartnerNotificationList,
   PartnerProfile,
   PartnerSignupInput,
 } from '../../domain/partner'
@@ -44,8 +44,11 @@ export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? moc
 export const getEarnings = (): Promise<PartnerEarnings> => (USE_MOCKS ? mock.getEarnings() : notConnected('Earnings'))
 export const requestPayout = (amount: number): Promise<PartnerEarnings> => (USE_MOCKS ? mock.requestPayout(amount) : notConnected('Payouts'))
 export const listHistory = (): Promise<PartnerJob[]> => (USE_MOCKS ? mock.listHistory() : notConnected('Order history'))
-export const listPartnerNotifications = (): Promise<PartnerNotification[]> =>
-  USE_MOCKS ? mock.listPartnerNotifications() : real.listPartnerNotifications()
+/** The mock has no pages, so counting its unread items gives the true count. */
+export const listPartnerNotifications = (): Promise<PartnerNotificationList> =>
+  USE_MOCKS
+    ? mock.listPartnerNotifications().then((items) => ({ items, unread_count: items.filter((n) => !n.read).length }))
+    : real.listPartnerNotifications()
 export const markPartnerNotificationsRead = (): Promise<void> => (USE_MOCKS ? mock.markPartnerNotificationsRead() : real.markPartnerNotificationsRead())
 export const reportIssue = (i: { type: PartnerIssueType; note: string; reference: string | null }): Promise<{ id: string }> =>
   USE_MOCKS ? mock.reportIssue(i) : notConnected('Reporting a problem')

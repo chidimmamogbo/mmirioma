@@ -21,5 +21,11 @@
   `service_area_not_served`, which the screen shows as its top notice. Agreed
   with Bonvee120 for #67. Adding `service_area` to the screen's field map
   would be cleaner, but that is a screen change.
-- **Status:** workaround
-- **Refs:** #67, `frontend/src/features/partner/pages/PartnerSignup.tsx`
+- **Resolved in #80:** the review of PR #69 found two more gaps in that
+  workaround. A refused zone hid every other field error, and `vehicle_type`
+  or body-level details still showed nothing. `PartnerSignup.tsx` now maps
+  `service_area` and shows any detail without a field in the top notice. The
+  adapter sends an unmatched area as a `validation_error` on `service_area`,
+  so the client-only code is gone.
+- **Status:** resolved
+- **Refs:** #67, #80, `frontend/src/features/partner/pages/PartnerSignup.tsx`

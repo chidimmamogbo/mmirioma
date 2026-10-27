@@ -29,6 +29,7 @@ from app.modules.audit import service as audit
 from app.modules.auth import retention as accounts
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
+from app.modules.customers import retention as addresses
 from app.modules.deliveries import retention as deliveries
 from app.modules.orders import retention as orders
 from app.modules.payments import retention as payments
@@ -59,6 +60,7 @@ class AnonymizeResult:
         customer_id: The account's id, for the request register.
         orders_anonymized: Orders whose contact and address were removed.
         gps_points_cleared: GPS points removed from those orders.
+        addresses_removed: Saved addresses deleted (profile data, notice §8).
         notes_to_review: Free-text notes kept on those orders and their cash
             records, for the privacy contact to check for personal details.
         cash_warnings: Part payments and overpayments settled outside the
@@ -70,6 +72,7 @@ class AnonymizeResult:
     customer_id: uuid.UUID
     orders_anonymized: int
     gps_points_cleared: int
+    addresses_removed: int
     notes_to_review: int
     cash_warnings: list[str]
     applied: bool
@@ -84,6 +87,8 @@ class ReviewResult:
         delivery_codes_cleared: Expired delivery codes blanked.
         sessions_deleted: Ended sign-in sessions deleted.
         unverified_accounts_deleted: Never-verified accounts deleted.
+        unverified_accounts_anonymized: Never-verified accounts anonymized
+            instead, because audit rows name them as the actor (NFR-004).
         gps_points_cleared: GPS points older than 90 days removed.
         orders_anonymized: Orders finished over 3 years ago anonymized.
         applied: False for a dry run (nothing was saved).
@@ -93,6 +98,7 @@ class ReviewResult:
     delivery_codes_cleared: int
     sessions_deleted: int
     unverified_accounts_deleted: int
+    unverified_accounts_anonymized: int
     gps_points_cleared: int
     orders_anonymized: int
     applied: bool
@@ -150,7 +156,8 @@ async def anonymize_customer(
     Otherwise, in one transaction: the account is anonymized and deactivated
     (``auth.retention``), each order's contact and address details are
     removed (``orders.retention``), their GPS points are cleared
-    (``deliveries.retention``), and an audit row is written. Orders, cash
+    (``deliveries.retention``), their saved addresses are deleted
+    (``customers.retention``), and an audit row is written. Orders, cash
     and accounting fields, and staff notes are kept.
 
     Args:
@@ -193,19 +200,25 @@ async def anonymize_customer(
     await accounts.anonymize_account(session, customer, phone_marker=marker)
     anonymized = await orders.anonymize_orders(session, order_ids=order_ids, now=now)
     gps = await deliveries.clear_order_gps(session, order_ids=order_ids, now=now)
+    removed = await addresses.delete_addresses(session, customer_ids=[customer_id])
     audit.record(
         session,
         actor_id=actor.id,
         action="customer_anonymized",
         target_type="user",
         target_id=customer_id,
-        details={"orders_anonymized": anonymized, "gps_points_cleared": gps},
+        details={
+            "orders_anonymized": anonymized,
+            "gps_points_cleared": gps,
+            "addresses_removed": removed,
+        },
     )
     await _finish(session, apply)
     return AnonymizeResult(
         customer_id=customer_id,
         orders_anonymized=anonymized,
         gps_points_cleared=gps,
+        addresses_removed=removed,
         notes_to_review=notes,
         cash_warnings=warnings,
         applied=apply,
@@ -257,7 +270,13 @@ async def retention_review(
     - expired phone and delivery codes: the hash is blanked, rows kept;
     - ended sessions: deleted;
     - customer accounts never verified, created over 30 days ago and
-      without orders: deleted;
+      without orders: deleted, with their saved addresses. An account that
+      audit rows name as the actor (a password change, an address change)
+      cannot be deleted without losing those NFR-004 records
+      (``audit_logs.actor_id`` is RESTRICT), so it is anonymized and
+      deactivated instead, as :func:`anonymize_customer` does (technical
+      lead, 2026-10-27, #82). One already anonymized is left alone, so a
+      second run changes nothing;
     - GPS points over 90 days old: cleared, except on disputed orders and
       orders with an open hold or review;
     - orders finished over 3 years ago: contact and address removed, as when
@@ -283,9 +302,19 @@ async def retention_review(
         session, created_before=now - UNVERIFIED_ACCOUNT_PERIOD
     )
     with_orders = await orders.customers_with_orders(session, customer_ids=unverified)
+    due = [user_id for user_id in unverified if user_id not in with_orders]
+    actors = await audit.actors_with_rows(session, user_ids=due)
+    await addresses.delete_addresses(session, customer_ids=due)
     accounts_deleted = await accounts.delete_accounts(
-        session, user_ids=[user_id for user_id in unverified if user_id not in with_orders]
+        session, user_ids=[user_id for user_id in due if user_id not in actors]
     )
+    accounts_anonymized = 0
+    for user in await accounts.get_users(session, user_ids=actors):
+        if accounts.is_anonymized_phone(user.phone):
+            continue
+        marker = await accounts.new_phone_marker(session)
+        await accounts.anonymize_account(session, user, phone_marker=marker)
+        accounts_anonymized += 1
 
     keep = set(await orders.disputed_order_ids(session))
     keep |= await deliveries.open_matter_order_ids(session)
@@ -304,6 +333,7 @@ async def retention_review(
         delivery_codes_cleared=delivery_codes,
         sessions_deleted=sessions_deleted,
         unverified_accounts_deleted=accounts_deleted,
+        unverified_accounts_anonymized=accounts_anonymized,
         gps_points_cleared=gps,
         orders_anonymized=anonymized,
         applied=apply,

@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { PartnerJob } from '../../domain/partner'
 import { greeting } from './greeting'
-import { jobDeliveryType, jobQuantity, kmSuffix, minutesSuffix, tankerTripLine, totalLitres, tripMinutes } from './jobHelpers'
+import {
+  contactSuffix,
+  customerLabel,
+  jobDeliveryType,
+  jobQuantity,
+  kmSuffix,
+  minutesSuffix,
+  placeAddress,
+  tankerTripLine,
+  totalLitres,
+  tripMinutes,
+} from './jobHelpers'
 import { jobStepPath, PARTNER_APPS } from './partnerContext'
 
 function job(over: Partial<PartnerJob>): PartnerJob {
@@ -26,6 +37,26 @@ function job(over: Partial<PartnerJob>): PartnerJob {
     ...over,
   }
 }
+
+describe('jobs without an address or receiver (real API, #12)', () => {
+  const offer = job({
+    station: { name: 'Ogui Station', address: null, area: 'Ogui', distance_km: null, minutes: null },
+    customer: { name: '4 Sample Street', address: null, area: '4 Sample Street', distance_km: null, minutes: null, contact_name: null, phone: null },
+  })
+
+  it('falls back to the area when the address is not sent', () => {
+    expect(placeAddress(offer.station)).toBe('Ogui')
+    expect(placeAddress(job({}).station)).toBe('Ogui Road')
+  })
+
+  it('names the area only while the receiver is not known (FR-032)', () => {
+    expect(customerLabel(offer)).toBe('4 Sample Street')
+    expect(contactSuffix(offer)).toBe('')
+    const accepted = job({ customer: { ...job({}).customer, contact_name: 'Adaeze Nwosu' } })
+    expect(customerLabel(accepted)).toBe('Adaeze Nwosu, New Haven')
+    expect(contactSuffix(accepted)).toBe(' · Adaeze Nwosu')
+  })
+})
 
 describe('tanker helpers', () => {
   it('says a pump is needed only for overhead tanks', () => {

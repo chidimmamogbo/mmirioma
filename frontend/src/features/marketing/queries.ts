@@ -1,20 +1,25 @@
-/** Query hooks for the public website: company contact numbers and newsletter sign-up. */
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { NewsletterInput } from '../../domain/publicSite'
-import { DEFAULT_WHATSAPP } from '../../lib/whatsapp'
-import { getPublicContact, subscribeNewsletter } from './publicApi'
+/** Query hooks for the public website: the support contact. */
+import { useQuery } from '@tanstack/react-query'
+import type { PublicContact } from '../../domain/publicSite'
+import { DEFAULT_SUPPORT_PHONE, DEFAULT_WHATSAPP } from '../../lib/whatsapp'
+import { getPublicContact } from './publicApi'
 
 export const publicKeys = { contact: ['public', 'contact'] as const }
 
+/** Used while loading or when the server cannot be reached, so help is always reachable. */
+const FALLBACK: PublicContact = { phone: DEFAULT_SUPPORT_PHONE, whatsapp: DEFAULT_WHATSAPP }
+
 /**
- * The company WhatsApp number to chat with (E.164). Admin's saved number
- * when there is one; the default while loading, when none is set, or when
- * the server cannot be reached, so the chat button always works.
+ * The support contact from the backend (FR-055). `whatsapp` is `null` when
+ * WhatsApp support is switched off: screens then hide their WhatsApp buttons
+ * and show the phone instead (docs/api/public-site.md).
  */
-export function useWhatsappNumber(): string {
+export function useSupportContact(): PublicContact {
   const contact = useQuery({ queryKey: publicKeys.contact, queryFn: getPublicContact, staleTime: 5 * 60_000, retry: false })
-  return contact.data?.whatsapp ?? DEFAULT_WHATSAPP
+  return contact.data ?? FALLBACK
 }
 
-/** Newsletter sign-up from the public pages. */
-export const useNewsletterSignup = () => useMutation({ mutationFn: (input: NewsletterInput) => subscribeNewsletter(input) })
+/** The WhatsApp number to chat with (E.164), or `null` while WhatsApp support is off. */
+export function useWhatsappNumber(): string | null {
+  return useSupportContact().whatsapp
+}

@@ -4,10 +4,12 @@ Requirements: FR-001, FR-030, FR-032, FR-035, FR-036, FR-037, FR-041,
 FR-052, FR-053, FR-055, BR-09, BR-12, NFR-003, NFR-004 · Issue: #22 ·
 Built in: not yet (a build issue follows agreement)
 
-**Status: proposed** on 2026-10-27 by @nnamdi-security (+ Claude Code), for
-review by @nnamdi-security (backend, contract owner) and @chidimmamogbo
-(frontend). Not agreed, not built. It becomes `Status: agreed` when both have
-approved it (CLAUDE.md, "Team fork workflow").
+**Status: agreed** (G3) on 2026-10-27 by @nnamdi-security (technical lead,
+backend, contract owner) and @chidimmamogbo (frontend, approved PR #71).
+Proposed the same day by @nnamdi-security (+ Claude Code). Not built: a build
+issue follows. The [open questions](#open-questions) stay open; until each is
+decided, the build does exactly what the body says (for example, no reopen and
+no order-level CSV).
 
 The remaining admin screens run on mocks with no backend. This contract
 proposes the endpoints that let them leave the mocks, and says which mock
@@ -607,5 +609,6 @@ on the current backend, including the delivery type and zone breakdowns
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Agreed (G3) | @nnamdi-security (technical lead) and @chidimmamogbo (PR #71) |
 | 2026-10-27 | Brought up to date with main: orders now carry `delivery_type` and `service_zone_id` (#21 built), so the breakdowns and the live map use them, with a `not_recorded` bucket and a no-zone row for orders without them; customer-account.md is agreed (#48) | Not yet |
 | 2026-10-27 | Proposed (#22): admin shell counts, dashboard, live map, activity, reports, support requests (list, detail, resolve), audit log, admin notifications, read-only settings. Payouts, points, refund as points and saving settings not proposed | Not yet |

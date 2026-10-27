@@ -217,6 +217,18 @@ out rather than fill them in:
 | `assigned_by` | `null`: the job does not name the dispatcher |
 | payment status | Not in `PartnerJob`: partners never see an order's payment status (FR-040, BR-13; docs/design/driver-cash.md, decision 3). The K1 Cash card (#20) takes its place |
 
+Also decided by @chidimmamogbo on #12 (2026-10-27), for fields missing on
+whole groups of jobs:
+
+| Design field | Rule |
+| --- | --- |
+| `customer.contact_name`, `customer.phone` | `null` on an offer (FR-032: no receiver before the driver accepts) and after the job ends (`DriverJobDetail.receiver`). Screens name the area only, leave out the "Customer" / "Delivered to" row, and show no call or message button |
+| `station.address`, `customer.address` | `null` when the job carries only summary fields (history, ended jobs) or no delivery address yet (offers). Screens show the area instead |
+| `code_tries_left` | `null` before the delivery code is issued (`delivery_code: null`). The code screen shows "Waiting for the delivery code", never "locked" |
+| ended jobs | `GET /driver/jobs/{reference}` answers 404 once a job is completed, so the adapter takes it from the `done` list of `GET /driver/jobs`, with the summary fields only |
+
+Mock mode keeps every value (`StoredJob` in `mocks/seed.ts`).
+
 ### Available orders and declining
 
 Decided by @chidimmamogbo on #12 (2026-10-26):
