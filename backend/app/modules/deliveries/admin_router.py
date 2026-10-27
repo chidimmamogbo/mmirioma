@@ -56,6 +56,7 @@ from app.modules.orders.models import OrderStatus, TransitionReason
 from app.modules.orders.schemas import AdminOrderRead
 from app.modules.payments import service as payments_service
 from app.modules.payments.schemas import OrderPaymentRead
+from app.modules.pricing import service as pricing_service
 
 router = APIRouter(prefix="/admin/orders", tags=["admin orders and holds"])
 
@@ -83,6 +84,7 @@ def _detail(detail: holds.OrderDetail) -> AdminOrderDetail:
         hold_read(detail.hold),
         OrderConfirmationFields.from_view(detail.dispatch.staff_order.order, detail.confirmation),
         OrderPaymentRead.from_view(detail.payment),
+        zone_names=detail.zone_names,
     )
 
 
@@ -105,10 +107,16 @@ async def list_orders(
         limit=filters.limit,
         offset=filters.offset,
     )
+    names = await pricing_service.zone_names(
+        db, (item.staff_order.order.service_zone_id for item in items)
+    )
     return HeldAdminOrderPage(
         items=[
             AdminOrderRead.from_order(
-                item.staff_order.order, item.staff_order.customer, hold_read(item.hold)
+                item.staff_order.order,
+                item.staff_order.customer,
+                hold_read(item.hold),
+                zone_names=names,
             )
             for item in items
         ],

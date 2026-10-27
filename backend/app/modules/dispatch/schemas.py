@@ -161,17 +161,22 @@ class AdminOrderDetail(AdminOrderRead, OrderConfirmationFields):
         hold: OrderHoldRead | None,
         confirmation: OrderConfirmationFields,
         payment: OrderPaymentRead | None,
+        *,
+        zone_names: Mapping[uuid.UUID, str],
     ) -> AdminOrderDetail:
         """Build the detail from the dispatch view, the open hold, the confirmation and payment.
 
         ``confirmation`` and ``payment`` are required, not defaulted: the
         admin client replaces its cached detail with every response, so a
         response without them would hide the confirmed summary (C2) or the
-        payment card (K6).
+        payment card (K6). ``zone_names`` covers the order's zone, for
+        ``service_zone``.
         """
         staff = dispatch.staff_order
         return cls(
-            **AdminOrderRead.from_order(staff.order, staff.customer, hold).model_dump(),
+            **AdminOrderRead.from_order(
+                staff.order, staff.customer, hold, zone_names=zone_names
+            ).model_dump(),
             **confirmation.model_dump(),
             assignment=None
             if dispatch.assignment is None

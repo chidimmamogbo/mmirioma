@@ -306,6 +306,12 @@ def test_customer_response_matches_contract(api: TestClient) -> None:
         "preferred_delivery_date",
         "created_at",
         "updated_at",
+        # Order details contract (#21): null for a quantity-only request.
+        "delivery_type",
+        "keke",
+        "tanker",
+        "water_source",
+        "service_zone",
     }
     assert order["status"] == "quote_requested"
     assert order["created_at"] == "2026-10-14T09:30:00Z"

@@ -36,8 +36,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import APIError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
-from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
+from app.modules.orders.models import (
+    DeliveryType,
+    Order,
+    OrderEvent,
+    OrderStatus,
+    TankType,
+    TransitionReason,
+    WaterSourcePreference,
+)
 from app.modules.orders.transitions import Actor, Requirement, check_transition
+from app.modules.pricing import service as pricing
 from app.shared.lagos_time import lagos_day_start_utc
 
 # Crockford base32: digits and upper-case letters without I, L, O and U, so a
@@ -65,6 +74,13 @@ class NewOrder:
         landmark: Optional trimmed landmark.
         delivery_instructions: Optional trimmed instructions.
         preferred_delivery_date: Optional preferred date (Africa/Lagos).
+        delivery_type: Keke or Tanker, or ``None`` for the older
+            quantity-only request (order details contract).
+        keke_can_size_litres, keke_can_count: Keke details, else ``None``.
+        tanker_tank_type, tanker_quantity_local_gallons: Tanker details,
+            else ``None``.
+        water_source: Tanker only: the source preference.
+        service_zone_id: The zone the customer picked (FR-020), or ``None``.
     """
 
     idempotency_key: uuid.UUID
@@ -75,6 +91,26 @@ class NewOrder:
     landmark: str | None = None
     delivery_instructions: str | None = None
     preferred_delivery_date: date | None = None
+    delivery_type: DeliveryType | None = None
+    keke_can_size_litres: int | None = None
+    keke_can_count: int | None = None
+    tanker_tank_type: TankType | None = None
+    tanker_quantity_local_gallons: int | None = None
+    water_source: WaterSourcePreference | None = None
+    service_zone_id: uuid.UUID | None = None
+
+
+# The order columns a request sets beyond the receiver and quantity. A retry
+# with the same key must match all of them too (FR-026).
+_DETAIL_FIELDS = (
+    "delivery_type",
+    "keke_can_size_litres",
+    "keke_can_count",
+    "tanker_tank_type",
+    "tanker_quantity_local_gallons",
+    "water_source",
+    "service_zone_id",
+)
 
 
 def generate_order_reference() -> str:
@@ -128,6 +164,7 @@ def _matches_request(order: Order, request: NewOrder) -> bool:
         and order.landmark == request.landmark
         and order.delivery_instructions == request.delivery_instructions
         and order.preferred_delivery_date == request.preferred_delivery_date
+        and all(getattr(order, field) == getattr(request, field) for field in _DETAIL_FIELDS)
     )
 
 
@@ -177,6 +214,11 @@ async def create_order(
     there are no agreed prices in Sprint 1). Its creation is recorded as an
     ``order_events`` row with the customer as actor (NFR-004). Commits.
 
+    The delivery details and the picked zone are stored as sent (order
+    details contract). An unknown zone is refused; an inactive zone is
+    accepted, because a quote request is FR-010's request-assistance path
+    for an address outside the active zones.
+
     Idempotency (FR-026): the existing order for ``(customer_id,
     idempotency_key)`` is looked up first. If two requests with the same key
     race past that lookup, the database's unique constraint rejects the second
@@ -196,7 +238,9 @@ async def create_order(
 
     Raises:
         APIError: 409 ``idempotency_key_reused`` if the key was already used
-            with different details.
+            with different details; 404 ``service_zone_not_found`` for an
+            unknown zone (checked after the idempotency lookup, so a retry
+            always gets its original order).
         IntegrityError: If inserting still fails after retries (for example the
             customer does not exist).
     """
@@ -204,6 +248,8 @@ async def create_order(
         existing = await _find_by_idempotency_key(session, customer_id, request.idempotency_key)
         if existing is not None:
             return _replay(existing, request)
+        if request.service_zone_id is not None:
+            await pricing.ensure_zone_exists(session, request.service_zone_id)
 
         order = Order(
             id=uuid.uuid4(),
@@ -219,6 +265,7 @@ async def create_order(
             delivery_instructions=request.delivery_instructions,
             preferred_delivery_date=request.preferred_delivery_date,
             is_simulated=is_simulated,
+            **{field: getattr(request, field) for field in _DETAIL_FIELDS},
         )
         event = OrderEvent(
             order_id=order.id,

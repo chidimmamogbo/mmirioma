@@ -36,6 +36,7 @@ from app.modules.dispatch.schemas import (
 )
 from app.modules.payments import service as payments_service
 from app.modules.payments.schemas import OrderPaymentRead
+from app.modules.pricing import service as pricing_service
 
 router = APIRouter(prefix="/admin/orders", tags=["admin dispatch"])
 
@@ -97,4 +98,5 @@ async def assign(
         None,
         OrderConfirmationFields.from_view(staff_order, view),
         OrderPaymentRead.from_view(payment),
+        zone_names=await pricing_service.zone_names(db, [staff_order.service_zone_id]),
     )
