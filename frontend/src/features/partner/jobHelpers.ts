@@ -1,5 +1,5 @@
 import { describeChoice, shortReference } from '../../domain/orders'
-import type { PartnerJob, VehicleType } from '../../domain/partner'
+import type { JobPlace, PartnerJob, VehicleType } from '../../domain/partner'
 import { describeQuantity } from '../../domain/quantity'
 import { formatDate, formatDayDate, formatTime } from '../../lib/format/datetime'
 
@@ -43,6 +43,27 @@ export function kmSuffix(km: number | null): string {
 /** " · 6 min" after a place, or nothing when the time is unknown. */
 export function minutesSuffix(minutes: number | null): string {
   return minutes === null ? '' : ` · ${minutes} min`
+}
+
+/**
+ * A place's address, or its area when the job does not carry the address
+ * (real API: history, ended jobs, and the customer on an offer).
+ */
+export function placeAddress(place: JobPlace): string {
+  return place.address ?? place.area
+}
+
+/**
+ * "Adaeze Nwosu, GRA" for the delivery, or the area alone while the receiver
+ * is not known: on an offer (FR-032) and after the job ends.
+ */
+export function customerLabel(job: PartnerJob): string {
+  return job.customer.contact_name ? `${job.customer.contact_name}, ${job.customer.area}` : job.customer.area
+}
+
+/** " · Adaeze Nwosu" after a line, or nothing while the receiver is not known. */
+export function contactSuffix(job: PartnerJob): string {
+  return job.customer.contact_name ? ` · ${job.customer.contact_name}` : ''
 }
 
 /** Total trip time: station leg plus customer leg (sample estimates), or `null` if either is unknown. */

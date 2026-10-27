@@ -11,7 +11,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.models import Notification, NotificationChannel
@@ -102,14 +102,29 @@ async def list_for_user(
         .offset(offset)
     )
     total = await session.scalar(select(func.count()).select_from(Notification).where(own))
-    unread = await session.scalar(
-        select(func.count()).select_from(Notification).where(own, Notification.read_at.is_(None))
-    )
     return NotificationPage(
         items=[NotificationView(row, reference) for row, reference in rows],
         total=total or 0,
-        unread_count=unread or 0,
+        unread_count=await unread_count(session, user_id=user_id),
     )
+
+
+async def unread_count(session: AsyncSession, *, user_id: uuid.UUID) -> int:
+    """Count a user's unread notifications across all pages (badges and the bell).
+
+    Args:
+        session: Database session.
+        user_id: The user.
+
+    Returns:
+        The count.
+    """
+    unread = await session.scalar(
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user_id, Notification.read_at.is_(None))
+    )
+    return unread or 0
 
 
 async def mark_read(
@@ -137,3 +152,23 @@ async def mark_read(
         statement = statement.where(Notification.id.in_(set(ids)))
     await session.execute(statement)
     await session.commit()
+
+
+async def delete_for_users(session: AsyncSession, *, user_ids: Collection[uuid.UUID]) -> int:
+    """Delete these users' notifications. Does not commit.
+
+    For the privacy tool: notifications follow the order's retention and are
+    removed when the account is anonymized (docs/api/customer-account.md,
+    decision 8). A deleted account loses them by ``ON DELETE CASCADE``.
+
+    Args:
+        session: Database session (the caller's transaction).
+        user_ids: The accounts.
+
+    Returns:
+        How many were deleted.
+    """
+    if not user_ids:
+        return 0
+    result = await session.execute(delete(Notification).where(Notification.user_id.in_(user_ids)))
+    return int(getattr(result, "rowcount", 0))

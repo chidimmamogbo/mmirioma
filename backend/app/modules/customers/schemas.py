@@ -1,13 +1,27 @@
 """Request and response bodies for the customer account (docs/api/customer-account.md)."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app.modules.customers.models import LABEL_MAX_LENGTH
+from app.modules.customers.models import (
+    LABEL_MAX_LENGTH,
+    NOTE_MAX_LENGTH,
+    SUPPORT_MESSAGE_MAX_LENGTH,
+    SUPPORT_MESSAGE_MIN_LENGTH,
+    DeletionRequestStatus,
+    SupportRequestStatus,
+    SupportRequestType,
+)
 from app.modules.orders.schemas import DeliveryAddress, Landmark
+
+
+def _blank_to_none(value: str) -> str | None:
+    # An optional text left as spaces means "not given".
+    return value or None
+
 
 AddressLabel = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=LABEL_MAX_LENGTH)
@@ -74,3 +88,73 @@ class AddressPageRead(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+SupportMessage = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=SUPPORT_MESSAGE_MIN_LENGTH,
+        max_length=SUPPORT_MESSAGE_MAX_LENGTH,
+    ),
+]
+OrderReference = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)
+]
+DeletionReason = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, max_length=NOTE_MAX_LENGTH),
+    AfterValidator(_blank_to_none),
+]
+
+
+class SupportRequestCreate(BaseModel):
+    """``POST /me/support-requests``. Unknown fields are rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: SupportRequestType
+    message: SupportMessage
+    order_reference: OrderReference | None = None
+    idempotency_key: uuid.UUID
+
+
+class SupportRequestRead(BaseModel):
+    """A support request as its customer sees it (contract "Support request object")."""
+
+    reference: str
+    type: SupportRequestType
+    message: str
+    order_reference: str | None
+    status: SupportRequestStatus
+    created_at: datetime
+    resolved_at: datetime | None
+
+
+class SupportRequestPageRead(BaseModel):
+    """A page of support requests, newest first."""
+
+    items: list[SupportRequestRead]
+    total: int
+    limit: int
+    offset: int
+
+
+class DeletionRequestCreate(BaseModel):
+    """``POST /me/deletion-request``: an optional reason. Unknown fields are rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: DeletionReason | None = None
+
+
+class DeletionRequestRead(BaseModel):
+    """A deletion request as its customer sees it.
+
+    The reason, the staff notes and who handled it are not returned.
+    """
+
+    reference: str
+    status: DeletionRequestStatus
+    requested_at: datetime
+    acknowledge_by: date

@@ -10,6 +10,8 @@ from typing import Any
 import pytest
 
 from app.modules.auth import retention as accounts
+from app.modules.customers.models import DeletionRequestStatus
+from app.modules.customers.requests import DeletionStatusRefused
 from app.modules.orders import retention as orders
 from app.modules.payments.retention import format_kobo
 from app.modules.privacy import cli, service
@@ -97,6 +99,9 @@ def test_anonymize_output_has_ids_and_counts_but_no_phone(
             orders_anonymized=2,
             gps_points_cleared=1,
             addresses_removed=2,
+            support_messages_removed=1,
+            resolution_notes_removed=1,
+            notifications_deleted=4,
             notes_to_review=3,
             cash_warnings=["MO-CCCC: part paid, ₦500.00 outstanding; check (F9)"],
             applied=False,
@@ -111,6 +116,9 @@ def test_anonymize_output_has_ids_and_counts_but_no_phone(
     assert fake_service["apply"] is False
     assert str(CUSTOMER_ID) in out
     assert "Orders anonymized: 2" in out
+    assert "Support request messages removed: 1" in out
+    assert "Staff notes on support requests removed: 1" in out
+    assert "Notifications deleted: 4" in out
     assert "Staff notes kept on these orders, to check by hand: 3" in out
     assert "Check: MO-CCCC: part paid, ₦500.00 outstanding; check (F9)" in out
     assert "Dry run: nothing was saved" in out
@@ -167,6 +175,7 @@ def test_review_output_lists_the_manual_checks(
             unverified_accounts_anonymized=1,
             gps_points_cleared=0,
             orders_anonymized=0,
+            support_requests_deleted=5,
             applied=True,
         )
 
@@ -177,6 +186,7 @@ def test_review_output_lists_the_manual_checks(
     assert fake_service["apply"] is True
     assert "Phone codes cleared: 4" in out
     assert "Never-verified accounts anonymized (they have audit rows): 1" in out
+    assert "Support requests deleted (resolved over 3 years ago): 5" in out
     assert "Saved." in out
     for check in cli.MANUAL_CHECKS:
         assert check in out
@@ -188,3 +198,71 @@ def test_review_output_lists_the_manual_checks(
 )
 def test_format_kobo_has_no_float_rounding(kobo: int, text: str) -> None:
     assert format_kobo(kobo) == text
+
+
+def test_set_deletion_status_parses_the_reference_and_reason() -> None:
+    args = build_parser().parse_args(
+        [
+            "set-deletion-status",
+            "--by",
+            "08000000009",
+            "--request",
+            " dr-8h3n6p2w ",
+            "--status",
+            "refused",
+            "--reason",
+            "  Open dispute on an order  ",
+        ]
+    )
+    assert (args.request, args.status, args.reason) == (
+        "DR-8H3N6P2W",
+        "refused",
+        "Open dispute on an order",
+    )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--status", "received"],  # only staff outcomes can be set
+        ["--status", "deleted"],
+        ["--status", "refused", "--reason", "no"],  # under 5 characters
+        ["--status", "refused", "--reason", "x" * 501],
+    ],
+)
+def test_set_deletion_status_rejects_bad_arguments(extra: list[str]) -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            ["set-deletion-status", "--by", "08000000009", "--request", "DR-8H3N6P2W", *extra]
+        )
+
+
+def test_set_deletion_status_prints_the_outcome(
+    fake_service: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def set_status(session: object, **kwargs: Any) -> uuid.UUID:
+        fake_service.update(kwargs)
+        return CUSTOMER_ID
+
+    monkeypatch.setattr(service, "set_deletion_request_status", set_status)
+    argv = ["set-deletion-status", "--by", "08000000009", "--request", "DR-8H3N6P2W"]
+    assert cli.main([*argv, "--status", "acknowledged"]) == 0
+    assert fake_service["status"] is DeletionRequestStatus.ACKNOWLEDGED
+    assert fake_service["reason"] is None
+    assert "Deletion request DR-8H3N6P2W" in capsys.readouterr().out
+
+
+def test_a_refused_status_change_exits_1(
+    fake_service: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def refuse(session: object, **kwargs: Any) -> uuid.UUID:
+        raise DeletionStatusRefused("the account is not anonymized yet")
+
+    monkeypatch.setattr(service, "set_deletion_request_status", refuse)
+    argv = ["set-deletion-status", "--by", "08000000009", "--request", "DR-8H3N6P2W"]
+    assert cli.main([*argv, "--status", "completed"]) == 1
+    assert "Refused: the account is not anonymized yet" in capsys.readouterr().err

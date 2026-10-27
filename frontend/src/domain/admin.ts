@@ -12,8 +12,12 @@ import type { ApprovalStatus } from './partner'
 
 /* ---------- Orders ---------- */
 
-/** Admin's view of where an order is, from the job and the customer order (a-orders). */
-export type AdminOrderStatus = 'awaiting_rider' | 'assigned' | 'loading' | 'on_the_way' | 'delivered' | 'cancelled'
+/**
+ * Admin's view of where an order is, from the job and the customer order (a-orders).
+ * `failed` and `disputed` show the backend statuses of the same name
+ * (api-mapping.md open question 5, decided in #15).
+ */
+export type AdminOrderStatus = 'awaiting_rider' | 'assigned' | 'loading' | 'on_the_way' | 'delivered' | 'cancelled' | 'failed' | 'disputed'
 
 export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
   awaiting_rider: 'Awaiting rider',
@@ -22,7 +26,19 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
   on_the_way: 'On the way',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
+  // The agreed staff labels (docs/api/orders.md, "Order statuses").
+  failed: 'Delivery failed',
+  disputed: 'Disputed',
 }
+
+/**
+ * Payment status on admin screens: the design's statuses plus
+ * `pending_collection` ("Cash to collect", decided by @chidimmamogbo on PR #92),
+ * the status of a confirmed pay-on-delivery order before the driver collects;
+ * and `partially_paid` ("Part paid", from the approved cash design,
+ * docs/design/cash-remittance.md), when the driver collects less than due.
+ */
+export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
 export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
@@ -30,10 +46,12 @@ export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'deliv
 export interface AdminOrderPartner {
   id: string
   name: string
-  /** Short fleet code shown on the map and tables, e.g. KK-014, TK-102. */
-  code: string
-  vehicle: DeliveryType
-  plate: string
+  /** Short fleet code shown on the map and tables, e.g. KK-014, TK-102. `null` when the server sends none. */
+  code: string | null
+  /** `null` when the server does not say which vehicle. */
+  vehicle: DeliveryType | null
+  /** `null` when the server sends no plate. */
+  plate: string | null
 }
 
 export interface AdminOrder {
@@ -43,18 +61,22 @@ export interface AdminOrder {
   customer_id: string | null
   customer_name: string
   customer_phone: string
-  area: string
+  /** The service zone's name, or `null` when the order has none. */
+  area: string | null
   address: string
   landmark: string | null
-  choice: WaterChoice
+  /** `null` for an order sent before #21, which carries only its litres. */
+  choice: WaterChoice | null
   /** "50 L × 12", "750 gal". */
   quantity: string
   total_minor_units: number | null
-  payment: { method: PaymentMethod; status: PaymentStatus }
+  /** `status` is `null` when the server sends none (the order list, or before confirmation). */
+  payment: { method: PaymentMethod; status: AdminPaymentStatus | null }
   status: AdminOrderStatus
   partner: AdminOrderPartner | null
   assigned_by: string | null
-  station_name: string
+  /** Where the water is collected, once a source is chosen; `null` before. */
+  station_name: string | null
   timeline: { label: string; at: string; detail?: string }[]
   instructions: string | null
   tank_note: string | null
@@ -327,7 +349,6 @@ export interface StaffMember {
 
 export interface AdminSettings {
   support_phone: string | null
-  support_whatsapp: string | null
   /** `[SUPPORT HOURS]` until set. */
   support_hours: string | null
   /** `[CODE TIME LIMIT]` until set. */

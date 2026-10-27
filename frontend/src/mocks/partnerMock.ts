@@ -87,14 +87,10 @@ export async function getPartnerProfile(): Promise<PartnerProfile> {
   return clone({ name: user.name, phone: user.phone, ...data.profile })
 }
 
-export async function updatePartnerProfile(update: { email?: string | null; preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> {
+export async function updatePartnerProfile(update: { preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> {
   await delay(null)
-  if (update.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(update.email)) {
-    throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'email'], msg: 'Enter a valid email address', type: 'value_error' }])
-  }
   mutate((s) => {
     const { data } = partnerOf(s)
-    if (update.email !== undefined) data.profile.email = update.email
     if (update.preferences) data.profile.preferences = { ...data.profile.preferences, ...update.preferences }
   })
   return getPartnerProfile()
@@ -135,7 +131,6 @@ export function newPartnerData(s: MockState, input: Pick<PartnerSignupInput, 've
     fleet_code: nextFleetCode(s, input.vehicle_type),
     rating: null,
     profile: {
-      email: null,
       approval: 'pending',
       online: false,
       partner_since: new Date().toISOString().slice(0, 10),
@@ -153,7 +148,7 @@ export function newPartnerData(s: MockState, input: Pick<PartnerSignupInput, 've
         { id: 'd2', name: input.vehicle_type === 'keke' ? 'Vehicle papers' : 'Tanker papers', status: 'missing', note: 'Upload your road papers', can_upload: true },
         { id: 'd3', name: 'Clean handling training', status: 'missing', note: 'Booked by admin after approval', can_upload: false },
       ],
-      preferences: { new_order_alerts: true, sms_updates: true, offers_and_news: false },
+      preferences: { new_order_alerts: true, sms_updates: true },
       payout_account_ending: null,
     },
     wallet_minor_units: 0,

@@ -29,8 +29,11 @@ from app.modules.audit import service as audit
 from app.modules.auth import retention as accounts
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
+from app.modules.customers import requests as customer_requests
 from app.modules.customers import retention as addresses
+from app.modules.customers.models import DeletionRequestStatus
 from app.modules.deliveries import retention as deliveries
+from app.modules.notifications import service as notifications
 from app.modules.orders import retention as orders
 from app.modules.payments import retention as payments
 
@@ -38,6 +41,7 @@ from app.modules.payments import retention as payments
 UNVERIFIED_ACCOUNT_PERIOD = timedelta(days=30)
 GPS_PERIOD = timedelta(days=90)
 ORDER_PERIOD_YEARS = 3
+COMPLAINT_PERIOD_YEARS = 3
 
 
 class CustomerNotReady(Exception):
@@ -61,6 +65,12 @@ class AnonymizeResult:
         orders_anonymized: Orders whose contact and address were removed.
         gps_points_cleared: GPS points removed from those orders.
         addresses_removed: Saved addresses deleted (profile data, notice §8).
+        support_messages_removed: Support request messages replaced; the
+            deletion request's reason is blanked too.
+        resolution_notes_removed: Staff resolution notes on those support
+            requests replaced (#117).
+        notifications_deleted: In-app notifications deleted (contract
+            decision 8).
         notes_to_review: Free-text notes kept on those orders and their cash
             records, for the privacy contact to check for personal details.
         cash_warnings: Part payments and overpayments settled outside the
@@ -73,6 +83,9 @@ class AnonymizeResult:
     orders_anonymized: int
     gps_points_cleared: int
     addresses_removed: int
+    support_messages_removed: int
+    resolution_notes_removed: int
+    notifications_deleted: int
     notes_to_review: int
     cash_warnings: list[str]
     applied: bool
@@ -91,6 +104,8 @@ class ReviewResult:
             instead, because audit rows name them as the actor (NFR-004).
         gps_points_cleared: GPS points older than 90 days removed.
         orders_anonymized: Orders finished over 3 years ago anonymized.
+        support_requests_deleted: Support requests resolved over 3 years
+            ago deleted (complaints, notice §8; #82).
         applied: False for a dry run (nothing was saved).
     """
 
@@ -101,6 +116,7 @@ class ReviewResult:
     unverified_accounts_anonymized: int
     gps_points_cleared: int
     orders_anonymized: int
+    support_requests_deleted: int
     applied: bool
 
 
@@ -156,8 +172,11 @@ async def anonymize_customer(
     Otherwise, in one transaction: the account is anonymized and deactivated
     (``auth.retention``), each order's contact and address details are
     removed (``orders.retention``), their GPS points are cleared
-    (``deliveries.retention``), their saved addresses are deleted
-    (``customers.retention``), and an audit row is written. Orders, cash
+    (``deliveries.retention``), their saved addresses are deleted, their
+    support request messages and deletion reason removed
+    (``customers.retention``), their in-app notifications deleted, and an
+    audit row is written. The deletion request itself is marked
+    ``completed`` separately (:func:`set_deletion_request_status`). Orders, cash
     and accounting fields, and staff notes are kept.
 
     Args:
@@ -201,6 +220,8 @@ async def anonymize_customer(
     anonymized = await orders.anonymize_orders(session, order_ids=order_ids, now=now)
     gps = await deliveries.clear_order_gps(session, order_ids=order_ids, now=now)
     removed = await addresses.delete_addresses(session, customer_ids=[customer_id])
+    cleared = await addresses.clear_requests(session, customer_ids=[customer_id])
+    deleted_notes = await notifications.delete_for_users(session, user_ids=[customer_id])
     audit.record(
         session,
         actor_id=actor.id,
@@ -211,6 +232,9 @@ async def anonymize_customer(
             "orders_anonymized": anonymized,
             "gps_points_cleared": gps,
             "addresses_removed": removed,
+            "support_messages_removed": cleared.messages,
+            "resolution_notes_removed": cleared.resolution_notes,
+            "notifications_deleted": deleted_notes,
         },
     )
     await _finish(session, apply)
@@ -219,6 +243,9 @@ async def anonymize_customer(
         orders_anonymized=anonymized,
         gps_points_cleared=gps,
         addresses_removed=removed,
+        support_messages_removed=cleared.messages,
+        resolution_notes_removed=cleared.resolution_notes,
+        notifications_deleted=deleted_notes,
         notes_to_review=notes,
         cash_warnings=warnings,
         applied=apply,
@@ -280,7 +307,9 @@ async def retention_review(
     - GPS points over 90 days old: cleared, except on disputed orders and
       orders with an open hold or review;
     - orders finished over 3 years ago: contact and address removed, as when
-      a customer is anonymized.
+      a customer is anonymized;
+    - support requests resolved over 3 years ago: deleted (complaints;
+      technical lead, 2026-10-27, #82).
 
     Support-line messages, server logs, backups and the request register
     are checked by hand (the command lists them).
@@ -304,17 +333,22 @@ async def retention_review(
     with_orders = await orders.customers_with_orders(session, customer_ids=unverified)
     due = [user_id for user_id in unverified if user_id not in with_orders]
     actors = await audit.actors_with_rows(session, user_ids=due)
+    to_delete = [user_id for user_id in due if user_id not in actors]
     await addresses.delete_addresses(session, customer_ids=due)
-    accounts_deleted = await accounts.delete_accounts(
-        session, user_ids=[user_id for user_id in due if user_id not in actors]
-    )
+    await addresses.delete_requests(session, customer_ids=to_delete)
+    accounts_deleted = await accounts.delete_accounts(session, user_ids=to_delete)
     accounts_anonymized = 0
     for user in await accounts.get_users(session, user_ids=actors):
         if accounts.is_anonymized_phone(user.phone):
             continue
         marker = await accounts.new_phone_marker(session)
         await accounts.anonymize_account(session, user, phone_marker=marker)
+        await addresses.clear_requests(session, customer_ids=[user.id])
+        await notifications.delete_for_users(session, user_ids=[user.id])
         accounts_anonymized += 1
+    support_deleted = await addresses.delete_resolved_support_requests(
+        session, resolved_before=years_before(now, COMPLAINT_PERIOD_YEARS)
+    )
 
     keep = set(await orders.disputed_order_ids(session))
     keep |= await deliveries.open_matter_order_ids(session)
@@ -336,6 +370,7 @@ async def retention_review(
         unverified_accounts_anonymized=accounts_anonymized,
         gps_points_cleared=gps,
         orders_anonymized=anonymized,
+        support_requests_deleted=support_deleted,
         applied=apply,
     )
     audit.record(
@@ -349,3 +384,62 @@ async def retention_review(
     )
     await _finish(session, apply)
     return result
+
+
+async def set_deletion_request_status(
+    session: AsyncSession,
+    *,
+    actor: User,
+    reference: str,
+    status: DeletionRequestStatus,
+    reason: str | None,
+    now: datetime,
+) -> uuid.UUID:
+    """Record the outcome of a customer's deletion request (contract decision 10). Commits.
+
+    The rules are in :func:`app.modules.customers.requests.set_deletion_status`:
+    ``received`` → ``acknowledged`` → ``completed``; ``refused`` from either
+    open status, with a reason; ``completed`` only once the account is
+    anonymized (``anonymize-customer --apply``). The audit row names the new
+    status, never the reason.
+
+    Args:
+        session: Database session.
+        actor: The admin running it.
+        reference: The request's ``DR-`` reference.
+        status: ``acknowledged``, ``completed`` or ``refused``.
+        reason: The refusal reason (trimmed, 5-500 characters), or None.
+        now: Time of the change.
+
+    Returns:
+        The request's id.
+
+    Raises:
+        LookupError: No request has this reference.
+        DeletionStatusRefused: The change breaks a rule; nothing is saved.
+    """
+    request = await customer_requests.get_deletion_request_for_update(session, reference=reference)
+    owners = await accounts.get_users(session, user_ids=[request.user_id])
+    anonymized = bool(owners) and accounts.is_anonymized_phone(owners[0].phone)
+    try:
+        customer_requests.set_deletion_status(
+            request,
+            status=status,
+            handled_by=actor.id,
+            now=now,
+            refusal_reason=reason,
+            account_anonymized=anonymized,
+        )
+    except customer_requests.DeletionStatusRefused:
+        await session.rollback()
+        raise
+    audit.record(
+        session,
+        actor_id=actor.id,
+        action=f"deletion_request_{status.value}",
+        target_type="deletion_request",
+        target_id=request.id,
+    )
+    request_id = request.id
+    await session.commit()
+    return request_id

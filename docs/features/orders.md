@@ -56,7 +56,7 @@ GET /api/v1/admin/orders/{reference} (admin) any order, with customer, its
 | --- | --- |
 | `backend/app/modules/orders/models.py` | `Order`, `OrderEvent`, `OrderStatus`, field limits |
 | `backend/app/modules/orders/service.py` | `NewOrder`, `generate_order_reference`, `create_order`, customer reads, staff reads (`StaffOrder`) |
-| `backend/app/modules/orders/schemas.py` | `OrderCreate`, `OrderRead`, `AdminOrderRead`, page models, `PageParams`, `AdminOrderFilters` |
+| `backend/app/modules/orders/schemas.py` | `OrderCreate`, `OrderBaseRead`, `OrderRead`, `AdminOrderRead`, feedback bodies, page models, `PageParams`, `AdminOrderFilters` |
 | `backend/app/modules/orders/quantities.py` | Quantity rules (FR-021): local gallon = 4 litres, 600-litre minimum, approved presets, gallon-to-litre conversion |
 | `backend/app/modules/orders/router.py` | The three customer endpoints; role guards. The admin list and detail are served by `deliveries/admin_router.py`, which adds each order's hold (#93) |
 | `backend/app/modules/auth/service.py` | `get_users_by_ids`, used for the staff view's customer details |
@@ -167,8 +167,11 @@ Every endpoint also returns 401 `not_authenticated` and 403 `forbidden`;
   `water_category {label, supported_uses}`) is the quote the order was
   placed with, or null: the total only, never the breakdown. No ID,
   customer or `is_simulated`. The views get zone names and quote summaries
-  from the pricing module through `service.read_lookups`.
-- **`AdminOrderRead`**: `OrderRead` plus `id`, `customer` (`id`, `name`,
+  from the pricing module through `service.read_lookups`. Since #82 it also
+  carries `feedback` (the customer's FR-051 feedback, or null;
+  [customer-account.md](customer-account.md)).
+- **`AdminOrderRead`**: the shared fields (`OrderBaseRead`, everything in
+  `OrderRead` except `feedback`) plus `id`, `customer` (`id`, `name`,
   `phone`, `phone_verified`) and `is_simulated`.
 - **Paging:** `limit` 1–100 (default 50), `offset` ≥ 0.
 - **Admin filters:** `status` (repeatable), `created_from` / `created_to`

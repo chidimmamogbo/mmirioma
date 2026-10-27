@@ -1,6 +1,7 @@
 import { BottomTabBar } from '../../../components/layout/BottomTabBar'
 import { MenuLink, NotificationsLink, ProfileLink, TopBar } from '../../../components/layout/MobileShell'
 import { CartIcon, DocumentLinesIcon, DocumentSolidIcon, HomeSolidIcon, PersonIcon } from '../../../components/icons/icons'
+import { useSession } from '../../auth/useSession'
 import { useNotifications, useProfile } from '../queries'
 
 const TABS = [
@@ -27,8 +28,9 @@ export function CustomerTabs({ current }: { current: '/home' | '/order' | '/orde
 export function CustomerTopBar({ bell = true }: { bell?: boolean }) {
   const profile = useProfile()
   const notifications = useNotifications()
-  const unread = notifications.data?.filter((n) => !n.read).length ?? 0
-  const name = profile.data?.name ?? ''
+  const unread = notifications.data?.unread_count ?? 0
+  const session = useSession()
+  const name = profile.data?.name ?? session.data?.user.name ?? ''
   return (
     <TopBar
       left={<MenuLink to="/menu" />}

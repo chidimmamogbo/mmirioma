@@ -1,13 +1,10 @@
 /**
  * Partner menu (`r-menu`, `t-menu`) and the account screens its links open:
- * profile and settings (added; the design links were empty). Settings holds
- * the optional email for updates and newsletters (decision 6).
+ * profile and settings (added; the design links were empty). Partners have no
+ * email and no "News and offers" switch in the pilot (#85).
  */
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
-import { z } from 'zod'
 import { Illustration } from '../../../components/brand/Illustration'
 import {
   BellIcon,
@@ -28,18 +25,15 @@ import { DrawerMenu } from '../../../components/layout/DrawerMenu'
 import { BackLink, MobileShell, ScrollArea, TopBar, TopBarSpacer, TopBarTitle } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Avatar } from '../../../components/ui/Avatar'
-import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { CountBadge, MenuItem } from '../../../components/ui/Content'
 import { Toggle } from '../../../components/ui/Controls'
-import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatPhone } from '../../../lib/format/phone'
-import { applyServerFieldErrors, optionalEmailField } from '../../../lib/forms'
 import { useLogout } from '../../auth/useSession'
 import { InstallMenuItem } from '../../pwa/InstallParts'
 import { PushSettingRows } from '../../pwa/PushParts'
@@ -57,7 +51,7 @@ export function PartnerMenu() {
   const [leaving, setLeaving] = useState(false)
   const p = profile.data
   const current = active.data?.find((j) => j.stage === 'accepted' || j.stage === 'collected') ?? active.data?.[0]
-  const unread = notes.data?.filter((n) => !n.read).length ?? 0
+  const unread = notes.data?.unread_count ?? 0
   const tanker = vehicle === 'tanker'
 
   return (
@@ -200,15 +194,6 @@ export function PartnerProfilePage() {
                 </span>
               </div>
               <div className="mo-li">
-                <span className="min-w-0 flex-1">
-                  <span className="block text-chip text-mute">Email (optional)</span>
-                  <span className="block truncate font-bold">{p.email ?? 'Not added'}</span>
-                </span>
-                <Link to={`${base}/settings`} className="hit-44 text-[13px] font-bold text-primary no-underline hover:text-primary-dark">
-                  {p.email ? 'Edit' : 'Add'}
-                </Link>
-              </div>
-              <div className="mo-li">
                 <span className="flex-1">
                   <span className="block text-chip text-mute">Payout account</span>
                   <span className="font-bold">{p.payout_account_ending ? `Bank account ending ${p.payout_account_ending}` : 'Not added yet. Ask admin.'}</span>
@@ -226,29 +211,16 @@ export function PartnerProfilePage() {
   )
 }
 
-const emailSchema = z.object({ email: optionalEmailField })
-
-/** Account settings (added): optional email, alerts, password. */
+/** Account settings (added): alerts, password. */
 export function PartnerSettings() {
   const { base, vehicle } = usePartnerApp()
   const profile = usePartnerProfile()
   const update = useUpdatePartnerProfile()
   const p = profile.data
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors },
-  } = useForm<z.infer<typeof emailSchema>>({ resolver: zodResolver(emailSchema), values: { email: p?.email ?? '' } })
 
-  const onSubmit = handleSubmit((v) =>
-    update.mutate({ email: v.email || null }, { onError: (e) => applyServerFieldErrors(e, setError, { email: 'email' }) }),
-  )
-
-  const prefs: { key: 'new_order_alerts' | 'sms_updates' | 'offers_and_news'; title: string; sub: string }[] = [
+  const prefs: { key: 'new_order_alerts' | 'sms_updates'; title: string; sub: string }[] = [
     { key: 'new_order_alerts', title: 'New order alerts', sub: 'When orders appear near you' },
     { key: 'sms_updates', title: 'SMS updates', sub: 'Assignments and payouts' },
-    { key: 'offers_and_news', title: 'News and offers', sub: 'Newsletters and promos, now and then' },
   ]
 
   return (
@@ -259,25 +231,7 @@ export function PartnerSettings() {
         {profile.isError && <ErrorBlock error={profile.error} onRetry={() => profile.refetch()} />}
         {p && (
           <>
-            <Card pad className="rise-1">
-              <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3">
-                <TextField
-                  label="Email address"
-                  optional
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  hint="For updates, newsletters and offers. Your phone stays your sign-in."
-                  error={errors.email?.message}
-                  {...register('email')}
-                />
-                <Button type="submit" variant="alt" size="sm" loading={update.isPending}>
-                  Save email
-                </Button>
-              </form>
-            </Card>
-            <Card className="rise-2 px-4 py-1">
+            <Card className="rise-1 px-4 py-1">
               <PushSettingRows app="partner" tone={vehicle === 'tanker' ? 'green' : 'blue'} />
               {prefs.map((pr) => (
                 <div key={pr.key} className="mo-li">
@@ -290,8 +244,8 @@ export function PartnerSettings() {
               ))}
             </Card>
             {update.isSuccess && <Notice tone="success">Saved.</Notice>}
-            {update.isError && !errors.email && <Notice tone="error">{errorMessage(update.error)}</Notice>}
-            <Card className="rise-3 px-4 py-1">
+            {update.isError && <Notice tone="error">{errorMessage(update.error)}</Notice>}
+            <Card className="rise-2 px-4 py-1">
               <Link to="/partner/password" className="mo-li font-bold hover:text-ink">
                 Change password
                 <ChevronRightIcon size={18} strokeWidth={2.2} color="#56677D" roundJoin={false} className="ml-auto" />

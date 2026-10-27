@@ -16,6 +16,7 @@ import type { AdminOrder, AdminOrderFilter } from '../../../domain/admin'
 import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
@@ -115,17 +116,18 @@ export function Orders() {
                       ),
                     },
                     { header: 'Customer', cell: (o) => o.customer_name },
-                    { header: 'Area', cell: (o) => o.area },
-                    { header: 'Type', cell: (o) => (o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'), className: 'font-bold' },
-                    { header: 'Quantity', cell: (o) => <QuantityCell choice={o.choice} /> },
-                    { header: 'Payment', cell: (o) => <PaymentChip status={o.payment.status} /> },
+                    { header: 'Area', cell: (o) => o.area ?? <span className="text-mute">No area</span> },
+                    { header: 'Type', cell: (o) => (o.choice ? (o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker') : <span className="text-mute">Not recorded</span>), className: 'font-bold' },
+                    { header: 'Quantity', cell: (o) => (o.choice ? <QuantityCell choice={o.choice} /> : o.quantity) },
+                    // The order list sends no payment status: it shows on the order (payments.md).
+                    { header: 'Payment', cell: (o) => (o.payment.status ? <PaymentChip status={o.payment.status} /> : <span className="text-mute">On the order</span>) },
                     { header: 'Status', cell: (o) => <StatusChip status={o.status} /> },
                     { header: 'Rider', cell: (o) => o.partner?.code ?? <span className="text-mute">None yet</span> },
                   ]}
                 />
               </Card>
             )}
-            <p className="m-0 text-caption text-mute">Payment status and delivery status are tracked separately. Sample data.</p>
+            <p className="m-0 text-caption text-mute">Payment status and delivery status are tracked separately.{USE_MOCKS ? ' Sample data.' : ''}</p>
           </>
         }
         side={selected ? <OrderPanel key={selected} reference={selected} onChange={() => select(selected)} /> : null}
@@ -172,14 +174,14 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
           <StatusChip status={o.status} />
         </div>
         <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
-          <Illustration name={o.choice.delivery_type} className="w-24 shrink-0" />
+          <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
           <div className="min-w-0">
             <div className="font-extrabold">{o.reference}</div>
             <div className="text-caption text-slate">
-              {o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'} · {describeChoice(o.choice)}
+              {o.choice ? `${o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'} · ${describeChoice(o.choice)}` : o.quantity}
             </div>
             <div className="text-caption text-slate">
-              {o.customer_name} · {o.area}
+              {o.customer_name} · {o.area ?? 'No area'}
             </div>
           </div>
         </div>
@@ -205,8 +207,16 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         <KeyValue label="Deliver to" value={o.address} />
         {o.landmark && <KeyValue label="Landmark" value={o.landmark} />}
         <KeyValue label="Station" value={o.station_name || 'Chosen when a rider accepts'} />
-        <KeyValue label="Amount" value={o.total_minor_units === null ? 'Quote needed' : `${formatNaira(o.total_minor_units)} (SAMPLE)`} />
-        <KeyValue label="Payment" value={<span className="flex items-center justify-end gap-2">{METHOD_LABEL[o.payment.method]} <PaymentChip status={o.payment.status} /></span>} />
+        {/* Only mock amounts are samples; a real price comes from the server (FR-022). */}
+        <KeyValue label="Amount" value={o.total_minor_units === null ? 'Quote needed' : `${formatNaira(o.total_minor_units)}${USE_MOCKS ? ' (SAMPLE)' : ''}`} />
+        <KeyValue
+          label="Payment"
+          value={
+            <span className="flex items-center justify-end gap-2">
+              {METHOD_LABEL[o.payment.method]} {o.payment.status && <PaymentChip status={o.payment.status} />}
+            </span>
+          }
+        />
         {o.instructions && <KeyValue label="Instructions" value={o.instructions} />}
         {o.tank_note && <KeyValue label="Tank" value={o.tank_note} />}
         <h3 className="m-0 mt-2 mb-1 text-[15px] font-extrabold">Timeline</h3>
@@ -240,7 +250,7 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
   const [pick, setPick] = useState<string | null>(null)
   const list = riders.data ?? []
   const chosen = list.find((r) => r.id === (pick ?? list[0]?.id))
-  const kind = order.choice.delivery_type === 'keke' ? 'Keke riders' : 'tanker drivers'
+  const kind = order.choice ? (order.choice.delivery_type === 'keke' ? 'Keke riders' : 'tanker drivers') : 'partners'
 
   if (assign.isSuccess && !assign.isPending) {
     return <Notice tone="success">Assigned. {chosen?.name.split(' ')[0] ?? 'The rider'} gets the order on their dashboard and must start it or decline with a reason.</Notice>

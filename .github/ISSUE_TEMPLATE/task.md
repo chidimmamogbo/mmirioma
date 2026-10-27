@@ -6,7 +6,7 @@ labels: []
 
 **Lane:** <!-- A auth · B customer orders · C partner jobs · D admin orders · E cash --> · **Owner:** @
 **Depends on:** <!-- #NN, or None -->
-**Reviewers:** `frontend/` @chidimmamogbo · `backend/` @nnamdi-security (each backs up the other)
+**Reviewers:** any one of @chidimmamogbo, @nnamdi-security, @Cloudcrackamara (not the author)
 
 ## Goal
 

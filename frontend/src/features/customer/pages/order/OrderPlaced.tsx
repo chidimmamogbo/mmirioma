@@ -10,6 +10,7 @@ import { Card } from '../../../../components/ui/Card'
 import { Chip } from '../../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../../components/ui/Content'
 import { IconButton } from '../../../../components/ui/IconButton'
+import { Notice } from '../../../../components/ui/Notice'
 import { STAGE_LABEL } from '../../../../domain/orders'
 import { PRICE_PENDING, orderQuantityText } from '../../orderHelpers'
 import { formatNaira } from '../../../../lib/format/money'
@@ -26,9 +27,9 @@ const CONFETTI = [
 ]
 
 /**
- * Order placed (`c-confirmed`). Says the order is placed and a rider is being
- * found, never that it is confirmed or guaranteed (FR-027). An unverified
- * phone is called out: staff verify it before a rider is sent (FR-003).
+ * Order placed (`c-confirmed`). Never says the order is confirmed or
+ * guaranteed (FR-027): a priced order is "Awaiting confirmation" and a
+ * request is "Request received" (customer-live-prices.md, screen 6).
  */
 export function OrderPlaced() {
   const { reference } = useParams()
@@ -47,6 +48,18 @@ export function OrderPlaced() {
   }
 
   const o = order.data
+  // Before confirmation (customer-live-prices.md, screen 6): a priced order or
+  // a request, never "finding a rider" (FR-027). The mock's orders go straight
+  // to `waiting_rider` and keep the original screen.
+  const priced = o?.stage === 'awaiting_confirmation'
+  const request = o?.stage === 'request_received'
+  const unconfirmed = priced || request
+  const heading = priced ? 'Order received' : request ? 'Request received' : 'Order placed!'
+  const sub = priced
+    ? 'Your price is held on this order. Our team confirms it with you before delivery.'
+    : request
+      ? "We're preparing your price."
+      : 'We are finding a rider near you. You will see them here the moment one accepts.'
   return (
     <MobileShell className="bg-[linear-gradient(180deg,#E9F8EF_0%,#F4F7FB_42%)]">
       <Confetti pieces={CONFETTI} height={220} />
@@ -57,10 +70,8 @@ export function OrderPlaced() {
             <CheckIcon size={42} strokeWidth={3} color="#fff" />
           </span>
         </div>
-        <h1 className="rise-1 m-0 text-[26px] font-extrabold tracking-[-0.5px] text-green">Order placed!</h1>
-        <p className="rise-2 m-0 max-w-[290px] text-sub text-mute">
-          We are finding a rider near you. You will see them here the moment one accepts.
-        </p>
+        <h1 className="rise-1 m-0 text-[26px] font-extrabold tracking-[-0.5px] text-green">{heading}</h1>
+        <p className="rise-2 m-0 max-w-[290px] text-sub text-mute">{sub}</p>
         {order.isPending && <LoadingBlock lines={1} label="Loading your order" />}
         {order.isError && <ErrorBlock error={order.error} onRetry={() => order.refetch()} />}
         {o && (
@@ -80,6 +91,7 @@ export function OrderPlaced() {
             <Separator />
             {o.choice && <KeyValue label="Delivery type" value={o.choice.delivery_type === 'keke' ? 'Keke delivery' : 'Tanker delivery'} />}
             <KeyValue label="Water" value={orderQuantityText(o)} />
+            {o.quote?.category_label && <KeyValue label="Water category" value={o.quote.category_label} />}
             <KeyValue label={o.quote?.is_sample ? 'Total (sample)' : 'Total'} value={o.quote ? formatNaira(o.quote.total_minor_units) : PRICE_PENDING} />
             <div className="flex items-center justify-between gap-2.5 py-[3px] text-sub">
               <span className="text-mute">Status</span>
@@ -92,10 +104,22 @@ export function OrderPlaced() {
                 <StageChip stage={o.stage} />
               )}
             </div>
+            {unconfirmed && <p className="mt-1.5 mb-0 text-caption text-mute">Pay on delivery: cash after the water is unloaded.</p>}
           </Card>
         )}
+        {unconfirmed && (
+          <Notice tone="info" className="rise-4 w-full text-left">
+            {priced
+              ? "We'll call you to agree the delivery time. No charge to cancel or redeliver."
+              : "We'll call you with the price and to agree the delivery time."}
+          </Notice>
+        )}
         <div className="rise-4 flex w-full flex-col gap-2">
-          <ButtonLink to={`/orders/${reference}/track`}>Track delivery</ButtonLink>
+          {unconfirmed ? (
+            <ButtonLink to={`/orders/${reference}`}>View my order</ButtonLink>
+          ) : (
+            <ButtonLink to={`/orders/${reference}/track`}>Track delivery</ButtonLink>
+          )}
           <ButtonLink to="/home" variant="alt">
             Back to home
           </ButtonLink>

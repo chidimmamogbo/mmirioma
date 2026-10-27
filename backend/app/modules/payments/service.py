@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from http import HTTPStatus
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -1260,3 +1260,57 @@ async def cash_history(session: AsyncSession, order_id: uuid.UUID) -> list[CashH
         )
         for event in events
     ]
+
+
+@dataclass(frozen=True)
+class CashTotals:
+    """Cash recorded in a time range (FR-041), integer kobo.
+
+    Attributes:
+        collected_minor_units: Every collection recorded in the range: the
+            pilot's collected revenue (pay on delivery only, F4).
+        reconciled_minor_units: Of that, the amount already ``reconciled``.
+    """
+
+    collected_minor_units: int
+    reconciled_minor_units: int
+
+
+async def cash_totals(
+    session: AsyncSession, *, collected_from: datetime, collected_to: datetime, simulated: bool
+) -> CashTotals:
+    """Sum the cash collections recorded in ``[collected_from, collected_to)``.
+
+    A collection belongs to a day by its ``collected_at`` and is simulated
+    when its order is (BR-09). Amounts are integer kobo (SRS §5); refunds,
+    costs and contribution are not recorded in the app (F6, F7).
+
+    Args:
+        session: Database session.
+        collected_from: First instant, inclusive (UTC).
+        collected_to: Last instant, exclusive (UTC).
+        simulated: Simulated orders only (True) or real ones only (False).
+
+    Returns:
+        The totals.
+    """
+    reconciled = func.coalesce(
+        func.sum(CashCollection.amount_minor_units).filter(
+            CashCollection.status == CashCollectionStatus.RECONCILED
+        ),
+        0,
+    )
+    collected, reconciled_total = (
+        await session.execute(
+            select(func.coalesce(func.sum(CashCollection.amount_minor_units), 0), reconciled)
+            .join(Order, Order.id == CashCollection.order_id)
+            .where(
+                CashCollection.collected_at >= collected_from,
+                CashCollection.collected_at < collected_to,
+                Order.is_simulated.is_(simulated),
+            )
+        )
+    ).one()
+    return CashTotals(
+        collected_minor_units=int(collected), reconciled_minor_units=int(reconciled_total)
+    )

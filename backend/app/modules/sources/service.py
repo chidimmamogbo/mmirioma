@@ -19,6 +19,7 @@ Business rules (FR-012, BR-10, contract "Order confirmation endpoints"):
 """
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
@@ -358,3 +359,51 @@ def _audit(
         target_id=source.id,
         details=details,
     )
+
+
+async def source_usability(session: AsyncSession, *, today: date) -> list[tuple[WaterSource, bool]]:
+    """Every water source, by name, and whether it is usable for dispatch today (FR-012).
+
+    A source is usable when at least one of its category activations passes
+    :func:`app.modules.sources.eligibility.eligibility_reasons` (active,
+    approval not expired in Lagos today). The dashboard counts them; the
+    live map lists them.
+
+    Args:
+        session: Database session.
+        today: Today's date in Africa/Lagos.
+
+    Returns:
+        ``(source, usable)`` pairs.
+    """
+    return [
+        (
+            item.source,
+            any(
+                not eligibility_reasons(activation, today=today)
+                for activation, _ in item.activations
+            ),
+        )
+        for item in await list_sources(session)
+    ]
+
+
+async def source_names(
+    session: AsyncSession, source_ids: Iterable[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Return each water source's name, for views in other modules.
+
+    Args:
+        session: Database session.
+        source_ids: Source ids.
+
+    Returns:
+        Name by id, for the sources that exist.
+    """
+    ids = set(source_ids)
+    if not ids:
+        return {}
+    rows = await session.execute(
+        select(WaterSource.id, WaterSource.name).where(WaterSource.id.in_(ids))
+    )
+    return {source_id: name for source_id, name in rows}

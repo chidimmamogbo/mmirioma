@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import expiredSample from '../../../../../docs/api/examples/error-quote-expired.json'
 import orderSample from '../../../../../docs/api/examples/order-with-details.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
 import type { OrderRead } from '../../../lib/api/orders'
 import type { CreateOrderInput } from '../../../mocks/customerMock'
-import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput } from './order'
+import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput, submitFeedback } from './order'
 
 /** The agreed contract's example order (docs/api/order-details-and-price.md). */
 const SAMPLE = orderSample as unknown as OrderRead
@@ -48,8 +49,16 @@ describe('customerOrderFromRead', () => {
     const order = customerOrderFromRead(SAMPLE)
     expect(order.choice).toEqual({ delivery_type: 'tanker', tank_type: 'ground', tank_size_gallons: 750, source: 'borehole' })
     expect(order.quantity_litres).toBe(3000)
-    expect(order.stage).toBe('waiting_rider')
-    expect(order.quote).toEqual({ currency: 'NGN', total_minor_units: 2_000_000, water: null, delivery: null, is_sample: false })
+    // A priced order before confirmation (customer-live-prices.md, decision 3).
+    expect(order.stage).toBe('awaiting_confirmation')
+    expect(order.quote).toEqual({
+      currency: 'NGN',
+      total_minor_units: 2_000_000,
+      water: null,
+      delivery: null,
+      is_sample: false,
+      category_label: SAMPLE.quote!.water_category.label,
+    })
     expect(order.receiver_name).toBe('Sample Customer')
     expect(order.address).toBe('12 Sample Close, Independence Layout, Enugu')
     expect(order.address_label).toBeNull()
@@ -106,6 +115,17 @@ describe('orderCreateFromInput', () => {
     expect(body).toMatchObject({ delivery_type: 'tanker', tanker: { tank_type: 'overhead', quantity_local_gallons: 600 }, water_source: 'ninth_mile', landmark: 'Blue gate' })
     expect(body).not.toHaveProperty('keke')
     expect(body).not.toHaveProperty('delivery_instructions')
+  })
+
+  it('sends the accepted quote and the picked area with a priced order (#121)', () => {
+    const body = orderCreateFromInput({ ...KEKE_INPUT, quote_id: 'c7e1b9a2-4d3f-4a6b-8e05-9f2d1c0b3a74', service_zone_id: 'zone-1' })
+    expect(body).toMatchObject({ quote_id: 'c7e1b9a2-4d3f-4a6b-8e05-9f2d1c0b3a74', service_zone_id: 'zone-1' })
+  })
+
+  it('sends a request for an unlisted area with neither a quote nor a zone', () => {
+    const body = orderCreateFromInput({ ...KEKE_INPUT, quote_id: null, service_zone_id: null })
+    expect(body).not.toHaveProperty('quote_id')
+    expect(body).not.toHaveProperty('service_zone_id')
   })
 
   it('refuses a custom tank size with no gallons instead of guessing one', () => {
@@ -167,8 +187,54 @@ describe('createOrder (real)', () => {
     expect(order.quote).toBeNull()
   })
 
+  it('passes 409 quote_expired through, so Review fetches the new price', async () => {
+    const { client } = clientReturning({ body: expiredSample, status: 409 })
+    await expect(createOrder({ ...KEKE_INPUT, quote_id: 'c7e1b9a2-4d3f-4a6b-8e05-9f2d1c0b3a74' }, client)).rejects.toMatchObject({
+      status: 409,
+      code: 'quote_expired',
+    } satisfies Partial<ApiError>)
+  })
+
   it('passes 403 phone_not_verified through, so Review shows "Verify your phone number first"', async () => {
     const { client } = clientReturning({ body: NOT_VERIFIED, status: 403 })
     await expect(createOrder(KEKE_INPUT, client)).rejects.toMatchObject({ status: 403, code: 'phone_not_verified' } satisfies Partial<ApiError>)
+  })
+})
+
+const FEEDBACK = {
+  rating: 4,
+  poured_by_partner: true,
+  on_time: null,
+  quantity_as_ordered: null,
+  would_reorder: null,
+  message: null,
+  submitted_at: '2026-10-27T15:00:00Z',
+  updated_at: '2026-10-27T15:00:00Z',
+}
+
+describe('order feedback (#88 part 3)', () => {
+  it('reads the feedback on an order, and none when the server sends none', () => {
+    expect(customerOrderFromRead({ ...OLD_ORDER, feedback: FEEDBACK }).feedback).toEqual({ rating: 4, poured_by_partner: true })
+    expect(customerOrderFromRead({ ...OLD_ORDER, feedback: null }).feedback).toBeNull()
+    expect(customerOrderFromRead(OLD_ORDER).feedback).toBeNull()
+  })
+
+  it('sends the two answers with PUT, then returns the order with its feedback', async () => {
+    const { fetch, client } = clientReturning({ body: FEEDBACK, status: 201 }, { body: { ...OLD_ORDER, feedback: FEEDBACK } })
+    const order = await submitFeedback(OLD_ORDER.reference, { rating: 4, poured_by_partner: true }, client)
+    const [url, init] = fetch.mock.calls[0]
+    expect(url).toBe(`http://api.test/api/v1/orders/${OLD_ORDER.reference}/feedback`)
+    expect(init?.method).toBe('PUT')
+    expect(JSON.parse(init?.body as string)).toEqual({ rating: 4, poured_by_partner: true })
+    expect(fetch.mock.calls[1][0]).toBe(`http://api.test/api/v1/orders/${OLD_ORDER.reference}`)
+    expect(order.feedback).toEqual({ rating: 4, poured_by_partner: true })
+  })
+
+  it('passes 409 order_not_delivered through', async () => {
+    const { client } = clientReturning({ body: { error: { code: 'order_not_delivered', message: 'Rate after delivery', details: null } }, status: 409 })
+    await expect(submitFeedback('MO-7KQ2M9XH4T', { rating: 5, poured_by_partner: false }, client)).rejects.toMatchObject({
+      status: 409,
+      code: 'order_not_delivered',
+    } satisfies Partial<ApiError>)
   })
 })

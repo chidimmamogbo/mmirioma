@@ -15,6 +15,15 @@ nothing. Run from ``backend/`` with the virtualenv active and
         --customer 08000000001 --name "Corrected Name"
     python -m app.modules.privacy.cli retention-review --by 08000000009          # dry run
     python -m app.modules.privacy.cli retention-review --by 08000000009 --apply
+    python -m app.modules.privacy.cli set-deletion-status --by 08000000009 \\
+        --request DR-8H3N6P2W --status acknowledged
+    python -m app.modules.privacy.cli set-deletion-status --by 08000000009 \\
+        --request DR-8H3N6P2W --status refused --reason "Open dispute on MO-7KQ2"
+
+``set-deletion-status`` records the outcome of a deletion request made in
+the app (docs/api/customer-account.md, decision 10): ``acknowledged``, then
+``completed`` once ``anonymize-customer --apply`` has run, or ``refused``
+with a reason. It saves at once, like ``correct-name``.
 
 Output names accounts by id and orders by reference, never by name or
 phone, so it can be copied into the request register.
@@ -27,10 +36,16 @@ from datetime import UTC, datetime
 
 import app.models  # noqa: F401  (registers every model: commands write across modules)
 from app.core.database import dispose_engine, get_sessionmaker
+from app.modules.customers.models import NOTE_MAX_LENGTH, DeletionRequestStatus
+from app.modules.customers.requests import DeletionStatusRefused
 from app.modules.privacy import service
 from app.shared.phone import normalize_nigerian_phone
 
 NAME_MAX_LENGTH = 100  # users.name
+REASON_MIN_LENGTH = 5  # as for other staff reasons (admin-directory.md)
+STATUS_CHOICES = [
+    status.value for status in DeletionRequestStatus if status is not DeletionRequestStatus.RECEIVED
+]
 
 # Notice section 8 rows the review cannot reach in the database.
 MANUAL_CHECKS = (
@@ -60,6 +75,9 @@ async def _run(args: argparse.Namespace) -> str:
                     f"Orders anonymized: {result.orders_anonymized}",
                     f"GPS points cleared: {result.gps_points_cleared}",
                     f"Saved addresses deleted: {result.addresses_removed}",
+                    f"Support request messages removed: {result.support_messages_removed}",
+                    f"Staff notes on support requests removed: {result.resolution_notes_removed}",
+                    f"Notifications deleted: {result.notifications_deleted}",
                     f"Staff notes kept on these orders, to check by hand: {result.notes_to_review}",
                     *(f"Check: {warning}" for warning in result.cash_warnings),
                     _dry_run_line(result.applied),
@@ -70,6 +88,16 @@ async def _run(args: argparse.Namespace) -> str:
                 session, actor=actor, customer_phone=args.customer, name=args.name
             )
             return f"Customer {customer_id}: name corrected."
+        if args.command == "set-deletion-status":
+            request_id = await service.set_deletion_request_status(
+                session,
+                actor=actor,
+                reference=args.request,
+                status=DeletionRequestStatus(args.status),
+                reason=args.reason,
+                now=now,
+            )
+            return f"Deletion request {args.request} ({request_id}): now {args.status}."
         review = await service.retention_review(session, actor=actor, now=now, apply=args.apply)
         return "\n".join(
             [
@@ -81,6 +109,8 @@ async def _run(args: argparse.Namespace) -> str:
                 f"{review.unverified_accounts_anonymized}",
                 f"GPS points cleared: {review.gps_points_cleared}",
                 f"Orders anonymized (finished over 3 years ago): {review.orders_anonymized}",
+                "Support requests deleted (resolved over 3 years ago): "
+                f"{review.support_requests_deleted}",
                 _dry_run_line(review.applied),
                 "",
                 "Also by hand:",
@@ -110,6 +140,17 @@ def _name(raw: str) -> str:
     return value
 
 
+def _reason(raw: str) -> str:
+    value = raw.strip()
+    if not REASON_MIN_LENGTH <= len(value) <= NOTE_MAX_LENGTH:
+        raise argparse.ArgumentTypeError(f"use {REASON_MIN_LENGTH}-{NOTE_MAX_LENGTH} characters")
+    return value
+
+
+def _reference(raw: str) -> str:
+    return raw.strip().upper()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The command-line interface (exposed for tests)."""
     parser = argparse.ArgumentParser(prog="python -m app.modules.privacy.cli")
@@ -130,6 +171,14 @@ def build_parser() -> argparse.ArgumentParser:
     review = commands.add_parser("retention-review", help="the monthly retention review")
     review.add_argument("--by", required=True, type=_phone, help="your admin account's phone")
     review.add_argument("--apply", action="store_true", help="save (default: dry run)")
+
+    status = commands.add_parser(
+        "set-deletion-status", help="record the outcome of a deletion request made in the app"
+    )
+    status.add_argument("--by", required=True, type=_phone, help="your admin account's phone")
+    status.add_argument("--request", required=True, type=_reference, help="the DR- reference")
+    status.add_argument("--status", required=True, choices=STATUS_CHOICES)
+    status.add_argument("--reason", type=_reason, help="required with --status refused")
     return parser
 
 
@@ -147,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
         print(asyncio.run(_main(args)))
     except LookupError as exc:
         print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except DeletionStatusRefused as exc:
+        print(f"Refused: {exc}; nothing was changed.", file=sys.stderr)
         return 1
     except service.CustomerNotReady as exc:
         lines = "\n".join(f"- {blocker}" for blocker in exc.blockers)

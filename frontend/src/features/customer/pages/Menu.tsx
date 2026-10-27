@@ -20,7 +20,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { CountBadge, MenuItem } from '../../../components/ui/Content'
 import { isActiveStage } from '../../../domain/orders'
 import { formatPhone } from '../../../lib/format/phone'
-import { useLogout } from '../../auth/useSession'
+import { useLogout, useSession } from '../../auth/useSession'
 import { InstallMenuItem } from '../../pwa/InstallParts'
 import { useNotifications, useOrders, usePoints, useProfile } from '../queries'
 
@@ -30,12 +30,17 @@ export function Menu() {
   const logout = useLogout()
   const [leaving, setLeaving] = useState(false)
   const profile = useProfile()
+  // Name and phone also come with the session (`GET /auth/me`), so the header
+  // works before the customer profile endpoint exists (#82).
+  const user = useSession().data?.user
+  const name = profile.data?.name ?? user?.name ?? ''
+  const phone = profile.data?.phone ?? user?.phone
   const orders = useOrders()
   const points = usePoints()
   const notifications = useNotifications()
 
   const active = orders.data?.filter((o) => isActiveStage(o.stage)).length ?? 0
-  const unread = notifications.data?.filter((n) => !n.read).length ?? 0
+  const unread = notifications.data?.unread_count ?? 0
   const toNext = points.data ? Math.max(0, points.data.next_reward.target - points.data.balance) : null
 
   return (
@@ -46,10 +51,10 @@ export function Menu() {
         <>
           <Illustration name="drop-hero" className="absolute top-[-10px] right-[-70px] h-[150px] w-auto max-w-none opacity-45" />
           <div className="relative flex items-center gap-3">
-            <Avatar name={profile.data?.name ?? ''} size={56} fontSize={18} />
+            <Avatar name={name} size={56} fontSize={18} />
             <div>
-              <div className="text-[17px] font-extrabold">{profile.data?.name}</div>
-              <div className="text-caption text-slate">{profile.data && formatPhone(profile.data.phone)}</div>
+              <div className="text-[17px] font-extrabold">{name}</div>
+              <div className="text-caption text-slate">{phone && formatPhone(phone)}</div>
               {points.data && (
                 <Chip tone="gold" className="mt-1.5 px-[9px] py-[3px]">
                   ★ {points.data.balance} points
@@ -111,7 +116,7 @@ export function Menu() {
       <MenuItem to="/support" icon={<HelpCircleIcon size={20} roundJoin={false} />}>
         Support
       </MenuItem>
-      <MenuItem to="/profile" icon={<SunIcon size={20} roundJoin={false} />}>
+      <MenuItem to="/settings" icon={<SunIcon size={20} roundJoin={false} />}>
         Account settings
       </MenuItem>
       <InstallMenuItem app="customer" />

@@ -88,8 +88,6 @@ export function useAdminMutation<A, R>(fn: (args: A) => Promise<R>) {
         qc.invalidateQueries({ queryKey: adminKeys.all }),
         qc.invalidateQueries({ queryKey: ['partner'] }),
         qc.invalidateQueries({ queryKey: ['customer'] }),
-        // The website's WhatsApp number comes from Settings.
-        qc.invalidateQueries({ queryKey: ['public'] }),
       ]),
   })
 }

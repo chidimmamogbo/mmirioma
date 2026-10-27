@@ -13,24 +13,24 @@ the legal pages. Anyone can open them, signed in or not.
 
 - `/`: hero → benefits → how it works → Keke and Tanker options (sizes, no
   prices) → for drivers (approval steps) → install the apps → service areas
-  and FAQs → "Before you order" (worries, closing buttons) → newsletter →
-  footer. Header links jump to sections; below 960 px they move into a menu.
+  and FAQs → "Before you order" (worries, closing buttons) → footer. Header links jump to sections; below 960 px they move into a menu.
   The header stays stuck to the top while scrolling.
 - "Order Water" → `/order` (sign-in first when signed out).
 - "Become a Rider or Driver" → `/partner/signup`.
 - Every public page has a floating "Chat on WhatsApp" button (bottom right;
-  icon only below 640 px) and, after 600 px of scrolling, "Back to top" above
+  icon only below 640 px; hidden while WhatsApp support is off) and, after 600 px of scrolling, "Back to top" above
   it. Back to top scrolls up (instantly under reduced motion) and moves focus
   to the logo link.
-- Newsletter: one email field before the footer of every public page.
 - Unknown addresses show the 404 page (`src/app/NotFound.tsx`): the next step
   depends on where the link pointed (`/partner/...` → driver app, `/admin/...`
-  → dashboard, otherwise "Order Water"), plus home and WhatsApp.
+  → dashboard, otherwise "Order Water"), plus home and WhatsApp (or the
+  support phone while WhatsApp is off).
 - "Install Customer App" / "Install Driver App": see [pwa.md](pwa.md).
 - `/faq`: search box and category buttons over 17 questions; counts follow
   the search; "Clear search" resets both.
 - `/terms`, `/privacy`: "On this page" links to each section; `/privacy#cookies`
-  jumps to section 9.
+  jumps to section 13. `/privacy` is the website copy of `PRIVACY_NOTICE.md`
+  (version 2.0, #93, #104), section by section; change both together.
 
 ## 3. Important files
 
@@ -40,10 +40,10 @@ the legal pages. Anyone can open them, signed in or not.
 | `Landing.tsx`, `FaqPage.tsx`, `LegalPages.tsx` | The pages |
 | `MarketingParts.tsx` | Header with mobile menu, footer, install button, picture and heading helpers |
 | `content.ts` | Copy shared by pages and tests: nav, areas, FAQs, worries (`OBJECTIONS`), `ORDER_CTA`, `filterFaqs` |
-| `SiteExtras.tsx` | Floating WhatsApp and Back to top buttons; newsletter section |
-| `NewsletterForm.tsx` | The newsletter form (React Hook Form + Zod), loaded as its own chunk |
-| `queries.ts`, `publicApi.ts` | Company WhatsApp number and newsletter sign-up (mock or not connected) |
-| `frontend/src/lib/whatsapp.ts` | `wa.me` links and the interim number |
+| `SiteExtras.tsx` | Floating WhatsApp and Back to top buttons |
+| `queries.ts`, `publicApi.ts` | The support contact: `useSupportContact`, `useWhatsappNumber` (mock or `GET /public/contact`) |
+| `frontend/src/lib/api/publicSite.ts` | Typed `getPublicContact` client |
+| `frontend/src/lib/whatsapp.ts` | `wa.me` links and the fallback support number |
 | `frontend/src/mocks/publicMock.ts` | Mock of docs/api/public-site.md |
 | `icons.tsx` | The design's icons, path for path |
 | `marketing.css` | Breakpoint rules for the hero and drivers backgrounds and grids |
@@ -55,18 +55,16 @@ the legal pages. Anyone can open them, signed in or not.
 
 None. The support contact comes from backend settings
 ([public-contact.md](public-contact.md)). The newsletter is left out of the
-pilot (#8), so nothing stores emails; the mock still keeps them in
-`MockState.newsletter` until the link issue (#57) removes the form.
+pilot (#8): the form was removed in #57 and nothing stores emails.
 
 ## 5. API endpoints and request/response behavior
 
 [docs/api/public-site.md](../api/public-site.md) (**agreed**, #8):
 `GET /public/contact` for the support phone and WhatsApp number, built in
-#56 ([public-contact.md](public-contact.md)). The newsletter endpoint was
-dropped (out of the pilot). The screens are not linked yet (#57): in mock
-mode both work against the mock database; with the real API, the WhatsApp
-button falls back to the interim number and the newsletter form shows
-"Newsletter sign-up is not connected to the server yet.".
+#56 ([public-contact.md](public-contact.md)) and linked in #57. The
+newsletter endpoint was dropped (out of the pilot). While the contact is
+loading or cannot be read, the pages use the official number with WhatsApp
+on (`lib/whatsapp.ts`), so help is always reachable.
 
 ## 6. Important business rules
 
@@ -76,10 +74,10 @@ button falls back to the interim number and the newsletter form shows
   keep (live tracking, choosing a delivery time). Changed lines are listed in
   landing-v1.md.
 - Service areas are a sample list until the pilot zone is confirmed.
-- WhatsApp: admin's "Company WhatsApp" in Settings, else `+2348133774902`
-  (owner, 2026-10-21, until the company line is bought).
-- Newsletter: the reply is the same for new and existing emails (no way to
-  check who is subscribed); emails are stored lower-cased, once.
+- Support contact (FR-055): the backend's `SUPPORT_PHONE` and
+  `SUPPORT_WHATSAPP_ENABLED`, never an admin screen. With `whatsapp: null`,
+  every WhatsApp button is hidden and the 404 page, FAQ, landing page and
+  Contact us offer the phone instead.
 
 ## 7. Authentication and authorization
 
@@ -97,8 +95,6 @@ installed customer app opens at `/app` instead.
 - Page wrappers use `overflow-x: clip`, not `hidden`: `hidden` makes the
   wrapper a scroll container and the sticky header would stop sticking.
   Hash links stop 92 px down, below the header.
-- Newsletter: empty or invalid email shows a field error; a server error
-  shows under the field; success replaces the form with a status message.
 
 ## 9. Testing instructions
 
@@ -110,10 +106,13 @@ npm test
 `src/features/marketing/marketing.test.tsx`: FAQ filter and counts, copy
 checks (FAQs and worries), FAQ empty state and Clear search, mobile menu, `/`
 with its order and apply links, section order (benefits before how it
-works; worries, then newsletter), the WhatsApp button link, the 404 page and
-its driver-app variant, `/app` still redirecting, newsletter validation and
-success. `src/mocks/public.test.ts`: wa.me links, the WhatsApp setting
-(validation, E.164, admin only), newsletter storage. Manual: compare with
+works; worries last, no newsletter), the WhatsApp button link, the 404 page
+and its driver-app variant, `/app` still redirecting.
+`src/features/marketing/supportContact.test.tsx`: WhatsApp hidden and the
+phone offered while it is off, shown when on, Contact us with the real
+number. `src/lib/api/publicSite.test.ts`: the client with the contract
+example, `null` WhatsApp and 429. `src/mocks/public.test.ts`: wa.me links
+and the mock contact. Manual: compare with
 `screens-png/` at 390, 768, 1024 and 1440 px.
 
 ## 10. Known limitations
@@ -121,9 +120,8 @@ success. `src/mocks/public.test.ts`: wa.me links, the WhatsApp setting
 - The legal text needs review before launch (open items in landing-v1.md).
 - Social links and real partner logos are hidden until they exist. The footer's "Staff Login" opens `/admin/login`.
 - The public pages ship in the main bundle (about 113 kB gzipped) so a shared
-  link opens at once; every app page and the newsletter form load as their
-  own chunks.
-- No admin page lists newsletter subscribers, and nothing sends the
-  newsletter yet (contract open questions).
-- The Privacy Policy line about newsletter emails (section 2) is new and
-  needs the same legal review as the rest.
+  link opens at once; every app page loads as its own chunk.
+- The website's Privacy page still lists rider and driver data the pilot
+  does not collect (photo, ID and vehicle papers, bank details for payouts,
+  live location, earnings; #47 decisions). It needs the legal review and an
+  edit to match `PRIVACY_NOTICE.md`.

@@ -14,7 +14,6 @@ import {
   markPartnerNotificationsRead,
   partnerProfileFromRead,
   partnerSignup,
-  SERVICE_AREA_NOT_SERVED,
   setOnline,
   updatePartnerProfile,
 } from './account'
@@ -59,7 +58,6 @@ describe('partnerProfileFromRead', () => {
     expect(partnerProfileFromRead(approved)).toEqual({
       name: 'Sample Rider',
       phone: '+2348000000301',
-      email: null,
       approval: 'approved',
       online: true,
       partner_since: '2026-08-14',
@@ -73,7 +71,7 @@ describe('partnerProfileFromRead', () => {
       },
       service_areas: ['GRA'],
       documents: [],
-      preferences: { new_order_alerts: true, sms_updates: true, offers_and_news: false },
+      preferences: { new_order_alerts: true, sms_updates: true },
       payout_account_ending: null,
     })
   })
@@ -149,7 +147,9 @@ describe('partner account adapters (#67)', () => {
   it('partnerSignup refuses an area no zone matches, without registering', async () => {
     const { client, fetchMock } = setup({ body: serviceZones })
     const error = await rejection(partnerSignup({ ...signupInput, service_area: 'Abakpa' }, client))
-    expect([error.code, error.message]).toEqual([SERVICE_AREA_NOT_SERVED, 'We do not serve "Abakpa" yet. Areas we serve: Independence Layout.'])
+    const msg = 'We do not serve "Abakpa" yet. Areas we serve: Independence Layout.'
+    expect([error.status, error.code]).toEqual([422, 'validation_error'])
+    expect(error.details).toEqual([{ loc: ['body', 'service_area'], msg, type: 'value_error' }])
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -173,10 +173,26 @@ describe('partner account adapters (#67)', () => {
     ])
   })
 
-  it('partnerSignup shows a zone the server refused as not served', async () => {
-    const details = [{ loc: ['body', 'service_zone_id'], msg: 'Choose an active service zone', type: 'value_error' }]
+  it('partnerSignup keeps every other field error when the server refuses the zone (#80)', async () => {
+    const details = [
+      { loc: ['body', 'service_zone_id'], msg: 'Choose an active service zone', type: 'value_error' },
+      { loc: ['body', 'plate'], msg: 'Use 4 to 15 characters', type: 'value_error' },
+      { loc: ['body'], msg: 'Request body is not valid', type: 'value_error' },
+    ]
     const { client } = setup({ body: serviceZones }, { body: envelope('validation_error', details), status: 422 })
-    expect((await rejection(partnerSignup(signupInput, client))).code).toBe(SERVICE_AREA_NOT_SERVED)
+    const error = await rejection(partnerSignup(signupInput, client))
+    expect(error.code).toBe('validation_error')
+    expect(error.details).toEqual([
+      { loc: ['body', 'service_area'], msg: 'We do not serve "independence   LAYOUT" yet.', type: 'value_error' },
+      { loc: ['body', 'plate'], msg: 'Use 4 to 15 characters', type: 'value_error' },
+      { loc: ['body'], msg: 'Request body is not valid', type: 'value_error' },
+    ])
+  })
+
+  it('partnerSignup leaves a field named like an inherited key alone (#80)', async () => {
+    const details = [{ loc: ['body', 'constructor'], msg: 'Unexpected field', type: 'extra_forbidden' }]
+    const { client } = setup({ body: serviceZones }, { body: envelope('validation_error', details), status: 422 })
+    expect((await rejection(partnerSignup(signupInput, client))).details).toEqual(details)
   })
 
   it('getPartnerProfile converts the server profile', async () => {
@@ -195,14 +211,7 @@ describe('partner account adapters (#67)', () => {
     const { client, sent } = setup({ body: { ...partnerProfile, preferences: { new_order_alerts: true, sms_updates: false } } })
     const profile = await updatePartnerProfile({ preferences: { sms_updates: false } }, client)
     expect(sent()).toMatchObject({ method: 'PATCH', body: { preferences: { sms_updates: false } } })
-    expect(profile.preferences).toEqual({ new_order_alerts: true, sms_updates: false, offers_and_news: false })
-  })
-
-  it('updatePartnerProfile refuses email and news and offers without calling the server', async () => {
-    const { client, fetchMock } = setup()
-    expect((await rejection(updatePartnerProfile({ email: 'a@example.com' }, client))).code).toBe('not_connected')
-    expect((await rejection(updatePartnerProfile({ preferences: { offers_and_news: true } }, client))).code).toBe('not_connected')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(profile.preferences).toEqual({ new_order_alerts: true, sms_updates: false })
   })
 
   it('updatePartnerProfile passes validation_error through', async () => {
@@ -225,14 +234,25 @@ describe('partner account adapters (#67)', () => {
   it('listPartnerNotifications shows a kind this build does not know in the neutral account style', async () => {
     const extra = { id: 'x', kind: 'weather_alert', title: 'Heavy rain today', body: 'Expect slow roads.', reference: null, created_at: '2026-10-27T07:00:00Z', read_at: null }
     const { client } = setup({ body: { ...notificationsPage, items: [extra], total: 1 } })
-    expect(await listPartnerNotifications(client)).toEqual([
+    expect((await listPartnerNotifications(client)).items).toEqual([
       { id: 'x', kind: 'account', title: 'Heavy rain today', body: 'Expect slow roads.', at: '2026-10-27T07:00:00Z', read: false, reference: null },
     ])
   })
 
+  it('listPartnerNotifications keeps the server unread count beyond the page (#80)', async () => {
+    // All messages on the page are read, but older unread ones exist on later pages.
+    const read = { ...notificationsPage.items[1] }
+    const { client } = setup({ body: { items: [read], unread_count: 7, total: 120, limit: 50, offset: 0 } })
+    const list = await listPartnerNotifications(client)
+    expect(list.items.every((n) => n.read)).toBe(true)
+    expect(list.unread_count).toBe(7)
+  })
+
   it('listPartnerNotifications converts the contract example', async () => {
     const { client } = setup({ body: notificationsPage })
-    expect(await listPartnerNotifications(client)).toEqual([
+    const list = await listPartnerNotifications(client)
+    expect(list.unread_count).toBe(1)
+    expect(list.items).toEqual([
       {
         id: 'c3e1a9b0-5d7f-4a2c-8e6b-1f0d9a3c5b72',
         kind: 'assigned',

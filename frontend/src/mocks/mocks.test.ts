@@ -150,10 +150,10 @@ describe('mock orders', () => {
 describe('mock addresses', () => {
   it('makes the first address the default and protects the default from removal', async () => {
     await mockRegister({ name: 'Fresh', phone: '0809 000 0004', password: 'long-enough' })
-    const a = await addAddress({ label: 'Home', address: '1 New Road, Enugu', landmark: null, make_default: false })
+    const a = await addAddress({ label: 'Home', address: '1 New Road, Enugu', landmark: null, zone_id: 'ar-gra', make_default: false })
     expect(a.is_default).toBe(true)
     await expect(removeAddress(a.id)).rejects.toMatchObject({ code: 'default_address' })
-    const b = await addAddress({ label: 'Shop', address: '2 Market Road, Enugu', landmark: null, make_default: true })
+    const b = await addAddress({ label: 'Shop', address: '2 Market Road, Enugu', landmark: null, zone_id: 'ar-ogui', make_default: true })
     const list = await listAddresses()
     expect(list.find((x) => x.id === b.id)?.is_default).toBe(true)
     expect(list.filter((x) => x.is_default)).toHaveLength(1)

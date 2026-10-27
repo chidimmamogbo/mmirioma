@@ -32,8 +32,9 @@ with the customer's delivery code, and follow their sample earnings.
    enter the customer's 6-digit code (`code`: 3 tries, resend after 2 minutes,
    then ask admin) → done (`done`).
 6. **Account**: earnings and withdraw request, history, notifications,
-   vehicle and papers (upload), report a problem, profile, settings (optional
-   email), change password.
+   vehicle and papers (upload), report a problem, profile, settings (new
+   order alerts and SMS updates), change password. Partners have no email and
+   no "News and offers" switch in the pilot (#85).
 7. **Tanker drivers** (`/partner/driver`, green theme, `t-*`): the dashboard lists
    tanker orders near you; the orders list filters by Ground or Overhead tank
    and only shows orders the driver's tank can carry. The trip is a
@@ -81,20 +82,35 @@ when `VITE_USE_MOCKS=false` (#67):
 | `getPartnerProfile` | `GET /driver/profile` |
 | `updatePartnerProfile` | `PATCH /driver/profile` (preferences only) |
 | `setOnline` | `PUT /driver/availability` |
-| `listPartnerNotifications` | `GET /driver/notifications` (newest 50) |
+| `listPartnerNotifications` | `GET /driver/notifications` (newest 50, plus `unread_count` across all pages) |
 | `markPartnerNotificationsRead` | `POST /driver/notifications/read` with no ids (marks all) |
 
 Sign-up matches the typed area to an active zone by name, ignoring case and
 extra spaces, and sends its id as `service_zone_id`. The profile has no
-email, documents, payout account or "News and offers" switch, so the adapter
-returns `null`, `[]`, `null` and `false` for them. When admin has not set a
+documents or payout account, so the adapter returns `[]` and `null` for
+them. When admin has not set a
 vehicle description yet, the adapter writes one from the sign-up details:
 "Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker. The
 transfer methods become "Ground tanks", "Overhead tanks", "Ground and
 overhead tanks", or "Not set yet" when the list is empty.
 
-The job functions, earnings, payouts, history, document upload and problem
-reports still run on mocks. In real-API mode they fail with `not_connected`.
+Six job functions call the driver job endpoints in
+[deliveries.md](../api/deliveries.md) through `real/jobs.ts` (#12):
+
+| Function | Endpoint |
+| --- | --- |
+| `listAvailableJobs` | none: always `[]`, the MVP has no job pool; offers come as `assigned` jobs |
+| `listMyActiveJobs` | `GET /driver/jobs`: `offers`, then `today` and `upcoming` |
+| `listHistory` | `GET /driver/jobs`: `done` |
+| `getJob` | `GET /driver/jobs/{reference}`; after a 404, the job from the `done` list (summary fields only) |
+| `acceptJob` | `POST /driver/jobs/{reference}/accept` |
+| `declineJob` | `POST /driver/jobs/{reference}/decline`, reasons mapped as in [api-mapping.md](../architecture/api-mapping.md#available-orders-and-declining); for reasons sent as `other`, `GET /driver/profile` first for the vehicle word in the label |
+
+Conversion follows [api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send).
+
+The job steps (pickup, code, proof: #13), earnings, payouts, document upload
+and problem reports still run on mocks. In real-API mode they fail with
+`not_connected`.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 `partner_not_approved` (403), `not_assigned_to_you` (409),
 `invalid_job_transition` (409), `load_not_confirmed` (422), `invalid_code`
@@ -118,6 +134,11 @@ Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
   times (no OSRM) or pay (out of the MVP). Screens show the ordered litres in
   litres and gallons, and leave the rest out
   ([api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send)).
+- A job may also come without the receiver (offers, FR-032, and ended
+  jobs), the full addresses (offers and history) or the code tries (before
+  the code is issued). Screens then name the area, leave out the customer
+  row and the call buttons, and the code screen says it is waiting for the
+  code. Mock mode keeps every value.
 - Failed and disputed jobs show in history as "Delivery failed" and "Under
   review"; they are never hidden.
 - No invented turn-by-turn directions: the map badge says where to head;
@@ -142,13 +163,21 @@ active job, for calling.
   online while pending or suspended shows the server's `partner_not_approved`
   message. A driver with no driver profile gets the error screen
   (`no_driver_profile`).
-- Real API sign-up: an area that matches no active zone, or a zone the
-  server refuses, fails with the client-only code `service_area_not_served`
-  ("We do not serve "X" yet. Areas we serve: …"), shown as the top notice.
-  In a `validation_error`, `declared_capacity_gallons` is renamed
-  `tank_gallons` so the message appears under the field.
-- Real API: saving an email or changing "News and offers" fails with
-  `not_connected` before any request is sent.
+- Real API sign-up: an area that matches no active zone fails as a
+  `validation_error` on `service_area` before anything is sent ("We do not
+  serve "X" yet. Areas we serve: …"), shown under the area field. A zone
+  the server refuses gets the same message and keeps the other field errors
+  (#80). In a `validation_error`, `declared_capacity_gallons` is renamed
+  `tank_gallons` and `service_zone_id` `service_area`, so each message
+  appears under its field.
+- Sign-up: a field error the form has no slot for (`vehicle_type`, or the
+  whole body, `loc: ["body"]`) shows in the top notice, next to the field
+  errors (#80). A refused sign-up never ends without a message.
+- Badges and "Mark all read" use the notification list's `unread_count`, so
+  unread messages older than the newest 50 still count (#80).
+- Partners have no email and no "News and offers" switch, in mock and real
+  mode (#85). `PartnerProfile` has neither field, and settings change only
+  New order alerts and SMS updates.
 - Real API: a notification `kind` this build does not know is shown with
   the `account` style (shield icon; tapping it opens the profile) and the
   server's title and body. An `approval_status` it does not know is read as
@@ -183,7 +212,8 @@ finish with the code shown under the keypad (mock mode).
 - Real API sign-up takes a typed area, not a zone list, so a partner must
   spell the zone's name. The demo seed creates no zones; create one before
   trying sign-up locally.
-- Real API notifications show only the newest 50.
+- Real API notifications list only the newest 50; the unread count covers
+  them all.
 - Drivers made with the command-line tool before it asked for a delivery
   type are shown the tanker app when they have a declared capacity, else the
   Keke app.

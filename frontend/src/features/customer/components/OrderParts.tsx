@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react'
 import { OptionTile } from '../../../components/ui/Choice'
-import { Chip } from '../../../components/ui/Chip'
 import { ScreenHeading, StepBar } from '../../../components/ui/Content'
-import { WATER_SOURCE_LABEL, type Quote, type WaterSource } from '../../../domain/orders'
-import { formatNaira } from '../../../lib/format/money'
+import { Notice } from '../../../components/ui/Notice'
+import { WATER_SOURCE_LABEL, type WaterSource } from '../../../domain/orders'
 
 /** Step bar and title at the top of each order step (4 steps: type, quantity, address, review). */
 export function OrderStepHeading({ step, title, sub }: { step: 1 | 2 | 3 | 4; title: string; sub: string }) {
@@ -53,22 +52,14 @@ export function WaterSourcePicker({
   )
 }
 
-/** The summary total row (`Total ₦6,500`), or "Quote needed" for custom sizes (FR-021). */
-export function SummaryTotal({ quote, label = 'Total', loading }: { quote: Quote | undefined; label?: string; loading?: boolean }) {
-  if (quote?.status === 'manual_quote_required') {
-    return (
-      <div className="flex items-center justify-between gap-2.5">
-        <span className="text-[15px] font-extrabold">{label}</span>
-        <Chip tone="amber">Quote needed</Chip>
-      </div>
-    )
-  }
+/**
+ * The quantity screens' line instead of a price (customer-live-prices.md,
+ * screen 1): the price comes on Review, after the address and area (#42).
+ */
+export function PriceComesLater({ className }: { className?: string }) {
   return (
-    <div className="flex items-center justify-between gap-2.5" aria-busy={loading || undefined}>
-      <span className="text-[15px] font-extrabold">{label}</span>
-      <span className="text-[22px] font-extrabold text-primary-dark">
-        {quote ? formatNaira(quote.total_minor_units) : '…'}
-      </span>
-    </div>
+    <Notice tone="info" className={className}>
+      You'll see your price on the review screen, after you add the delivery address and your area.
+    </Notice>
   )
 }
