@@ -192,6 +192,16 @@ export interface PartnerNotification {
   reference: string | null
 }
 
+/**
+ * The newest notifications, plus the unread count across all of them. The
+ * list may be one page (the real API sends the newest 50), so badges and
+ * "Mark all read" use `unread_count`, never the unread items in the list.
+ */
+export interface PartnerNotificationList {
+  items: PartnerNotification[]
+  unread_count: number
+}
+
 export type PartnerIssueType =
   | 'customer_unreachable'
   | 'unsafe_pour'
