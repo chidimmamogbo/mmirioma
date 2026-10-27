@@ -18,8 +18,9 @@ import {
   WhatsAppIcon,
 } from './icons'
 import { InstallAppButton, Kicker, MarketingFooter, MarketingHeader, Oma, Pic, SectionHead } from './MarketingParts'
-import { useWhatsappNumber } from './queries'
-import { FloatingActions, NewsletterSignup } from './SiteExtras'
+import { formatPhone } from '../../lib/format/phone'
+import { useSupportContact } from './queries'
+import { FloatingActions } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 const PRIMARY_BUTTON =
@@ -34,7 +35,8 @@ const OUTLINE_BUTTON =
  *
  * Order of sections (owner's copy brief, 2026-10-21): what you get and the
  * main button above the fold, benefits before features, worries answered
- * just before the closing button, then the newsletter and footer.
+ * just before the closing button, then the footer. The newsletter is out of
+ * the pilot (#8).
  */
 export function Landing() {
   useMarketingPage(
@@ -57,7 +59,6 @@ export function Landing() {
         <InstallSection />
         <AreasAndFaqs />
         <BeforeYouOrder />
-        <NewsletterSignup overlap />
       </main>
       <MarketingFooter variant="full" />
       <FloatingActions />
@@ -464,7 +465,7 @@ const TEXT_LINK = 'inline-flex min-h-11 items-center gap-1.5 text-[15px] font-bo
 
 /** Service areas and FAQs. The "Our Partners" strip is left out until real partners are agreed (decision Q4). */
 function AreasAndFaqs() {
-  const whatsapp = useWhatsappNumber()
+  const { phone, whatsapp } = useSupportContact()
   return (
     <section className="bg-white">
       <div className="mk-wrap py-20">
@@ -489,15 +490,21 @@ function AreasAndFaqs() {
                 <p className="m-0 text-[16px] font-bold text-ink">Not on the list?</p>
                 <p className="mt-0.5 mb-0 text-[14px] text-slate">Ask us. We are adding new areas.</p>
               </div>
-              <a
-                href={whatsappLink(whatsapp, 'Hello MmiriOma, do you deliver to my area?')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={TEXT_LINK}
-              >
-                Check your area on WhatsApp
-                <ArrowRightIcon size={15} />
-              </a>
+              {whatsapp ? (
+                <a
+                  href={whatsappLink(whatsapp, 'Hello MmiriOma, do you deliver to my area?')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={TEXT_LINK}
+                >
+                  Check your area on WhatsApp
+                  <ArrowRightIcon size={15} />
+                </a>
+              ) : (
+                <a href={`tel:${phone}`} className={TEXT_LINK}>
+                  Call {formatPhone(phone)} to check your area
+                </a>
+              )}
             </div>
           </div>
           <div id="faq" className="mk-split-divider flex flex-col gap-[18px]">
@@ -529,9 +536,9 @@ function AreasAndFaqs() {
 
 /** The common worries, answered right before the closing button (owner's copy brief). */
 function BeforeYouOrder() {
-  const whatsapp = useWhatsappNumber()
+  const { phone, whatsapp } = useSupportContact()
   return (
-    <section id="before-you-order" aria-labelledby="before-title" className="bg-white">
+    <section id="before-you-order" aria-labelledby="before-title" className="relative z-[1] rounded-b-[36px] bg-white">
       <div className="mk-wrap pb-20">
         <div className="flex flex-col gap-10 rounded-[28px] bg-mk-navy px-[clamp(20px,4vw,56px)] py-[clamp(36px,5vw,64px)] text-white">
           <div className="flex flex-col items-center gap-2.5 text-center">
@@ -554,15 +561,21 @@ function BeforeYouOrder() {
               {ORDER_CTA}
               <ArrowRightIcon />
             </Link>
-            <a
-              href={whatsappLink(whatsapp, 'Hello MmiriOma, I have a question before I order.')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-white/60 px-[26px] text-center text-[16px] font-bold text-white no-underline transition-colors duration-150 hover:border-white hover:bg-white/10 hover:text-white"
-            >
-              <WhatsAppIcon size={20} />
-              Ask us on WhatsApp
-            </a>
+            {whatsapp ? (
+              <a
+                href={whatsappLink(whatsapp, 'Hello MmiriOma, I have a question before I order.')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-white/60 px-[26px] text-center text-[16px] font-bold text-white no-underline transition-colors duration-150 hover:border-white hover:bg-white/10 hover:text-white"
+              >
+                <WhatsAppIcon size={20} />
+                Ask us on WhatsApp
+              </a>
+            ) : (
+              <a href={`tel:${phone}`} className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-solid border-white/60 px-[26px] text-center text-[16px] font-bold text-white no-underline transition-colors duration-150 hover:border-white hover:bg-white/10 hover:text-white">
+                Call us on {formatPhone(phone)}
+              </a>
+            )}
           </div>
         </div>
       </div>

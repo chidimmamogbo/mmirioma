@@ -1,19 +1,19 @@
 /**
  * Typed admin API functions used by the admin pages.
  *
- * The Sprint 1 orders contract (docs/api/orders.md) has an admin order list
- * and detail, but in a different shape (litres, no delivery type, price or
- * rider); everything else on these pages has no contract yet. In mock mode
- * the functions use `src/mocks/adminMock.ts`; in real-API mode they fail with
- * `not_connected` until the endpoints exist. Switching one is a change here
- * only; pages do not change.
+ * In mock mode the functions use `src/mocks/adminMock.ts`. In real-API mode
+ * the linked ones call an adapter from `./real/`; the rest fail with
+ * `not_connected` until their endpoints exist. Linked so far: the cash
+ * functions (#19) and `listOrders`, `getOrder` (#15).
  */
+import type { AdminOrderFilter } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
 import * as cash from './real/cash'
+import * as orders from './real/orders'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
 
@@ -27,8 +27,9 @@ export const getDashboard = api('Dashboard', mock.getDashboard)
 export const getLiveMap = api('Live map', mock.getLiveMap)
 export const listActivity = api('Activity', mock.listActivity)
 
-export const listOrders = api('Orders', mock.listOrders)
-export const getOrder = api('Orders', mock.getOrder)
+export const listOrders = (filter?: AdminOrderFilter, query?: string): Promise<mock.OrderList> =>
+  USE_MOCKS ? mock.listOrders(filter, query) : orders.listOrders(filter, query)
+export const getOrder = (reference: string) => (USE_MOCKS ? mock.getOrder(reference) : orders.getOrder(reference))
 export const listEligibleRiders = api('Rider assignment', mock.listEligibleRiders)
 export const assignOrder = api('Rider assignment', mock.assignOrder)
 export const cancelOrder = api('Orders', mock.cancelOrder)

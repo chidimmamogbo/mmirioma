@@ -4,7 +4,7 @@ import { cx } from '../../lib/cx'
 import { CONTACT } from './content'
 import { ArrowLeftIcon } from './icons'
 import { BrandLogo } from './MarketingParts'
-import { FloatingActions, NewsletterSignup } from './SiteExtras'
+import { FloatingActions } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 /*
@@ -295,6 +295,18 @@ const PRIVACY: Section[] = [
             ['Cash payment records: amount due, amount collected, who collected and received it, and when', 'To account for cash paid on delivery.'],
             ['Bank account details, only if we pay you a refund by bank transfer', 'To make that refund.'],
             ['What you tell us when you call or message our support line', 'To answer your questions and handle complaints.'],
+            [
+              'Problems and questions you send in the app ("Report a problem" and Help): the type of problem, your message, the order it is about, its status and how our staff resolved it',
+              'To investigate and resolve the problem, and handle complaints.',
+            ],
+            [
+              "Feedback you give on a delivered order: your rating (1 to 5), whether the rider or driver unloaded the water, and, if you choose to answer, whether it was on time, whether you got the quantity you ordered, whether you would order again, and a short message",
+              "To check and improve our deliveries and our riders' and drivers' service.",
+            ],
+            [
+              'Account deletion requests you make in the app: when you asked, the reason if you give one, and the outcome',
+              'To handle your request (section 9) and keep a record that we did.',
+            ],
             ['Messages we show you in the app about your orders or jobs', 'To keep you informed. A message never changes an order.'],
             [
               'Technical records: your sign-in session, and server logs (IP address, time and the page or action requested)',
@@ -429,6 +441,10 @@ const PRIVACY: Section[] = [
               'Order and delivery records, including delivery addresses: 3 years after the order is completed',
               'Personal details deleted or anonymized; the payment subset is kept as below.',
             ],
+            [
+              "Feedback on an order: as long as the order record (3 years after the order is completed)",
+              "Your message is removed when the order's personal details are deleted or anonymized, or when your account is closed; the rating and answers stay with the anonymized order, as they no longer identify you.",
+            ],
             ['Driver GPS points: 90 days after the delivery', 'Deleted, unless needed for an open complaint or dispute.'],
             [
               'Cash payment and refund records, including refund bank details: at least 6 years, or longer where Nigerian accounting or tax law requires',
@@ -436,6 +452,14 @@ const PRIVACY: Section[] = [
             ],
             ['Complaints, disputes and incident records: 3 years after resolution', 'Deleted or anonymized, unless continued retention is justified.'],
             ['Calls and messages on our support line: 12 months after the matter is resolved', 'Deleted, unless linked to an unresolved matter.'],
+            [
+              'Problems you report in the app: 3 years after our staff resolve it',
+              'Deleted. If your account is closed sooner, your message is removed then and the rest of the record is kept until the 3 years end.',
+            ],
+            [
+              'Account deletion requests: as long as we need to show that we handled your request',
+              'The reason you gave is removed when your account is closed; the reference, dates and outcome are kept as a record that the request was handled.',
+            ],
             ['Sign-in sessions: a session lasts up to 7 days', 'Ended sessions are deleted at the next monthly review.'],
             ['Server logs: 90 days', 'Deleted, unless needed to investigate a security incident.'],
             ['Encrypted backups: up to 30 days', 'They expire on schedule (section 10).'],
@@ -626,7 +650,6 @@ function LegalPage({
             </article>
           </div>
         </section>
-        <NewsletterSignup />
       </main>
       <footer className="bg-mk-navy text-mk-foot-text">
         <div className="mx-auto box-border flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-8 text-[14px]">

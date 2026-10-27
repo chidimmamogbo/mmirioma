@@ -66,8 +66,10 @@ and the screen-to-endpoint table.
 
 ### 3. Approval (gate G2)
 
-The technical lead checks the design before anyone builds it, then sets
-`Status: approved` with their name and the date in `docs/design/<slice>.md`:
+One reviewer who is not the designer (in the fork: @chidimmamogbo,
+@nnamdi-security or @Cloudcrackamara) checks the design before anyone builds
+it, then sets `Status: approved` with their name and the date in
+`docs/design/<slice>.md`:
 
 - every screen and state from the prompt exists;
 - nothing contradicts the SRS (see the honesty rules below);
@@ -77,9 +79,9 @@ The technical lead checks the design before anyone builds it, then sets
 ### 4. API Contracts (gate G3)
 
 From the screen-to-endpoint table, create or update `docs/api/<area>.md` and its
-mock JSON in `docs/api/examples/`. The frontend and backend owners both review
-it, and the document is marked `Status: agreed` with their names. The technical
-lead may instead agree it alone, and the document then names only them.
+mock JSON in `docs/api/examples/`. One reviewer who is not the author agrees
+it, and the document is marked `Status: agreed` with their name and the date.
+Others may comment before it merges.
 **Nothing is built until the contract is agreed.** If the design asks for a
 field the SRS does not support, change the design, not the rules.
 
@@ -147,4 +149,4 @@ designers prepare slice N+1. Do not design the whole product up front.
 | [02-admin-orders.md](../design/prompts/02-admin-orders.md) | Admin sign-in and session states, order directory and detail (S1-08) | Ready |
 | [03-driver-deliveries.md](../design/prompts/03-driver-deliveries.md) | Driver sign-in and session states, jobs, accept/decline (S1-07); pickup, proof, incidents (design ahead) | Ready; contract pending S1-06 |
 | [04-authentication.md](../design/prompts/04-authentication.md) | Canonical sign-in, registration and session screens for all three apps (S1-14) | Approved: [authentication.md](../design/authentication.md) |
-| [13-customer-live-prices.md](../design/prompts/13-customer-live-prices.md) | Fork: customer live prices, area (service zone) picker and every quote state (#79) | Ready for review (G2) |
+| [13-customer-live-prices.md](../design/prompts/13-customer-live-prices.md) | Fork: customer live prices, area (service zone) picker and every quote state (#79) | Brief approved (PR #83); design approved (G2, 2026-10-27): [customer-live-prices.md](../design/customer-live-prices.md) |

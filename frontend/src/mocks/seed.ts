@@ -25,6 +25,7 @@ import type {
 } from '../domain/orders'
 import type {
   EarningEntry,
+  JobPlace,
   JobStage,
   PartnerJob,
   PartnerNotification,
@@ -58,7 +59,8 @@ export interface MockCustomerOrder extends CustomerOrder {
 }
 
 export interface CustomerData {
-  profile: Omit<CustomerProfile, 'stats' | 'name' | 'phone' | 'phone_verified'>
+  /** The mock always offers email and the switches, so they are never absent or `null` here. */
+  profile: { email: string | null; customer_since: string; photo_url: string | null; preferences: NonNullable<CustomerProfile['preferences']> }
   addresses: SavedAddress[]
   orders: MockCustomerOrder[]
   notifications: CustomerNotification[]
@@ -68,12 +70,16 @@ export interface CustomerData {
 
 /**
  * A job in the shared pool, with the server-side fields partners never see.
- * The mock always knows the customer's choice and a sample rider pay, so
- * those are never `null` here.
+ * The mock always knows the customer's choice, a sample rider pay, both
+ * addresses, the receiver and the code tries, so those are never `null`
+ * here (mock mode keeps every value, @chidimmamogbo on #12).
  */
 export interface StoredJob extends PartnerJob {
   choice: WaterChoice
   earning_minor_units: number
+  station: JobPlace & { address: string }
+  customer: JobPlace & { address: string; contact_name: string; phone: string }
+  code_tries_left: number
   /**
    * The mocks never fail or dispute a job; the admin statuses for those are
    * still open (api-mapping.md, open question 5, #15).
@@ -135,11 +141,6 @@ export interface MockState {
   jobs: StoredJob[]
   /** Admin-only records (stations, prices, issues, audit...). */
   admin: AdminData
-  /**
-   * Newsletter sign-ups from the public pages, lower-cased emails. Optional
-   * because data saved before this list existed does not have it.
-   */
-  newsletter?: { email: string; subscribed_at: string }[]
   /**
    * The open SMS code per user (auth.md, phone verification), mock only.
    * Optional because data saved before phone verification does not have it.

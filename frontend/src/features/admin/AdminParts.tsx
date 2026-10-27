@@ -5,8 +5,7 @@ import { LoadingBlock, LoadingScreen } from '../../components/layout/StateScreen
 import { Card } from '../../components/ui/Card'
 import { Chip, SampleTag } from '../../components/ui/Chip'
 import { INPUT } from '../../components/ui/Field'
-import { ADMIN_STATUS_LABEL, type AdminOrderStatus } from '../../domain/admin'
-import type { PaymentStatus } from '../../domain/orders'
+import { ADMIN_STATUS_LABEL, type AdminOrderStatus, type AdminPaymentStatus } from '../../domain/admin'
 import type { ApprovalStatus } from '../../domain/partner'
 import { cx } from '../../lib/cx'
 import { RequireRole } from '../auth/RequireRole'
@@ -88,7 +87,7 @@ export function StatusChip({ status }: { status: AdminOrderStatus }) {
   return <Chip tone={STATUS_TONE[status]}>{ADMIN_STATUS_LABEL[status]}</Chip>
 }
 
-export function PaymentChip({ status }: { status: PaymentStatus }) {
+export function PaymentChip({ status }: { status: AdminPaymentStatus }) {
   return <Chip tone={PAYMENT_TONE[status]}>{PAYMENT_LABEL[status]}</Chip>
 }
 

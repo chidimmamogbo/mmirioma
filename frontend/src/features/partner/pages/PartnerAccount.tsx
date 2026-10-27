@@ -57,7 +57,7 @@ export function PartnerMenu() {
   const [leaving, setLeaving] = useState(false)
   const p = profile.data
   const current = active.data?.find((j) => j.stage === 'accepted' || j.stage === 'collected') ?? active.data?.[0]
-  const unread = notes.data?.filter((n) => !n.read).length ?? 0
+  const unread = notes.data?.unread_count ?? 0
   const tanker = vehicle === 'tanker'
 
   return (

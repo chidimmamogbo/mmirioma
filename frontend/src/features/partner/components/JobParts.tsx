@@ -7,7 +7,7 @@ import { Chip } from '../../../components/ui/Chip'
 import type { PartnerJob } from '../../../domain/partner'
 import { cx } from '../../../lib/cx'
 import { formatNaira } from '../../../lib/format/money'
-import { jobDeliveryType, jobQuantity, kmSuffix, minutesSuffix, tankerTripLine, tripMinutes } from '../jobHelpers'
+import { contactSuffix, customerLabel, jobDeliveryType, jobQuantity, kmSuffix, minutesSuffix, placeAddress, tankerTripLine, tripMinutes } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 
 /** Pool card of the available orders list (`r-available`). */
@@ -81,16 +81,16 @@ export function RouteCard({ job, className }: { job: PartnerJob; className?: str
             <div className="text-chip font-bold text-mute">{keke ? 'REFILL STATION' : 'LOAD AT'}</div>
             <div className="font-extrabold">{job.station.name}</div>
             <div className="text-caption text-mute">
-              {job.station.address}
+              {placeAddress(job.station)}
               {kmSuffix(job.station.distance_km)}
               {minutesSuffix(job.station.minutes)}
             </div>
           </div>
           <div>
             <div className="text-chip font-bold text-mute">{keke ? 'CUSTOMER' : 'DELIVER TO'}</div>
-            <div className="font-extrabold">{keke ? job.customer.name : `${job.customer.contact_name}, ${job.customer.area}`}</div>
+            <div className="font-extrabold">{keke ? job.customer.name : customerLabel(job)}</div>
             <div className="text-caption text-mute">
-              {keke ? (job.customer.landmark ?? job.customer.area) : job.customer.address.split(',')[0]}
+              {keke ? (job.customer.landmark ?? job.customer.area) : placeAddress(job.customer).split(',')[0]}
               {kmSuffix(job.customer.distance_km)}
               {minutesSuffix(job.customer.minutes)}
             </div>
@@ -109,7 +109,7 @@ export function JobMiniCard({ job, sub, trailing, className }: { job: PartnerJob
       <Illustration name={keke ? 'keke' : 'tanker'} className={keke ? 'w-[76px]' : 'w-[86px]'} />
       <div className="flex-1">
         <div className="font-extrabold">{job.reference}</div>
-        <div className="text-caption text-mute">{sub ?? `${jobQuantity(job)} · ${job.customer.contact_name}`}</div>
+        <div className="text-caption text-mute">{sub ?? `${jobQuantity(job)}${contactSuffix(job)}`}</div>
       </div>
       {trailing}
     </Card>

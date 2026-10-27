@@ -7,6 +7,7 @@ import { CardLink } from '../../../components/ui/Card'
 import { ActionTile, IconBadge, SectionHeader, TextLink } from '../../../components/ui/Content'
 import { HomeAppCard } from '../../pwa/PushParts'
 import { ButtonLink } from '../../../components/ui/Button'
+import { useSession } from '../../auth/useSession'
 import { CustomerTabs, CustomerTopBar } from '../components/CustomerChrome'
 import { RecentOrderCard } from '../components/OrderBits'
 import { VerifyPhoneBanner } from '../components/VerifyPhoneBanner'
@@ -23,7 +24,10 @@ export function Home() {
   const orders = useOrders()
   const points = usePoints()
 
-  const firstName = profile.data?.name.split(' ')[0] ?? ''
+  const session = useSession()
+  // The name also comes with the session (`GET /auth/me`), so the greeting
+  // works before the customer profile endpoint exists (#82).
+  const firstName = (profile.data?.name ?? session.data?.user.name ?? '').split(' ')[0]
   const defaultAddress = addresses.data?.find((a) => a.is_default) ?? addresses.data?.[0]
   const latest = orders.data?.[0]
 

@@ -34,10 +34,11 @@ supervisors choose between this fork and the main repo.
   `fix/`, `chore/`, `docs/`) and put `Closes #<issue>` in the PR.
 - **`main` is protected.** A PR merges only when both CI jobs are green
   (`Backend (lint, migrations, tests)`, `Frontend (lint, typecheck, test,
-  build)`) and a code owner from `.github/CODEOWNERS` has approved it. Run the
-  checks in [Testing](#testing) locally before you push. @nnamdi-security
-  reviews `backend/`, @chidimmamogbo reviews `frontend/`, and each is the
-  other's backup, so an author never approves their own PR.
+  build)`) and **one** reviewer has approved it. The reviewers are
+  @chidimmamogbo, @nnamdi-security and @Cloudcrackamara (`.github/CODEOWNERS`);
+  any one of them suffices, for any part of the repository, and an author
+  never approves their own PR. Run the checks in [Testing](#testing) locally
+  before you push.
 - **Stay in your lane.** Lanes, owners, dependencies and the files each lane
   owns are in [docs/process/linking-plan.md](docs/process/linking-plan.md).
   Shared files (`frontend/src/domain/*.ts`, `docs/architecture/api-mapping.md`,
@@ -50,17 +51,16 @@ supervisors choose between this fork and the main repo.
   props, and `VITE_USE_MOCKS=true` still serves the full mock demo.
 - **Backend changes are allowed in this fork** under the backend rules below:
   an agreed contract in `docs/api/` first, a migration for every schema
-  change, and review by @nnamdi-security. A field or endpoint the backend
+  change, and review by one of the reviewers. A field or endpoint the backend
   lacks becomes an issue in this fork; the frontend shows its error state
   until it exists.
 - **Gates in this fork** (see [UI-driven workflow](#ui-driven-workflow)):
   linking an existing screen is plumbing and needs only an agreed contract
-  (G3). A new screen needs design approval (G2) from @chidimmamogbo. A
-  contract is agreed when @nnamdi-security and @chidimmamogbo have both
-  approved it. The technical lead (@nnamdi-security) may also approve a
-  design (G2) or agree a contract (G3) alone; the document then names them
-  as the only approver. GitHub still needs a code owner other than the
-  author to approve the pull request that records it.
+  (G3). A new screen needs design approval (G2). **One reviewer suffices**
+  for either gate: any of @chidimmamogbo, @nnamdi-security or
+  @Cloudcrackamara who is not the author approves the design or agrees the
+  contract, and the document names who did and when. Others may still
+  comment before it merges.
 
 ## Architecture
 
@@ -297,10 +297,10 @@ Requirements → UI Design → Approval → API Contracts → Parallel Developme
 2. UI Design: Claude Design prompt in `docs/design/prompts/`, reusing the shared
    design system (`00-design-system.md`); result recorded in
    `docs/design/<slice>.md`.
-3. Approval (gate G2): the technical lead reviews the design against the SRS and
-   sets `Status: approved` in `docs/design/<slice>.md`.
-4. API Contracts (gate G3): contract derived from the screens, agreed by the
-   frontend and backend owners, marked `Status: agreed` in `docs/api/`.
+3. Approval (gate G2): one reviewer (not the author) reviews the design against
+   the SRS and sets `Status: approved` in `docs/design/<slice>.md`.
+4. API Contracts (gate G3): contract derived from the screens, agreed by one
+   reviewer (not the author), marked `Status: agreed` in `docs/api/`.
 5. Parallel Development: frontend against mocks, backend against the contract.
 6. Integration: mocks swapped for the real API, slice run end to end.
 7. Testing: E2E or documented manual test, full checks, acceptance tests.

@@ -18,14 +18,16 @@ from app.core.database import get_db_session
 from app.core.errors import ErrorResponse
 from app.modules.auth.dependencies import CurrentDriver
 from app.modules.notifications import service as notifications_service
+from app.modules.notifications.schemas import (
+    MarkReadRequest,
+    NotificationPageRead,
+    NotificationRead,
+)
 from app.modules.orders.schemas import PageParams
 from app.modules.partners import service
 from app.modules.partners.schemas import (
     LITRES_PER_LOCAL_GALLON,
     AvailabilityUpdate,
-    MarkReadRequest,
-    NotificationPageRead,
-    NotificationRead,
     PartnerProfileRead,
     PartnerProfileUpdate,
     PartnerVehicleRead,

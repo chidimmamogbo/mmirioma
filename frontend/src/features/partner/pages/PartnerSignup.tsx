@@ -38,6 +38,31 @@ const schema = z
   })
 type Values = z.infer<typeof schema>
 
+/** Server field names that have an error slot on this form. `vehicle_type` has none, so its message goes to the top notice. */
+const SERVER_FIELDS = {
+  name: 'name',
+  phone: 'phone',
+  password: 'password',
+  plate: 'plate',
+  tank_gallons: 'tank_gallons',
+  service_area: 'service_area',
+} as const satisfies Record<string, keyof Values>
+
+/**
+ * Messages of a `validation_error` that no field on this form can show, such
+ * as `vehicle_type` or the whole body (`loc: ["body"]`). The top notice shows
+ * them, so a refused sign-up never fails without a message.
+ */
+function unplacedMessages(error: unknown): string[] {
+  if (!(error instanceof ApiError) || error.code !== 'validation_error' || !Array.isArray(error.details)) return []
+  return (error.details as { loc?: unknown[]; msg?: string }[])
+    .filter((d) => {
+      const last = d.loc?.at(-1)
+      return typeof last !== 'string' || !Object.hasOwn(SERVER_FIELDS, last)
+    })
+    .map((d) => d.msg ?? 'Check your details and try again.')
+}
+
 /**
  * `/partner/signup`. Signed-out visitors get the form. A signed-in customer
  * (from "Register as a driver" in the customer app) is told that a rider or
@@ -107,13 +132,17 @@ export function PartnerSignup() {
       {
         onError: (e) => {
           if (e instanceof ApiError && e.code === 'phone_already_registered') setError('phone', { message: 'This number already has an account. Log in instead.' })
-          else applyServerFieldErrors(e, setError, { name: 'name', phone: 'phone', password: 'password', plate: 'plate', tank_gallons: 'tank_gallons' })
+          else applyServerFieldErrors(e, setError, SERVER_FIELDS)
         },
       },
     ),
   )
 
-  const fieldLevel = signup.error instanceof ApiError && ['phone_already_registered', 'validation_error'].includes(signup.error.code)
+  // Field errors show under their fields; anything no field can show goes in the top notice.
+  const unplaced = unplacedMessages(signup.error)
+  const fieldLevel =
+    signup.error instanceof ApiError &&
+    (signup.error.code === 'phone_already_registered' || (signup.error.code === 'validation_error' && Array.isArray(signup.error.details) && unplaced.length === 0))
 
   return (
     <MobileShell background="white">
@@ -121,7 +150,7 @@ export function PartnerSignup() {
       <ScrollArea className="gap-3.5 px-[22px] pt-2 pb-[22px]">
         <ScreenHeading className="rise-1" title="Deliver with MmiriOma" sub="Create your rider or driver account. We check your vehicle before you get orders." />
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3.5">
-          {signup.isError && !fieldLevel && <Notice tone="error">{errorMessage(signup.error)}</Notice>}
+          {signup.isError && !fieldLevel && <Notice tone="error">{unplaced.length ? unplaced.join(' ') : errorMessage(signup.error)}</Notice>}
           <fieldset className="rise-2 m-0 border-0 p-0">
             <legend className="mb-1.5 p-0 text-[14px] font-bold">What do you drive?</legend>
             <Controller

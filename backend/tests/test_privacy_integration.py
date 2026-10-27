@@ -26,7 +26,16 @@ from app.core.errors import APIError
 from app.modules.audit.models import AuditLog
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import PhoneVerification, User, UserRole, UserSession
-from app.modules.customers.models import CustomerAddress
+from app.modules.customers import requests as customer_requests
+from app.modules.customers.models import (
+    CustomerAddress,
+    DeletionRequest,
+    DeletionRequestStatus,
+    SupportRequest,
+    SupportRequestStatus,
+    SupportRequestType,
+)
+from app.modules.customers.requests import DeletionStatusRefused
 from app.modules.deliveries.models import (
     AcknowledgementMethod,
     DeliveryAttempt,
@@ -38,6 +47,7 @@ from app.modules.deliveries.models import (
     SmsStatus,
 )
 from app.modules.dispatch.models import Assignment, AssignmentStatus
+from app.modules.notifications.models import Notification
 from app.modules.orders.models import Order, OrderStatus, PaymentMethod, PaymentStatus
 from app.modules.payments.models import (
     CashCollection,
@@ -83,6 +93,8 @@ def delete_audit_rows(created: Created) -> Iterator[None]:
         connection.execute("DELETE FROM cash_remittances WHERE driver_id = ANY(%s)", users)
         connection.execute("DELETE FROM audit_logs WHERE actor_id = ANY(%s)", users)
         connection.execute("DELETE FROM customer_addresses WHERE customer_id = ANY(%s)", users)
+        connection.execute("DELETE FROM support_requests WHERE user_id = ANY(%s)", users)
+        connection.execute("DELETE FROM deletion_requests WHERE user_id = ANY(%s)", users)
         connection.execute("DELETE FROM service_zones WHERE id = ANY(%s)", (ZONE_IDS,))
     ZONE_IDS.clear()
 
@@ -292,7 +304,13 @@ def test_anonymize_dry_run_saves_nothing_and_apply_removes_the_details(created: 
         assert [(row.action, row.details) for row in audit] == [
             (
                 "customer_anonymized",
-                {"orders_anonymized": 2, "gps_points_cleared": 2, "addresses_removed": 0},
+                {
+                    "orders_anonymized": 2,
+                    "gps_points_cleared": 2,
+                    "addresses_removed": 0,
+                    "support_messages_removed": 0,
+                    "notifications_deleted": 0,
+                },
             )
         ]
         assert await gps_points(sessions, delivered) == []
@@ -433,7 +451,7 @@ def test_retention_review_dry_run_then_apply_then_nothing_left(created: Created)
         assert len(await gps_points(sessions, disputed)) == 2
 
         again = await review(apply=True)
-        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, 0, applied=True)
+        assert again == service.ReviewResult(0, 0, 0, 0, 0, 0, 0, 0, applied=True)
 
     run(scenario)
 
@@ -692,5 +710,201 @@ def test_review_anonymizes_unverified_accounts_that_audit_rows_name(created: Cre
         again = await review()
         assert again.unverified_accounts_anonymized == 0
         assert again.unverified_accounts_deleted == 0
+
+    run(scenario)
+
+
+async def add_support_request(
+    sessions: Sessions,
+    customer: User,
+    *,
+    resolved_at: datetime | None = None,
+    message: str = "The water has not arrived yet.",
+) -> uuid.UUID:
+    async with sessions() as session:
+        request = SupportRequest(
+            reference=customer_requests.new_reference(customer_requests.SUPPORT_PREFIX),
+            user_id=customer.id,
+            type=SupportRequestType.LATE,
+            message=message,
+            status=SupportRequestStatus.RESOLVED if resolved_at else SupportRequestStatus.OPEN,
+            idempotency_key=uuid.uuid4(),
+            resolved_at=resolved_at,
+            created_at=(resolved_at or OLD) - timedelta(days=1),
+        )
+        session.add(request)
+        await session.commit()
+        return request.id
+
+
+async def add_deletion_request(sessions: Sessions, customer: User) -> DeletionRequest:
+    async with sessions() as session:
+        request, _ = await customer_requests.request_deletion(
+            session, customer, reason="Moving away"
+        )
+    return request
+
+
+async def exists(sessions: Sessions, model: type, row_id: uuid.UUID) -> bool:
+    async with sessions() as session:
+        return await session.get(model, row_id) is not None
+
+
+def test_anonymize_removes_request_texts_and_notifications(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        support_id = await add_support_request(sessions, s.customer)
+        deletion = await add_deletion_request(sessions, s.customer)
+        async with sessions() as session:
+            session.add(
+                Notification(user_id=s.customer.id, kind="delivered", title="Delivered", body="x")
+            )
+            await session.commit()
+
+        done = await anonymize(sessions, s, apply=True)
+        assert (done.support_messages_removed, done.notifications_deleted) == (1, 1)
+
+        async with sessions() as session:
+            support = await session.get(SupportRequest, support_id)
+            request = await session.get(DeletionRequest, deletion.id)
+            left = list(
+                await session.scalars(
+                    select(Notification).where(Notification.user_id == s.customer.id)
+                )
+            )
+        assert support is not None and support.message == "Removed at the customer's request."
+        assert request is not None and request.reason is None
+        assert request.status is DeletionRequestStatus.RECEIVED  # set separately
+        assert left == []
+
+    run(scenario)
+
+
+def test_review_deletes_complaints_resolved_over_three_years_ago(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        old = await add_support_request(
+            sessions, s.customer, resolved_at=datetime(2018, 1, 5, tzinfo=UTC)
+        )
+        recent = await add_support_request(
+            sessions, s.customer, resolved_at=datetime(2019, 1, 5, tzinfo=UTC)
+        )
+        still_open = await add_support_request(sessions, s.customer)
+        # A never-verified account without orders or audit rows: deleted
+        # with its support request.
+        due = await add_user(sessions, created, UserRole.CUSTOMER)
+        await backdate_user(sessions, due, REVIEW_NOW - timedelta(days=31))
+        due_request = await add_support_request(sessions, due)
+
+        async with sessions() as session:
+            result = await service.retention_review(
+                session, actor=s.admin, now=REVIEW_NOW, apply=True
+            )
+        assert result.support_requests_deleted == 1
+        assert not await exists(sessions, SupportRequest, old)
+        assert await exists(sessions, SupportRequest, recent)
+        assert await exists(sessions, SupportRequest, still_open)
+        assert await reload_user(sessions, due.id) is None
+        assert not await exists(sessions, SupportRequest, due_request)
+
+    run(scenario)
+
+
+def test_deletion_request_status_follows_the_rules(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        request = await add_deletion_request(sessions, s.customer)
+
+        async def set_status(status: DeletionRequestStatus, reason: str | None = None) -> None:
+            async with sessions() as session:
+                await service.set_deletion_request_status(
+                    session,
+                    actor=s.admin,
+                    reference=request.reference,
+                    status=status,
+                    reason=reason,
+                    now=datetime.now(UTC),
+                )
+
+        async def status_now() -> DeletionRequestStatus:
+            async with sessions() as session:
+                row = await session.get(DeletionRequest, request.id)
+                assert row is not None
+                return row.status
+
+        # received → completed skips acknowledging.
+        with pytest.raises(DeletionStatusRefused):
+            await set_status(DeletionRequestStatus.COMPLETED)
+        await set_status(DeletionRequestStatus.ACKNOWLEDGED)
+        assert await status_now() is DeletionRequestStatus.ACKNOWLEDGED
+        # Not completed until the account is really anonymized.
+        with pytest.raises(DeletionStatusRefused, match="not anonymized"):
+            await set_status(DeletionRequestStatus.COMPLETED)
+        await anonymize(sessions, s, apply=True)
+        await set_status(DeletionRequestStatus.COMPLETED)
+        assert await status_now() is DeletionRequestStatus.COMPLETED
+        # Final.
+        with pytest.raises(DeletionStatusRefused):
+            await set_status(DeletionRequestStatus.REFUSED, "Changed our mind")
+
+        async with sessions() as session:
+            row = await session.get(DeletionRequest, request.id)
+            actions = list(
+                await session.scalars(
+                    select(AuditLog.action)
+                    .where(AuditLog.target_id == request.id, AuditLog.actor_id == s.admin.id)
+                    .order_by(AuditLog.created_at)
+                )
+            )
+        assert row is not None and row.handled_by == s.admin.id
+        assert row.acknowledged_at is not None and row.completed_at is not None
+        assert actions == ["deletion_request_acknowledged", "deletion_request_completed"]
+
+        with pytest.raises(LookupError):
+            async with sessions() as session:
+                await service.set_deletion_request_status(
+                    session,
+                    actor=s.admin,
+                    reference="DR-NOTHING0",
+                    status=DeletionRequestStatus.ACKNOWLEDGED,
+                    reason=None,
+                    now=datetime.now(UTC),
+                )
+
+    run(scenario)
+
+
+def test_a_refusal_needs_a_reason_and_frees_the_customer_to_ask_again(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        request = await add_deletion_request(sessions, s.customer)
+
+        async def refuse(reason: str | None) -> None:
+            async with sessions() as session:
+                await service.set_deletion_request_status(
+                    session,
+                    actor=s.admin,
+                    reference=request.reference,
+                    status=DeletionRequestStatus.REFUSED,
+                    reason=reason,
+                    now=datetime.now(UTC),
+                )
+
+        with pytest.raises(DeletionStatusRefused, match="reason"):
+            await refuse(None)
+        await refuse("Open dispute on an order")
+        async with sessions() as session:
+            row = await session.get(DeletionRequest, request.id)
+            with pytest.raises(APIError):
+                await customer_requests.get_open_deletion_request(session, s.customer)
+            again, created_now = await customer_requests.request_deletion(
+                session, s.customer, reason=None
+            )
+        assert row is not None
+        assert (row.status, row.refusal_reason) == (
+            DeletionRequestStatus.REFUSED,
+            "Open dispute on an order",
+        )
+        assert created_now is True and again.id != request.id
 
     run(scenario)

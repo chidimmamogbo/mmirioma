@@ -63,7 +63,8 @@ export function DriverDone() {
             <Card pad className="rise-4 box-border w-full text-left">
               <KeyValue label="Order" value={j.reference} />
               <KeyValue label="Loaded at" value={`${j.station.name}${j.collected_at ? ` · ${formatTime(j.collected_at)}` : ''}`} />
-              <KeyValue label="Delivered to" value={j.customer.contact_name} />
+              {/* The receiver is not sent once the job ends (real API): leave the row out. */}
+              {j.customer.contact_name && <KeyValue label="Delivered to" value={j.customer.contact_name} />}
               {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>
             <div className="rise-5 flex w-full flex-col gap-2">

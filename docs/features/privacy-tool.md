@@ -14,7 +14,7 @@ records are protected by `ON DELETE RESTRICT` foreign keys and must not be
 edited by hand in production, so the technical lead (the privacy contact)
 uses this command-line tool. There are no screens and no API endpoints.
 
-Three commands:
+Four commands:
 
 - `anonymize-customer`: remove a customer's personal details after a
   verified deletion request (procedure, "Deletion" steps 1-3).
@@ -22,6 +22,8 @@ Three commands:
   "Correction").
 - `retention-review`: the database part of the monthly review (procedure,
   "Monthly retention review").
+- `set-deletion-status`: record the outcome of a deletion request made in
+  the customer app (docs/api/customer-account.md, decision 10; #82).
 
 ## 2. Feature workflow
 
@@ -35,6 +37,10 @@ python -m app.modules.privacy.cli correct-name --by <admin phone> --customer <cu
 
 python -m app.modules.privacy.cli retention-review --by <admin phone>           # dry run
 python -m app.modules.privacy.cli retention-review --by <admin phone> --apply
+
+python -m app.modules.privacy.cli set-deletion-status --by <admin phone> --request DR-XXXXXXXX --status acknowledged
+python -m app.modules.privacy.cli set-deletion-status --by <admin phone> --request DR-XXXXXXXX --status completed   # after anonymize-customer --apply
+python -m app.modules.privacy.cli set-deletion-status --by <admin phone> --request DR-XXXXXXXX --status refused --reason "Open dispute on an order"
 ```
 
 1. `--by` must be an active admin account; it becomes the audit row's actor.
@@ -69,14 +75,21 @@ No tables of its own. The tool changes rows of other modules:
 | --- | --- | --- |
 | `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted; those that audit rows name as the actor are anonymized as in the first column instead (#82) |
 | `customer_addresses` | Deleted | Deleted for every never-verified account the review deletes or anonymizes |
+| `support_requests` | Message replaced by "Removed at the customer's request."; row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
+| `deletion_requests` | Reason blanked; status set separately with `set-deletion-status` | Deleted with a never-verified account the review deletes |
+| `notifications` | Deleted (contract decision 8) | Deleted when the review anonymizes an account; they go with a deleted one (cascade) |
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
 | `phone_verifications` | Deleted | `code_hash` blanked on expired codes; rows kept |
 | `orders` | Contact name and phone, address replaced; landmark and instructions cleared | Same, for orders finished over 3 years ago |
+| `feedback` | Message blanked; ratings kept (#82) | Same, for those orders |
 | `delivery_attempts`, `delivery_proofs` | GPS point and accuracy cleared | GPS over 90 days old cleared, except disputed orders and open holds or reviews |
 | `delivery_codes` | Kept | `code_hash` blanked on expired codes; rows kept (proofs point at them) |
-| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`) |
+| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`, `support_messages_removed`, `notifications_deleted`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`, `support_requests_deleted`) |
 
 `correct-name` changes `users.name` and writes `account_name_corrected`.
+`set-deletion-status` changes the request's status, time, `handled_by` and
+(for a refusal) `refusal_reason`, and writes `deletion_request_<status>`
+without the reason. It saves at once, like `correct-name`.
 Audit details hold ids and counts only.
 
 ## 5. API endpoints and request/response behavior
@@ -128,6 +141,15 @@ None.
   remains; an already anonymized account is left alone. Saved addresses
   are deleted in both cases (notice section 8: profile data goes with the
   account).
+- **Deletion request outcomes** (technical lead, 2026-10-27, #82):
+  `received` → `acknowledged` → `completed`, and `refused` from either
+  open status. A refusal needs a reason (5-500 characters). `completed` is
+  refused until the account is anonymized (`anonymize-customer --apply`),
+  so the app never records a deletion that did not happen. `completed` and
+  `refused` are final; a refused customer can ask again in the app.
+- **Complaints** (support requests) are kept 3 years after resolution and
+  then deleted by the review (technical lead, 2026-10-27, #82; notice
+  section 8 allows deleting or anonymizing).
 - **Retention periods** (notice section 8): never-verified accounts 30 days,
   GPS 90 days, orders 3 years after their last status change.
 - **Idempotent:** every step is selected by time or by "not yet done", so a
@@ -145,6 +167,10 @@ tool acts on customer accounts only.
   `Error: ...`, exit 1, nothing changed.
 - Customer not ready: `Refused: ...` with one line per blocking order
   reference, exit 1, nothing changed.
+- `set-deletion-status` against the rules (a skipped step, `completed`
+  before anonymizing, a final request, a refusal without a reason):
+  `Refused: ...; nothing was changed.`, exit 1. An unknown `DR-` reference:
+  `Error: ...`, exit 1.
 - Running anonymize again for the same phone fails: the phone no longer
   identifies the account. The account id is in the first run's output and
   audit row.
