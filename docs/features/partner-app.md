@@ -149,8 +149,10 @@ active job, for calling.
   `tank_gallons` so the message appears under the field.
 - Real API: saving an email or changing "News and offers" fails with
   `not_connected` before any request is sent.
-- Real API: a notification `kind` this build does not know is left out of
-  the list. An `approval_status` it does not know is read as `pending`.
+- Real API: a notification `kind` this build does not know is shown with
+  the `account` style (shield icon; tapping it opens the profile) and the
+  server's title and body. An `approval_status` it does not know is read as
+  `pending`.
 
 ## 9. Testing instructions
 

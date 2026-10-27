@@ -222,9 +222,16 @@ describe('partner account adapters (#67)', () => {
     expect([error.status, error.code, error.message]).toEqual([403, 'partner_not_approved', notApproved.error.message])
   })
 
-  it('listPartnerNotifications converts and leaves out kinds this build does not know', async () => {
-    const extra = { ...notificationsPage.items[0], id: 'x', kind: 'weather_alert' }
-    const { client } = setup({ body: { ...notificationsPage, items: [...notificationsPage.items, extra], total: 3 } })
+  it('listPartnerNotifications shows a kind this build does not know in the neutral account style', async () => {
+    const extra = { id: 'x', kind: 'weather_alert', title: 'Heavy rain today', body: 'Expect slow roads.', reference: null, created_at: '2026-10-27T07:00:00Z', read_at: null }
+    const { client } = setup({ body: { ...notificationsPage, items: [extra], total: 1 } })
+    expect(await listPartnerNotifications(client)).toEqual([
+      { id: 'x', kind: 'account', title: 'Heavy rain today', body: 'Expect slow roads.', at: '2026-10-27T07:00:00Z', read: false, reference: null },
+    ])
+  })
+
+  it('listPartnerNotifications converts the contract example', async () => {
+    const { client } = setup({ body: notificationsPage })
     expect(await listPartnerNotifications(client)).toEqual([
       {
         id: 'c3e1a9b0-5d7f-4a2c-8e6b-1f0d9a3c5b72',

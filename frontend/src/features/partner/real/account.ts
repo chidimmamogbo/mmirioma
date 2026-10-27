@@ -116,12 +116,21 @@ const isKnownKind = (kind: string): kind is PartnerNotification['kind'] => (NOTI
 
 /**
  * Backend notifications to the design's list. A `kind` this build does not
- * know is left out: the screen has no icon or link for it (agreed for #67).
+ * know is shown as `account`, the neutral style, with the server's title and
+ * body: partners.md says clients show such a message rather than fail or
+ * hide it (@chidimmamogbo on PR #69). The screen has no icon of its own for
+ * it, and tapping it opens the profile.
  */
 export function partnerNotificationsFromRead(items: NotificationRead[]): PartnerNotification[] {
-  return items.flatMap((n) =>
-    isKnownKind(n.kind) ? [{ id: n.id, kind: n.kind, title: n.title, body: n.body, at: n.created_at, read: n.read_at !== null, reference: n.reference }] : [],
-  )
+  return items.map((n) => ({
+    id: n.id,
+    kind: isKnownKind(n.kind) ? n.kind : 'account',
+    title: n.title,
+    body: n.body,
+    at: n.created_at,
+    read: n.read_at !== null,
+    reference: n.reference,
+  }))
 }
 
 const zoneKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase()
