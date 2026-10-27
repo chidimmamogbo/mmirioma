@@ -87,8 +87,8 @@ when `VITE_USE_MOCKS=false` (#67):
 
 Sign-up matches the typed area to an active zone by name, ignoring case and
 extra spaces, and sends its id as `service_zone_id`. The profile has no
-email, documents, payout account or "News and offers" switch, so the adapter
-returns `null`, `[]`, `null` and `false` for them. When admin has not set a
+documents or payout account, so the adapter returns `[]` and `null` for
+them. When admin has not set a
 vehicle description yet, the adapter writes one from the sign-up details:
 "Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker. The
 transfer methods become "Ground tanks", "Overhead tanks", "Ground and
@@ -175,10 +175,9 @@ active job, for calling.
   errors (#80). A refused sign-up never ends without a message.
 - Badges and "Mark all read" use the notification list's `unread_count`, so
   unread messages older than the newest 50 still count (#80).
-- The profile and settings screens show no email and no "News and offers"
-  switch, in mock and real mode (#85). Until the fields leave
-  `PartnerProfile`, the real adapter still refuses them with `not_connected`
-  before any request is sent.
+- Partners have no email and no "News and offers" switch, in mock and real
+  mode (#85). `PartnerProfile` has neither field, and settings change only
+  New order alerts and SMS updates.
 - Real API: a notification `kind` this build does not know is shown with
   the `account` style (shield icon; tapping it opens the profile) and the
   server's title and body. An `approval_status` it does not know is read as
