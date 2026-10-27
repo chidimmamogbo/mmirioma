@@ -62,6 +62,7 @@ from app.modules.dispatch.models import (
     DeclineReason,
     DeliveryType,
     DriverProfile,
+    DriverServiceZone,
     VehicleProfile,
 )
 from app.modules.notifications import service as notifications_service
@@ -814,6 +815,8 @@ async def set_driver_vehicle(
     vehicle_profile_id: uuid.UUID,
     delivery_type: DeliveryType | None = None,
     plate: str | None = None,
+    declared_capacity_gallons: int | None = None,
+    zone_id: uuid.UUID | None = None,
 ) -> DriverProfile:
     """Create or update a driver's profile with their vehicle. Commits.
 
@@ -830,6 +833,12 @@ async def set_driver_vehicle(
             ``vehicle.delivery_type``).
         plate: The plate, if given, already normalized
             (:func:`app.modules.dispatch.plates.normalize_plate`).
+        declared_capacity_gallons: Tanker capacity the driver declared, if
+            given (500-20,000, checked by the database). A claim only:
+            dispatch reads the vehicle's verified payload (BR-03).
+        zone_id: A service zone the driver works in, if given; added to
+            ``driver_service_zones`` unless already there. The caller checks
+            the zone exists.
 
     Returns:
         The driver profile.
@@ -856,6 +865,18 @@ async def set_driver_vehicle(
         profile.delivery_type = delivery_type
     if plate is not None:
         profile.plate = plate
+    if declared_capacity_gallons is not None:
+        profile.declared_capacity_gallons = declared_capacity_gallons
+    if zone_id is not None:
+        await session.flush()
+        linked = await session.scalar(
+            select(DriverServiceZone.id).where(
+                DriverServiceZone.driver_profile_id == profile.id,
+                DriverServiceZone.zone_id == zone_id,
+            )
+        )
+        if linked is None:
+            session.add(DriverServiceZone(driver_profile_id=profile.id, zone_id=zone_id))
     await session.commit()
     await session.refresh(profile)
     return profile

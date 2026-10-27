@@ -10,10 +10,23 @@ from app.modules.auth.models import User, UserRole
 from app.modules.demo import seed
 from app.modules.demo.seed import (
     DEMO_ACCOUNTS,
+    DEMO_DECLARED_GALLONS,
+    DEMO_DRIVER_PHONE,
+    DEMO_PLATE,
+    DEMO_SAFE_PAYLOAD_LITRES,
+    DEMO_VEHICLE_TYPE,
+    DEMO_ZONE_NAME,
     DemoSeedError,
     is_demo_account,
     seed_demo_data,
 )
+from app.modules.dispatch.models import (
+    MAX_DECLARED_GALLONS,
+    MAX_SAFE_PAYLOAD_LITRES,
+    MIN_DECLARED_GALLONS,
+    VEHICLE_TYPE_MAX_LENGTH,
+)
+from app.modules.dispatch.plates import normalize_plate
 from app.shared.demo_accounts import is_demo_phone
 from app.shared.lagos_time import lagos_today
 from app.shared.phone import normalize_nigerian_phone
@@ -69,6 +82,26 @@ def test_every_demo_order_is_labelled_and_valid() -> None:
         assert request.preferred_delivery_date is None or (
             request.preferred_delivery_date >= lagos_today()
         )
+
+
+def test_demo_driver_details_are_labelled_and_valid() -> None:
+    driver = next(spec for spec in DEMO_ACCOUNTS if spec.phone == DEMO_DRIVER_PHONE)
+    assert driver.role is UserRole.DRIVER
+    # These rows have no simulated flag, so their names say "Demo" (BR-09).
+    assert DEMO_ZONE_NAME.startswith("Demo ")
+    assert DEMO_VEHICLE_TYPE.startswith("Demo ")
+    assert len(DEMO_VEHICLE_TYPE) <= VEHICLE_TYPE_MAX_LENGTH
+    assert DEMO_PLATE.startswith("DEMO")
+    assert normalize_plate(DEMO_PLATE) == DEMO_PLATE
+    assert MIN_DECLARED_GALLONS <= DEMO_DECLARED_GALLONS <= MAX_DECLARED_GALLONS
+    assert 1 <= DEMO_SAFE_PAYLOAD_LITRES <= MAX_SAFE_PAYLOAD_LITRES
+    # 1 local gallon = 4 L (api-mapping.md): the declared tank is the payload.
+    assert DEMO_DECLARED_GALLONS * 4 == DEMO_SAFE_PAYLOAD_LITRES
+
+
+def test_demo_driver_can_carry_every_demo_order() -> None:
+    largest = max(order.quantity_litres for spec in DEMO_ACCOUNTS for order in spec.orders)
+    assert largest <= DEMO_SAFE_PAYLOAD_LITRES  # BR-03: never over the payload
 
 
 def test_only_customers_have_orders() -> None:

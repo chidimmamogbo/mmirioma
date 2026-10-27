@@ -140,7 +140,8 @@ python -m app.modules.demo.seed     # prompts once for the demo accounts' passwo
 
 It creates a demo dispatcher (`08000090001`), driver (`08000090002`) and two
 customers (`08000090011`, `08000090012`), plus order requests flagged
-`is_simulated`. Running it again adds nothing. It refuses to run when
+`is_simulated`. The demo driver gets an approved tanker profile (plate
+`DEMO-001`) in an active "Demo zone". Running it again adds nothing. It refuses to run when
 `APP_ENV=production`. The phone block `080000900NN` is reserved for demo
 accounts; do not use it for anything else. Integration tests delete everything
 in that block, so re-run the seed after running them against your local

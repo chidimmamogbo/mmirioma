@@ -8,7 +8,12 @@ It prompts once for a password shared by every demo account (never accepted
 as an argument, so it stays out of shell history), then creates:
 
 - one admin (dispatcher), one driver and two customers;
-- order requests for each customer, all with ``is_simulated = true``.
+- order requests for each customer, all with ``is_simulated = true``;
+- an active service zone named "Demo zone" (#63), so partner sign-up has a
+  zone to pick;
+- for the demo driver, an ``approved``, available tanker profile with a
+  demo vehicle, plate ``DEMO-001`` and the demo zone (#63), so dispatch can
+  offer them every demo order.
 
 Demo customers are marked phone-verified (orders need a verified phone,
 FR-003; their fictional numbers cannot receive SMS). Customers seeded before
@@ -23,12 +28,18 @@ How demo data is recognized (BR-09, NFR-031):
   the reserved block ``+23480000900NN`` (local ``080000900NN``) **and** whose
   name starts with ``Demo``. Both must hold; see :func:`is_demo_account`.
   The block is not used by any example or test elsewhere in the repository.
+- **The zone, vehicle and plate** have no simulated flag either, so their
+  names say "Demo": zone "Demo zone", vehicle "Demo tanker, ...", plate
+  ``DEMO-001``. The vehicle's safe payload is a demo value chosen for #63
+  (Bonvee120, 2026-10-27), not a verified one (FR-013).
 
 Rules:
 
 - Refuses to run when ``APP_ENV=production``.
 - Safe to run again: existing demo accounts are reused (their passwords are
   not changed), and a demo customer who already has orders gets no new ones.
+  A zone already named "Demo zone" is reused, and an existing demo driver
+  profile is never changed.
 - Before creating anything it checks every reserved phone. If one belongs to
   an account that is not the expected demo account (wrong name or role), it
   stops without changing anything.
@@ -53,8 +64,12 @@ from app.core.errors import APIError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
 from app.modules.auth.schemas import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from app.modules.dispatch import service as dispatch_service
+from app.modules.dispatch.models import DeliveryType
 from app.modules.orders import service as orders_service
 from app.modules.orders.schemas import OrderCreate
+from app.modules.pricing import service as pricing_service
+from app.modules.pricing.service import Coordinates, ZoneData
 from app.shared.demo_accounts import is_demo_identity
 from app.shared.lagos_time import lagos_today
 
@@ -145,6 +160,20 @@ DEMO_ACCOUNTS: tuple[DemoAccount, ...] = (
 )
 
 
+#: The demo driver's dispatch details (#63, decided by Bonvee120 on 2026-10-27).
+#: A tanker can carry every demo order (600 to 3,000 L). 1,000 local gallons
+#: is 4,000 L (1 gallon = 4 L, docs/architecture/api-mapping.md), the mock's
+#: demo tanker. The payload is a demo value, not a verified one (FR-013).
+DEMO_DRIVER_PHONE = "+2348000090002"
+DEMO_ZONE_NAME = "Demo zone"
+#: Roughly central Enugu; demo data, not a surveyed point.
+DEMO_ZONE_CENTRE = Coordinates(latitude=6.45, longitude=7.51)
+DEMO_VEHICLE_TYPE = "Demo tanker, 1,000 gal (4,000 L)"
+DEMO_SAFE_PAYLOAD_LITRES = 4_000
+DEMO_DECLARED_GALLONS = 1_000
+DEMO_PLATE = "DEMO-001"
+
+
 def is_demo_account(user: User) -> bool:
     """Whether an account is demo data: reserved phone **and** "Demo" name.
 
@@ -169,12 +198,17 @@ class SeedReport:
         accounts_existing: Phones of demo accounts that already existed.
         orders_created: References of orders created in this run.
         customers_skipped: Phones of demo customers that already had orders.
+        zone_created: Whether this run created the demo zone.
+        driver_profile_created: Whether this run created the demo driver's
+            profile and vehicle.
     """
 
     accounts_created: list[str] = field(default_factory=list)
     accounts_existing: list[str] = field(default_factory=list)
     orders_created: list[str] = field(default_factory=list)
     customers_skipped: list[str] = field(default_factory=list)
+    zone_created: bool = False
+    driver_profile_created: bool = False
 
 
 def _order_request(spec: DemoOrder, today: date) -> OrderCreate:
@@ -265,7 +299,60 @@ async def seed_demo_data(session: AsyncSession, *, password: str) -> SeedReport:
                 is_simulated=True,
             )
             report.orders_created.append(order.reference)
+
+    admin = next(users[spec.phone] for spec in DEMO_ACCOUNTS if spec.role is UserRole.ADMIN)
+    zone_id, report.zone_created = await _demo_zone(session, admin)
+    report.driver_profile_created = await _demo_driver_profile(
+        session, users[DEMO_DRIVER_PHONE], zone_id
+    )
     return report
+
+
+async def _demo_zone(session: AsyncSession, admin: User) -> tuple[uuid.UUID, bool]:
+    """The demo zone's id, creating it (audited as the demo admin) if missing.
+
+    Returns:
+        The zone id, and whether it was created now.
+    """
+    for view in await pricing_service.list_zones(session):
+        if view.zone.name.lower() == DEMO_ZONE_NAME.lower():
+            return view.zone.id, False
+    view = await pricing_service.create_zone(
+        session,
+        actor=admin,
+        data=ZoneData(
+            name=DEMO_ZONE_NAME, is_active=True, centre=DEMO_ZONE_CENTRE, boundary=None, fees=[]
+        ),
+    )
+    return view.zone.id, True
+
+
+async def _demo_driver_profile(session: AsyncSession, driver: User, zone_id: uuid.UUID) -> bool:
+    """Give the demo driver an approved tanker profile, unless they have one.
+
+    ``set_driver_vehicle`` creates a new profile ``approved`` and available
+    (the command-line rule), which is what the demo needs. An existing
+    profile is left exactly as it is, whatever it holds.
+
+    Returns:
+        Whether a profile was created now.
+    """
+    profiles = await dispatch_service.list_driver_profiles(session)
+    if any(user.id == driver.id for _, user, _ in profiles):
+        return False
+    vehicle = await dispatch_service.create_vehicle_profile(
+        session, vehicle_type=DEMO_VEHICLE_TYPE, safe_payload_litres=DEMO_SAFE_PAYLOAD_LITRES
+    )
+    await dispatch_service.set_driver_vehicle(
+        session,
+        phone=driver.phone,
+        vehicle_profile_id=vehicle.id,
+        delivery_type=DeliveryType.TANKER,
+        plate=DEMO_PLATE,
+        declared_capacity_gallons=DEMO_DECLARED_GALLONS,
+        zone_id=zone_id,
+    )
+    return True
 
 
 def _read_password() -> str:
@@ -299,6 +386,15 @@ def _summary(report: SeedReport) -> str:
         lines.append(
             f"Skipped {len(report.customers_skipped)} demo customer(s) that already have orders."
         )
+    lines.append(f"{DEMO_ZONE_NAME}: {'created' if report.zone_created else 'already present'}.")
+    lines.append(
+        "Demo driver profile: "
+        + (
+            f"created (approved tanker {DEMO_PLATE}, {DEMO_SAFE_PAYLOAD_LITRES:,} L)."
+            if report.driver_profile_created
+            else "already present, left unchanged."
+        )
+    )
     lines.append("Sign in with the demo phones (local form):")
     lines += [
         f"  {spec.role.value:<8} {spec.name:<18} 0{spec.phone.removeprefix('+234')}"

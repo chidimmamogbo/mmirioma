@@ -2,7 +2,8 @@
 
 Runs only when TEST_DATABASE_URL is set (``alembic upgrade head`` first).
 Before and after each test, every account in the reserved demo phone block
-(and its orders) is deleted, so do not point TEST_DATABASE_URL at a database
+(with its orders, driver profile and audit entries), the demo vehicle and
+the "Demo zone" are deleted, so do not point TEST_DATABASE_URL at a database
 whose demo data you want to keep; re-run the seed afterwards.
 """
 
@@ -20,10 +21,21 @@ from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
 from app.modules.demo.seed import (
     DEMO_ACCOUNTS,
+    DEMO_DECLARED_GALLONS,
+    DEMO_DRIVER_PHONE,
+    DEMO_PLATE,
+    DEMO_SAFE_PAYLOAD_LITRES,
+    DEMO_VEHICLE_TYPE,
+    DEMO_ZONE_NAME,
     DemoSeedError,
     seed_demo_data,
 )
+from app.modules.dispatch import service as dispatch_service
+from app.modules.dispatch.models import ApprovalStatus, DeliveryType
 from app.modules.orders.models import Order, OrderStatus
+from app.modules.partners import service as partners_service
+from app.modules.partners.service import PartnerProfile
+from app.modules.pricing import service as pricing_service
 from app.shared.demo_accounts import DEMO_PHONE_PREFIX
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -38,9 +50,37 @@ PASSWORD = "demo password for tests"
 
 def delete_demo_block() -> None:
     url = get_settings().sync_database_url.set(drivername="postgresql")
-    params = {"prefix": DEMO_PHONE_PREFIX + "%"}
+    params = {
+        "prefix": DEMO_PHONE_PREFIX + "%",
+        "vehicle": DEMO_VEHICLE_TYPE,
+        "zone": DEMO_ZONE_NAME,
+    }
     with psycopg.connect(url.render_as_string(hide_password=False)) as connection:
         # Foreign keys are RESTRICT, so delete children first.
+        # Driver service zones go with their profile (ON DELETE CASCADE).
+        connection.execute(
+            "DELETE FROM driver_profiles WHERE user_id IN "
+            "(SELECT id FROM users WHERE phone LIKE %(prefix)s)",
+            params,
+        )
+        connection.execute(
+            "DELETE FROM vehicle_profiles WHERE vehicle_type = %(vehicle)s AND id NOT IN "
+            "(SELECT vehicle_profile_id FROM driver_profiles "
+            "WHERE vehicle_profile_id IS NOT NULL)",
+            params,
+        )
+        connection.execute(
+            "DELETE FROM driver_service_zones WHERE zone_id IN "
+            "(SELECT id FROM service_zones WHERE lower(name) = lower(%(zone)s))",
+            params,
+        )
+        connection.execute("DELETE FROM service_zones WHERE lower(name) = lower(%(zone)s)", params)
+        # The demo admin is the actor of the zone's audit entry.
+        connection.execute(
+            "DELETE FROM audit_logs WHERE actor_id IN "
+            "(SELECT id FROM users WHERE phone LIKE %(prefix)s)",
+            params,
+        )
         connection.execute(
             "DELETE FROM order_events WHERE order_id IN (SELECT o.id FROM orders o "
             "JOIN users u ON u.id = o.customer_id WHERE u.phone LIKE %(prefix)s)",
@@ -164,3 +204,66 @@ def test_seed_stops_if_a_reserved_phone_belongs_to_someone_else() -> None:
     users, orders = run(demo_rows)
     assert [user.name for user in users] == ["Real Person"]
     assert orders == []
+
+
+async def demo_driver_state(
+    session: AsyncSession,
+) -> tuple[PartnerProfile, list[list[dispatch_service.Ineligibility]]]:
+    """The demo driver's partner profile, and their reasons for each demo order."""
+    driver = await auth_service.get_user_by_phone(session, DEMO_DRIVER_PHONE)
+    assert driver is not None
+    profile = await partners_service.get_profile(session, driver)
+    _, orders = await demo_rows(session)
+    reasons = []
+    for order in orders:
+        choices = await dispatch_service.list_drivers_for_order(session, reference=order.reference)
+        reasons.append(next(c.reasons for c in choices if c.driver.id == driver.id))
+    return profile, reasons
+
+
+def test_seed_gives_the_demo_driver_an_approved_tanker_in_the_demo_zone() -> None:
+    report = run(lambda session: seed_demo_data(session, password=PASSWORD))
+    partner, reasons = run(demo_driver_state)
+
+    assert report.zone_created
+    assert report.driver_profile_created
+    assert partner.profile.approval_status is ApprovalStatus.APPROVED
+    assert partner.profile.is_available
+    assert partner.profile.delivery_type is DeliveryType.TANKER
+    assert partner.profile.plate == DEMO_PLATE
+    assert partner.profile.declared_capacity_gallons == DEMO_DECLARED_GALLONS
+    assert partner.vehicle is not None
+    assert partner.vehicle.vehicle_type == DEMO_VEHICLE_TYPE
+    assert partner.vehicle.safe_payload_litres == DEMO_SAFE_PAYLOAD_LITRES
+    assert [zone.name for zone in partner.zones] == [DEMO_ZONE_NAME]
+    # Dispatch can offer the demo driver every demo order (FR-031, BR-03).
+    assert len(reasons) == sum(len(spec.orders) for spec in DEMO_ACCOUNTS)
+    assert all(order_reasons == [] for order_reasons in reasons)
+    # Partner sign-up can pick the zone (GET /service-zones).
+    active = run(pricing_service.list_active_zones)
+    assert DEMO_ZONE_NAME in [zone.name for zone in active]
+
+
+def test_running_the_seed_again_leaves_the_demo_driver_and_zone_unchanged() -> None:
+    run(lambda session: seed_demo_data(session, password=PASSWORD))
+    before, _ = run(demo_driver_state)
+
+    async def go_offline(session: AsyncSession) -> None:
+        await dispatch_service.set_driver_availability(
+            session, phone=DEMO_DRIVER_PHONE, available=False
+        )
+
+    run(go_offline)
+    report = run(lambda session: seed_demo_data(session, password=PASSWORD))
+    after, _ = run(demo_driver_state)
+
+    assert not report.zone_created
+    assert not report.driver_profile_created
+    assert after.profile.id == before.profile.id
+    assert after.vehicle is not None and before.vehicle is not None
+    assert after.vehicle.id == before.vehicle.id
+    assert [zone.id for zone in after.zones] == [zone.id for zone in before.zones]
+    # The second run does not undo a change made after seeding.
+    assert after.profile.is_available is False
+    zones = run(pricing_service.list_zones)
+    assert [view.zone.name for view in zones].count(DEMO_ZONE_NAME) == 1
