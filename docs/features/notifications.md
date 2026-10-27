@@ -32,12 +32,13 @@ and unchanged.
 
 | File | Responsibility |
 | --- | --- |
-| `backend/app/modules/notifications/customer_messages.py` | Which status creates which message, and its text |
+| `backend/app/modules/notifications/customer_messages.py` | Which status creates which message, and its text; the support number from `SUPPORT_PHONE` (FR-055) |
+| `backend/app/shared/phone.py` | `format_phone_national`: the support number as the app writes it (`0813 377 4902`) |
 | `backend/app/modules/notifications/router.py` | `GET /me/notifications`, `POST /me/notifications/read` (customer only) |
 | `backend/app/modules/notifications/schemas.py` | `NotificationRead`, `NotificationPageRead`, `MarkReadRequest`, shared with `/driver/notifications` |
 | `backend/app/modules/notifications/service.py` | Add, list (with unread count), mark read |
 | `backend/app/modules/orders/service.py` | Calls `notify_status` when an order is created and on every applied transition |
-| `backend/tests/test_customer_messages.py` | The status table, texts and the "received only at creation" rule (no database) |
+| `backend/tests/test_customer_messages.py` | The status table, texts, the configured support number and the "received only at creation" rule (no database) |
 | `backend/tests/test_customer_notifications_api.py` | Roles, CSRF, page body against the contract example, mark-read validation |
 | `backend/tests/test_customer_notifications_integration.py` | Real orders: creation, confirm, offer, accept, repeat, cancel, mark read |
 
@@ -83,6 +84,13 @@ in the API tests.
   from before #21 that have no delivery type. The reference is shortened to
   7 characters ("MO-7KQ2"), as the app does. The request and delivered
   texts are the contract example's.
+- **Support number (FR-055).** The cancelled and not-completed messages end
+  with the support number, read from the `SUPPORT_PHONE` setting through
+  `get_settings()` (never hard-coded) and written as the app writes it
+  (`format_phone_national`): "Your order MO-7KQ2 was cancelled. Questions?
+  Call 0813 377 4902." and "We could not deliver your order MO-7KQ2. Call
+  0813 377 4902 to arrange another delivery." Changing the setting changes
+  new messages only; stored messages keep the number they were sent with.
 - A message never changes the order (FR-050). A harmless repeat of a
   transition (the same change by the same actor) writes no event and no
   second message.

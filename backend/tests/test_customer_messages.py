@@ -9,10 +9,12 @@ FR-050, FR-027 or FR-037 forbids or contains a delivery code.
 import json
 import re
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from app.core.config import get_settings
 from app.modules.notifications import customer_messages
 from app.modules.notifications.customer_messages import message_for
 from app.modules.orders.models import DeliveryType, Order, OrderStatus
@@ -90,6 +92,38 @@ def test_partner_word_follows_the_delivery_type() -> None:
     assert title(DeliveryType.KEKE) == "Rider assigned"
     assert title(DeliveryType.TANKER) == "Driver assigned"
     assert title(None) == "Driver assigned"  # orders from before #21
+
+
+@pytest.fixture
+def support_phone(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Set ``SUPPORT_PHONE`` to a test number; restore the settings afterwards."""
+    monkeypatch.setenv("SUPPORT_PHONE", "+2348000000099")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.mark.usefixtures("support_phone")
+def test_cancelled_and_failed_end_with_the_configured_support_number() -> None:
+    # FR-055: one central value, in every notification template.
+    cancelled = message_for(order(), OrderStatus.CANCELLED)
+    failed = message_for(order(), OrderStatus.FAILED)
+    assert cancelled is not None and failed is not None
+    assert cancelled.body == "Your order MO-7KQ2 was cancelled. Questions? Call 0800 000 0099."
+    assert failed.body == (
+        "We could not deliver your order MO-7KQ2. Call 0800 000 0099 to arrange another delivery."
+    )
+
+
+def test_support_number_defaults_to_the_official_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SUPPORT_PHONE", raising=False)
+    get_settings.cache_clear()
+    try:
+        message = message_for(order(), OrderStatus.CANCELLED)
+    finally:
+        get_settings.cache_clear()
+    assert message is not None
+    assert message.body.endswith("Call 0813 377 4902.")
 
 
 class Recorder:

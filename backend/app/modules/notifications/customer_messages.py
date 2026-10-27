@@ -18,7 +18,9 @@ the customer must not learn of an assignment before the driver accepts it
 (FR-032). The texts never promise unverified delivery or water quality
 (FR-050), never call a request a guaranteed delivery (FR-027), never give a
 time or live position (FR-037), and never contain the delivery code (SRS §5
-``notifications``).
+``notifications``). The cancelled and not-completed messages end with the
+support number from the ``SUPPORT_PHONE`` setting, so it is the same number
+everywhere (FR-055).
 
 The message is added to the caller's transaction (``orders.service``), so it
 exists only if the status change is committed, and it never changes the
@@ -29,12 +31,27 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.modules.notifications import service
 from app.modules.orders.models import DeliveryType, Order, OrderStatus
+from app.shared.phone import format_phone_national
 
 #: Characters of the reference shown in a message ("MO-7KQ2"), as the
 #: customer app shortens it.
 SHORT_REFERENCE_LENGTH = 7
+
+
+def support_phone() -> str:
+    """The support number as the app writes it, ``0813 377 4902`` (FR-055).
+
+    Read from the ``SUPPORT_PHONE`` setting each time, never hard-coded:
+    FR-055 requires one central value for every template, notifications
+    included.
+
+    Returns:
+        The grouped local number, for example ``0813 377 4902``.
+    """
+    return format_phone_national(get_settings().support_phone)
 
 
 @dataclass(frozen=True)
@@ -101,13 +118,14 @@ def message_for(order: Order, status: OrderStatus) -> Message | None:
             return Message(
                 "cancelled",
                 "Order cancelled",
-                f"Your order {ref} was cancelled. Contact us if you have a question.",
+                f"Your order {ref} was cancelled. Questions? Call {support_phone()}.",
             )
         case OrderStatus.FAILED:
             return Message(
                 "delivery_failed",
                 "Delivery not completed",
-                f"We could not deliver your order {ref}. Contact us to arrange another delivery.",
+                f"We could not deliver your order {ref}. "
+                f"Call {support_phone()} to arrange another delivery.",
             )
         case _:
             return None
