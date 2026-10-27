@@ -149,6 +149,10 @@ another customer's order returns the same 404 as a missing one.
   your phone number first"; 409 `idempotency_key_reused` and 422
   `validation_error` show their message; 404 `order_not_found` shows the
   order screen's error state.
+- Feedback (#88 part 3, `PUT /orders/{reference}/feedback`, FR-051): one per
+  order, sending again replaces it; rating before delivery is 409
+  `order_not_delivered`. The screen sends its two answers; the optional ones
+  stay unsent (customer-account.md, decision 7).
 
 ## 9. Testing instructions
 

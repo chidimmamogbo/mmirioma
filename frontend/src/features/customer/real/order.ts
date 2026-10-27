@@ -13,6 +13,7 @@ import {
   createOrder as postOrder,
   getOrder as fetchOrder,
   listOrders as fetchOrders,
+  putOrderFeedback,
   type OrderCreate,
   type OrderRead,
 } from '../../../lib/api/orders'
@@ -80,7 +81,8 @@ export function customerOrderFromRead(read: OrderRead): CustomerOrder {
     delivered_at: null,
     delivered_quantity: null,
     points_earned: null,
-    feedback: null,
+    // Since #82 part 3 (FR-051); the screen shows the two answers it asks for.
+    feedback: read.feedback ? { rating: read.feedback.rating, poured_by_partner: read.feedback.poured_by_partner } : null,
   }
 }
 
@@ -139,6 +141,22 @@ export async function listOrders(client: ApiClient = apiClient): Promise<Custome
     if (page.items.length === 0 || orders.length >= page.total) break
   }
   return orders.map(customerOrderFromRead)
+}
+
+/**
+ * Rate a delivered order (FR-051) and return it with its feedback. Sending
+ * again replaces the feedback; the design asks only for the two answers, so
+ * the optional ones are left out (customer-account.md, decision 7).
+ *
+ * @throws {ApiError} 404 `order_not_found`; 409 `order_not_delivered`; 422 `validation_error`.
+ */
+export async function submitFeedback(
+  reference: string,
+  feedback: { rating: number; poured_by_partner: boolean },
+  client: ApiClient = apiClient,
+): Promise<CustomerOrder> {
+  await putOrderFeedback(reference, { rating: feedback.rating, poured_by_partner: feedback.poured_by_partner }, client)
+  return getOrder(reference, client)
 }
 
 /**

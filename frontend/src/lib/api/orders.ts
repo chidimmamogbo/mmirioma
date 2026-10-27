@@ -71,6 +71,41 @@ export interface OrderRead {
   water_source: WaterSourcePreference | null
   service_zone: { id: string; name: string } | null
   quote: OrderQuoteRead | null
+  /**
+   * The customer's feedback on the order (FR-051), or `null`. Sent since #82
+   * part 3; absent from an older server, so read it as missing then.
+   */
+  feedback?: FeedbackRead | null
+}
+
+/**
+ * Body of `PUT /orders/{reference}/feedback` (customer-account.md, "Order
+ * feedback"). The design asks for `rating` and `poured_by_partner`; the
+ * other answers stay optional (decision 7).
+ */
+export interface FeedbackInput {
+  /** 1-5. */
+  rating: number
+  /** Did the rider or driver unload the water (FR-051, BR-04). */
+  poured_by_partner: boolean
+  on_time?: boolean | null
+  quantity_as_ordered?: boolean | null
+  would_reorder?: boolean | null
+  /** Up to 500 characters. */
+  message?: string | null
+}
+
+/** One order's feedback, as stored. */
+export interface FeedbackRead {
+  rating: number
+  poured_by_partner: boolean
+  on_time: boolean | null
+  quantity_as_ordered: boolean | null
+  would_reorder: boolean | null
+  message: string | null
+  /** UTC ISO timestamps. */
+  submitted_at: string
+  updated_at: string
 }
 
 /**
@@ -143,6 +178,17 @@ export function listOrders(
     offset: String(params.offset),
   })
   return client.request<Page<OrderRead>>(`/api/v1/orders?${query}`, { signal })
+}
+
+/**
+ * Rate a delivered order (`PUT /api/v1/orders/{reference}/feedback`, FR-051).
+ * One feedback per order: 201 the first time, 200 when it replaces the
+ * earlier one, so a double tap never adds a second.
+ *
+ * @throws {ApiError} 404 `order_not_found`; 409 `order_not_delivered`; 422 `validation_error`.
+ */
+export function putOrderFeedback(reference: string, input: FeedbackInput, client: ApiClient = apiClient) {
+  return client.request<FeedbackRead>(`/api/v1/orders/${encodeURIComponent(reference)}/feedback`, { method: 'PUT', body: input })
 }
 
 /**

@@ -44,8 +44,9 @@ export const getQuote = (choice: WaterChoice, address: string | null): Promise<Q
 export const createOrder = (i: mock.CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : realOrder.createOrder(i))
 export const listOrders = (): Promise<CustomerOrder[]> => (USE_MOCKS ? mock.listOrders() : realOrder.listOrders())
 export const getOrder = (reference: string): Promise<CustomerOrder> => (USE_MOCKS ? mock.getOrder(reference) : realOrder.getOrder(reference))
+// Linked in #88 part 3.
 export const submitFeedback = (reference: string, f: { rating: number; poured_by_partner: boolean }): Promise<CustomerOrder> =>
-  USE_MOCKS ? mock.submitFeedback(reference, f) : notConnected('Feedback')
+  USE_MOCKS ? mock.submitFeedback(reference, f) : realOrder.submitFeedback(reference, f)
 
 /** Demo-only stage change; exists only in mock mode. */
 export const demoAdvanceOrder = (reference: string, to: 'delivered' | 'next' = 'next'): Promise<CustomerOrder> =>
