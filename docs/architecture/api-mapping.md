@@ -285,8 +285,9 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 decided in #15), with the agreed staff labels from docs/api/orders.md. The
 order's payment status maps only where the design has an exact equivalent
 (`unpaid`, `awaiting_verification`, `paid`, `refunded`), plus
-`pending_collection` shown as "Cash to collect" (@chidimmamogbo on PR #92);
-for the others the order shows no payment chip, and the cash pages show them
+`pending_collection` shown as "Cash to collect" (@chidimmamogbo on PR #92)
+and `partially_paid` shown as "Part paid" (the approved cash design,
+docs/design/cash-remittance.md); for the others the order shows no payment chip, and the cash pages show them
 in full (#19).
 
 ## Open questions
