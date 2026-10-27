@@ -59,7 +59,8 @@ through reports and the audit log.
 | Path | Responsibility |
 | --- | --- |
 | `frontend/src/features/admin/routes.tsx` | Admin routes; each page is its own chunk (`lazy`) |
-| `frontend/src/features/admin/adminApi.ts` | Typed API functions (mock or `not_connected`) |
+| `frontend/src/features/admin/adminApi.ts` | Typed API functions: mock, a `real/` adapter when linked, else `not_connected` |
+| `frontend/src/features/admin/real/orders.ts` | Order list and detail adapters (#15): pills, counts, search, conversion |
 | `frontend/src/features/admin/queries.ts` | Query hooks; every admin mutation refreshes all admin, partner and customer queries |
 | `frontend/src/features/admin/AdminParts.tsx` | Admin area guard, page frame with live badge counts, headings, chips, link tabs, naira input |
 | `frontend/src/features/admin/AdminMap.tsx` | The drawn live map (positions by area, not GPS) |
@@ -81,9 +82,26 @@ by reference.
 
 ## 5. API endpoints and request/response behavior
 
-Only the Sprint 1 admin order list and detail exist in
-[docs/api/orders.md](../api/orders.md), in a different shape (litres, no
-delivery type, price or rider). Everything else needs contracts: assignment
+**Linked to the backend (#15):** the order list and detail, from
+`GET /admin/orders` and `GET /admin/orders/{reference}`
+([orders.md](../api/orders.md), [deliveries.md](../api/deliveries.md)):
+
+- **Statuses** follow api-mapping.md; `failed` ("Delivery failed") and
+  `disputed` ("Disputed") are their own admin statuses and appear under
+  "All".
+- **Pills:** each pill asks for its backend statuses; the counts come from
+  one small request per pill (`limit=1`, its `total`).
+- **Search:** a reference (`MO-…`) is looked up directly; other text is
+  matched against the newest 100 orders only, as the backend has no text
+  search.
+- **Not sent, so left out:** the delivery type and cans or tank of an order
+  sent before #21; the payment status in the list (the order shows it, for
+  `unpaid`, `awaiting_verification`, `paid` and `refunded`); the partner's
+  fleet code, plate and, for free-text vehicle types, the vehicle; the
+  station before confirmation; the timeline beyond "Order placed" (history
+  comes with dispatch, #16). Amounts say "(SAMPLE)" only in mock mode.
+
+The rest of the admin pages still use mocks. Everything else needs contracts: assignment
 (eligible riders, assign, reassign), cancel with reason, staff-created orders
 and customers, phone verification, point adjustment, partner approval, station
 open/close/edit/papers, service areas, versioned price lists, payment

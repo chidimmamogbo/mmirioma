@@ -30,7 +30,7 @@ function isStandardTankSize(gallons: number): gallons is TankSizeGallons {
  * The design's water choice for a backend order, or `null` when the order
  * has no delivery details (sent before #21) or they are incomplete.
  */
-export function choiceFromRead(read: OrderRead): WaterChoice | null {
+export function choiceFromRead(read: Pick<OrderRead, 'delivery_type' | 'keke' | 'tanker' | 'water_source'>): WaterChoice | null {
   if (read.delivery_type === 'keke' && read.keke) {
     return { delivery_type: 'keke', can_size_litres: read.keke.can_size_litres, can_count: read.keke.can_count }
   }
