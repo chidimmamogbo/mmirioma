@@ -102,14 +102,29 @@ async def list_for_user(
         .offset(offset)
     )
     total = await session.scalar(select(func.count()).select_from(Notification).where(own))
-    unread = await session.scalar(
-        select(func.count()).select_from(Notification).where(own, Notification.read_at.is_(None))
-    )
     return NotificationPage(
         items=[NotificationView(row, reference) for row, reference in rows],
         total=total or 0,
-        unread_count=unread or 0,
+        unread_count=await unread_count(session, user_id=user_id),
     )
+
+
+async def unread_count(session: AsyncSession, *, user_id: uuid.UUID) -> int:
+    """Count a user's unread notifications across all pages (badges and the bell).
+
+    Args:
+        session: Database session.
+        user_id: The user.
+
+    Returns:
+        The count.
+    """
+    unread = await session.scalar(
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user_id, Notification.read_at.is_(None))
+    )
+    return unread or 0
 
 
 async def mark_read(

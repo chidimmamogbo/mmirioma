@@ -5,9 +5,10 @@ Issue: #82 (part 2 of 4) · Contract:
 2026-10-27, #11 and #48) · Requirements: FR-001, FR-027, FR-032, FR-037,
 FR-050
 
-Partners' in-app messages are in [partners.md](partners.md); both apps use
-the same table and the same notification shape. This document covers the
-customer side.
+Partners' in-app messages are in [partners.md](partners.md) and the admin
+bell in [admin-operations.md](admin-operations.md); all three use the same
+table and the same notification shape. This document covers the customer
+side.
 
 ## 1. Overview and purpose
 

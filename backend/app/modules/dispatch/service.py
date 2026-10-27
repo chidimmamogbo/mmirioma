@@ -47,7 +47,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from http import HTTPStatus
 
-from sqlalchemy import select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,6 +65,7 @@ from app.modules.dispatch.models import (
     DriverServiceZone,
     VehicleProfile,
 )
+from app.modules.notifications import admin_messages
 from app.modules.notifications import service as notifications_service
 from app.modules.orders import service as orders_service
 from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
@@ -424,6 +425,8 @@ async def decline_assignment(
     live.ended_at = now
     live.decline_reason = reason
     live.decline_note = note
+    # FR-032: admins are told in the same transaction (admin-operations.md).
+    await admin_messages.driver_declined(session, order_id=order.id, reference=order.reference)
     await session.commit()
     await session.refresh(live)
     return live
@@ -919,3 +922,73 @@ async def list_driver_profiles(
     )
     # SQLAlchemy 2.1: rows unpack directly; Result.tuples() is deprecated.
     return [(profile, user, vehicle) for profile, user, vehicle in rows]
+
+
+# --- Admin operations (docs/api/admin-operations.md, #102) ------------------------------
+
+#: Order statuses in which the dispatcher must confirm or assign next (FR-030,
+#: FR-031): with no live assignment, the order waits on staff.
+WAITING_FOR_STAFF_STATUSES = (
+    OrderStatus.QUOTE_REQUESTED,
+    OrderStatus.AWAITING_CONFIRMATION,
+    OrderStatus.CONFIRMED,
+)
+
+
+async def count_orders_needing_action(session: AsyncSession) -> int:
+    """Count the orders the dispatcher must confirm or assign next.
+
+    ``GET /admin/shell`` ``orders_needing_action``: orders in
+    ``quote_requested``, ``awaiting_confirmation`` or ``confirmed`` with no
+    live (offered or accepted) assignment. Simulated orders are counted:
+    staff act on them too.
+
+    Args:
+        session: Database session.
+
+    Returns:
+        The count.
+    """
+    live = exists().where(
+        Assignment.order_id == Order.id, Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES)
+    )
+    count = await session.scalar(
+        select(func.count())
+        .select_from(Order)
+        .where(Order.status.in_(WAITING_FOR_STAFF_STATUSES), ~live)
+    )
+    return count or 0
+
+
+async def accepted_driver(session: AsyncSession, order_id: uuid.UUID) -> User | None:
+    """Return the driver of the order's current or last accepted assignment.
+
+    For the support request contacts (admin-operations.md). An assignment
+    was accepted if it is ``accepted`` or ``completed``, or ``withdrawn``
+    after acceptance (withdrawing keeps the acceptance time in
+    ``responded_at``; a withdrawn offer has none). Offers the driver never
+    accepted, and declines, do not count.
+
+    Args:
+        session: Database session.
+        order_id: The order.
+
+    Returns:
+        The driver, or None if no assignment was ever accepted.
+    """
+    was_accepted = or_(
+        Assignment.status.in_((AssignmentStatus.ACCEPTED, AssignmentStatus.COMPLETED)),
+        and_(
+            Assignment.status == AssignmentStatus.WITHDRAWN,
+            Assignment.responded_at.is_not(None),
+        ),
+    )
+    driver_id = await session.scalar(
+        select(Assignment.driver_user_id)
+        .where(Assignment.order_id == order_id, was_accepted)
+        .order_by(Assignment.responded_at.desc(), Assignment.id.desc())
+        .limit(1)
+    )
+    if driver_id is None:
+        return None
+    return (await auth_service.get_users_by_ids(session, {driver_id})).get(driver_id)

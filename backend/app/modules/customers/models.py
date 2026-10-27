@@ -150,7 +150,7 @@ class SupportRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         resolved_at: When staff resolved it.
         resolved_by: The admin who resolved it.
         resolution_note: The admin's note (docs/api/admin-operations.md,
-            #22); set by the admin endpoints, not built here.
+            #22); set by ``requests.resolve_support_request`` (#102).
     """
 
     __tablename__ = "support_requests"
