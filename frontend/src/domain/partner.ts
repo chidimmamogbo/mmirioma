@@ -128,8 +128,6 @@ export interface PartnerDocument {
 export interface PartnerProfile {
   name: string
   phone: string
-  /** Optional, for updates and newsletters (decision 6). */
-  email: string | null
   approval: ApprovalStatus
   online: boolean
   partner_since: string
@@ -146,7 +144,8 @@ export interface PartnerProfile {
   }
   service_areas: string[]
   documents: PartnerDocument[]
-  preferences: { new_order_alerts: boolean; sms_updates: boolean; offers_and_news: boolean }
+  /** No email and no "News and offers" for partners in the pilot (#85). */
+  preferences: { new_order_alerts: boolean; sms_updates: boolean }
   /** Bank account ending, for payouts. */
   payout_account_ending: string | null
 }

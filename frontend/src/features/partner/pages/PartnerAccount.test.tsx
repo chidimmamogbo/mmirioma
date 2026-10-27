@@ -13,18 +13,16 @@ import { PartnerProfilePage, PartnerSettings } from './PartnerAccount'
 /** What the next profile save answers; set by each test. */
 const server = vi.hoisted(() => ({ refusal: null as unknown }))
 
-/** Has an email and "News and offers" on, so the tests prove the screens leave them out. */
 const profile: PartnerProfile = {
   name: 'Sample Rider',
   phone: '+2348031234567',
-  email: 'rider@example.com',
   approval: 'approved',
   online: true,
   partner_since: '2026-08-01',
   vehicle: { type: 'keke', plate: 'ENU 482 KK', description: 'Blue tricycle', tank_gallons: null, safe_load_litres: null, can_pour_into: 'Drums' },
   service_areas: ['GRA'],
   documents: [],
-  preferences: { new_order_alerts: true, sms_updates: true, offers_and_news: true },
+  preferences: { new_order_alerts: true, sms_updates: true },
   payout_account_ending: null,
 }
 
@@ -49,7 +47,6 @@ describe('partner account screens without email or "News and offers" (#85)', () 
     renderScreen(<PartnerProfilePage />)
     expect(await screen.findByText('Phone')).toBeInTheDocument()
     expect(screen.queryByText('Email (optional)')).not.toBeInTheDocument()
-    expect(screen.queryByText('rider@example.com')).not.toBeInTheDocument()
   })
 
   it('settings show the two alerts and no email form or "News and offers" switch', async () => {
