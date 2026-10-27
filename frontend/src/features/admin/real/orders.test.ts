@@ -51,9 +51,13 @@ describe('adminOrderFromRead', () => {
     expect(order.assigned_by).toBe(DETAIL.assignment!.offered_by.name)
     expect(order.station_name).toBe('Sample Borehole A')
     expect(order.total_minor_units).toBe(4_500_000)
-    // pending_collection has no design equivalent: no chip rather than a wrong one.
-    expect(order.payment).toEqual({ method: 'pay_on_delivery', status: null })
+    // pending_collection shows as "Cash to collect" (decided on PR #92).
+    expect(order.payment).toEqual({ method: 'pay_on_delivery', status: 'pending_collection' })
     expect(order.timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
+  })
+
+  it('shows a payment status without a label yet as no chip, never a guessed one', () => {
+    expect(adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_refunded' } }).payment.status).toBeNull()
   })
 
   it('shows an ended assignment as no partner', () => {

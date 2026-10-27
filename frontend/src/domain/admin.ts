@@ -31,6 +31,13 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
   disputed: 'Disputed',
 }
 
+/**
+ * Payment status on admin screens: the design's statuses plus
+ * `pending_collection` ("Cash to collect", decided by @chidimmamogbo on PR #92),
+ * the status of a confirmed pay-on-delivery order before the driver collects.
+ */
+export type AdminPaymentStatus = PaymentStatus | 'pending_collection'
+
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
 export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
 
@@ -62,7 +69,7 @@ export interface AdminOrder {
   quantity: string
   total_minor_units: number | null
   /** `status` is `null` when the server sends none (the order list, or before confirmation). */
-  payment: { method: PaymentMethod; status: PaymentStatus | null }
+  payment: { method: PaymentMethod; status: AdminPaymentStatus | null }
   status: AdminOrderStatus
   partner: AdminOrderPartner | null
   assigned_by: string | null

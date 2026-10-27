@@ -8,8 +8,8 @@
  * in: the list has no payment status or partner, and a partner's fleet code
  * and plate are never sent.
  */
-import type { AdminOrder, AdminOrderFilter, AdminOrderStatus } from '../../../domain/admin'
-import { describeChoice, type PaymentStatus } from '../../../domain/orders'
+import type { AdminOrder, AdminOrderFilter, AdminOrderStatus, AdminPaymentStatus } from '../../../domain/admin'
+import { describeChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
 import { getAdminOrderDetail, type AdminOrderDetail } from '../../../lib/api/adminDispatch'
@@ -36,12 +36,14 @@ const STATUS_BY_BACKEND: Record<BackendStatus, AdminOrderStatus> = {
 }
 
 /**
- * Backend payment statuses with an exact design equivalent. The others
- * (`pending_collection`, `partially_paid`, `disputed`, `partially_refunded`)
- * have none, so the order shows no payment chip rather than a wrong one; the
- * cash pages show them in full (#19).
+ * Backend payment statuses the admin screens show: the exact design
+ * equivalents, plus `pending_collection` as "Cash to collect" (decided on PR
+ * #92). The others (`partially_paid`, `disputed`, `partially_refunded`) have
+ * no label yet, so the order shows no payment chip rather than a wrong one;
+ * the cash pages show them in full (#19).
  */
-const PAYMENT_BY_BACKEND: Partial<Record<string, PaymentStatus>> = {
+const PAYMENT_BY_BACKEND: Partial<Record<string, AdminPaymentStatus>> = {
+  pending_collection: 'pending_collection',
   unpaid: 'unpaid',
   awaiting_verification: 'awaiting_verification',
   paid: 'paid',

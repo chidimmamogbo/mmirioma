@@ -4,7 +4,8 @@
  */
 import type { AdminOrderStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
 import type { ChipTone } from '../../components/ui/Chip'
-import type { PaymentMethod, PaymentStatus } from '../../domain/orders'
+import type { AdminPaymentStatus } from '../../domain/admin'
+import type { PaymentMethod } from '../../domain/orders'
 import type { ApprovalStatus } from '../../domain/partner'
 
 export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
@@ -18,7 +19,9 @@ export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
   disputed: 'amber',
 }
 
-export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
+export const PAYMENT_LABEL: Record<AdminPaymentStatus, string> = {
+  // Decided by @chidimmamogbo on PR #92.
+  pending_collection: 'Cash to collect',
   unpaid: 'Unpaid',
   awaiting_verification: 'To verify',
   paid: 'Paid',
@@ -26,7 +29,9 @@ export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
   refunded: 'Refunded as points',
 }
 
-export const PAYMENT_TONE: Record<PaymentStatus, ChipTone> = {
+export const PAYMENT_TONE: Record<AdminPaymentStatus, ChipTone> = {
+  // The normal state of a confirmed pay-on-delivery order, not a problem.
+  pending_collection: 'gray',
   unpaid: 'gray',
   awaiting_verification: 'amber',
   paid: 'green',
