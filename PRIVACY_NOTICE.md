@@ -34,6 +34,9 @@ MmiriOma is a water ordering and delivery service for households and businesses,
 | Cash payment records: amount due, amount collected, who collected and received it, and when | Account for cash paid on delivery |
 | Bank account details, only if we pay you a refund by bank transfer | Make that refund |
 | What you tell us when you call or message our support line | Answer your questions and handle complaints |
+| Problems and questions you send in the app ("Report a problem" and Help): the type of problem, your message, the order it is about, its status and how our staff resolved it | Investigate and resolve the problem, and handle complaints |
+| Feedback you give on a delivered order: your rating (1 to 5), whether the rider or driver unloaded the water, and, if you choose to answer, whether it was on time, whether you got the quantity you ordered, whether you would order again, and a short message | Check and improve our deliveries and our riders' and drivers' service |
+| Account deletion requests you make in the app: when you asked, the reason if you give one, and the outcome | Handle your request (section 9) and keep a record that we did |
 | Messages we show you in the app about your orders or jobs | Keep you informed. A message never changes an order |
 | Technical records: your sign-in session, and server logs (IP address, time and the page or action requested) | Keep you signed in, protect the service from misuse and fix problems |
 
@@ -85,10 +88,13 @@ We keep information only as long as set out below. Our staff review stored data 
 | Saved addresses | While your account is open | Deleted when your account is closed |
 | Messages in the app | As long as the order they are about | Deleted when your account is closed |
 | Order and delivery records, including delivery addresses | 3 years after the order is completed | Personal details deleted or anonymized; the payment subset is kept as below |
+| Feedback on an order | As long as the order record (3 years after the order is completed) | Your message is removed when the order's personal details are deleted or anonymized, or when your account is closed; the rating and answers stay with the anonymized order, as they no longer identify you |
 | Driver GPS points | 90 days after the delivery | Deleted, unless needed for an open complaint or dispute |
 | Cash payment and refund records, including refund bank details | At least 6 years, or longer where Nigerian accounting or tax law requires | Securely deleted or anonymized when that obligation ends |
 | Complaints, disputes and incident records | 3 years after resolution | Deleted or anonymized, unless continued retention is justified |
 | Calls and messages on our support line | 12 months after the matter is resolved | Deleted, unless linked to an unresolved matter |
+| Problems you report in the app | 3 years after our staff resolve it | Deleted. If your account is closed sooner, your message is removed then and the rest of the record is kept until the 3 years end |
+| Account deletion requests | As long as we need to show that we handled your request | The reason you gave is removed when your account is closed; the reference, dates and outcome are kept as a record that the request was handled |
 | Sign-in sessions | A session lasts up to 7 days | Ended sessions are deleted at the next monthly review |
 | Server logs | 90 days | Deleted, unless needed to investigate a security incident |
 | Encrypted backups | Up to 30 days | They expire on schedule (section 10) |
