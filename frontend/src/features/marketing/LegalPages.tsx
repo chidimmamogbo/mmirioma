@@ -223,11 +223,11 @@ function Rows({ rows }: { rows: [ReactNode, ReactNode][] }) {
 }
 
 /*
- * The Privacy page mirrors PRIVACY_NOTICE.md (version 1.2) section by
+ * The Privacy page mirrors PRIVACY_NOTICE.md (version 2.0) section by
  * section, with the same facts (#93). Change both together; the notice is the
  * source.
  */
-const PRIVACY_VERSION = 'Version 1.2, last updated 27 October 2026.'
+const PRIVACY_VERSION = 'Version 2.0, last updated 27 October 2026.'
 
 const PRIVACY: Section[] = [
   {
@@ -476,6 +476,7 @@ const PRIVACY: Section[] = [
         <p>
           You can ask us to access, correct or delete your personal information by calling <Phone /> or emailing <PrivacyEmail />. Before we
           disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account.
+          For deletion, you can also use "Delete my account" in the app; we still call you back to confirm it is you.
         </p>
         <List
           items={[
