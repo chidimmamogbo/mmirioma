@@ -6,7 +6,8 @@
  * converts with docs/architecture/api-mapping.md; the rest fail with
  * `not_connected` until their backend exists. Linked so far: `createOrder`,
  * `listOrders`, `getOrder` (#9); `getProfile`, `listAddresses`,
- * `setDefaultAddress`, `removeAddress` (#88).
+ * `setDefaultAddress`, `removeAddress` (#88); `listServiceZones`,
+ * `getQuote`, `addAddress`, `updateAddress` (#121).
  */
 import type {
   CustomerNotificationList,
@@ -14,11 +15,11 @@ import type {
   CustomerProfile,
   PointsSummary,
   ProblemType,
-  Quote,
   SavedAddress,
   SupportTicket,
-  WaterChoice,
 } from '../../domain/orders'
+import type { AreaOption, PriceQuote, PriceRequest } from './order/livePrice'
+import * as realQuote from './real/quote'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 // Linked in #88 part 4: listTickets, createTicket, requestAccountDeletion.
@@ -36,15 +37,16 @@ export const updateProfile = (u: mock.ProfileUpdate): Promise<CustomerProfile> =
   USE_MOCKS ? mock.updateProfile(u) : notConnected('Your profile')
 
 export const listAddresses = (): Promise<SavedAddress[]> => (USE_MOCKS ? mock.listAddresses() : realAccount.listAddresses())
-// Saving an address needs an area (`zone_id`); the area picker waits for the #79 design.
-export const addAddress = (i: mock.AddressInput): Promise<SavedAddress> => (USE_MOCKS ? mock.addAddress(i) : notConnected('Adding an address'))
+// Linked in #121, with the area picker: an address is saved only with an area.
+export const addAddress = (i: mock.AddressInput): Promise<SavedAddress> => (USE_MOCKS ? mock.addAddress(i) : realAccount.addAddress(i))
 export const updateAddress = (id: string, i: mock.AddressInput): Promise<SavedAddress> =>
-  USE_MOCKS ? mock.updateAddress(id, i) : notConnected('Editing an address')
+  USE_MOCKS ? mock.updateAddress(id, i) : realAccount.updateAddress(id, i)
 export const setDefaultAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.setDefaultAddress(id) : realAccount.setDefaultAddress(id))
 export const removeAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.removeAddress(id) : realAccount.removeAddress(id))
 
-export const getQuote = (choice: WaterChoice, address: string | null): Promise<Quote> =>
-  USE_MOCKS ? mock.getQuote(choice, address) : notConnected('Prices')
+// Live prices, linked in #121 (docs/design/customer-live-prices.md).
+export const listServiceZones = (): Promise<AreaOption[]> => (USE_MOCKS ? mock.listServiceZones() : realQuote.listServiceZones())
+export const getQuote = (request: PriceRequest): Promise<PriceQuote> => (USE_MOCKS ? mock.getPrice(request) : realQuote.getQuote(request))
 export const createOrder = (i: mock.CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : realOrder.createOrder(i))
 export const listOrders = (): Promise<CustomerOrder[]> => (USE_MOCKS ? mock.listOrders() : realOrder.listOrders())
 export const getOrder = (reference: string): Promise<CustomerOrder> => (USE_MOCKS ? mock.getOrder(reference) : realOrder.getOrder(reference))

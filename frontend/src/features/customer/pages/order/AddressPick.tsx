@@ -9,11 +9,12 @@ import { Chip } from '../../../../components/ui/Chip'
 import { RadioDot } from '../../../../components/ui/Choice'
 import { cx } from '../../../../lib/cx'
 import { AddressIcon } from '../../components/AddressIcon'
+import { AddressArea } from '../../components/AreaPicker'
 import { OrderStepHeading } from '../../components/OrderParts'
 import { useOrderDraft } from '../../order/orderDraftContext'
 import { useAddresses } from '../../queries'
 
-/** Choose a saved address, for returning customers (`c-address-pick`). */
+/** Choose a saved address, for returning customers (`c-address-pick`), each with its area (customer-live-prices.md, screen 3). */
 export function AddressPick() {
   const navigate = useNavigate()
   const { draft, update } = useOrderDraft()
@@ -58,6 +59,8 @@ export function AddressPick() {
                       {a.is_default && <Chip className="px-2 py-0.5 text-[11px]">Default</Chip>}
                     </span>
                     <span className="text-[13px] text-mute">{a.address}</span>
+                    {/* Still selectable when no longer served: Review then offers "Send request" (decision 2). */}
+                    <AddressArea zone={a.zone} />
                   </span>
                   <RadioDot on={on} />
                 </button>

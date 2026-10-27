@@ -69,7 +69,15 @@ export function customerOrderFromRead(read: OrderRead): CustomerOrder {
     payment: { method: 'pay_on_delivery', status: null },
     // Total only, never a breakdown (order-details-and-price.md, decision 6).
     quote: read.quote
-      ? { currency: read.quote.currency, total_minor_units: read.quote.total_minor_units, water: null, delivery: null, is_sample: false }
+      ? {
+          currency: read.quote.currency,
+          total_minor_units: read.quote.total_minor_units,
+          water: null,
+          delivery: null,
+          is_sample: false,
+          // The category accepted with the price (FR-023), shown on "Order placed".
+          category_label: read.quote.water_category.label,
+        }
       : null,
     // Not in OrderRead: the screens leave these out.
     partner: null,
@@ -87,9 +95,10 @@ export function customerOrderFromRead(read: OrderRead): CustomerOrder {
 }
 
 /**
- * The `POST /orders` body for the order form. No `quote_id` and no zone:
- * until live prices and the zone picker are linked, every order is a quote
- * request and the office calls with the price (FR-022 manual fallback).
+ * The `POST /orders` body for the order form. With a `quote_id` the order is
+ * placed at that price; without one it is a quote request and the office
+ * calls with the price (FR-022 manual fallback). The area goes with it either
+ * way (FR-020, #121).
  *
  * @throws {ApiError} `validation_error` for a custom tank size with no
  *   gallons, which the Tanker screen already prevents.
@@ -117,16 +126,20 @@ export function orderCreateFromInput(input: CreateOrderInput): OrderCreate {
     body.tanker = { tank_type: input.choice.tank_type, quantity_local_gallons: gallons }
     body.water_source = input.choice.source
   }
+  if (input.quote_id) body.quote_id = input.quote_id
+  if (input.service_zone_id) body.service_zone_id = input.service_zone_id
   if (input.landmark) body.landmark = input.landmark
   if (input.instructions) body.delivery_instructions = input.instructions
   return body
 }
 
 /**
- * Send the order form as a quote request.
+ * Place the order at its quoted price, or send it as a quote request.
  *
  * @throws {ApiError} The backend's errors unchanged, for example 403
- *   `phone_not_verified`, 409 `idempotency_key_reused`, 422 `validation_error`.
+ *   `phone_not_verified`, 409 `quote_expired`, 422 `quote_mismatch`, 409
+ *   `no_eligible_source`, 404 `service_zone_not_found`, 409
+ *   `idempotency_key_reused`, 422 `validation_error`.
  */
 export async function createOrder(input: CreateOrderInput, client: ApiClient = apiClient): Promise<CustomerOrder> {
   return customerOrderFromRead(await postOrder(orderCreateFromInput(input), client))

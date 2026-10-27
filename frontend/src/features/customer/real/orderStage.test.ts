@@ -4,8 +4,8 @@ import { customerStageFromStatus } from './orderStage'
 
 describe('customerStageFromStatus', () => {
   it.each([
-    ['quote_requested', 'waiting_rider'],
-    ['awaiting_confirmation', 'waiting_rider'],
+    ['quote_requested', 'request_received'],
+    ['awaiting_confirmation', 'awaiting_confirmation'],
     ['confirmed', 'waiting_rider'],
     ['awaiting_payment', 'waiting_rider'],
     ['accepted', 'rider_assigned'],
