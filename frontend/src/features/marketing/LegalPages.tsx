@@ -454,7 +454,7 @@ const PRIVACY: Section[] = [
             ['Calls and messages on our support line: 12 months after the matter is resolved', 'Deleted, unless linked to an unresolved matter.'],
             [
               'Problems you report in the app: 3 years after our staff resolve it',
-              'Deleted. If your account is closed sooner, your message is removed then and the rest of the record is kept until the 3 years end.',
+              "Deleted. If your account is closed sooner, your message and our staff's note about it are removed then, and the rest of the record is kept until the 3 years end.",
             ],
             [
               'Account deletion requests: as long as we need to show that we handled your request',
@@ -476,7 +476,7 @@ const PRIVACY: Section[] = [
         <p>
           You can ask us to access, correct or delete your personal information by calling <Phone /> or emailing <PrivacyEmail />. Before we
           disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account.
-          For deletion, you can also use "Delete my account" in the app; we still call you back to confirm it is you.
+          For deletion, you can also use "Delete my account" in the customer app; we still call you back to confirm it is you.
         </p>
         <List
           items={[

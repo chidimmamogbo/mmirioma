@@ -375,7 +375,6 @@ goes in its own PR.
 | --- | --- |
 | `PartnerProfile.approval` | `approval_status` |
 | `PartnerProfile.online` | `is_available` |
-| `PartnerProfile.email` | Not returned. The adapter returns `null`, and the email field keeps "not connected yet" ([decision 5](#open-questions)) |
 | `PartnerProfile.vehicle.type` | `vehicle.delivery_type` |
 | `PartnerProfile.vehicle.tank_gallons` | `vehicle.declared_capacity_gallons` |
 | `PartnerProfile.vehicle.safe_load_litres` | `vehicle.safe_payload_litres` (`null` shows `[SAFE LOAD]`) |
@@ -383,7 +382,6 @@ goes in its own PR.
 | `PartnerProfile.vehicle.description` | `vehicle.description`; when `null`, the adapter builds it from `delivery_type` and the declared capacity |
 | `PartnerProfile.service_areas` | `service_zones[].name` |
 | `PartnerProfile.documents` | Not returned. The adapter returns `[]`, and the papers screen keeps "not connected yet" for uploads |
-| `PartnerProfile.preferences.offers_and_news` | Not returned. The adapter returns `false` and the switch keeps "not connected yet" ([decision 5](#open-questions)) |
 | `PartnerProfile.payout_account_ending` | Not returned. The adapter returns `null` |
 | `PartnerNotification.at` | `created_at` |
 | `PartnerNotification.read` | `read_at !== null` |
@@ -450,6 +448,7 @@ decided and when. Recommendations are proposals, not decisions.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | Mapping only, the contract is unchanged: `PartnerProfile.email` and `preferences.offers_and_news` left the design type, so their two rows are gone (#85) | @chidimmamogbo (decision on #85) |
 | 2026-10-26 | Agreed (G3): open questions 4 (admin sets transfer methods at approval, `ground` and `overhead`) and 8 (`vehicle_profile_id` nullable) decided; the `auth.md` amendment agreed with it | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | Revised for #47: open questions 1, 3, 5, 6, 7 and 9 decided and applied; the approval endpoint is in #43; the sign-up zone is the first `driver_service_zones` row; `station_closed` not created and push depends on `push.md`; `email` and `offers_and_news` removed; notifications use the customer shape (`read_at`, `unread_count`, `ids` on mark-read); `vehicle.kind` and `vehicle_kind` renamed `delivery_type` to match `admin-directory.md`; `phone_verified` added to the profile; `auth.md` amended | Not yet |
 | 2026-10-26 | Proposed (#14, PR #35): partner sign-up (auth amendment), approval status, profile read and update, availability, notifications. Documents, earnings and payouts left out | Not yet |

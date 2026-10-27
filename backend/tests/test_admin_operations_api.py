@@ -410,6 +410,26 @@ def test_resolving_twice_is_409_with_the_example_body(
     assert response.json() == ALREADY_RESOLVED
 
 
+def test_an_anonymized_request_keeps_its_resolution(
+    api: TestClient, admin_fake: FakeAdmin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #117: the note is replaced, not blanked, so resolution is still shown.
+    removed = "Removed at the customer's request."
+    view = support_view(SUPPORT)
+    view.request.message = removed
+    view.request.resolution_note = removed
+
+    async def get(_: object, **kwargs: Any) -> tuple[requests.AdminSupportView, list[Any]]:
+        return view, []
+
+    monkeypatch.setattr(requests, "get_admin_support_request", get)
+    body = api.get(
+        f"/api/v1/admin/support-requests/{REFERENCE}", headers=sign_in(api, UserRole.ADMIN)
+    ).json()
+    assert (body["message"], body["resolution"]["note"]) == (removed, removed)
+    assert body["resolution"]["resolved_by"] == SUPPORT["resolution"]["resolved_by"]
+
+
 def test_like_wildcards_in_the_search_are_escaped() -> None:
     assert requests._contains("50%_off\\") == "%50\\%\\_off\\\\%"
 

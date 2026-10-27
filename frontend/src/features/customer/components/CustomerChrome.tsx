@@ -28,7 +28,7 @@ export function CustomerTabs({ current }: { current: '/home' | '/order' | '/orde
 export function CustomerTopBar({ bell = true }: { bell?: boolean }) {
   const profile = useProfile()
   const notifications = useNotifications()
-  const unread = notifications.data?.filter((n) => !n.read).length ?? 0
+  const unread = notifications.data?.unread_count ?? 0
   const session = useSession()
   const name = profile.data?.name ?? session.data?.user.name ?? ''
   return (

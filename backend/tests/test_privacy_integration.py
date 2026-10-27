@@ -46,7 +46,14 @@ from app.modules.deliveries.models import (
     OrderException,
     SmsStatus,
 )
-from app.modules.dispatch.models import Assignment, AssignmentStatus
+from app.modules.dispatch.models import (
+    ApprovalStatus,
+    Assignment,
+    AssignmentStatus,
+    DriverProfile,
+    DriverServiceZone,
+)
+from app.modules.dispatch.models import DeliveryType as PartnerType
 from app.modules.notifications.models import Notification
 from app.modules.orders.models import Order, OrderStatus, PaymentMethod, PaymentStatus
 from app.modules.payments.models import (
@@ -95,6 +102,8 @@ def delete_audit_rows(created: Created) -> Iterator[None]:
         connection.execute("DELETE FROM customer_addresses WHERE customer_id = ANY(%s)", users)
         connection.execute("DELETE FROM support_requests WHERE user_id = ANY(%s)", users)
         connection.execute("DELETE FROM deletion_requests WHERE user_id = ANY(%s)", users)
+        # Driver service zones go with their profile (ON DELETE CASCADE).
+        connection.execute("DELETE FROM driver_profiles WHERE user_id = ANY(%s)", users)
         connection.execute("DELETE FROM service_zones WHERE id = ANY(%s)", (ZONE_IDS,))
     ZONE_IDS.clear()
 
@@ -309,6 +318,7 @@ def test_anonymize_dry_run_saves_nothing_and_apply_removes_the_details(created: 
                     "gps_points_cleared": 2,
                     "addresses_removed": 0,
                     "support_messages_removed": 0,
+                    "resolution_notes_removed": 0,
                     "notifications_deleted": 0,
                 },
             )
@@ -720,6 +730,7 @@ async def add_support_request(
     *,
     resolved_at: datetime | None = None,
     message: str = "The water has not arrived yet.",
+    resolution_note: str | None = None,
 ) -> uuid.UUID:
     async with sessions() as session:
         request = SupportRequest(
@@ -730,6 +741,7 @@ async def add_support_request(
             status=SupportRequestStatus.RESOLVED if resolved_at else SupportRequestStatus.OPEN,
             idempotency_key=uuid.uuid4(),
             resolved_at=resolved_at,
+            resolution_note=resolution_note,
             created_at=(resolved_at or OLD) - timedelta(days=1),
         )
         session.add(request)
@@ -754,6 +766,13 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
     async def scenario(sessions: Sessions) -> None:
         s = await setup(sessions, created)
         support_id = await add_support_request(sessions, s.customer)
+        # A resolved request's staff note can name the customer (#117).
+        resolved_id = await add_support_request(
+            sessions,
+            s.customer,
+            resolved_at=OLD + timedelta(days=2),
+            resolution_note="Called Ngozi at 12 Sample Close: delivered in full.",
+        )
         deletion = await add_deletion_request(sessions, s.customer)
         async with sessions() as session:
             session.add(
@@ -762,10 +781,12 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
             await session.commit()
 
         done = await anonymize(sessions, s, apply=True)
-        assert (done.support_messages_removed, done.notifications_deleted) == (1, 1)
+        assert (done.support_messages_removed, done.notifications_deleted) == (2, 1)
+        assert done.resolution_notes_removed == 1
 
         async with sessions() as session:
             support = await session.get(SupportRequest, support_id)
+            resolved = await session.get(SupportRequest, resolved_id)
             request = await session.get(DeletionRequest, deletion.id)
             left = list(
                 await session.scalars(
@@ -773,6 +794,15 @@ def test_anonymize_removes_request_texts_and_notifications(created: Created) -> 
                 )
             )
         assert support is not None and support.message == "Removed at the customer's request."
+        # The open request had no note and still has none; the resolved one's
+        # note is replaced, so the admin view keeps a note string.
+        assert support.resolution_note is None
+        assert resolved is not None
+        assert (resolved.message, resolved.resolution_note) == (
+            "Removed at the customer's request.",
+            "Removed at the customer's request.",
+        )
+        assert resolved.status is SupportRequestStatus.RESOLVED
         assert request is not None and request.reason is None
         assert request.status is DeletionRequestStatus.RECEIVED  # set separately
         assert left == []
@@ -906,5 +936,201 @@ def test_a_refusal_needs_a_reason_and_frees_the_customer_to_ask_again(created: C
             "Open dispute on an order",
         )
         assert created_now is True and again.id != request.id
+
+    run(scenario)
+
+
+# --- Riders and drivers (#119) ---------------------------------------------------------
+
+
+async def add_partner_profile(sessions: Sessions, driver: User) -> uuid.UUID:
+    """An approved tanker profile with a plate, capacity, a zone and transfer methods."""
+    async with sessions() as session:
+        zone = ServiceZone(
+            name=f"Sample zone {uuid.uuid4().hex[:8]}",
+            is_active=True,
+            centre=WKTElement(POINT, srid=4326),
+        )
+        session.add(zone)
+        await session.flush()
+        ZONE_IDS.append(zone.id)
+        profile = DriverProfile(
+            user_id=driver.id,
+            approval_status=ApprovalStatus.APPROVED,
+            delivery_type=PartnerType.TANKER,
+            plate="ENU-456-CD",
+            declared_capacity_gallons=4000,
+            transfer_methods=["ground", "overhead"],
+            is_available=True,
+            new_order_alerts=False,
+        )
+        session.add(profile)
+        await session.flush()
+        session.add(DriverServiceZone(driver_profile_id=profile.id, zone_id=zone.id))
+        await session.commit()
+        return profile.id
+
+
+async def anonymize_partner(
+    sessions: Sessions, s: Setup, driver: User, *, apply: bool
+) -> service.PartnerAnonymizeResult:
+    async with sessions() as session:
+        return await service.anonymize_partner(
+            session, actor=s.admin, partner_phone=driver.phone, now=REVIEW_NOW, apply=apply
+        )
+
+
+def test_anonymize_partner_is_refused_while_anything_is_open(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        live = await add_job(sessions, s, driver, order_status=OrderStatus.EN_ROUTE)
+        held = await finished_job(sessions, s, driver, order_status=OrderStatus.DELIVERED)
+        await add_open_hold(sessions, s, held)
+        unsettled = await finished_job(sessions, s, driver, order_status=OrderStatus.DELIVERED)
+        await add_cash(sessions, s, driver, unsettled, CashCollectionStatus.REMITTED)
+        disputed = await finished_job(sessions, s, driver, order_status=OrderStatus.DISPUTED)
+
+        with pytest.raises(service.PartnerNotReady) as refused:
+            await anonymize_partner(sessions, s, driver, apply=True)
+        assert sorted(refused.value.blockers) == sorted(
+            [
+                f"{live}: job accepted",
+                f"{held}: open hold or review",
+                f"{unsettled}: cash remitted",
+                f"{disputed}: disputed",
+            ]
+        )
+        stored = await reload_user(sessions, driver.id)
+        assert stored is not None and stored.phone == driver.phone and stored.is_active
+
+        # A customer's phone is not a partner's.
+        with pytest.raises(LookupError):
+            async with sessions() as session:
+                await service.anonymize_partner(
+                    session,
+                    actor=s.admin,
+                    partner_phone=s.customer.phone,
+                    now=REVIEW_NOW,
+                    apply=True,
+                )
+
+    run(scenario)
+
+
+def test_anonymize_partner_removes_their_details_and_keeps_the_records(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        profile_id = await add_partner_profile(sessions, driver)
+        done_job = await finished_job(sessions, s, driver, order_status=OrderStatus.DELIVERED)
+        await add_delivery(sessions, s, driver, done_job, at=OLD)
+        cash_id = await add_cash(sessions, s, driver, done_job, CashCollectionStatus.RECONCILED)
+        declined = await add_job(
+            sessions,
+            s,
+            driver,
+            order_status=OrderStatus.CONFIRMED,
+            assignment_status=AssignmentStatus.DECLINED,
+            ended_at=OLD,
+        )
+        async with sessions() as session:
+            order = await session.scalar(select(Order).where(Order.reference == declined))
+            assert order is not None
+            await session.execute(
+                update(Assignment)
+                .where(Assignment.order_id == order.id)
+                .values(decline_note="My wife is ill at 12 Sample Close")
+            )
+            done = await session.scalar(select(Order).where(Order.reference == done_job))
+            assert done is not None
+            session.add(
+                OrderException(
+                    order_id=done.id,
+                    category=ExceptionCategory.RUNNING_LATE,
+                    note="Traffic at Ogui Road",
+                    reported_by=driver.id,
+                )
+            )
+            session.add(Notification(user_id=driver.id, kind="assigned", title="New job", body="x"))
+            await session.commit()
+        await add_codes_and_session(sessions, driver, expired_at=REVIEW_NOW + timedelta(days=1))
+
+        dry = await anonymize_partner(sessions, s, driver, apply=False)
+        assert (dry.applied, dry.zones_removed, dry.decline_notes_removed) == (False, 1, 1)
+        assert (dry.gps_points_cleared, dry.notifications_deleted, dry.notes_to_review) == (2, 1, 1)
+        stored = await reload_user(sessions, driver.id)
+        assert stored is not None and stored.phone == driver.phone  # nothing saved
+
+        done_result = await anonymize_partner(sessions, s, driver, apply=True)
+        assert done_result.applied is True
+        async with sessions() as session:
+            user = await session.get(User, driver.id)
+            profile = await session.get(DriverProfile, profile_id)
+            zones = list(
+                await session.scalars(
+                    select(DriverServiceZone).where(
+                        DriverServiceZone.driver_profile_id == profile_id
+                    )
+                )
+            )
+            notes = list(
+                await session.scalars(
+                    select(Assignment.decline_note).where(Assignment.driver_user_id == driver.id)
+                )
+            )
+            left = list(
+                await session.scalars(select(Notification).where(Notification.user_id == driver.id))
+            )
+            cash = await session.get(CashCollection, cash_id)
+            jobs = list(
+                await session.scalars(
+                    select(Assignment).where(Assignment.driver_user_id == driver.id)
+                )
+            )
+            incident = await session.scalar(
+                select(OrderException).where(OrderException.reported_by == driver.id)
+            )
+            audit = list(
+                await session.scalars(select(AuditLog).where(AuditLog.target_id == driver.id))
+            )
+            sessions_left = list(
+                await session.scalars(select(UserSession).where(UserSession.user_id == driver.id))
+            )
+        assert user is not None
+        assert (user.name, user.is_active) == ("Former rider or driver", False)
+        assert user.phone.startswith("+0") and user.phone != driver.phone
+        assert sessions_left == []
+        assert profile is not None
+        assert (profile.plate, profile.declared_capacity_gallons, profile.is_available) == (
+            None,
+            None,
+            False,
+        )
+        assert (profile.transfer_methods, profile.new_order_alerts) == ([], True)
+        assert profile.approval_status is ApprovalStatus.APPROVED  # kept as a record
+        assert zones == []
+        assert "Removed at the partner's request." in notes
+        assert "My wife is ill at 12 Sample Close" not in notes
+        assert await gps_points(sessions, done_job) == []
+        assert left == []
+        # Kept: the jobs, the cash record and the incident note.
+        assert len(jobs) == 2
+        assert cash is not None and cash.status is CashCollectionStatus.RECONCILED
+        assert incident is not None and incident.note == "Traffic at Ogui Road"
+        assert [(row.action, row.details) for row in audit] == [
+            (
+                "partner_anonymized",
+                {
+                    "zones_removed": 1,
+                    "decline_notes_removed": 1,
+                    "gps_points_cleared": 2,
+                    "notifications_deleted": 1,
+                },
+            )
+        ]
+        # The old phone no longer finds a partner.
+        with pytest.raises(LookupError):
+            await anonymize_partner(sessions, s, driver, apply=True)
 
     run(scenario)

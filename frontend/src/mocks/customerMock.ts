@@ -15,7 +15,8 @@ import type {
   SupportTicket,
   WaterChoice,
 } from '../domain/orders'
-import type { IssueType } from '../domain/admin'
+import type { IssueType, ServiceArea } from '../domain/admin'
+import type { AreaOption, PriceQuote, PriceRequest } from '../features/customer/order/livePrice'
 import { PROBLEM_LABEL } from '../domain/orders'
 import { normalizeNigerianPhone } from '../lib/format/phone'
 import { requireUserId } from './authMock'
@@ -83,28 +84,45 @@ export async function updateProfile(update: ProfileUpdate): Promise<CustomerProf
 
 /* ---------- Addresses ---------- */
 
+/**
+ * The area of a saved address, read live like the backend's (`is_active`).
+ * A stored area wins; seed addresses saved before areas get the area named
+ * in their text, enabled or not, so a disabled one shows "No longer served".
+ */
+function zoneOf(a: SavedAddress, areas: ServiceArea[]): SavedAddress['zone'] {
+  const text = a.address.toLowerCase()
+  const area = a.zone ? areas.find((x) => x.id === a.zone!.id) : areas.find((x) => text.includes(x.name.toLowerCase()))
+  return area ? { id: area.id, name: area.name, is_active: area.enabled } : null
+}
+
 export async function listAddresses(): Promise<SavedAddress[]> {
   await delay(null)
-  return clone(data().addresses)
+  const areas = read().admin.areas
+  return clone(data().addresses.map((a) => ({ ...a, zone: zoneOf(a, areas) })))
 }
 
 export interface AddressInput {
   label: string
   address: string
   landmark: string | null
+  /** Required: an address is saved only with an area (FR-020, customer-account.md). */
+  zone_id: string
   make_default: boolean
 }
 
-function validateAddress(input: AddressInput) {
+function validateAddress(input: AddressInput): ServiceArea {
   const details = []
   if (input.label.trim().length < 1 || input.label.trim().length > 40) details.push({ loc: ['body', 'label'], msg: 'Give the address a name', type: 'value_error' })
   if (input.address.trim().length < 5 || input.address.trim().length > 500) details.push({ loc: ['body', 'address'], msg: 'Enter the full address', type: 'value_error' })
   if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
+  const area = read().admin.areas.find((x) => x.id === input.zone_id)
+  if (!area) throw mockError(404, 'service_zone_not_found', 'Service zone not found')
+  return area
 }
 
 export async function addAddress(input: AddressInput): Promise<SavedAddress> {
   await delay(null)
-  validateAddress(input)
+  const area = validateAddress(input)
   return clone(
     change((d) => {
       const first = d.addresses.length === 0
@@ -115,6 +133,7 @@ export async function addAddress(input: AddressInput): Promise<SavedAddress> {
         address: input.address.trim(),
         landmark: input.landmark?.trim() || null,
         is_default: input.make_default || first,
+        zone: { id: area.id, name: area.name, is_active: area.enabled },
       }
       d.addresses.push(created)
       return created
@@ -124,7 +143,7 @@ export async function addAddress(input: AddressInput): Promise<SavedAddress> {
 
 export async function updateAddress(id: string, input: AddressInput): Promise<SavedAddress> {
   await delay(null)
-  validateAddress(input)
+  const area = validateAddress(input)
   return clone(
     change((d) => {
       const a = d.addresses.find((x) => x.id === id)
@@ -132,6 +151,7 @@ export async function updateAddress(id: string, input: AddressInput): Promise<Sa
       a.label = input.label.trim()
       a.address = input.address.trim()
       a.landmark = input.landmark?.trim() || null
+      a.zone = { id: area.id, name: area.name, is_active: area.enabled }
       if (input.make_default) {
         d.addresses.forEach((x) => (x.is_default = x.id === id))
       }
@@ -172,6 +192,42 @@ export async function getQuote(choice: WaterChoice, address: string | null): Pro
   return quoteFor(choice, address === null ? null : { area: areaForAddress(address, s.admin.areas) }, currentPrices(s))
 }
 
+/** The areas a customer can pick: the enabled service areas, by name (as `GET /service-zones`). */
+export async function listServiceZones(): Promise<AreaOption[]> {
+  await delay(null)
+  return read()
+    .admin.areas.filter((a) => a.enabled)
+    .map((a) => ({ id: a.id, name: a.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * A price for the customer's Review screen (#121), with the server's rules
+ * for the area: none or a disabled one answers `outside_service_zone`, an
+ * unknown one is 404 `service_zone_not_found`. The mock's own prices are
+ * sample prices, total only on the screen.
+ */
+export async function getPrice(request: PriceRequest): Promise<PriceQuote> {
+  await delay(null, 150)
+  requireUserId()
+  const s = read()
+  const area = request.zone_id === null ? null : s.admin.areas.find((a) => a.id === request.zone_id)
+  if (area === undefined) throw mockError(404, 'service_zone_not_found', 'Service zone not found')
+  if (area === null || !area.enabled) return { status: 'manual_quote_required', reason: 'outside_service_zone' }
+  const q = quoteFor(request.choice, { area }, currentPrices(s))
+  // The mock's only manual case is a custom tank size, which has no code of its own: the generic message.
+  if (q.status !== 'quote_available') return { status: 'manual_quote_required', reason: 'mock_custom_size' }
+  return {
+    status: 'quote_available',
+    quote_id: null,
+    total_minor_units: q.total_minor_units,
+    price_valid_until: q.price_valid_until,
+    quantity_litres: null,
+    category: null,
+    is_sample: q.is_sample,
+  }
+}
+
 export interface CreateOrderInput {
   /** One UUID per checkout attempt, reused on every retry (FR-026). */
   idempotency_key: string
@@ -188,6 +244,10 @@ export interface CreateOrderInput {
    * because its quote step refuses custom sizes.
    */
   custom_gallons?: number | null
+  /** The quote the customer accepted; absent or `null` sends a quote request (real API). The mock prices again. */
+  quote_id?: string | null
+  /** The picked area (FR-020); `null` when the address is in no listed area. */
+  service_zone_id?: string | null
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CustomerOrder> {
@@ -202,7 +262,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CustomerOrde
     throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'receiver_phone'], msg: 'Enter a Nigerian mobile number', type: 'value_error' }])
   }
   const s0 = read()
-  const quote = quoteFor(input.choice, { area: areaForAddress(input.address, s0.admin.areas) }, currentPrices(s0))
+  const area = input.service_zone_id ? (s0.admin.areas.find((a) => a.id === input.service_zone_id) ?? null) : areaForAddress(input.address, s0.admin.areas)
+  const quote = quoteFor(input.choice, { area }, currentPrices(s0))
   if (quote.status !== 'quote_available') {
     throw mockError(422, 'manual_quote_required', quote.reason)
   }

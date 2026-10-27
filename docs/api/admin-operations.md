@@ -606,8 +606,9 @@ these rows in its own small PR when the link issue starts.
   and `pickup_records (picked_up_at)` (decision 10).
 - `support_requests` ([customer-account.md](customer-account.md#data-needed-for-the-build-issue))
   gains `resolution_note` (up to 500 characters). Its `resolved_by` must be
-  an admin. The privacy tool blanks the note with the message at
-  anonymization.
+  an admin. The privacy tool removes the note with the message at
+  anonymization, replacing both with "Removed at the customer's request."
+  so `resolution.note` stays a string (#117).
 - `notifications`: the existing table; admin rows use the kinds above.
 - Admin notifications need the events that create them: dispatch (decline,
   timeout), holds, partner sign-up and support requests each add a row per
@@ -634,6 +635,7 @@ on the current backend, including the delivery type and zone breakdowns
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | "Data needed": the note is removed by replacing it with the message's text, so the response keeps its shape (#117) | @nnamdi-security (privacy contact) |
 | 2026-10-27 | Clarified in the build (#102): decisions 7-10 (`range` required, `by_zone[].delivered`, per-driver and per-source rules, indexes); `assignment_expired` not created while offers never expire | @nnamdi-security (technical lead) |
 | 2026-10-27 | Agreed (G3) | @nnamdi-security (technical lead) and @chidimmamogbo (PR #71) |
 | 2026-10-27 | Brought up to date with main: orders now carry `delivery_type` and `service_zone_id` (#21 built), so the breakdowns and the live map use them, with a `not_recorded` bucket and a no-zone row for orders without them; customer-account.md is agreed (#48) | Not yet |

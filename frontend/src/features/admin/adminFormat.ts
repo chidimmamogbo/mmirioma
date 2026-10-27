@@ -25,6 +25,8 @@ export const PAYMENT_LABEL: Record<AdminPaymentStatus, string> = {
   unpaid: 'Unpaid',
   awaiting_verification: 'To verify',
   paid: 'Paid',
+  // The approved cash design's label (docs/design/cash-remittance.md).
+  partially_paid: 'Part paid',
   refund_due: 'Refund due',
   refunded: 'Refunded as points',
 }
@@ -35,6 +37,7 @@ export const PAYMENT_TONE: Record<AdminPaymentStatus, ChipTone> = {
   unpaid: 'gray',
   awaiting_verification: 'amber',
   paid: 'green',
+  partially_paid: 'amber',
   refund_due: 'red',
   refunded: 'gray',
 }

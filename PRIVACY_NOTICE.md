@@ -93,7 +93,7 @@ We keep information only as long as set out below. Our staff review stored data 
 | Cash payment and refund records, including refund bank details | At least 6 years, or longer where Nigerian accounting or tax law requires | Securely deleted or anonymized when that obligation ends |
 | Complaints, disputes and incident records | 3 years after resolution | Deleted or anonymized, unless continued retention is justified |
 | Calls and messages on our support line | 12 months after the matter is resolved | Deleted, unless linked to an unresolved matter |
-| Problems you report in the app | 3 years after our staff resolve it | Deleted. If your account is closed sooner, your message is removed then and the rest of the record is kept until the 3 years end |
+| Problems you report in the app | 3 years after our staff resolve it | Deleted. If your account is closed sooner, your message and our staff's note about it are removed then, and the rest of the record is kept until the 3 years end |
 | Account deletion requests | As long as we need to show that we handled your request | The reason you gave is removed when your account is closed; the reference, dates and outcome are kept as a record that the request was handled |
 | Sign-in sessions | A session lasts up to 7 days | Ended sessions are deleted at the next monthly review |
 | Server logs | 90 days | Deleted, unless needed to investigate a security incident |
@@ -101,7 +101,7 @@ We keep information only as long as set out below. Our staff review stored data 
 
 ## 9. How can you request access, correction or deletion?
 
-You can ask us to access, correct or delete your personal information by calling **+234 813 377 4902** or emailing **[olivetgrail@gmail.com](mailto:olivetgrail@gmail.com)**. Before we disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account. For deletion, you can also use "Delete my account" in the app; we still call you back to confirm it is you.
+You can ask us to access, correct or delete your personal information by calling **+234 813 377 4902** or emailing **[olivetgrail@gmail.com](mailto:olivetgrail@gmail.com)**. Before we disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account. For deletion, you can also use "Delete my account" in the customer app; we still call you back to confirm it is you.
 
 - We acknowledge a request within **3 working days**.
 - We aim to complete a straightforward request within **14 calendar days**, and always within any deadline the law sets.

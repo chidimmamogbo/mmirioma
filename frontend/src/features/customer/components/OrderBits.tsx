@@ -7,6 +7,8 @@ import { formatDate, formatTime } from '../../../lib/format/datetime'
 import { orderIllustration, orderLink, orderPlaceLabel, orderPriceText, orderQuantityText, orderWhen } from '../orderHelpers'
 
 const STAGE_TONE: Record<DeliveryStage, ChipTone> = {
+  request_received: 'amber',
+  awaiting_confirmation: 'amber',
   waiting_rider: 'amber',
   rider_assigned: 'blue',
   picked_up: 'blue',

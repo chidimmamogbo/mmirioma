@@ -58,7 +58,6 @@ describe('partnerProfileFromRead', () => {
     expect(partnerProfileFromRead(approved)).toEqual({
       name: 'Sample Rider',
       phone: '+2348000000301',
-      email: null,
       approval: 'approved',
       online: true,
       partner_since: '2026-08-14',
@@ -72,7 +71,7 @@ describe('partnerProfileFromRead', () => {
       },
       service_areas: ['GRA'],
       documents: [],
-      preferences: { new_order_alerts: true, sms_updates: true, offers_and_news: false },
+      preferences: { new_order_alerts: true, sms_updates: true },
       payout_account_ending: null,
     })
   })
@@ -212,14 +211,7 @@ describe('partner account adapters (#67)', () => {
     const { client, sent } = setup({ body: { ...partnerProfile, preferences: { new_order_alerts: true, sms_updates: false } } })
     const profile = await updatePartnerProfile({ preferences: { sms_updates: false } }, client)
     expect(sent()).toMatchObject({ method: 'PATCH', body: { preferences: { sms_updates: false } } })
-    expect(profile.preferences).toEqual({ new_order_alerts: true, sms_updates: false, offers_and_news: false })
-  })
-
-  it('updatePartnerProfile refuses email and news and offers without calling the server', async () => {
-    const { client, fetchMock } = setup()
-    expect((await rejection(updatePartnerProfile({ email: 'a@example.com' }, client))).code).toBe('not_connected')
-    expect((await rejection(updatePartnerProfile({ preferences: { offers_and_news: true } }, client))).code).toBe('not_connected')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(profile.preferences).toEqual({ new_order_alerts: true, sms_updates: false })
   })
 
   it('updatePartnerProfile passes validation_error through', async () => {

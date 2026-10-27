@@ -11,6 +11,8 @@ nothing. Run from ``backend/`` with the virtualenv active and
         --customer 08000000001            # dry run
     python -m app.modules.privacy.cli anonymize-customer --by 08000000009 \\
         --customer 08000000001 --apply
+    python -m app.modules.privacy.cli anonymize-partner --by 08000000009 \\
+        --partner 08000000011            # dry run; add --apply to save
     python -m app.modules.privacy.cli correct-name --by 08000000009 \\
         --customer 08000000001 --name "Corrected Name"
     python -m app.modules.privacy.cli retention-review --by 08000000009          # dry run
@@ -76,10 +78,26 @@ async def _run(args: argparse.Namespace) -> str:
                     f"GPS points cleared: {result.gps_points_cleared}",
                     f"Saved addresses deleted: {result.addresses_removed}",
                     f"Support request messages removed: {result.support_messages_removed}",
+                    f"Staff notes on support requests removed: {result.resolution_notes_removed}",
                     f"Notifications deleted: {result.notifications_deleted}",
                     f"Staff notes kept on these orders, to check by hand: {result.notes_to_review}",
                     *(f"Check: {warning}" for warning in result.cash_warnings),
                     _dry_run_line(result.applied),
+                ]
+            )
+        if args.command == "anonymize-partner":
+            partner = await service.anonymize_partner(
+                session, actor=actor, partner_phone=args.partner, now=now, apply=args.apply
+            )
+            return "\n".join(
+                [
+                    f"Rider or driver {partner.partner_id}: account anonymized and deactivated.",
+                    f"Service zones removed: {partner.zones_removed}",
+                    f"Decline notes removed: {partner.decline_notes_removed}",
+                    f"GPS points cleared: {partner.gps_points_cleared}",
+                    f"Notifications deleted: {partner.notifications_deleted}",
+                    f"Incident and pickup notes kept, to check by hand: {partner.notes_to_review}",
+                    _dry_run_line(partner.applied),
                 ]
             )
         if args.command == "correct-name":
@@ -162,6 +180,16 @@ def build_parser() -> argparse.ArgumentParser:
     anonymize.add_argument("--customer", required=True, type=_phone, help="the customer's phone")
     anonymize.add_argument("--apply", action="store_true", help="save (default: dry run)")
 
+    partner = commands.add_parser(
+        "anonymize-partner",
+        help="anonymize a rider or driver after a verified deletion request",
+    )
+    partner.add_argument("--by", required=True, type=_phone, help="your admin account's phone")
+    partner.add_argument(
+        "--partner", required=True, type=_phone, help="the rider's or driver's phone"
+    )
+    partner.add_argument("--apply", action="store_true", help="save (default: dry run)")
+
     correct = commands.add_parser("correct-name", help="correct a customer's account name")
     correct.add_argument("--by", required=True, type=_phone, help="your admin account's phone")
     correct.add_argument("--customer", required=True, type=_phone, help="the customer's phone")
@@ -198,6 +226,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except DeletionStatusRefused as exc:
         print(f"Refused: {exc}; nothing was changed.", file=sys.stderr)
+        return 1
+    except service.PartnerNotReady as exc:
+        lines = "\n".join(f"- {blocker}" for blocker in exc.blockers)
+        print(
+            "Refused: end their live jobs, settle their cash and close the holds, "
+            "reviews and disputes on their jobs first; "
+            f"nothing was changed.\n{lines}",
+            file=sys.stderr,
+        )
         return 1
     except service.CustomerNotReady as exc:
         lines = "\n".join(f"- {blocker}" for blocker in exc.blockers)

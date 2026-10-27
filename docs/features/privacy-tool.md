@@ -14,10 +14,12 @@ records are protected by `ON DELETE RESTRICT` foreign keys and must not be
 edited by hand in production, so the technical lead (the privacy contact)
 uses this command-line tool. There are no screens and no API endpoints.
 
-Four commands:
+Five commands:
 
 - `anonymize-customer`: remove a customer's personal details after a
   verified deletion request (procedure, "Deletion" steps 1-3).
+- `anonymize-partner`: the same for a rider or driver (procedure, "Deletion:
+  riders and drivers"; #119).
 - `correct-name`: correct a customer's account name (procedure,
   "Correction").
 - `retention-review`: the database part of the monthly review (procedure,
@@ -33,6 +35,9 @@ python -m app.modules.privacy.cli anonymize-customer --by <admin phone> --custom
 # read the report (dry run), then:
 python -m app.modules.privacy.cli anonymize-customer --by <admin phone> --customer <customer phone> --apply
 
+python -m app.modules.privacy.cli anonymize-partner --by <admin phone> --partner <partner phone>           # dry run
+python -m app.modules.privacy.cli anonymize-partner --by <admin phone> --partner <partner phone> --apply
+
 python -m app.modules.privacy.cli correct-name --by <admin phone> --customer <customer phone> --name "New Name"
 
 python -m app.modules.privacy.cli retention-review --by <admin phone>           # dry run
@@ -44,13 +49,13 @@ python -m app.modules.privacy.cli set-deletion-status --by <admin phone> --reque
 ```
 
 1. `--by` must be an active admin account; it becomes the audit row's actor.
-2. `anonymize-customer` and `retention-review` are **dry runs** unless
+2. `anonymize-customer`, `anonymize-partner` and `retention-review` are **dry runs** unless
    `--apply` is given: the same steps run inside a transaction that is then
    rolled back, so the report is exactly what applying would do.
 3. Output names the account by id and orders by reference, never by name or
    phone, so it can be copied into the request register.
-4. Exit code 0 on success, 1 when refused (unknown admin or customer,
-   customer not ready).
+4. Exit code 0 on success, 1 when refused (unknown admin, customer or
+   partner; customer or partner not ready).
 
 ## 3. Important files and their responsibilities
 
@@ -63,6 +68,7 @@ python -m app.modules.privacy.cli set-deletion-status --by <admin phone> --reque
 | `backend/app/modules/deliveries/retention.py` | Open holds and reviews, GPS clearing, delivery codes, note count |
 | `backend/app/modules/payments/retention.py` | Unsettled cash (refusals), part payments and overpayments (warnings), cash note count |
 | `backend/app/modules/customers/retention.py` | Saved addresses deleted with the account (#82) |
+| `backend/app/modules/dispatch/retention.py` | A partner's jobs, live jobs (refusals), profile and zones, decline notes (#119) |
 | `backend/app/modules/audit/service.py` | `actors_with_rows`: which never-verified accounts audit rows name, so they are anonymized, not deleted (#82) |
 | `backend/tests/test_privacy.py` | Arguments, output and helpers (no database) |
 | `backend/tests/test_privacy_integration.py` | Every step against a real database |
@@ -75,7 +81,7 @@ No tables of its own. The tool changes rows of other modules:
 | --- | --- | --- |
 | `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted; those that audit rows name as the actor are anonymized as in the first column instead (#82) |
 | `customer_addresses` | Deleted | Deleted for every never-verified account the review deletes or anonymizes |
-| `support_requests` | Message replaced by "Removed at the customer's request."; row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
+| `support_requests` | Message and the staff's resolution note replaced by "Removed at the customer's request." (#117); row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
 | `deletion_requests` | Reason blanked; status set separately with `set-deletion-status` | Deleted with a never-verified account the review deletes |
 | `notifications` | Deleted (contract decision 8) | Deleted when the review anonymizes an account; they go with a deleted one (cascade) |
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
@@ -84,7 +90,20 @@ No tables of its own. The tool changes rows of other modules:
 | `feedback` | Message blanked; ratings kept (#82) | Same, for those orders |
 | `delivery_attempts`, `delivery_proofs` | GPS point and accuracy cleared | GPS over 90 days old cleared, except disputed orders and open holds or reviews |
 | `delivery_codes` | Kept | `code_hash` blanked on expired codes; rows kept (proofs point at them) |
-| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`, `support_messages_removed`, `notifications_deleted`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`, `support_requests_deleted`) |
+| `audit_logs` | `customer_anonymized` (counts, including `addresses_removed`, `support_messages_removed`, `resolution_notes_removed`, `notifications_deleted`) | `retention_review_applied` (counts, including `unverified_accounts_anonymized`, `support_requests_deleted`) |
+
+`anonymize-partner` (#119) changes these rows of a rider or driver:
+
+| Table | Anonymize partner |
+| --- | --- |
+| `users` | Name "Former rider or driver", phone marker, unknown password, inactive, not verified; row kept |
+| `user_sessions`, `phone_verifications`, `notifications` | Deleted |
+| `driver_profiles` | Plate and declared capacity cleared, availability off, switches and transfer methods reset; approval status kept |
+| `driver_service_zones` | Deleted |
+| `assignments` | Kept; their decline notes replaced by "Removed at the partner's request." |
+| `delivery_attempts`, `delivery_proofs` | GPS points they recorded cleared, except on disputed orders and orders with an open hold or review |
+| `pickup_records`, `order_exceptions`, `cash_collections`, `cash_remittances` | Kept (safety and accounting records); incident and pickup notes counted for the privacy contact |
+| `audit_logs` | `partner_anonymized` (counts: `zones_removed`, `decline_notes_removed`, `gps_points_cleared`, `notifications_deleted`) |
 
 `correct-name` changes `users.name` and writes `account_name_corrected`.
 `set-deletion-status` changes the request's status, time, `handled_by` and
@@ -97,6 +116,16 @@ Audit details hold ids and counts only.
 None.
 
 ## 6. Important business rules
+
+- **Riders and drivers** (`anonymize-partner`, rules confirmed by the
+  privacy contact on #119, 2026-10-27): refused while they have a live job,
+  cash not reconciled, or an open hold, review or dispute on a job they
+  accepted. Then the name ("Former rider or driver") and phone, the profile's
+  plate, capacity, availability, switches, transfer methods and zones, their
+  decline notes, in-app messages and the GPS points they recorded (except on
+  orders still needed as evidence) are removed. Jobs, pickups, proofs,
+  incidents and their notes, cash records, audit rows and the approval
+  status are kept. Audited as `partner_anonymized` with counts only.
 
 - **Finished orders** are `delivered` and `cancelled` only. A `failed`
   order may be rescheduled and a `disputed` one is open: staff cancel a
@@ -129,6 +158,11 @@ None.
 - **Code records:** expired phone and delivery codes keep their rows (the
   verification and phone-change record, NFR-004; proofs reference delivery
   codes); only the hash is blanked (technical lead, 2026-10-23).
+- **Support request notes are replaced, not kept** (privacy contact,
+  2026-10-27, #117): a resolution note can name the customer or their
+  address, so anonymizing replaces it with the same text as the message.
+  Replacing rather than blanking keeps `resolution.note` a string, so the
+  admin support endpoints keep their agreed shape.
 - **Staff notes are kept** as incident and safety records; the anonymize
   report counts them so the privacy contact can check them for personal
   details (technical lead, 2026-10-23).
@@ -197,7 +231,8 @@ rows 2017-2021 and run it with `now` in 2021, before any other test row.
   so the tool can only point at them; the privacy contact checks them.
 - Support-line messages, server logs, backups and the request register are
   outside the database; the review prints them as a manual checklist.
-- Staff, driver and admin accounts are out of scope.
+- Staff and admin accounts are out of scope. Riders and drivers are covered
+  by `anonymize-partner` (#119).
 - A never-verified account that audit rows name is anonymized and closed
   instead of deleted (#82), so the audit log keeps its reference. The privacy
   notice says so since version 2.0 (#93, #104).

@@ -27,7 +27,7 @@ import * as realJobs from './real/jobs'
 type Pickup = { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null }
 
 export const getPartnerProfile = (): Promise<PartnerProfile> => (USE_MOCKS ? mock.getPartnerProfile() : real.getPartnerProfile())
-export const updatePartnerProfile = (u: { email?: string | null; preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> =>
+export const updatePartnerProfile = (u: { preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> =>
   USE_MOCKS ? mock.updatePartnerProfile(u) : real.updatePartnerProfile(u)
 export const setOnline = (online: boolean): Promise<PartnerProfile> => (USE_MOCKS ? mock.setOnline(online) : real.setOnline(online))
 export const uploadDocument = (id: string, fileName: string): Promise<PartnerProfile> =>

@@ -61,6 +61,11 @@ describe('adminOrderFromRead', () => {
     expect(adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_refunded' } }).payment.status).toBeNull()
   })
 
+  it('shows a part-paid order as Part paid, from the cash design', () => {
+    const order = adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_paid' } })
+    expect(order.payment.status).toBe('partially_paid')
+  })
+
   it('shows an ended assignment as no partner', () => {
     const ended = { ...DETAIL, assignment: { ...DETAIL.assignment!, status: 'declined' as const } }
     expect(adminOrderFromRead(ended).partner).toBeNull()
