@@ -273,6 +273,45 @@ Decided by @chidimmamogbo on #12 (2026-10-26):
   whole text fits in 300 characters (`DECLINE_NOTE_MAX_LENGTH`). The adapter
   never sends `unsafe_access`, which has no design reason.
 
+### Trip steps and problem reports
+
+Decided by @Bonvee120 for #13 (2026-10-27). The fork's trip has fewer steps
+than the backend (docs/api/deliveries.md, part 2 "Job flow"), so one partner
+step sends several backend steps. Each is sent only if the job has not made
+it yet, so a retry carries on where the last attempt stopped.
+
+| Partner function (screen) | Backend steps |
+| --- | --- |
+| `confirmPickup` (pickup, loading) | `transition` `departed` (Start job; the customer's "dispatched" SMS goes out now), `pickup`, `transition` `en_route` |
+| `completeUnloading` ("Unloading done, send the code") | `arrive` with no location (`location_consent: false`), `transition` `unloading`, `unloading-complete` (sends the code) |
+| `verifyCode` (code) | `proof` with the code |
+| `resendCode` (code) | `delivery-code` |
+| `reportIssue` (report a problem) | `incidents`; with no order, `not_connected` (no driver endpoint) |
+
+| Field sent | Value |
+| --- | --- |
+| pickup `source` | `{ "assigned": true }`: the fork has no "another source" choice |
+| pickup `volume_collected_litres` | Tanker: the gallon count × 4 (FR-021). Keke: the ordered litres; the screen only lets the rider leave with every can loaded |
+| pickup `source_reference`, `safety_concern`, `safety_note` | `null`, `false`, `null`: the receipt is a tick, not a number, and the screen has no safety question. The tick and the photo are not sent |
+| proof `delivered_litres` | `pickup.volume_collected_litres`, the litres recorded at pickup. Never the ordered amount |
+| proof `unloading_confirmed`, `location`, `location_consent` | `true`, `null`, `false`: the code screen tells the partner to unload first, and asks for no location |
+
+Wrong codes are renamed to what the code screen reads:
+`delivery_code_invalid` becomes `invalid_code` with
+`details.tries_left` (from `attempts_remaining`), or `code_locked` when
+`attempts_remaining` is 0. `delivery_code_expired`, `rate_limited`,
+`delivery_code_still_valid` and the rest pass through.
+
+| Design `PartnerIssueType` | Backend incident `type` | `note` sent |
+| --- | --- | --- |
+| `unsafe_pour` | `unsafe_transfer` (the server stops the job, hold `unsafe_stop`) | the partner's note |
+| `station_problem` | `source_concern` | the partner's note |
+| `vehicle_breakdown` | `vehicle_problem` | the partner's note |
+| `bad_address`, `code_not_working`, `customer_unreachable` | `other` | the design's label, then the partner's note |
+
+For `other`, the note is cut to 500 characters (`INCIDENT_NOTE_MAX_LENGTH`).
+`running_late` and `volume_issue` have no design type and are never sent.
+
 ## Admin order status
 
 Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).

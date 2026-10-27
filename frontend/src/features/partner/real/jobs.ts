@@ -1,6 +1,7 @@
 /**
- * Partner job adapters (#12): the job lists, one job, accept and decline,
- * against the driver job endpoints in docs/api/deliveries.md (client:
+ * Partner job adapters (#12, #13): the job lists, one job, accept and
+ * decline, the trip steps and problem reports, against the driver job
+ * endpoints in docs/api/deliveries.md (client:
  * `lib/api/driverJobs.ts`). Conversions follow
  * docs/architecture/api-mapping.md, "Partner job stage", "Partner job fields
  * the backend does not send" and "Available orders and declining". A field
@@ -15,20 +16,41 @@
  * - receiver, addresses and code tries: `null` when the job does not carry
  *   them (offers, ended jobs, before the code is issued).
  *
- * Server errors pass through unchanged as `ApiError`.
+ * The fork's trip has fewer steps than the backend, so one partner step sends
+ * several backend steps, each only if the job has not made it yet, so a
+ * retry carries on where the last attempt stopped (agreed for #13):
+ *
+ * - `confirmPickup`: `departed`, the pickup, `en_route`.
+ * - `completeUnloading`: arrival (no location), `unloading`, unloading
+ *   complete (the server sends the code).
+ * - `verifyCode`: the proof, with the litres recorded at pickup.
+ *
+ * Server errors pass through unchanged as `ApiError`, except the wrong-code
+ * errors, renamed to the codes the code screen reads.
  */
-import { DECLINE_LABEL, type DeclineReason, type JobStage, type PartnerJob } from '../../../domain/partner'
+import { DECLINE_LABEL, ISSUE_LABEL, type DeclineReason, type JobStage, type PartnerIssueType, type PartnerJob } from '../../../domain/partner'
+import { litresFromGallons } from '../../../domain/quantity'
 import { apiClient, ApiError, type ApiClient } from '../../../lib/api/client'
 import {
   acceptDriverJob,
+  arriveDriverJob,
+  completeUnloading as completeDriverUnloading,
   DECLINE_NOTE_MAX_LENGTH,
   declineDriverJob,
   getDriverJob,
   listDriverJobs,
+  recordPickup,
+  reportIncident,
+  requestNewCode,
+  submitProof,
+  transitionDriverJob,
   type DeclineRequest,
   type DriverJobDetail,
   type DriverJobSummary,
+  type IncidentRequest,
+  type JobStepResult,
 } from '../../../lib/api/driverJobs'
+import { notConnected } from '../../../lib/api/notConnected'
 import { getPartnerProfile } from './account'
 
 /** Shown for the station while the dispatcher has not picked a water source (agreed for #12). */
@@ -178,4 +200,172 @@ export function declineRequest(reason: DeclineReason, note: string, label: strin
 export async function declineJob(reference: string, reason: DeclineReason, note: string, client: ApiClient = apiClient): Promise<void> {
   const label = BACKEND_REASON[reason] === 'other' ? DECLINE_LABEL[reason]((await getPartnerProfile(client)).vehicle.type) : ''
   await declineDriverJob(reference, declineRequest(reason, note, label), client)
+}
+
+/** The live job after a step: a `done` summary once it has ended. */
+const stepJob = (result: JobStepResult): DriverJobDetail | DriverJobSummary => result.job
+
+/**
+ * Litres collected, from what the partner confirmed: the tanker's gallon
+ * count (4 L each, FR-021), or the ordered litres for a Keke, whose screen
+ * only lets the rider leave with every can loaded.
+ */
+export function collectedLitres(job: Pick<DriverJobDetail, 'quantity_litres'>, gallonsLoaded: number | null): number {
+  return gallonsLoaded === null ? job.quantity_litres : litresFromGallons(gallonsLoaded)
+}
+
+/**
+ * Pickup (`refill`, `pickup` and `loading` screens): Start job (`departed`),
+ * the pickup at the job's assigned source, then Leave for customer
+ * (`en_route`). The receipt tick and the photo have no field in the
+ * contract and are not sent.
+ *
+ * @throws {ApiError} `transition_requirements_unmet` (`delivery_day_reached`)
+ *   before the delivery day; `job_on_hold`; `pickup_already_recorded`;
+ *   `validation_error` (for example no source assigned); `order_not_found`.
+ */
+export async function confirmPickup(
+  reference: string,
+  pickup: { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null },
+  client: ApiClient = apiClient,
+): Promise<PartnerJob> {
+  let job: DriverJobDetail | DriverJobSummary = await getDriverJob(reference, undefined, client)
+  if (job.order_status === 'accepted') job = stepJob(await transitionDriverJob(reference, { to: 'departed' }, client))
+  if (job.order_status === 'departed') {
+    job = await recordPickup(
+      reference,
+      {
+        source: { assigned: true },
+        source_reference: null,
+        volume_collected_litres: collectedLitres(job, pickup.gallons_loaded),
+        picked_up_at: new Date().toISOString(),
+        safety_concern: false,
+        safety_note: null,
+      },
+      client,
+    )
+  }
+  if (job.order_status === 'collected') job = stepJob(await transitionDriverJob(reference, { to: 'en_route' }, client))
+  return partnerJobFromRead(job)
+}
+
+/**
+ * "Unloading done, send the code" (code screen): arrival without a location
+ * (the fork asks for no location consent, FR-035), Start unloading, then
+ * unloading complete, which sends the customer's code by SMS.
+ *
+ * @throws {ApiError} `job_on_hold`; `invalid_order_transition`; `order_not_found`.
+ */
+export async function completeUnloading(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  let job: DriverJobDetail | DriverJobSummary = await getDriverJob(reference, undefined, client)
+  if (job.order_status === 'en_route') job = await arriveDriverJob(reference, { location_consent: false }, client)
+  if (job.order_status === 'arrived') job = stepJob(await transitionDriverJob(reference, { to: 'unloading' }, client))
+  if (job.order_status === 'unloading' && 'allowed_actions' in job && job.unloading_completed_at === null) {
+    job = await completeDriverUnloading(reference, client)
+  }
+  return partnerJobFromRead(job)
+}
+
+/**
+ * The backend's wrong-code errors under the codes the code screen reads:
+ * `invalid_code` with `details.tries_left`, or `code_locked` once no tries
+ * are left. Anything else passes through.
+ */
+export function codeError(error: unknown): unknown {
+  if (!(error instanceof ApiError) || error.code !== 'delivery_code_invalid') return error
+  const details = error.details as { attempts_remaining?: unknown } | null
+  const left = typeof details?.attempts_remaining === 'number' ? details.attempts_remaining : null
+  const locked = left === 0
+  return new ApiError({
+    kind: error.kind,
+    status: error.status,
+    code: locked ? 'code_locked' : 'invalid_code',
+    message: error.message,
+    details: locked ? null : { tries_left: left },
+    cause: error,
+  })
+}
+
+/**
+ * Verify the customer's code: the proof (`POST .../proof`) with the litres
+ * recorded at pickup (agreed for #13), unloading confirmed, no location.
+ *
+ * @throws {ApiError} `invalid_code` (`details.tries_left`), `code_locked`,
+ *   `delivery_code_expired`, `transition_requirements_unmet`, `job_on_hold`.
+ */
+export async function verifyCode(reference: string, code: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  const job = await getDriverJob(reference, undefined, client)
+  if (!job.pickup) {
+    throw new ApiError({ kind: 'parse', status: null, code: 'invalid_response', message: 'This job has no pickup recorded, so the delivered litres are not known.' })
+  }
+  try {
+    const result = await submitProof(
+      reference,
+      {
+        delivered_litres: job.pickup.volume_collected_litres,
+        unloading_confirmed: true,
+        delivery_code: code,
+        alternative_proof: null,
+        location: null,
+        location_consent: false,
+      },
+      client,
+    )
+    return partnerJobFromRead(result.job)
+  } catch (error) {
+    throw codeError(error)
+  }
+}
+
+/**
+ * Send the customer a new code (`POST .../delivery-code`).
+ *
+ * @throws {ApiError} `delivery_code_still_valid`; `rate_limited`
+ *   (`details.retry_after_seconds`); `transition_requirements_unmet`.
+ */
+export async function resendCode(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  return partnerJobFromRead(await requestNewCode(reference, client))
+}
+
+/** Longest incident note the server accepts. */
+export const INCIDENT_NOTE_MAX_LENGTH = 500
+
+/** The design's problem types to the backend's incident types (agreed for #13). */
+const INCIDENT_TYPE: Record<PartnerIssueType, IncidentRequest['type']> = {
+  unsafe_pour: 'unsafe_transfer',
+  station_problem: 'source_concern',
+  vehicle_breakdown: 'vehicle_problem',
+  bad_address: 'other',
+  code_not_working: 'other',
+  customer_unreachable: 'other',
+}
+
+/**
+ * The incident body. For `other`, the design's label comes first so the
+ * dispatcher sees what the partner chose, then the partner's note, cut to
+ * 500 characters.
+ */
+export function incidentRequest(type: PartnerIssueType, note: string, label: string): IncidentRequest {
+  const backendType = INCIDENT_TYPE[type]
+  const trimmed = note.trim()
+  const text = backendType === 'other' ? (trimmed ? `${label}. ${trimmed}` : label) : trimmed
+  return { type: backendType, note: text ? text.slice(0, INCIDENT_NOTE_MAX_LENGTH) : null, new_estimated_arrival_at: null }
+}
+
+/**
+ * Report a problem on a job (`POST .../incidents`, FR-036). The unsafe type
+ * stops the job (hold `unsafe_stop`). A report with no job has no driver
+ * endpoint yet.
+ *
+ * @throws {ApiError} `not_connected` without a job; `job_not_active`;
+ *   `validation_error`; `order_not_found`.
+ */
+export async function reportIssue(
+  input: { type: PartnerIssueType; note: string; reference: string | null },
+  client: ApiClient = apiClient,
+): Promise<{ id: string }> {
+  if (input.reference === null) return notConnected('Reporting a problem without an order')
+  const label = INCIDENT_TYPE[input.type] === 'other' ? ISSUE_LABEL[input.type]((await getPartnerProfile(client)).vehicle.type) : ''
+  const incident = await reportIncident(input.reference, incidentRequest(input.type, input.note, label), client)
+  return { id: incident.id }
 }

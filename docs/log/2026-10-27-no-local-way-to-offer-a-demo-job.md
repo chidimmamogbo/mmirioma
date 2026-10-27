@@ -24,5 +24,12 @@
   A driver holds one live job at a time, so offer the next order only after
   the last one is declined or finished. Seeding a demo source, or a demo
   order already offered to the demo driver, would need its own issue.
+- **Seen again** 2026-10-27 (#13): the #12 helper confirmed orders with a
+  window starting the next day, and the backend refuses Start job
+  (`departed`) before the delivery day
+  (`409 transition_requirements_unmet`, `delivery_day_reached`). The helper
+  now sets a window starting 3 minutes from now (the confirm step refuses a
+  start in the past). The job accepted in the #12 click-through became
+  usable only after midnight, Africa/Lagos.
 - **Status:** workaround
-- **Refs:** #12, `docs/process/local-quote-setup.md`, `backend/app/modules/demo/seed.py`
+- **Refs:** #12, #13, `docs/process/local-quote-setup.md`, `backend/app/modules/demo/seed.py`
