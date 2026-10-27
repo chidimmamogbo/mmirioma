@@ -15,5 +15,10 @@
 - **Fix / workaround:** Publish with the long path for `root` and
   `file_path`. Read `project/canvas.json` first and keep its keys
   (`attachments`, `createdOnFiles`) when writing the index.
+- **Again on 2026-10-27 (#79):** the live prices preview's first publish was
+  refused the same way, because the scratchpad path came in its short form.
+  The same fix worked: write and publish with the long path. A new canvas
+  had not saved an index yet this time (`read project/canvas.json` found
+  none), so there was nothing to merge.
 - **Status:** resolved
-- **Refs:** #99, `docs/design/customer-pilot-status.md`
+- **Refs:** #99, `docs/design/customer-pilot-status.md`, #79
