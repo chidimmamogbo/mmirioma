@@ -101,12 +101,12 @@ export function requireUserId(): string {
   return id
 }
 
-/** Mock of a password change (no endpoint in the contract yet). */
+/** Mock of `POST /auth/password` (docs/api/auth.md, "Change password"). */
 export async function mockChangePassword(current: string, next: string): Promise<void> {
   await delay(null)
   const id = requireUserId()
   const user = read().users.find((u) => u.id === id)!
-  if (user.password !== current) throw mockError(400, 'invalid_current_password', 'Your current password is not right')
+  if (user.password !== current) throw mockError(403, 'password_incorrect', 'Your password is not right')
   if (next.length < 8 || next.length > 128) {
     throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'new_password'], msg: 'Use 8 to 128 characters', type: 'value_error' }])
   }

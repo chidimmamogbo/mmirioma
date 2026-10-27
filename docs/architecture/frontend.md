@@ -284,10 +284,9 @@ open offline. Its `errorElement` (`src/app/RouteError.tsx`) catches any route
 error: a chunk missing after a new deploy (an open tab asking for an old
 hashed file) reloads the page once, at most once a minute; anything else
 shows the app's error screen. Sizes after splitting: main bundle about 385 kB (113 kB
-gzipped), page chunks 1 to 15 kB. Public-page code that needs React Hook Form
-and Zod (the newsletter form) is loaded with `React.lazy`, so those libraries
-stay out of the main bundle; the public mock (`mocks/publicMock.ts`) is a
-dynamic import for the same reason.
+gzipped), page chunks 1 to 15 kB. The public pages use no form, so React
+Hook Form and Zod stay out of the main bundle; the public mock
+(`mocks/publicMock.ts`) is a dynamic import for the same reason.
 
 ## Admin
 

@@ -97,3 +97,23 @@ export async function logout(client: ApiClient = apiClient): Promise<void> {
   await client.request<null>('/api/v1/auth/logout', { method: 'POST' })
   client.setCsrfToken(null)
 }
+
+/** Body of `POST /api/v1/auth/password` (docs/api/auth.md, "Change password"). */
+export interface ChangePasswordInput {
+  current_password: string
+  /** 8-128 characters, as at registration. */
+  new_password: string
+}
+
+/**
+ * Change the signed-in account's password (`POST /api/v1/auth/password`),
+ * for any role. Every other session of the account ends; this one stays
+ * signed in with its CSRF token.
+ *
+ * @throws {ApiError} `password_incorrect` (403, counted against the sign-in
+ *   limits), `validation_error` (422, `loc` `["body", "new_password"]`),
+ *   `too_many_attempts` (429, wait in `details.retry_after_seconds`).
+ */
+export async function changePassword(input: ChangePasswordInput, client: ApiClient = apiClient): Promise<void> {
+  await client.request<null>('/api/v1/auth/password', { method: 'POST', body: input })
+}

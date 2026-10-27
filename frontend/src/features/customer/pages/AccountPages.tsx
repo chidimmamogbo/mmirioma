@@ -19,6 +19,7 @@ import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { applyServerFieldErrors, newPasswordField, optionalEmailField } from '../../../lib/forms'
 import { changePassword } from '../../auth/authApi'
+import { waitText } from '../../auth/phoneCode'
 import { useProfile, useRequestAccountDeletion, useUpdateProfile } from '../queries'
 
 function Page({ back, title, children, footer }: { back: string | -1; title: string; children: ReactNode; footer?: ReactNode }) {
@@ -52,7 +53,7 @@ export function EmailSettings() {
     update.mutate(
       { email: v.email || null },
       {
-        onSuccess: () => navigate('/profile'),
+        onSuccess: () => navigate('/settings'),
         onError: (e) => applyServerFieldErrors(e, setError, { email: 'email' }),
       },
     ),
@@ -60,7 +61,7 @@ export function EmailSettings() {
 
   return (
     <Page
-      back="/profile"
+      back="/settings"
       title="Email"
       footer={
         <Button type="submit" form="email-form" loading={update.isPending}>
@@ -97,7 +98,11 @@ const passwordSchema = z
   .object({ current: z.string().min(1, 'Enter your current password.'), next: newPasswordField, confirm: z.string() })
   .refine((v) => v.next === v.confirm, { path: ['confirm'], message: 'The two new passwords do not match.' })
 
-/** Change password. The auth contract has no endpoint for this yet (planned). */
+/**
+ * Change password (`POST /auth/password`, docs/api/auth.md). Used by the
+ * customer, partner and admin apps. Every other device signed in to the
+ * account is signed out (decided on #8); this one stays signed in.
+ */
 export function ChangePassword({ back = '/profile' }: { back?: string }) {
   const navigate = useNavigate()
   const [state, setState] = useState<{ pending: boolean; error: unknown; done: boolean }>({ pending: false, error: null, done: false })
@@ -115,7 +120,7 @@ export function ChangePassword({ back = '/profile' }: { back?: string }) {
       setState({ pending: false, error: null, done: true })
       setTimeout(() => navigate(back), 1200)
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'invalid_current_password') setError('current', { message: 'Your current password is not right.' })
+      if (e instanceof ApiError && e.code === 'password_incorrect') setError('current', { message: 'Your current password is not right.' })
       else applyServerFieldErrors(e, setError, { new_password: 'next' })
       setState({ pending: false, error: e, done: false })
     }
@@ -143,9 +148,9 @@ export function ChangePassword({ back = '/profile' }: { back?: string }) {
           {...register('next')}
         />
         <TextField className="rise-3" label="New password again" type="password" autoComplete="new-password" error={errors.confirm?.message} {...register('confirm')} />
-        {state.done && <Notice tone="success">Your password is changed.</Notice>}
-        {state.error !== null && !(state.error instanceof ApiError && ['invalid_current_password', 'validation_error'].includes(state.error.code)) && (
-          <Notice tone="error">{errorMessage(state.error)}</Notice>
+        {state.done && <Notice tone="success">Your password is changed. Other devices were signed out.</Notice>}
+        {state.error !== null && !(state.error instanceof ApiError && ['password_incorrect', 'validation_error'].includes(state.error.code)) && (
+          <Notice tone="error">{waitText(state.error) ?? errorMessage(state.error)}</Notice>
         )}
       </form>
     </Page>
@@ -162,7 +167,7 @@ export function DeleteAccount() {
   const [reason, setReason] = useState('')
   const [asking, setAsking] = useState(false)
   return (
-    <Page back="/profile" title="Delete my account">
+    <Page back="/settings" title="Delete my account">
       <Notice tone="error" className="rise-1">
         This asks our team to close your account and delete your details. Your points will be lost.
       </Notice>

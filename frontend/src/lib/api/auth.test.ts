@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { getMe, login, logout, register, type Session } from './auth'
+import { changePassword, getMe, login, logout, register, type Session } from './auth'
 import { ApiError, CSRF_HEADER, createApiClient } from './client'
 
 const BASE_URL = 'http://api.test'
@@ -129,5 +129,37 @@ describe('auth endpoints', () => {
     await client.request('/x', { method: 'POST' })
 
     expect(headersOf(fetch, 1)[CSRF_HEADER]).toBeUndefined()
+  })
+})
+
+describe('change password (#57, docs/api/auth.md "Change password")', () => {
+  it('posts both passwords with the CSRF token and resolves on 204', async () => {
+    const { fetch, client } = setup([jsonResponse(SESSION), new Response(null, { status: 204 })])
+    await login({ phone: '08000000001', password: 'secret pw' }, client)
+
+    await expect(changePassword({ current_password: 'secret pw', new_password: 'a new secret' }, client)).resolves.toBeUndefined()
+
+    expect(fetch.mock.calls[1][0]).toBe(`${BASE_URL}/api/v1/auth/password`)
+    expect(fetch.mock.calls[1][1]).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(String(fetch.mock.calls[1][1]?.body))).toEqual({ current_password: 'secret pw', new_password: 'a new secret' })
+    expect(headersOf(fetch, 1)[CSRF_HEADER]).toBe('csrf-1')
+  })
+
+  it('passes 403 password_incorrect through', async () => {
+    const { client } = setup([jsonResponse({ error: { code: 'password_incorrect', message: 'Your password is not right', details: null } }, 403)])
+    await expect(changePassword({ current_password: 'wrong', new_password: 'a new secret' }, client)).rejects.toMatchObject({
+      status: 403,
+      code: 'password_incorrect',
+    } satisfies Partial<ApiError>)
+  })
+
+  it('passes 429 too_many_attempts through with the wait', async () => {
+    const { client } = setup([
+      jsonResponse({ error: { code: 'too_many_attempts', message: 'Too many attempts', details: { retry_after_seconds: 600 } } }, 429),
+    ])
+    await expect(changePassword({ current_password: 'x', new_password: 'a new secret' }, client)).rejects.toMatchObject({
+      code: 'too_many_attempts',
+      details: { retry_after_seconds: 600 },
+    })
   })
 })

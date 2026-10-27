@@ -5,7 +5,8 @@ import { Logo } from '../components/brand/Logo'
 import { MessageCircleIcon } from '../components/icons/icons'
 import { ButtonLink } from '../components/ui/Button'
 import { ORDER_CTA } from '../features/marketing/content'
-import { useWhatsappNumber } from '../features/marketing/queries'
+import { useSupportContact } from '../features/marketing/queries'
+import { formatPhone } from '../lib/format/phone'
 import { WHATSAPP_GREETING, whatsappLink } from '../lib/whatsapp'
 
 /** Where to send someone, by the part of the site the broken link was in. */
@@ -23,7 +24,7 @@ function waysOut(pathname: string): { primary: { to: string; label: string }; ho
  */
 export function NotFound() {
   const { pathname } = useLocation()
-  const whatsapp = useWhatsappNumber()
+  const { phone, whatsapp } = useSupportContact()
   const { primary, home } = waysOut(pathname)
 
   useEffect(() => {
@@ -57,15 +58,21 @@ export function NotFound() {
               Go to the home page
             </ButtonLink>
           </div>
-          <a
-            href={whatsappLink(whatsapp, WHATSAPP_GREETING)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 text-[15px] font-bold text-primary no-underline hover:text-primary-dark"
-          >
-            <MessageCircleIcon size={18} />
-            Need help? Chat with us on WhatsApp
-          </a>
+          {whatsapp ? (
+            <a
+              href={whatsappLink(whatsapp, WHATSAPP_GREETING)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 text-[15px] font-bold text-primary no-underline hover:text-primary-dark"
+            >
+              <MessageCircleIcon size={18} />
+              Need help? Chat with us on WhatsApp
+            </a>
+          ) : (
+            <a href={`tel:${phone}`} className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 text-[15px] font-bold text-primary no-underline hover:text-primary-dark">
+              Need help? Call us on {formatPhone(phone)}
+            </a>
+          )}
         </div>
       </main>
     </div>

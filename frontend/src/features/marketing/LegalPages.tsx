@@ -4,7 +4,7 @@ import { cx } from '../../lib/cx'
 import { CONTACT } from './content'
 import { ArrowLeftIcon } from './icons'
 import { BrandLogo } from './MarketingParts'
-import { FloatingActions, NewsletterSignup } from './SiteExtras'
+import { FloatingActions } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 /*
@@ -239,7 +239,7 @@ const PRIVACY: Section[] = [
             title="From customers"
             tint="bg-[#F4F9FF]"
             items={[
-              'Name, phone number and email',
+              'Name and phone number',
               'Delivery addresses and landmarks',
               'Order details: type, size, quantity, tank type',
               'Payment records (not full card numbers)',
@@ -259,7 +259,6 @@ const PRIVACY: Section[] = [
           />
         </div>
         <p>We also collect basic device and usage information, such as app version, device type and error logs, to keep the apps working well.</p>
-        <p>If you sign up for our newsletter, we keep your email address to send it to you until you unsubscribe.</p>
       </>
     ),
   },
@@ -475,7 +474,6 @@ function LegalPage({
             </article>
           </div>
         </section>
-        <NewsletterSignup />
       </main>
       <footer className="bg-mk-navy text-mk-foot-text">
         <div className="mx-auto box-border flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-8 text-[14px]">
