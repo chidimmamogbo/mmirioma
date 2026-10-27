@@ -8,8 +8,8 @@
  *
  * - `station_id` and `distance_km` have no source and are always `null`.
  * - The fee is the pilot water category's, but no endpoint says which category
- *   that is (contract amendment proposed in #74). Until it is agreed and built,
- *   the fee reads as `null` and writing one is not connected.
+ *   that is yet (contract amendment agreed in #108, built in #109). Until it
+ *   is built, the fee reads as `null` and writing one is not connected.
  * - Adding an area needs the zone's coordinates, which the screen cannot enter
  *   until the Z4 screen change, so it is not connected either.
  *
