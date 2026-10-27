@@ -93,8 +93,23 @@ vehicle description yet, the adapter writes one from the sign-up details:
 transfer methods become "Ground tanks", "Overhead tanks", "Ground and
 overhead tanks", or "Not set yet" when the list is empty.
 
-The job functions, earnings, payouts, history, document upload and problem
-reports still run on mocks. In real-API mode they fail with `not_connected`.
+Six job functions call the driver job endpoints in
+[deliveries.md](../api/deliveries.md) through `real/jobs.ts` (#12):
+
+| Function | Endpoint |
+| --- | --- |
+| `listAvailableJobs` | none: always `[]`, the MVP has no job pool; offers come as `assigned` jobs |
+| `listMyActiveJobs` | `GET /driver/jobs`: `offers`, then `today` and `upcoming` |
+| `listHistory` | `GET /driver/jobs`: `done` |
+| `getJob` | `GET /driver/jobs/{reference}`; after a 404, the job from the `done` list (summary fields only) |
+| `acceptJob` | `POST /driver/jobs/{reference}/accept` |
+| `declineJob` | `POST /driver/jobs/{reference}/decline`, reasons mapped as in [api-mapping.md](../architecture/api-mapping.md#available-orders-and-declining); for reasons sent as `other`, `GET /driver/profile` first for the vehicle word in the label |
+
+Conversion follows [api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send).
+
+The job steps (pickup, code, proof: #13), earnings, payouts, document upload
+and problem reports still run on mocks. In real-API mode they fail with
+`not_connected`.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 `partner_not_approved` (403), `not_assigned_to_you` (409),
 `invalid_job_transition` (409), `load_not_confirmed` (422), `invalid_code`
