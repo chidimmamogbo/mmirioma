@@ -38,4 +38,8 @@ describe('delivery stages', () => {
     expect(STAGE_LABEL.failed).toBe('Delivery failed')
     expect(STAGE_LABEL.under_review).toBe('Under review')
   })
+
+  it('labels an unknown backend status with the agreed neutral wording (orders.md, #82)', () => {
+    expect(STAGE_LABEL.order_update).toBe('Order update')
+  })
 })

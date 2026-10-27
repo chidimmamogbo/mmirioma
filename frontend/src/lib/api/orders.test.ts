@@ -18,7 +18,8 @@ function setup(body: unknown, status = 200) {
 
 const REQUEST: OrderCreate = {
   idempotency_key: '5b0e2c3a-7d1f-4e8a-b6c9-0a1b2c3d4e5f',
-  quantity_litres: 200,
+  delivery_type: 'keke',
+  keke: { can_size_litres: 25, can_count: 24 },
   contact_name: 'Sample Customer',
   contact_phone: '08000000001',
   delivery_address: '12 Sample Close, Independence Layout, Enugu',

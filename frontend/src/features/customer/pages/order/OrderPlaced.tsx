@@ -10,7 +10,8 @@ import { Card } from '../../../../components/ui/Card'
 import { Chip } from '../../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../../components/ui/Content'
 import { IconButton } from '../../../../components/ui/IconButton'
-import { STAGE_LABEL, describeChoice } from '../../../../domain/orders'
+import { STAGE_LABEL } from '../../../../domain/orders'
+import { PRICE_PENDING, orderQuantityText } from '../../orderHelpers'
 import { formatNaira } from '../../../../lib/format/money'
 import { StageChip } from '../../components/OrderBits'
 import { useOrder } from '../../queries'
@@ -77,9 +78,9 @@ export function OrderPlaced() {
               {copied ? 'Order number copied' : ''}
             </span>
             <Separator />
-            <KeyValue label="Delivery type" value={o.choice.delivery_type === 'keke' ? 'Keke delivery' : 'Tanker delivery'} />
-            <KeyValue label="Water" value={describeChoice(o.choice)} />
-            <KeyValue label={o.quote.is_sample ? 'Total (sample)' : 'Total'} value={formatNaira(o.quote.total_minor_units)} />
+            {o.choice && <KeyValue label="Delivery type" value={o.choice.delivery_type === 'keke' ? 'Keke delivery' : 'Tanker delivery'} />}
+            <KeyValue label="Water" value={orderQuantityText(o)} />
+            <KeyValue label={o.quote?.is_sample ? 'Total (sample)' : 'Total'} value={o.quote ? formatNaira(o.quote.total_minor_units) : PRICE_PENDING} />
             <div className="flex items-center justify-between gap-2.5 py-[3px] text-sub">
               <span className="text-mute">Status</span>
               {o.stage === 'waiting_rider' ? (

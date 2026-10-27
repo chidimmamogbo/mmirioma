@@ -3,16 +3,16 @@
  * the mock backend, as one database would. Pure functions over MockState;
  * callers wrap them in `mutate`.
  */
-import { choiceLitres, describeChoice, type CustomerOrder, type DeliveryPartner } from '../domain/orders'
+import { choiceLitres, describeChoice, type DeliveryPartner } from '../domain/orders'
 import type { PartnerJob } from '../domain/partner'
-import type { CustomerData, MockState, PartnerData, StoredJob } from './seed'
+import type { CustomerData, MockCustomerOrder, MockState, PartnerData, StoredJob } from './seed'
 import { eligible } from './eligibility'
 import { newId } from './store'
 import { addActivity, currentPrices, stationForAddress } from './adminState'
 import { riderPayFor } from './pricing'
 
 /** The customer order with this reference, and its owner's data, if any. */
-export function findCustomerOrder(s: MockState, reference: string): { data: CustomerData; order: CustomerOrder } | null {
+export function findCustomerOrder(s: MockState, reference: string): { data: CustomerData; order: MockCustomerOrder } | null {
   for (const data of Object.values(s.customers)) {
     const order = data.orders.find((o) => o.reference === reference)
     if (order) return { data, order }
@@ -123,7 +123,7 @@ export function alertPartnersOfNewJob(s: MockState, job: StoredJob, now = new Da
  * open one with valid papers (FR-012, chosen by the caller with
  * `stationForAddress`); pay comes from the current price list.
  */
-export function jobForNewOrder(s: MockState, order: CustomerOrder, customerName: string): StoredJob {
+export function jobForNewOrder(s: MockState, order: MockCustomerOrder, customerName: string): StoredJob {
   const area = s.admin.areas.find((x) => order.address.toLowerCase().includes(x.name.toLowerCase()))?.name ?? order.address.split(',').map((x) => x.trim())[1] ?? order.address_label
   const station = stationForAddress(s, order.address)
   if (!station) throw new Error('jobForNewOrder needs an open station; check stationForAddress first')

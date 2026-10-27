@@ -6,11 +6,11 @@ import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { SampleTag } from '../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../components/ui/Content'
-import { STAGE_LABEL, WATER_SOURCE_LABEL, describeChoice } from '../../../domain/orders'
+import { STAGE_LABEL, WATER_SOURCE_LABEL } from '../../../domain/orders'
 import { formatDateTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
-import { PAYMENT_LABEL } from '../orderHelpers'
+import { PAYMENT_LABEL, PRICE_PENDING, orderQuantityText } from '../orderHelpers'
 import { useOrder } from '../queries'
 
 /**
@@ -37,26 +37,27 @@ export function Receipt() {
           <Card pad className="rise-1">
             <div className="mb-3 flex items-center justify-between">
               <Logo height={30} />
-              {o.quote.is_sample && <SampleTag>SAMPLE</SampleTag>}
+              {o.quote?.is_sample && <SampleTag>SAMPLE</SampleTag>}
             </div>
             <KeyValue label="Order" value={o.reference} />
             <KeyValue label="Placed" value={formatDateTime(o.created_at)} />
             {o.delivered_at && <KeyValue label="Delivered" value={formatDateTime(o.delivered_at)} />}
             <KeyValue label="Status" value={STAGE_LABEL[o.stage]} />
             <Separator />
-            <KeyValue label="Water" value={describeChoice(o.choice)} />
-            {o.choice.delivery_type === 'tanker' && <KeyValue label="Source" value={WATER_SOURCE_LABEL[o.choice.source]} />}
+            <KeyValue label="Water" value={orderQuantityText(o)} />
+            {o.choice?.delivery_type === 'tanker' && <KeyValue label="Source" value={WATER_SOURCE_LABEL[o.choice.source]} />}
             {o.delivered_quantity && <KeyValue label="Delivered quantity" value={o.delivered_quantity} />}
             <KeyValue label="Deliver to" value={o.address} />
             <KeyValue label="Receiver" value={`${o.receiver_name} · ${formatPhone(o.receiver_phone)}`} />
             <Separator />
-            <KeyValue label={o.quote.water.label} value={formatNaira(o.quote.water.amount_minor_units)} />
-            {o.quote.delivery && <KeyValue label={o.quote.delivery.label} value={formatNaira(o.quote.delivery.amount_minor_units)} />}
+            {/* The server sends the total only (order-details-and-price.md, decision 6); only mock orders have lines. */}
+            {o.quote?.water && <KeyValue label={o.quote.water.label} value={formatNaira(o.quote.water.amount_minor_units)} />}
+            {o.quote?.delivery && <KeyValue label={o.quote.delivery.label} value={formatNaira(o.quote.delivery.amount_minor_units)} />}
             <div className="flex items-center justify-between pt-1">
               <span className="font-extrabold">Total</span>
-              <span className="text-[20px] font-extrabold text-primary-dark">{formatNaira(o.quote.total_minor_units)}</span>
+              <span className="text-[20px] font-extrabold text-primary-dark">{o.quote ? formatNaira(o.quote.total_minor_units) : PRICE_PENDING}</span>
             </div>
-            <KeyValue label="Payment" value={PAYMENT_LABEL[o.payment.status]} />
+            {o.payment.status !== null && <KeyValue label="Payment" value={PAYMENT_LABEL[o.payment.status]} />}
             <p className="mt-3 mb-0 text-chip text-mute">
               Payment is marked paid only after our team confirms it. Times are Lagos time.
             </p>

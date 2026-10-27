@@ -181,7 +181,7 @@ driver accepts it (FR-032).
 | `cancelled` | `cancelled` | Cancelled |
 | `failed` | `failed` (new) | Delivery failed |
 | `disputed` | `under_review` (new) | Under review |
-| any value not listed | see open question 3 | |
+| any value not listed | `order_update` | Order update (the agreed neutral wording, docs/api/orders.md, #82) |
 
 Adapters must never fail on an unknown `status` (docs/api/orders.md).
 
@@ -260,7 +260,7 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 | --- | --- | --- |
 | 1 | The design's water sources (Ninth Mile, borehole) against the SRS water categories (Potable, Utility) and supplier activation (FR-012, FR-014) | #10 |
 | 2 | ~~Keke 25 L × 12 cans is 300 L, below the 600 L minimum~~ Decided: removed (decision 4) | done |
-| 3 | A customer stage for a status the app does not know: the contract asks for a neutral "Order update" fallback, which the design has no stage for | #9 |
+| 3 | ~~A customer stage for a status the app does not know~~ Decided in #9: a new stage `order_update`, labelled "Order update" as the contract asks ([Customer order stage](#customer-order-stage)) | done |
 | 4 | ~~Partner stages for `failed` and `disputed`~~ Decided: `failed` and `under_review` ([Partner job stage](#partner-job-stage)) | done |
 | 5 | Admin statuses for `failed` and `disputed`. Staff may need the backend's own staff labels (docs/api/orders.md) rather than six design statuses, for example to confirm orders before dispatch | #15 |
 | 6 | ~~The design's "available" job pool has no backend endpoint~~ Decided: no pool in the MVP; `listAvailableJobs` returns `[]` ([Available orders and declining](#available-orders-and-declining)) | done |

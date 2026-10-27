@@ -8,17 +8,19 @@ import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { KeyValue, Separator } from '../../../components/ui/Content'
 import { IconLink } from '../../../components/ui/IconButton'
-import { STAGE_LABEL, describeChoice, isProblemStage, type CustomerOrder } from '../../../domain/orders'
+import { STAGE_LABEL, isProblemStage, type CustomerOrder } from '../../../domain/orders'
 import { cx } from '../../../lib/cx'
 import { formatShortDate, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { useOrderDraft } from '../order/orderDraftContext'
 import { draftFromOrder } from '../order/reorder'
-import { PAYMENT_LABEL } from '../orderHelpers'
+import { PAYMENT_LABEL, PRICE_PENDING, orderIllustration, orderQuantityText } from '../orderHelpers'
 import { useAddresses, useOrder } from '../queries'
 
 function paymentText(o: CustomerOrder): string {
   const method = o.payment.method === 'bank_transfer' ? 'Bank transfer' : o.payment.method === 'cash' ? 'Cash' : 'Pay on delivery'
+  // No status is sent to customers yet (docs/api/orders.md, decided question 3): the method only.
+  if (o.payment.status === null) return method
   if (o.payment.status === 'paid') return `${method}, confirmed`
   return `${method}, ${PAYMENT_LABEL[o.payment.status].toLowerCase()}`
 }
@@ -38,7 +40,7 @@ export function OrderDetail() {
     navigate('/order/review')
   }
 
-  const keke = o?.choice.delivery_type === 'keke'
+  const keke = o?.choice?.delivery_type === 'keke'
   return (
     <MobileShell>
       <TopBar
@@ -62,12 +64,14 @@ export function OrderDetail() {
               )}
             >
               <div className="flex-1">
-                <div className="text-[18px] font-extrabold">{describeChoice(o.choice)}</div>
-                <div className="text-[13px] text-slate">
-                  {o.choice.delivery_type === 'tanker'
-                    ? `${o.choice.tank_type === 'overhead' ? 'Overhead' : 'Ground'} tank · Tanker`
-                    : 'Jerrycans · Keke'}
-                </div>
+                <div className="text-[18px] font-extrabold">{orderQuantityText(o)}</div>
+                {o.choice && (
+                  <div className="text-[13px] text-slate">
+                    {o.choice.delivery_type === 'tanker'
+                      ? `${o.choice.tank_type === 'overhead' ? 'Overhead' : 'Ground'} tank · Tanker`
+                      : 'Jerrycans · Keke'}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <Chip
                     tone={o.stage === 'delivered' ? 'green' : isProblemStage(o.stage) ? 'red' : o.stage === 'under_review' ? 'amber' : 'blue'}
@@ -76,12 +80,14 @@ export function OrderDetail() {
                     {o.stage === 'delivered' ? '✓ ' : ''}
                     {STAGE_LABEL[o.stage]}
                   </Chip>
-                  <Chip tone={o.payment.status === 'paid' ? 'blue' : o.payment.status === 'refund_due' ? 'red' : 'gray'} className="bg-white">
-                    ₦ {PAYMENT_LABEL[o.payment.status]}
-                  </Chip>
+                  {o.payment.status !== null && (
+                    <Chip tone={o.payment.status === 'paid' ? 'blue' : o.payment.status === 'refund_due' ? 'red' : 'gray'} className="bg-white">
+                      ₦ {PAYMENT_LABEL[o.payment.status]}
+                    </Chip>
+                  )}
                 </div>
               </div>
-              <Illustration name={o.choice.delivery_type} className="animate-drive mr-[-20px] w-[150px]" />
+              <Illustration name={orderIllustration(o)} className="animate-drive mr-[-20px] w-[150px]" />
             </div>
 
             <Card pad className="rise-2">
@@ -112,17 +118,20 @@ export function OrderDetail() {
             </Card>
 
             <Card pad className="rise-3">
-              <KeyValue label="Deliver to" value={`${o.address_label} · ${o.address.split(',')[0]}`} />
+              <KeyValue label="Deliver to" value={o.address_label ? `${o.address_label} · ${o.address.split(',')[0]}` : o.address} />
               <KeyValue label="Payment" value={paymentText(o)} />
-              <KeyValue label={o.quote.water.label.startsWith('Water (') ? o.quote.water.label : 'Water'} value={formatNaira(o.quote.water.amount_minor_units)} />
-              {o.quote.delivery && <KeyValue label={o.quote.delivery.label} value={formatNaira(o.quote.delivery.amount_minor_units)} />}
+              {/* The server sends the total only (order-details-and-price.md, decision 6); only mock orders have lines. */}
+              {o.quote?.water && (
+                <KeyValue label={o.quote.water.label.startsWith('Water (') ? o.quote.water.label : 'Water'} value={formatNaira(o.quote.water.amount_minor_units)} />
+              )}
+              {o.quote?.delivery && <KeyValue label={o.quote.delivery.label} value={formatNaira(o.quote.delivery.amount_minor_units)} />}
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="font-extrabold">Total</span>
-                <span className="text-[20px] font-extrabold text-primary-dark">{formatNaira(o.quote.total_minor_units)}</span>
+                <span className="text-[20px] font-extrabold text-primary-dark">{o.quote ? formatNaira(o.quote.total_minor_units) : PRICE_PENDING}</span>
               </div>
               <div className="mt-1.5 flex items-center justify-between">
-                {o.quote.is_sample ? <SampleTag>SAMPLE PRICES</SampleTag> : <span />}
+                {o.quote?.is_sample ? <SampleTag>SAMPLE PRICES</SampleTag> : <span />}
                 {o.points_earned !== null && <span className="text-caption font-bold text-gold-ink">+{o.points_earned} points earned</span>}
               </div>
             </Card>
