@@ -41,7 +41,12 @@ export const ENDED_STAGE_LABEL: Partial<Record<JobStage, string>> = {
 
 export interface JobPlace {
   name: string
-  address: string
+  /**
+   * Full address. `null` with the real API when the job does not carry it:
+   * history and ended jobs (summary fields only), and the customer's address
+   * on an offer. Screens then show `area` (@chidimmamogbo on #12).
+   */
+  address: string | null
   /** Area name for lists ("GRA", "Independence Layout"). */
   area: string
   /**
@@ -71,7 +76,13 @@ export interface PartnerJob {
   /** Ground or overhead details for tanker jobs ("Overhead tank on a 3 m stand..."). */
   tank_note: string | null
   station: JobPlace
-  customer: JobPlace & { contact_name: string; phone: string }
+  /**
+   * `contact_name` and `phone` are `null` with the real API before the
+   * partner accepts (FR-032: no receiver on an offer) and after the job ends.
+   * Screens then name the area only and show no call or message button
+   * (@chidimmamogbo on #12).
+   */
+  customer: JobPlace & { contact_name: string | null; phone: string | null }
   instructions: string | null
   /**
    * What the partner earns for the trip. SAMPLE rider pay (decision 16) in
@@ -82,8 +93,12 @@ export interface PartnerJob {
   stage: JobStage
   /** Admin who assigned it, when stage is `assigned`; `null` when unknown. */
   assigned_by: string | null
-  /** Code tries left before admin must confirm the delivery. */
-  code_tries_left: number
+  /**
+   * Code tries left before admin must confirm the delivery. `null` before
+   * the code is issued; the code screen then shows "waiting for the code",
+   * never "locked" (@chidimmamogbo on #12).
+   */
+  code_tries_left: number | null
   /** When a new code may be requested again (UTC ISO). */
   code_resend_at: string | null
   accepted_at: string | null
