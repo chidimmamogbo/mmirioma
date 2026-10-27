@@ -22,6 +22,8 @@ import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as mock from '../../mocks/customerMock'
 import * as realOrder from './real/order'
+// Linked in #88 part 2: listNotifications, markNotificationsRead.
+import * as realNotifications from './real/notifications'
 
 export type { AddressInput, CreateOrderInput, ProfileUpdate } from '../../mocks/customerMock'
 
@@ -49,9 +51,9 @@ export const demoAdvanceOrder = (reference: string, to: 'delivered' | 'next' = '
   USE_MOCKS ? mock.demoAdvanceOrder(reference, to) : notConnected('Demo controls')
 
 export const listNotifications = (): Promise<CustomerNotification[]> =>
-  USE_MOCKS ? mock.listNotifications() : notConnected('Notifications')
+  USE_MOCKS ? mock.listNotifications() : realNotifications.listNotifications()
 export const markNotificationsRead = (ids?: string[]): Promise<void> =>
-  USE_MOCKS ? mock.markNotificationsRead(ids) : notConnected('Notifications')
+  USE_MOCKS ? mock.markNotificationsRead(ids) : realNotifications.markNotificationsRead(ids)
 
 export const getPoints = (): Promise<PointsSummary> => (USE_MOCKS ? mock.getPoints() : notConnected('Points'))
 

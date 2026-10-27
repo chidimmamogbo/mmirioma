@@ -255,7 +255,22 @@ export interface CustomerNotification {
   body: string
   at: string
   read: boolean
-  kind: 'on_the_way' | 'rider_assigned' | 'order_received' | 'delivered' | 'points' | 'payment'
+  /**
+   * `order_confirmed`, `cancelled` and `delivery_failed` come from the server
+   * (docs/api/customer-account.md); `update` is the neutral style for a kind
+   * this build does not know, shown with the server's own title and body.
+   */
+  kind:
+    | 'on_the_way'
+    | 'rider_assigned'
+    | 'order_received'
+    | 'delivered'
+    | 'points'
+    | 'payment'
+    | 'order_confirmed'
+    | 'cancelled'
+    | 'delivery_failed'
+    | 'update'
   /** Order the notification is about, if any. */
   reference: string | null
 }

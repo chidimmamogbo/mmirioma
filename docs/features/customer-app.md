@@ -47,6 +47,7 @@ addresses, points, notifications, support and their profile.
 | `frontend/src/features/customer/real/order.ts` | Order adapters (#9): `createOrder`, `listOrders`, `getOrder` through `lib/api/orders.ts`, converted with `docs/architecture/api-mapping.md` |
 | `frontend/src/features/customer/real/orderStage.ts` | Backend order status to the customer stage |
 | `frontend/src/features/customer/orderHelpers.ts` | Display helpers for fields the backend may not send (quantity, price, place, picture) |
+| `frontend/src/features/customer/real/notifications.ts` | Notification adapters (#88 part 2) through `lib/api/customerNotifications.ts` |
 | `frontend/src/features/customer/queries.ts` | TanStack Query hooks and cache refresh after changes |
 | `frontend/src/features/customer/order/` | Order draft (sessionStorage), reorder and flow helpers |
 | `frontend/src/features/customer/pages/` | One component per screen |
@@ -85,6 +86,14 @@ real API is on, and, since #9, the orders endpoints: `POST /orders`,
 The other customer screens (addresses, notifications, points, support,
 profile, feedback, account deletion) still use mocks: their contract
 ([customer-account.md](../api/customer-account.md)) is agreed but not built.
+
+**Notifications (#88 part 2):** `GET /me/notifications` and
+`POST /me/notifications/read` ([customer-account.md](../api/customer-account.md#notifications)),
+the same shape as the partner app's. `read` is `read_at !== null`. The
+kinds the server adds (`order_confirmed`, `cancelled`, `delivery_failed`)
+have their own icons from the existing set; any kind the app does not know
+shows as a neutral "update" with the server's title and body, never hidden.
+The list is the newest 50.
 
 ## 6. Important business rules
 
