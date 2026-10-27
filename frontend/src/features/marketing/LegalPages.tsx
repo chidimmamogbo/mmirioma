@@ -101,7 +101,7 @@ const TERMS: Section[] = [
         <List
           items={[
             'Make sure someone can receive the water and that the rider can safely reach your gate, drums or tank.',
-            'For keke orders, provide clean containers. The rider pours the water and takes our empty cans back. The cans remain our property.',
+            'For keke orders, provide clean containers. The rider pours the water and takes our empty cans back.',
             'For tanker orders, tell us whether your tank is ground or overhead and make sure there is room for the hose to reach it.',
             "If no one can be reached when the rider or driver arrives, they try to contact you twice and wait 10 minutes before recording a failed delivery. You can then arrange another delivery with us.",
             'During the pilot there is no charge for cancelling an order or for a new delivery after a failed one.',

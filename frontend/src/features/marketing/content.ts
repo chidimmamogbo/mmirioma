@@ -8,9 +8,13 @@
  * removed, and the service areas are labelled as a sample list.
  */
 
-/** Support contacts from the design (README "Link and button map"). */
+/**
+ * Support contacts. The email is the privacy notice's (section 16), the only
+ * mailbox the pilot has; the design's `support@mmirioma.com` does not exist
+ * (legal operator, #107).
+ */
 export const CONTACT = {
-  email: 'support@mmirioma.com',
+  email: 'olivetgrail@gmail.com',
   phoneHref: 'tel:+2348133774902',
   phoneLabel: '0813 377 4902',
   place: 'Enugu, Nigeria',
