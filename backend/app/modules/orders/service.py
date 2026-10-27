@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import APIError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User, UserRole
+from app.modules.notifications import customer_messages
 from app.modules.orders.models import (
     DeliveryType,
     Order,
@@ -341,6 +342,9 @@ async def create_order(
                     occurred_at=now + _ROW_3_GAP,
                     commit=False,
                 )
+            # One "received" message, for the status the order starts in
+            # (FR-050; customer-account.md, "What creates a notification").
+            customer_messages.notify_status(session, order, order.status, created=True)
             await session.commit()
         except IntegrityError:
             await session.rollback()
@@ -687,6 +691,9 @@ async def transition_order(
         event.created_at = occurred_at
     session.add(event)
     order.status = target
+    # In the same transaction, so the message exists only if the change does
+    # (FR-050); statuses the customer is not told about add nothing.
+    customer_messages.notify_status(session, order, target)
     if not commit:
         await session.flush()
         return order
