@@ -172,7 +172,6 @@ rows 2017-2021 and run it with `now` in 2021, before any other test row.
 - Support-line messages, server logs, backups and the request register are
   outside the database; the review prints them as a manual checklist.
 - Staff, driver and admin accounts are out of scope.
-- `PRIVACY_NOTICE.md` section 8 says a never-verified account "is deleted".
-  An account with audit rows is anonymized instead (#82): no personal data
-  remains, but the row stays. Whether the notice wording should say so is
-  for the privacy contact to decide (NFR-005).
+- A never-verified account that audit rows name is anonymized and closed
+  instead of deleted (#82), so the audit log keeps its reference. The privacy
+  notice says so since version 1.2 (#93).

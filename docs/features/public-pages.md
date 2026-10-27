@@ -30,7 +30,8 @@ the legal pages. Anyone can open them, signed in or not.
 - `/faq`: search box and category buttons over 17 questions; counts follow
   the search; "Clear search" resets both.
 - `/terms`, `/privacy`: "On this page" links to each section; `/privacy#cookies`
-  jumps to section 9.
+  jumps to section 13. `/privacy` is the website copy of `PRIVACY_NOTICE.md`
+  (version 1.2, #93), section by section; change both together.
 
 ## 3. Important files
 
