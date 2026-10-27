@@ -127,7 +127,7 @@ export function Orders() {
                 />
               </Card>
             )}
-            <p className="m-0 text-caption text-mute">Payment status and delivery status are tracked separately. Sample data.</p>
+            <p className="m-0 text-caption text-mute">Payment status and delivery status are tracked separately.{USE_MOCKS ? ' Sample data.' : ''}</p>
           </>
         }
         side={selected ? <OrderPanel key={selected} reference={selected} onChange={() => select(selected)} /> : null}
