@@ -18,8 +18,9 @@ import type { OrderList } from '../../../mocks/adminMock'
 import { choiceFromRead } from '../../customer/real/order'
 
 const STATUS_BY_BACKEND: Record<BackendStatus, AdminOrderStatus> = {
-  quote_requested: 'awaiting_rider',
-  awaiting_confirmation: 'awaiting_rider',
+  // Not confirmed yet, so no rider can be assigned (admin-confirm-order.md, decision 3).
+  quote_requested: 'awaiting_confirmation',
+  awaiting_confirmation: 'awaiting_confirmation',
   confirmed: 'awaiting_rider',
   awaiting_payment: 'awaiting_rider',
   assigned: 'assigned',
@@ -55,7 +56,8 @@ const PAYMENT_BY_BACKEND: Partial<Record<string, AdminPaymentStatus>> = {
 /** The backend statuses behind each pill of the order list (`a-orders`). `all` sends none. */
 export const STATUSES_BY_FILTER: Record<AdminOrderFilter, BackendStatus[]> = {
   all: [],
-  awaiting_rider: ['quote_requested', 'awaiting_confirmation', 'confirmed', 'awaiting_payment'],
+  awaiting_confirmation: ['quote_requested', 'awaiting_confirmation'],
+  awaiting_rider: ['confirmed', 'awaiting_payment'],
   in_progress: ['assigned', 'accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading'],
   delivered: ['delivered'],
   cancelled: ['cancelled'],
