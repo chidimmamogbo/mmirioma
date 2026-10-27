@@ -14,3 +14,8 @@
   heredoc scripts for file content.
 - **Status:** workaround
 - **Refs:** #18, `docs/api/examples/admin-*.json`
+- **Seen again** 2026-10-27 (Bonvee120 + Claude Code, #63): one
+  `python - <<'EOF'` script that edited two test files, with a `'''`
+  string inside the heredoc, failed with
+  ``/usr/bin/bash: -c: line 174: unexpected EOF while looking for matching `'``
+  and wrote nothing. The editor's edit tool worked.

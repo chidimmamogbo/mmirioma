@@ -189,8 +189,8 @@ TEST_DATABASE_URL=... pytest tests/test_partners_integration.py tests/test_dispa
 - The `account`, `new_orders`, `station_closed`, `papers_due` and `payout`
   message kinds are not created (#45, no job pool, stations on the
   command-line tool, documents and payouts out of the MVP).
-- The demo seed creates no driver profile, so the demo driver gets 404
-  `no_driver_profile` until the technical lead runs `set-driver` (#63 makes
-  the seed do it).
+- The demo seed gives the demo driver an approved tanker profile in "Demo
+  zone" (#63, [demo-data.md](demo-data.md)). A demo database seeded before
+  #63 gets it on the next seed run.
 - The partner app still uses mocks for these screens: linking them is a
   follow-up issue.
