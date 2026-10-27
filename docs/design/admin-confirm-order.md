@@ -13,7 +13,7 @@ NFR-020, NFR-021, NFR-022 · Prompt:
 [amendment (#72)](../api/deliveries.md#amendment-72-the-quotes-category-id-and-the-source-kind),
 [order-details-and-price.md](../api/order-details-and-price.md) (question 14)
 Designer: @Daveoski + Claude Code (for #72, owner @Cloudcrackamara) ·
-Reviewed by: pending · Status: ready for review (G2)
+Reviewed by: @chidimmamogbo on 2026-10-27 · Status: approved (G2)
 
 A dispatcher confirms an order in the admin app. Two kinds share one sheet:
 **A, a priced order** (placed with a server price, `awaiting_confirmation`)
