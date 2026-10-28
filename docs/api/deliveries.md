@@ -1339,6 +1339,8 @@ Withdraw job (before departure, `withdraw_allowed`) uses this endpoint with
 What cancelling would cost the customer, for the CANCEL dialog (FR-044).
 Query `reason_code`; this section supports only `mmirioma_unable`. Any other
 reason is 422 `validation_error` until the cancellation feature is built.
+[Cancel because the customer asked (#174)](#cancel-because-the-customer-asked-174)
+(agreed) adds `customer_request`.
 `CancellationOutcome`:
 
 ```json
@@ -1363,7 +1365,7 @@ rows it is planned for stay under [Planned endpoints](#planned-endpoints-not-agr
 | --- | --- |
 | `to` | `failed` or `cancelled` |
 | `expected_status` | **Required.** The order status the administrator saw. A mismatch is 409 `invalid_order_transition` and nothing changes |
-| `reason_code` | `failed`: `source_quality_concern`, `unsafe_access` or `other` in this section (row 20 also lists `customer_unreachable` and `vehicle_failure`, agreed with the dispatch screens that use them). `cancelled`: `mmirioma_unable` only |
+| `reason_code` | `failed`: `source_quality_concern`, `unsafe_access` or `other` in this section (row 20 also lists `customer_unreachable` and `vehicle_failure`, agreed with the dispatch screens that use them). `cancelled`: `mmirioma_unable` only (`customer_request` is agreed in [#174](#cancel-because-the-customer-asked-174)) |
 | `note` | Optional, up to 500 characters; **required** with `other` |
 | `hold_id` | Optional. When sent (FAIL or CANCEL opened from R2 or R3) it must be an open hold of the order, or 409 `hold_not_open` |
 
@@ -1930,13 +1932,101 @@ None new: `pickup_records.source_id` (nullable, foreign key to
    job (#97), plus a test that the admin client accepts the new
    `used_source`.
 
+## Cancel because the customer asked (#174)
+
+Status: **agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead), on
+PR #203. Proposed by @Cloudcrackamara (+ Claude Code) the same day. The reason
+comes from open
+question 1 of the [admin order cancellation design](../design/admin-order-cancellation.md#open-questions)
+(#129, PR #171), which @chidimmamogbo decided on 2026-10-28 should be opened
+now. Not built.
+
+A customer phoning to cancel is the most common real case. The agreed cancel
+accepts only `mmirioma_unable`, so a dispatcher who cancels because the
+customer asked would have to record "MmiriOma is unable to deliver", which is
+untrue (NFR-004). Row 23 already lists `customer_request`; the endpoints do
+not yet accept it. This section makes them accept it, and nothing else about
+them changes.
+
+### Changes
+
+| Item | Change |
+| --- | --- |
+| `GET /admin/orders/{reference}/cancellation-outcome` | `reason_code` may be `customer_request` as well as `mmirioma_unable`. Any other value stays 422 `validation_error` at `query.reason_code` |
+| `CancellationOutcome` for `customer_request` | `{ "reason_code": "customer_request", "customer_charge_minor_units": 0, "message": "The customer is not charged for this cancellation." }`: the same sentence and amount as `mmirioma_unable` (decision 1) |
+| `POST /admin/orders/{reference}/transition` | `to: cancelled` accepts `reason_code` `customer_request` as well as `mmirioma_unable`. `other` stays 422 (decision 2). `expected_status`, `hold_id` and the 409s are as already agreed |
+| `note` | Optional, up to 500 characters, as for `mmirioma_unable`; **required** when `expected_status` is `unloading` (decision 3) |
+| Audit | The `order_events` row for the cancel records `reason_code` `customer_request` and the note, the administrator and the time (NFR-004). The history line is the status change, as for `mmirioma_unable` |
+| Effect | The same as an `mmirioma_unable` cancel: the live assignment is `withdrawn`, the job leaves the driver's list (nothing notifies the driver), every open hold closes with `resolution` `cancelled`, and no customer SMS is sent (F10: the administrator tells the customer) |
+| Allowed from | Row 23, unchanged: any status except `cancelled`, `delivered` and `disputed`. From those: 409 `invalid_order_transition`, nothing changes |
+
+No new endpoint, path, field or error code. Rows 22 (the customer cancelling
+in the app) stays planned.
+
+### Decisions
+
+Decided on PR #203 by @nnamdi-security (technical lead), 2026-10-28; all four
+as recommended.
+
+1. **The customer is never charged, for either reason.** FR-044 has a table
+   (free before the driver departs; after that only delivery costs actually
+   incurred, capped at the disclosed delivery charge), but the pilot has **no
+   cancellation or redelivery charge** (fallback F5; the confirmation records
+   that the customer was told so, see
+   [order-details-and-price.md](order-details-and-price.md), "Potential
+   cancellation and redelivery charges"). Every pilot order is pay on delivery
+   and no payment is taken before delivery, so there is nothing to refund.
+   FR-044's cap applies only once charges are introduced, with a contract
+   change. Until then the amount is always `0` and the sentence is the same,
+   so the dialog never states a cost the client worked out. The field stays an
+   integer in kobo so a later charge needs no shape change. *Agreed.*
+2. **`other` is not accepted for a cancel yet.** Row 23 lists it, but no
+   case needs it today, and an `other` cancel has no agreed charge rule and no
+   meaning to record. Add it with the case that needs it (for example a
+   duplicate or abusive order), with its own wording. A dispatcher who cancels
+   for a reason that is neither of the two has no honest choice until then,
+   which is the safer failure. *Agreed (the alternative, accepting
+   `other` with a required note and charge 0, was not chosen).*
+3. **`unloading` needs a recorded reason.** FR-044 requires administrator
+   review for a cancel once unloading has started. The administrator's cancel
+   is that review, so the note is required there and says why; it is optional
+   at every other stage. *Agreed.*
+4. **The sentence is the server's.** As today, the client shows `message` as
+   written and never works out an amount. A client that does not know the
+   reason code still shows the server's sentence. *Agreed.*
+
+### Acceptance test (T-26, pilot form)
+
+T-26 ("customer cancels at each stage, prepaid and pay on delivery; charge or
+refund matches the FR-044 table") is met for the pilot as: an administrator
+cancels at the customer's request from each cancellable status, `quote_requested`
+through `unloading` and `failed`, on a pay-on-delivery order; the outcome is
+`0` with the server's sentence; the order is `cancelled` with
+`reason_code` `customer_request` in its event; the assignment is withdrawn and
+every open hold is closed. Also tested: 409 from `cancelled`, `delivered` and
+`disputed`; 422 for `other`; 422 when the note is missing at `unloading`;
+and that `mmirioma_unable` behaves exactly as before. The prepaid half of T-26
+needs payments before delivery, which the pilot does not have; it waits for
+charges.
+
+### Build issues
+
+1. Backend: accept `customer_request` on the outcome and the transition, the
+   `unloading` note rule, and the tests above.
+2. Frontend: the CANCEL dialog offers the reason (a G2 change to the
+   [#128 / #129 dialog](../design/admin-order-cancellation.md)): "The
+   customer asked" and "MmiriOma is unable to deliver", neither chosen by
+   default, Cancel order off until one is chosen. Wording is approved with the
+   design, not here. The adapter, the dialog and the history label ("Customer
+   asked to cancel") follow.
+
 ## Planned endpoints (not agreed)
 
 Shapes follow SRS §6. They are agreed with the feature that builds them.
 
 | Method | Path | Rows | With |
 | --- | --- | --- | --- |
-| POST | `/admin/orders/{reference}/transition` `{to, reason_code, note}` | 7, 12-16, 20 (`customer_unreachable`, `vehicle_failure`), 21, 23 (other reasons), 25 | admin dispatch design-ahead screens (A1-A7). Fail and `mmirioma_unable` cancel are agreed in the [hold review endpoints](#post-adminordersreferencetransition-fail-and-cancel); confirming (rows 26 and 7) is agreed and built in the [order confirmation endpoints](#order-confirmation-endpoints) (#113) |
+| POST | `/admin/orders/{reference}/transition` `{to, reason_code, note}` | 7, 12-16, 20 (`customer_unreachable`, `vehicle_failure`), 21, 23 (`other`; `customer_request` is agreed in [#174](#cancel-because-the-customer-asked-174)), 25 | admin dispatch design-ahead screens (A1-A7). Fail and `mmirioma_unable` cancel are agreed in the [hold review endpoints](#post-adminordersreferencetransition-fail-and-cancel); confirming (rows 26 and 7) is agreed and built in the [order confirmation endpoints](#order-confirmation-endpoints) (#113) |
 | POST | `/orders/{reference}/cancel` | 22 | cancellation |
 
 ## Open questions
