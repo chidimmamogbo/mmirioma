@@ -735,15 +735,6 @@ export async function transitionOrder(reference: string, request: AdminTransitio
   })
 }
 
-export async function cancelOrder(reference: string, reason: string): Promise<AdminOrder> {
-  await delay(null, 300)
-  return mutate((s) => {
-    requireAdmin(s)
-    cancelJob(s, reference, requireReason(reason))
-    return orderRow(s, reference)!
-  })
-}
-
 /** The price a customer would see for this choice and address (same rules as the app). */
 export async function quoteForAdmin(choice: WaterChoice, address: string | null): Promise<Quote> {
   await delay(null, 150)

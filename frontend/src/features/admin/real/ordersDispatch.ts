@@ -3,9 +3,9 @@
  * and `assignOrder` in `adminApi.ts`, from docs/api/deliveries.md, "Admin
  * dispatch endpoints".
  *
- * Withdraw and cancel are not linked here: the screen's "Cancel this order"
- * cancels the whole order (a transition, #17), not a withdraw, and the
- * screen has no withdraw control yet.
+ * Withdraw and cancel are not linked here: "Cancel this order" cancels the
+ * whole order, which is a transition (`real/holds.ts`, #176), not a withdraw,
+ * and the screen has no withdraw control yet.
  */
 import type { AdminOrder, EligibleRider } from '../../../domain/admin'
 import { assignDriver, listDispatchDrivers, type DispatchDriver } from '../../../lib/api/adminDispatch'

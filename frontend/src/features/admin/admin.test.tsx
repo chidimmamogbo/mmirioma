@@ -290,6 +290,101 @@ describe('admin pages', () => {
     expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('failed')
   }, SLOW)
 
+  describe('the "Cancel this order" entry on the order panel (#176)', () => {
+    async function openOrder(reference: string, heading: string) {
+      const user = userEvent.setup()
+      await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+      renderAt(`/admin/orders?ref=${reference}`)
+      await screen.findByRole('heading', { name: heading }, { timeout: WAIT })
+      return user
+    }
+
+    it('cancels an assigned order: the server’s sentence, the driver line, the toast, and the order reads Cancelled', async () => {
+      const user = await openOrder('MO-3HT8WQ2KZP', 'Reassign the rider')
+      // The old inline card, with its free-text reason and promises, is gone.
+      expect(screen.queryByLabelText(/Reason \(saved in the audit log\)/)).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
+      const dialog = await screen.findByRole('alertdialog')
+      expect(await within(dialog).findByText('The customer is not charged for this cancellation.')).toBeInTheDocument()
+      expect(within(dialog).getByText('SAMPLE')).toBeInTheDocument()
+      expect(dialog).toHaveTextContent('Reason: MmiriOma is unable to deliver')
+      expect(dialog).toHaveTextContent("The driver's job ends and leaves their list. Nothing notifies the driver.")
+      expect(dialog).toHaveTextContent('No cancellation message is sent to the customer yet: tell them yourself.')
+      expect(dialog).not.toHaveTextContent('This also closes')
+      expect(dialog).not.toHaveTextContent('refund')
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+      expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+      expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('cancelled')
+      // The panel reads Cancelled; the assign and cancel controls are gone.
+      expect(await screen.findByRole('heading', { name: 'Order details' }, { timeout: WAIT })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel this order' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Reassign the rider' })).toBeNull()
+    }, SLOW)
+
+    it('keeps the panel on the cancelled order when the address names none (the list moves on, the toast stays)', async () => {
+      const user = userEvent.setup()
+      await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+      // No ?ref=: the panel shows the first order waiting for a rider, which stops being one after the cancel.
+      renderAt('/admin/orders')
+      await screen.findByRole('heading', { name: 'Assign a rider' }, { timeout: WAIT })
+      await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
+      const dialog = await screen.findByRole('alertdialog')
+      await within(dialog).findByText('The customer is not charged for this cancellation.')
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+      expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Order details' }, { timeout: WAIT })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel this order' })).toBeNull()
+    }, SLOW)
+
+    it('cancels an order with no driver: the dialog says no driver’s job changes', async () => {
+      const user = await openOrder('MO-6RTA2KXP9B', 'Assign a rider')
+      await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
+      const dialog = await screen.findByRole('alertdialog')
+      expect(dialog).toHaveTextContent("No driver is assigned, so no driver's job changes.")
+      expect(dialog).not.toHaveTextContent('leaves their list')
+      await within(dialog).findByText('The customer is not charged for this cancellation.')
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+      expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+      expect(read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage).toBe('cancelled')
+    }, SLOW)
+
+    it('says an open hold closes with the order, and sends no hold id from the entry', async () => {
+      const user = await openOrder('MO-9UNS4VH2ZC', 'Order details')
+      await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
+      const dialog = await screen.findByRole('alertdialog')
+      expect(dialog).toHaveTextContent('This also closes the unsafe stop hold.')
+      await within(dialog).findByText('The customer is not charged for this cancellation.')
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+      expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+      const job = read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!
+      expect([job.stage, job.hold]).toEqual(['cancelled', null])
+      expect(job.ended).toMatchObject({ kind: 'cancelled', reason_code: 'mmirioma_unable' })
+    }, SLOW)
+
+    it('says "This order has changed." with Refresh when the order moved on meanwhile (409 invalid_order_transition)', async () => {
+      const user = await openOrder('MO-3HT8WQ2KZP', 'Reassign the rider')
+      await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
+      const dialog = await screen.findByRole('alertdialog')
+      await within(dialog).findByText('The customer is not charged for this cancellation.')
+      // The driver accepts while the dialog is open: the status the panel loaded is stale.
+      read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+      expect(await within(dialog).findByText('This order has changed.', { exact: false }, { timeout: WAIT })).toBeInTheDocument()
+      expect(within(dialog).getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+      expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('accepted')
+    }, SLOW)
+
+    it.each([
+      ['MO-5KL2ZT8QWD', 'delivered'],
+      ['MO-4WQ8NB2RYE', 'cancelled'],
+    ])('is not on the page for %s (%s)', async (reference) => {
+      await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+      renderAt(`/admin/orders?ref=${reference}`)
+      await screen.findByRole('heading', { name: 'Order details' }, { timeout: WAIT })
+      expect(screen.queryByRole('button', { name: 'Cancel this order' })).toBeNull()
+    }, SLOW)
+  })
+
   it('offers no "Fail this delivery" on a held order (its sheet has it) or on an order the driver has not accepted', async () => {
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     renderAt('/admin/orders?ref=MO-3HT8WQ2KZP')

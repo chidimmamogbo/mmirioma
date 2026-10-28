@@ -348,6 +348,7 @@ happened.
 | Date | Change | Agreed by |
 | --- | --- | --- |
 | 2026-10-28 | **Agreed:** each item of `GET /admin/orders` gains `driver: { id, name } \| null`, the driver of the order's live assignment (`offered` or `accepted`; additive, list only). The detail is unchanged. Defined in [deliveries.md](deliveries.md#amendment-204-the-driver-on-the-admin-order-list) | @nnamdi-security, technical lead (G3, PR #205) |
+| 2026-10-28 | **Agreed:** an administrator can cancel because the customer asked: `customer_request` on `GET /admin/orders/{reference}/cancellation-outcome` and `POST /admin/orders/{reference}/transition` (additive; the amount is always 0 in the pilot, F5). Defined in [deliveries.md](deliveries.md#cancel-because-the-customer-asked-174) | @nnamdi-security, technical lead (G3, PR #203) |
 | 2026-10-28 | **Built:** `delivery_window`, `price` and `water_category` on `OrderRead` (#165, PR #187). The contract is unchanged | @nnamdi-security (approved PR #187) |
 | 2026-10-28 | **Agreed:** [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | @nnamdi-security, technical lead (G3, PR #164) |
 | 2026-10-24 | **Agreed:** `OrderRead` gains `delivery_window`, `price` and `water_category` (additive; `null` until confirmed). The proposed customer cancellation SMS is dropped (F10). See [Customer pilot changes](#customer-pilot-changes-99) | Technical lead (G3); backend and customer UI reviews on the build PR |

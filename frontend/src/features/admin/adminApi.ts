@@ -6,7 +6,8 @@
  * `not_connected` until their endpoints exist. Linked so far: the cash
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
  * `assignOrder` (#16), `listAreas`, `saveArea` (#74), and the hold review
- * functions (#166).
+ * functions (#166), and cancelling an order, which is `transitionOrder` with
+ * `to: cancelled` (#176).
  */
 import type { AdminOrderFilter, PriceListDraft, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
@@ -55,8 +56,6 @@ export const getCancellationOutcome = (reference: string): Promise<CancellationO
   USE_MOCKS ? mock.getCancellationOutcome(reference) : holds.getCancellationOutcome(reference)
 export const transitionOrder = (reference: string, request: AdminTransitionRequest): Promise<void> =>
   USE_MOCKS ? mock.transitionOrder(reference, request) : holds.transitionOrder(reference, request)
-// Cancelling the whole order is a transition (#17), not the dispatch withdraw.
-export const cancelOrder = api('Orders', mock.cancelOrder)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)
 export const quoteForAdmin = api('Prices', mock.quoteForAdmin)
 
