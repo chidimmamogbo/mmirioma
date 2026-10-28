@@ -1,6 +1,6 @@
 # Privacy notice
 
-Issue: #93 (version 1.2, published as 2.0 in #104) · First built in the
+Issue: #93 (version 1.2, renumbered 2.0 in #104; not yet published) · First built in the
 main repo:
 [#100](https://github.com/mmiri-oma/mmirioma/issues/100) · Requirements:
 NFR-005, NFR-003, FR-055 · Pilot condition: G7 · Design: the main repo's
@@ -78,6 +78,10 @@ None. The text ships with the frontend.
 - Section 9 names "Delete my account" in the customer app as a way to ask
   for deletion, with the same identity check by call-back; the partner app
   has none, so riders and drivers ask by phone or email (#119).
+- Section 8 states how long deletion requests are kept: 3 years after they
+  are completed or refused, then deleted by the monthly review; the reason
+  is removed earlier, when the account is closed (#118). It joins the
+  unpublished 2.0 release (privacy contact, 2026-10-27).
 - Retention periods are applied by a **monthly manual review** with the
   privacy tool; automation is deferred.
 - The support number in the notice is the SRS number (FR-055); a change of
