@@ -5,6 +5,7 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../../app/providers'
 import { routes } from '../../app/router'
+import { decideProof } from '../../mocks/adminMock'
 import { mockLogin } from '../../mocks/authMock'
 import { read, resetMockDb } from '../../mocks/db'
 import { DEMO_PASSWORD } from '../../mocks/seed'
@@ -68,6 +69,84 @@ describe('admin pages', () => {
     expect(screen.queryByText(/^Eligible /)).toBeNull()
     expect(screen.getByText('Hold opened: Proof review')).toBeInTheDocument()
     expect(screen.getByText(/Alternative proof · "Customer's phone is off\. The gateman signed\."/)).toBeInTheDocument()
+  }, SLOW)
+
+  async function openProofSheet() {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders?ref=MO-6PRF2KQ7XD')
+    await user.click(await screen.findByRole('button', { name: 'Review' }, { timeout: WAIT }))
+    const sheet = await screen.findByRole('dialog', {}, { timeout: WAIT })
+    await within(sheet).findByText('Alternative proof', {}, { timeout: WAIT })
+    return { user, sheet }
+  }
+
+  it('opens the review sheet from the banner with the proof evidence, and never shows the code (#166, R1)', async () => {
+    const { sheet } = await openProofSheet()
+    expect(within(sheet).getByRole('heading', { name: 'Proof review' })).toBeInTheDocument()
+    expect(within(sheet).getByText(/Order MO-6PRF2KQ7XD · Unloading · Driver: Ifeanyi James/)).toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: /^Call / })).toHaveAttribute('href', 'tel:+2348000000301')
+    expect(within(sheet).getByText('600 L')).toBeInTheDocument()
+    expect(within(sheet).getByText('Customer cannot receive the code')).toBeInTheDocument()
+    expect(within(sheet).getByText(/SMS accepted · 3 of 5 attempts used · Expired/)).toBeInTheDocument()
+    expect(within(sheet).getByText('The code itself is never shown.')).toBeInTheDocument()
+    expect(within(sheet).getByText('No location shared')).toBeInTheDocument()
+    expect(within(sheet).getByText("Customer's phone is off. The gateman signed.")).toBeInTheDocument()
+    expect(within(sheet).getByText('No other reports.')).toBeInTheDocument()
+  }, SLOW)
+
+  it('approves the proof: asks first, says payment is not changed, and the order becomes Delivered', async () => {
+    const { user, sheet } = await openProofSheet()
+    await user.type(within(sheet).getByLabelText(/^Your note/), 'Customer confirmed by phone that 1,000 litres were delivered.')
+    await user.click(within(sheet).getByRole('button', { name: 'Approve proof' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('Delivered with 600 L. Payment is not changed by this decision.')
+    await user.click(within(dialog).getByRole('button', { name: 'Approve proof' }))
+    expect(await screen.findByText('Proof approved. The order is now Delivered.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-6PRF2KQ7XD')!.stage).toBe('delivered')
+    // No banner any more; the decided card says who decided and why.
+    expect(screen.queryByRole('group', { name: 'Order on hold' })).toBeNull()
+    expect(screen.getAllByText(/Customer confirmed by phone that 1,000 litres were delivered\./).length).toBeGreaterThan(0)
+  }, SLOW)
+
+  it('rejects the proof with a reason, and the order stays where it was', async () => {
+    const { user, sheet } = await openProofSheet()
+    await user.click(within(sheet).getByLabelText('Reject this proof'))
+    await user.type(within(sheet).getByLabelText(/^Your note/), 'The person who answered is not the customer.')
+    await user.click(within(sheet).getByRole('button', { name: 'Reject proof' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('the order stays Unloading')
+    await user.click(within(dialog).getByRole('button', { name: 'Reject proof' }))
+    expect(await screen.findByText('Proof rejected. The driver can send a new code.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-6PRF2KQ7XD')!.stage).toBe('collected')
+    expect(screen.queryByRole('group', { name: 'Order on hold' })).toBeNull()
+  }, SLOW)
+
+  it('asks for a note before anything is sent', async () => {
+    const { user, sheet } = await openProofSheet()
+    await user.click(within(sheet).getByRole('button', { name: 'Approve proof' }))
+    expect(await within(sheet).findByText('Write a note (up to 500 characters).')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(read().jobs.find((j) => j.reference === 'MO-6PRF2KQ7XD')!.hold).not.toBeNull()
+  }, SLOW)
+
+  it('says "This order has changed." with Refresh when the hold was decided meanwhile, and keeps what was typed', async () => {
+    const { user, sheet } = await openProofSheet()
+    await decideProof('MO-6PRF2KQ7XD', { hold_id: 'hold-proof-1', decision: 'reject', note: 'Another dispatcher got there first.' })
+    await user.type(within(sheet).getByLabelText(/^Your note/), 'Customer confirmed by phone.')
+    await user.click(within(sheet).getByRole('button', { name: 'Approve proof' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Approve proof' }))
+    expect(await within(sheet).findByText('This order has changed.')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+    expect(within(sheet).getByLabelText(/^Your note/)).toHaveValue('Customer confirmed by phone.')
+  }, SLOW)
+
+  it('offers Review only for a proof review so far; a source review or unsafe stop shows its banner without it', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders?ref=MO-3SRC8WT5NB')
+    const banner = await screen.findByRole('group', { name: 'Order on hold' }, { timeout: WAIT })
+    expect(within(banner).getByText('On hold: Source review')).toBeInTheDocument()
+    expect(within(banner).queryByRole('button', { name: 'Review' })).toBeNull()
   }, SLOW)
 
   it('names the assigned rider after the eligible list refreshes without them (#143)', async () => {

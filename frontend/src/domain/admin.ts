@@ -98,6 +98,9 @@ const HOLD_DECISION_LABEL: Partial<Record<string, string>> = {
  */
 export const holdDecisionLabel = (decision: string): string | null => HOLD_DECISION_LABEL[decision] ?? null
 
+/** Whether a timeline line is a hold decision, to show the decided card on the panel. */
+export const isHoldDecisionLabel = (label: string): boolean => Object.values(HOLD_DECISION_LABEL).includes(label)
+
 /**
  * The open hold on an order's live job. A hold is not a status: the order keeps
  * its status while it is open. `id` is sent back with a decision.

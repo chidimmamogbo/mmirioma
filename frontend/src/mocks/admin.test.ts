@@ -5,7 +5,10 @@ import {
   cancelOrder,
   confirmPayment,
   createOrderForCustomer,
+  decideProof,
   getDashboard,
+  getHoldReview,
+  getOrder as getAdminOrder,
   listEligibleRiders,
   listOrders,
   listPriceLists,
@@ -224,5 +227,85 @@ describe('riders, customers and support', () => {
 
   it('keeps one admin account in the seed', () => {
     expect(read().users.filter((u) => u.role === 'admin').map((u) => u.id)).toEqual([DEMO_ADMIN_ID])
+  })
+})
+
+describe('hold review (#166)', () => {
+  const PROOF_REF = 'MO-6PRF2KQ7XD'
+  const approveRequest = (over: Record<string, unknown> = {}) =>
+    ({
+      hold_id: 'hold-proof-1',
+      decision: 'approve',
+      customer_acknowledgment: { method: 'phone_call', confirmed_at: new Date(Date.now() - 60_000).toISOString(), note: null },
+      note: 'Customer confirmed by phone that 1,000 litres were delivered.',
+      ...over,
+    }) as Parameters<typeof decideProof>[1]
+
+  it('returns the evidence for each kind of seeded hold, as the server shapes it', async () => {
+    const proof = await getHoldReview(PROOF_REF)
+    expect(proof).toMatchObject({ kind: 'proof_review', order_status: 'unloading', withdraw_allowed: false, driver: { name: 'Ifeanyi James' } })
+    expect(proof.proof).toMatchObject({ reason: 'customer_cannot_receive_code', location: null, delivery_code: { attempts_used: 3, attempts_limit: 5, expired: true } })
+    // The code itself is never part of the evidence.
+    expect(JSON.stringify(proof)).not.toMatch(/\b\d{6}\b/)
+    const source = await getHoldReview('MO-3SRC8WT5NB')
+    expect(source.pickup).toMatchObject({ used_source: { assigned: false }, safety_concern: true })
+    expect(source.source_eligibility).toEqual({ answer: 'not_eligible', message: 'This source is not in the source records.' })
+    const unsafe = await getHoldReview('MO-9UNS4VH2ZC')
+    expect(unsafe).toMatchObject({ order_status: 'accepted', withdraw_allowed: true, report: { kind: 'unsafe_access' } })
+  })
+
+  it('says there is no open hold for an order without one, and no order for an unknown reference', async () => {
+    await expect(getHoldReview('MO-6RTA2KXP9B')).rejects.toMatchObject({ status: 404, code: 'hold_not_found' })
+    await expect(getHoldReview('MO-0000000000')).rejects.toMatchObject({ status: 404, code: 'order_not_found' })
+  })
+
+  it('approving delivers the order, closes the hold and records who decided and why', async () => {
+    await decideProof(PROOF_REF, approveRequest())
+    const order = await getAdminOrder(PROOF_REF)
+    expect(order.status).toBe('delivered')
+    expect(order.hold).toBeNull()
+    expect((await listOrders('on_hold')).counts.on_hold).toBe(2)
+    expect(order.timeline.map((t) => t.label).slice(-2)).toEqual(['Hold opened: Proof review', 'Proof approved'])
+    expect(order.timeline.at(-1)!.detail).toBe('Chidimma M. · "Customer confirmed by phone that 1,000 litres were delivered."')
+    expect(read().admin.audit[0].action).toMatch(/Approved alternative proof/)
+  })
+
+  it('rejecting closes the hold and leaves the order where it was', async () => {
+    const before = (await getAdminOrder(PROOF_REF)).status
+    await decideProof(PROOF_REF, { hold_id: 'hold-proof-1', decision: 'reject', note: 'The person who answered is not the customer.' })
+    const order = await getAdminOrder(PROOF_REF)
+    expect(order.status).toBe(before)
+    expect(order.hold).toBeNull()
+    expect(order.timeline.at(-1)!.label).toBe('Proof rejected')
+    await expect(getHoldReview(PROOF_REF)).rejects.toMatchObject({ code: 'hold_not_found' })
+  })
+
+  it('refuses a decision on a hold that is no longer open, or that is not a proof review, changing nothing', async () => {
+    await decideProof(PROOF_REF, approveRequest())
+    await expect(decideProof(PROOF_REF, approveRequest())).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+    await expect(decideProof('MO-3SRC8WT5NB', { hold_id: 'hold-source-1', decision: 'reject', note: 'No.' })).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+    expect((await getAdminOrder('MO-3SRC8WT5NB')).hold).not.toBeNull()
+  })
+
+  it('checks the note, the confirmation time and the details for "Other" (422, nothing changes)', async () => {
+    const refusal = async (request: Parameters<typeof decideProof>[1]) => {
+      const error = await decideProof(PROOF_REF, request).then(() => null, (e: unknown) => e as { code: string; details: { loc: string[] }[] })
+      expect(error?.code).toBe('validation_error')
+      return error!.details.map((d) => d.loc.join('.'))
+    }
+    expect(await refusal(approveRequest({ note: '   ' }))).toEqual(['body.note'])
+    expect(await refusal({ hold_id: 'hold-proof-1', decision: 'reject', note: '' })).toEqual(['body.note'])
+    const future = { method: 'phone_call', confirmed_at: new Date(Date.now() + 3_600_000).toISOString(), note: null }
+    expect(await refusal(approveRequest({ customer_acknowledgment: future }))).toEqual(['body.customer_acknowledgment.confirmed_at'])
+    const other = { method: 'other', confirmed_at: new Date(Date.now() - 60_000).toISOString(), note: null }
+    expect(await refusal(approveRequest({ customer_acknowledgment: other }))).toEqual(['body.customer_acknowledgment.note'])
+    expect((await getAdminOrder(PROOF_REF)).hold).not.toBeNull()
+  })
+
+  it('refuses customers and partners (403)', async () => {
+    await mockLogout()
+    await mockLogin(RIDER)
+    await expect(getHoldReview(PROOF_REF)).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    await expect(decideProof(PROOF_REF, approveRequest())).rejects.toMatchObject({ status: 403, code: 'forbidden' })
   })
 })
