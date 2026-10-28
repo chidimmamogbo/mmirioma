@@ -1085,6 +1085,62 @@ questions:
 6. **Assign and withdraw return the order**, so the page redraws without a
    second request.
 
+### Amendment (#204): the driver on the admin order list
+
+**Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead), on
+PR #205. Proposed by @Daveoski (+ Claude Code) for
+[#204](https://github.com/chidimmamogbo/mmirioma/issues/204), option B.
+
+**Gap.** `GET /admin/orders` returns `AdminOrderRead`, which names no driver;
+only the detail does, through `assignment.driver`
+([decision 4](#admin-dispatch-decisions) kept the assignment off the list so it
+stays light). The Rider column on the Orders page therefore cannot say who has
+an order. In real-API mode it reads "None yet" on every row, including held and
+in-progress orders that have a driver, which is untrue.
+
+**Proposal.** One additive read field on each item of the list, and nothing
+else of the assignment:
+
+```json
+{ "driver": { "id": "7d1f4e8a-b6c9-4a1b-9c3d-4e5f0b8f1c5e", "name": "Sample Driver One" } }
+```
+
+| Field | Rule |
+| --- | --- |
+| `driver` | `null`, or the driver of the order's **live** assignment: status `offered` or `accepted` ([Assignment statuses](#assignment-statuses-built-in-s1-07)). A declined, expired, withdrawn or completed assignment gives `null` |
+| `driver.id` | The driver's account id, as in `AdminAssignment.driver` |
+| `driver.name` | The driver's name, as in `AdminAssignment.driver` |
+
+- **List only.** The detail keeps `assignment` as it is (decision 4 still holds
+  for the full assignment: vehicle, offer times, decline reason). The page's
+  items gain `driver`; `GET /admin/orders/{reference}` does not.
+- **Same rule as the detail.** The detail's banner and "Assigned to" line name
+  the driver of the live assignment, so the list and the panel agree.
+  An order with no live assignment (not confirmed, in the pool, declined,
+  withdrawn, delivered, cancelled, failed) has `driver: null`.
+- **Additive.** A client that ignores the field keeps working. No new rule,
+  setting, status or table: the value is already stored
+  (`assignments.driver_user_id`, `users.name`).
+- **Staff only.** The route already requires an administrator; the driver's
+  name is already on the detail, so no new privacy question arises.
+- **No fleet code.** The Rider column shows the driver's name. A fleet code
+  stays out of the contract (admin-directory.md, open question 9).
+- **Cost.** The server reads the live assignments of the whole page in one
+  query, not one per row.
+
+**Decisions** (2026-10-28, @nnamdi-security, on PR #205):
+
+1. **Option B.** The list carries the driver, rather than the frontend-only
+   wording change (option A).
+2. **An offered assignment shows the driver's name** (`offered` or
+   `accepted`), not only after the driver accepts. The panel says "Assigned to
+   <name> · Waiting for them to start" in that case, so the two agree, and a
+   dispatcher needs to see who an order has been offered to, so as not to
+   offer it twice.
+
+**Built in:** not yet. The contract example `examples/admin-orders-page.json`
+gains `driver` with the build.
+
 ## Admin hold review endpoints
 
 Status: **agreed** (G3) on 2026-10-21 by @nnamdi-security (technical lead,
