@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "partner_phone_not_verified",
+    "message": "The partner must verify their phone before you can approve them.",
+    "details": null
+  }
+}

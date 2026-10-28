@@ -1,0 +1,9 @@
+{
+  "approval_status": "approved",
+  "reason": null,
+  "vehicle": {
+    "description": "Tanker truck",
+    "safe_payload_litres": 12000,
+    "transfer_methods": ["ground", "overhead"]
+  }
+}

@@ -1,9 +1,9 @@
 # Admin directory contract: customers, drivers, service zones, price lists
 
-**Status: proposed** on 2026-10-26 by @Cloudcrackamara (+ Claude Code), for
-review by @nnamdi-security or @chidimmamogbo (#18). Not agreed, not built.
-It becomes `Status: agreed` when one reviewer other than its author has agreed
-it (CLAUDE.md, "Team fork workflow", since 2026-10-27).
+**Status: agreed** on 2026-10-28 (G3, #43): proposed on 2026-10-26 by
+@Cloudcrackamara (+ Claude Code) in #18, and every section is now agreed. It
+became `Status: agreed` when one reviewer other than its author agreed it
+(CLAUDE.md, "Team fork workflow", since 2026-10-27).
 
 **Amended 2026-10-26 for #30** (service zones): open questions 5, 6, 13, 14
 and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee
@@ -13,8 +13,15 @@ See [Changes](#changes).
 **[Service zones](#service-zones): `Status: agreed`** on 2026-10-26 by
 @nnamdi-security (technical lead, sole approver under PR #36), so #30 can
 build it. **[Price lists](#price-lists): `Status: agreed`** on 2026-10-26 by
-@nnamdi-security (technical lead, #36), so #37 can build it. The rest of this
-contract is still proposed.
+@nnamdi-security (technical lead, #36), so #37 can build it.
+**[Customers](#customers) and [Drivers](#drivers): `Status: agreed`** on
+2026-10-28 by @nnamdi-security (technical lead, PR #146), so #45 can build
+them.
+
+**Revised 2026-10-28 for #43** (customers and drivers, after @chidimmamogbo's
+review of 2026-10-26): partner approval with vehicle verification added; the
+staff "create" endpoints removed; open questions 1, 2, 4, 7, 8, 10, 11 and 12
+decided, 3 and 9 partly. See [Changes](#changes).
 
 The fork's admin Customers, Riders, Service areas and Pricing screens run on
 mocks (`frontend/src/mocks/adminMock.ts`) and show "not connected yet" against
@@ -29,10 +36,12 @@ The fork functions `listCustomers` through `savePriceList` in
 
 | Fork function | In this contract |
 | --- | --- |
-| `listCustomers`, `getCustomer`, `createCustomer`, `addCustomerAddress` | [Customers](#customers) |
+| `listCustomers`, `getCustomer`, `addCustomerAddress` | [Customers](#customers) |
+| `createCustomer` | **Not proposed** (decided, @chidimmamogbo, 2026-10-26): a staff-created account has no way to sign in ([open question 2](#open-questions)). "+ New customer" stays "not connected" |
 | `verifyCustomerPhone` | **Not proposed**: FR-003 verification is by SMS code ([decision 4](#decisions-taken-in-18)) |
 | `adjustPoints` | **Not proposed**: points belong to #11 ([decision 3](#decisions-taken-in-18)) |
-| `listRiders`, `getRider`, `setRiderApproval`, `addRider` | [Drivers](#drivers) |
+| `listRiders`, `getRider`, `setRiderApproval` | [Drivers](#drivers) |
+| `addRider` | **Not proposed** (decided, @chidimmamogbo, 2026-10-26): partners sign themselves up ([partners.md](partners.md#post-authpartner-register), #14), a staff-created account has no way to sign in ([open question 2](#open-questions)), and [auth.md](auth.md) keeps staff accounts on the command-line tool. "+ Add rider" stays "not connected" |
 | `listStations`, `setStationOpen`, `saveStation`, `uploadStationPapers` | **Not proposed**: sources stay on the command-line tool ([decision 5](#decisions-taken-in-18)) |
 | `listAreas`, `saveArea` | [Service zones](#service-zones) (built in #30) |
 | `listPriceLists`, `savePriceList` | [Price lists](#price-lists) |
@@ -48,8 +57,9 @@ connected yet" in real-API mode.
 | `frontend/src/domain/admin.ts` | `AdminCustomer`, `AdminRider`, `ServiceArea`, `PriceList` and the input types |
 | [handoff-v1.md](../design/handoff-v1.md) | Decisions 9, 10, 10a, 10b, 11c, 16 |
 | SRS v0.3 | FR-001 to FR-004, FR-010 to FR-013, FR-020 to FR-024, FR-031, FR-042, BR-01, BR-09, §5 data model, §12, NFR-004 |
-| [order-details-and-price.md](https://github.com/chidimmamogbo/mmirioma/pull/28) (#10, PR #28, proposed) | Decided there: FR-022 pricing only, "the admin Pricing screen is redesigned around FR-022 rates in #18"; one fixed pilot category |
+| [order-details-and-price.md](order-details-and-price.md) (#10) | Decided there: FR-022 pricing only, "the admin Pricing screen is redesigned around FR-022 rates in #18"; one fixed pilot category |
 | [auth.md](auth.md), [deliveries.md](deliveries.md#admin-dispatch-endpoints), [water-sources.md](../features/water-sources.md) | Existing accounts, driver profiles, vehicle profiles, eligibility, audit |
+| [partners.md](partners.md) (#14, agreed) | Approval status, the declared vehicle, the verified safe payload and transfer methods set at approval |
 
 ## Decisions taken in #18
 
@@ -62,19 +72,22 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
    builds them (comment on #30, 2026-10-26).
 3. **Rider pay and points are not proposed.** The SRS has no rule for either;
    design decision 16 calls them "SAMPLE mocks; may be kept or removed later".
-   Customer points stay with #11 ([open question 10](#open-questions)); rider
-   pay is [open question 11](#open-questions).
+   Both are out of the MVP ([open questions 10 and 11](#open-questions),
+   decided).
 4. **No staff phone verification.** FR-003 phone verification by SMS code is
    built (Termii, [auth.md](auth.md#phone-verification-fr-003-fr-004)). A
-   customer created by staff starts unverified and verifies by SMS code before
-   their first order. Whether staff may send that code for a caller is
-   [open question 3](#open-questions).
+   customer verifies by SMS code before their first order. If SMS fails,
+   FR-003 allows a documented manual verification by a dispatcher; whether
+   the app gets a screen for it is [open question 3](#open-questions).
 5. **No admin endpoints for water sources.** Sources (the design's "refill
    stations") stay on the command-line tool (pilot fallback F1,
    [water-sources.md](../features/water-sources.md)).
-6. **Driver approval follows FR-002**: an admin activates or deactivates a
-   partner account (`users.is_active`). The design's `pending` state is
-   [open question 7](#open-questions), with #14 (partner sign-up).
+6. **Driver approval follows [partners.md](partners.md#approval-status)**
+   (revised for #43): the design's approval maps to `approval_status`
+   (`pending`, `approved`, `suspended`), set with
+   [`POST /admin/drivers/{id}/approval`](#post-admindriversidapproval).
+   Activation (`users.is_active`, FR-002) stays a separate endpoint
+   ([open question 7](#open-questions), decided).
 7. **Saved addresses are proposed here** for the admin side, following the SRS
    §5 `addresses` entity (with a zone, from this contract). #11 should reuse
    the same address shape for the customer side.
@@ -94,6 +107,9 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
   to contact and address information is restricted to admins).
 
 ## Customers
+
+**Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
+#43).
 
 ### Objects
 
@@ -162,7 +178,7 @@ yet (#22). The mock's `email` has no column; it stays out until #11 adds one.
 
 | Field | Rule |
 | --- | --- |
-| `label` | Trimmed, 2-50 characters. Design field ("Home", "Shop") |
+| `label` | Trimmed, 1-50 characters, the same as [customer-account.md](customer-account.md) since both write `customer_addresses` (#48 review). Design field ("Home", "Shop") |
 | `address` | Trimmed, 5-500 characters, free text, as `delivery_address` in [orders.md](orders.md#order-object) |
 | `landmark` | Optional, up to 200 characters, as in orders.md |
 | `zone` | The service zone the address is in (SRS §5 `addresses.zone_id`, FR-020). `is_active` is read live; an address in an inactive zone stays saved, but orders to it are refused (FR-010) |
@@ -174,7 +190,6 @@ yet (#22). The mock's `email` has no column; it stays out until #11 adds one.
 | --- | --- | --- | --- | --- |
 | GET | `/admin/customers` | `q`, `limit`, `offset` | 200 `AdminCustomerPage` | 422 `validation_error` |
 | GET | `/admin/customers/{id}` | none | 200 `AdminCustomer` | 404 `customer_not_found` |
-| POST | `/admin/customers` | `CustomerCreate` | 201 `AdminCustomer` | 409 `phone_already_registered`, 422 `validation_error` |
 | POST | `/admin/customers/{id}/addresses` | `AddressCreate` | 201 `AdminCustomer` | 404 `customer_not_found`, 404 `service_zone_not_found`, 422 `validation_error` |
 
 All endpoints also return the shared 401, 403 and 422 errors from the
@@ -198,40 +213,19 @@ Accounts with role `customer`, newest first.
 `total` counts the customers matching `q`. `ordered_last_7_days` counts every
 customer (not only the matches) with at least one real order created in the
 last 7 × 24 hours; simulated orders are left out (BR-09). The mock calls it
-`ordered_this_week`; whether the screen means a calendar week is
-[open question 4](#open-questions).
+`ordered_this_week`; it means the last 7 days, not the calendar week
+([open question 4](#open-questions), decided).
 
 #### GET /admin/customers/{id}
 
 An id that is not a customer account is 404 `customer_not_found`, so staff
 pages cannot read drivers or admins through it.
 
-#### POST /admin/customers
-
-Creates a customer account for someone who phoned in (design `a-create`
-"+ New customer"). `CustomerCreate`:
-
-```json
-{ "name": "Sample Customer", "phone": "08000000001" }
-```
-
-| Field | Rule |
-| --- | --- |
-| `name` | Trimmed, 1-100 characters, as registration ([auth.md](auth.md#behavior-notes)) |
-| `phone` | A Nigerian mobile, normalized to E.164 by the server ([auth.md](auth.md#identifier-and-password-rules)) |
-
-- The account has role `customer`, `is_active: true` and **no verified
-  phone**: it must verify by SMS code before its first order (FR-003,
-  decision 4).
-- It has no usable password. How the customer signs in later is
-  [open question 2](#open-questions); until it is decided the account can
-  only be ordered for by staff, if [open question 3](#open-questions) allows it.
-- A phone that already has an account is 409 `phone_already_registered`
-  (as registration).
-
 #### POST /admin/customers/{id}/addresses
 
-Saves an address on the customer (design `a-create` "+ Add address").
+Saves an address on an existing customer (design `a-create` "+ Add
+address"). Staff do not create customer accounts (see
+[What this covers](#what-this-covers)).
 `AddressCreate`:
 
 ```json
@@ -259,6 +253,9 @@ The design says "rider" (Keke) and "driver" (Tanker), together "partner"; the
 server role is `driver` for both ([api-mapping.md](../architecture/api-mapping.md#names)).
 Paths use `drivers`.
 
+**Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
+#43).
+
 ### Objects
 
 `AdminDriver`:
@@ -268,13 +265,18 @@ Paths use `drivers`.
   "id": "7d1f4e8a-b6c9-4a1b-9c3d-4e5f0b8f1c5e",
   "name": "Sample Driver One",
   "phone": "+2348000000011",
+  "phone_verified": true,
   "is_active": true,
+  "approval_status": "approved",
   "is_available": true,
   "vehicle": {
-    "id": "3a4b5c6d-7e8f-4a0b-9c1d-2e3f4a5b6c7d",
-    "type": "Tanker truck",
     "delivery_type": "tanker",
-    "safe_payload_litres": 12000
+    "plate": "ENU-456-CD",
+    "description": "Tanker truck",
+    "declared_capacity_gallons": 3000,
+    "declared_capacity_litres": 12000,
+    "safe_payload_litres": 12000,
+    "transfer_methods": ["ground", "overhead"]
   },
   "zones": [ { "id": "9e8d7c6b-5a4f-4e3d-2c1b-0a9f8e7d6c5b", "name": "Independence Layout" } ],
   "live_jobs": 1,
@@ -285,27 +287,31 @@ Paths use `drivers`.
 
 | Field | Rule |
 | --- | --- |
-| `is_active` | `users.is_active`: the account may sign in and be assigned work (FR-002, FR-031) |
-| `is_available` | `driver_profiles.is_available`: can take new work now (FR-031 availability). The design's "Online". Set by the driver (#14) or the command-line tool, not here |
-| `vehicle` | The driver's vehicle profile (FR-013), or `null` if the driver has no profile. `delivery_type` is new (`"keke"` or `"tanker"`, [Data needed](#data-needed)); it picks the design's word and app (design decision 9). `safe_payload_litres` is the verified safe payload per trip; the design shows a tanker's as gallons (÷ 4, [api-mapping.md](../architecture/api-mapping.md#quantities)) |
+| `phone_verified` | `users.phone_verified_at` is set (FR-003). Must be `true` before approval ([partners.md](partners.md#approval-status), decision 9) |
+| `is_active` | `users.is_active`: the account may sign in (FR-002). A deactivated account cannot sign in at all |
+| `approval_status` | `pending`, `approved` or `suspended` ([partners.md](partners.md#approval-status)): only an `approved` partner can go online or be offered jobs (FR-031 eligibility, `not_approved`). Clients must not fail on a value they do not know |
+| `is_available` | `driver_profiles.is_available`: can take new work now (FR-031 availability). The design's "Online". Set by the driver ([partners.md](partners.md#put-driveravailability)) or the command-line tool, and set to `false` when the partner is suspended; never set to `true` here |
+| `vehicle` | The same object as `vehicle` in the [partner profile](partners.md#partner-object-partnerprofileread), so both sides read one record. The **declared** fields (`delivery_type`, `plate`, `declared_capacity_gallons`, `declared_capacity_litres`) are what the partner typed at sign-up; `delivery_type` and `plate` are `null` for drivers created with the command-line tool before sign-up asked for them. The **verified** fields (`description`, `safe_payload_litres`, `transfer_methods`) are set by an admin at [approval](#post-admindriversidapproval) (FR-013); `description` and `safe_payload_litres` are `null`, and `transfer_methods` empty, until then. The design shows a tanker's payload as gallons (÷ 4, [api-mapping.md](../architecture/api-mapping.md#quantities)) |
 | `zones` | The service zones the driver serves (FR-031 "service area"), by name |
 | `live_jobs` | The driver's assignments with status `offered` or `accepted` ([deliveries.md](deliveries.md#assignment-statuses-built-in-s1-07)). The design's "active orders" |
 | `completed_jobs` | Assignments with status `completed`. The design's "trips" |
 | `created_at` | The design's "Partner since" |
 
 Not in `AdminDriver`, because the SRS has no rule or the backend no record
-for them: `code` (fleet code), `vehicle.plate`, `rating`,
-`today_minor_units`, `payout_due_minor_units`, `documents_note`,
-`reported_issues` ([open questions 8, 9 and 11](#open-questions)).
+for them: `code` (fleet code, [open question 9](#open-questions)), `rating`,
+`today_minor_units` and `payout_due_minor_units` (partner pay is out of the
+MVP, [open question 11](#open-questions)), `documents_note` (documents are
+checked in person, [partners.md](partners.md#open-questions) decision 6) and
+`reported_issues` (no support tickets for partners yet).
 
 ### Endpoints
 
 | Method | Path | Request | Success | Errors |
 | --- | --- | --- | --- | --- |
-| GET | `/admin/drivers` | `delivery_type`, `is_active`, `q`, `limit`, `offset` | 200 `AdminDriverPage` | 422 `validation_error` |
+| GET | `/admin/drivers` | `delivery_type`, `approval_status`, `is_active`, `q`, `limit`, `offset` | 200 `AdminDriverPage` | 422 `validation_error` |
 | GET | `/admin/drivers/{id}` | none | 200 `AdminDriver` | 404 `driver_not_found` |
-| POST | `/admin/drivers` | `DriverCreate` | 201 `AdminDriver` | 404 `service_zone_not_found`, 409 `phone_already_registered`, 422 `validation_error` |
-| POST | `/admin/drivers/{id}/activation` | `ActivationChange` | 200 `AdminDriver` | 404 `driver_not_found`, 422 `validation_error` |
+| POST | `/admin/drivers/{id}/approval` | `ApprovalChange` | 200 `AdminDriver` | 404 `driver_not_found`, 409 `driver_inactive`, 409 `partner_phone_not_verified`, 409 `driver_has_accepted_job`, 422 `validation_error` |
+| POST | `/admin/drivers/{id}/activation` | `ActivationChange` | 200 `AdminDriver` | 404 `driver_not_found`, 409 `driver_has_accepted_job`, 422 `validation_error` |
 
 All endpoints also return the shared 401, 403 and 422 errors from the
 [README](README.md#errors).
@@ -317,7 +323,8 @@ Accounts with role `driver`, by name.
 | Query | Rule |
 | --- | --- |
 | `delivery_type` | Optional, `keke` or `tanker` (design pills "Keke", "Tanker") |
-| `is_active` | Optional boolean. `false` is the design's "Suspended" pill |
+| `approval_status` | Optional, `pending`, `approved` or `suspended` (design pills "Pending", "Suspended") |
+| `is_active` | Optional boolean. `false` lists deactivated accounts (FR-002) |
 | `q` | As for customers, also matching the vehicle type |
 | `limit`, `offset` | [Pagination](README.md#pagination) |
 
@@ -327,49 +334,84 @@ the filters, for the pills and the header:
 ```json
 {
   "items": [], "total": 0, "limit": 50, "offset": 0,
-  "counts": { "all": 0, "keke": 0, "tanker": 0, "inactive": 0, "available": 0 }
+  "counts": { "all": 0, "keke": 0, "tanker": 0, "pending": 0, "inactive": 0, "available": 0 }
 }
 ```
 
-The design's "Pending" pill and count have no source until
-[open question 7](#open-questions) is settled.
+`pending` counts active accounts with `approval_status` `pending`: the
+design's "Pending" pill and the partners waiting for approval.
 
-#### POST /admin/drivers
+#### POST /admin/drivers/{id}/approval
 
-Adds a Keke rider or tanker driver from the office (design "+ Add rider").
-`auth.md` says staff accounts are created only with the command-line tool;
-this endpoint changes that for drivers and needs the reviewers' agreement.
-`DriverCreate`:
+Approves or suspends a partner ([partners.md](partners.md#approval-status);
+design "Approve" and "Suspend"). Approving is also when the admin records the
+vehicle they checked in person (FR-013). `ApprovalChange`:
 
 ```json
 {
-  "name": "Sample Driver Three",
-  "phone": "08000000013",
-  "delivery_type": "tanker",
-  "tank_capacity_local_gallons": 3000,
-  "zone_ids": ["9e8d7c6b-5a4f-4e3d-2c1b-0a9f8e7d6c5b"]
+  "approval_status": "approved",
+  "reason": null,
+  "vehicle": {
+    "description": "Tanker truck",
+    "safe_payload_litres": 12000,
+    "transfer_methods": ["ground", "overhead"]
+  }
 }
 ```
 
 | Field | Rule |
 | --- | --- |
-| `name` | Trimmed, 1-100 characters |
-| `phone` | Nigerian mobile, normalized to E.164 |
-| `delivery_type` | `keke` or `tanker` |
-| `tank_capacity_local_gallons` | Tanker only (required), integer 500-20,000 (handoff answer 11c, `frontend/src/domain/tankCapacity.ts`). The server stores `safe_payload_litres` = gallons × 4 (FR-021, #21 scope). `null` or absent for Keke |
-| `zone_ids` | At least one existing service zone (FR-031). An unknown id is 404 `service_zone_not_found` |
+| `approval_status` | `approved` or `suspended`. A partner never goes back to `pending`: it is only the state after sign-up |
+| `reason` | Trimmed. Required, 5-500 characters, to suspend (NFR-004 audit, as deactivation). Optional, up to 500, to approve |
+| `vehicle` | The vehicle the admin verified (FR-013). **Required** to approve a partner who has no verified vehicle yet; optional otherwise, and then it replaces the verified fields. Not allowed with `suspended` (422) |
+| `vehicle.description` | Trimmed, 1-50 characters: the vehicle profile's `vehicle_type` text, for example "Tanker truck" or "Tricycle with 1,000 L tank" |
+| `vehicle.safe_payload_litres` | Integer, 1 to 100,000: the **verified** safe payload per trip (FR-013, BR-03). The admin measures or checks it; the declared capacity is shown next to it as a claim only ([partners.md](partners.md#capacity-declared-and-verified)). The same field for Keke and tanker, so a Keke's payload is entered the same way ([open question 8](#open-questions), decided) |
+| `vehicle.transfer_methods` | List of `ground` and `overhead`, each at most once (FR-013 transfer method; [partners.md](partners.md#open-questions) decision 4). May be empty |
 
-- The account has role `driver`, a driver profile with a new vehicle profile
-  (`vehicle_type` "Keke" or "Tanker truck", the `delivery_type`, the safe
-  payload) and the zones.
-- The staff member who saves the form confirms the capacity was checked:
-  FR-013 needs a **verified** safe payload, and the app cannot verify it.
-- How a Keke's safe payload is set is [open question 8](#open-questions);
-  until then a Keke is created with no vehicle profile (`vehicle: null`) and
-  dispatch lists it with `no_driver_profile`.
-- It starts **inactive** (`is_active: false`) until an admin activates it,
-  so no work is offered before the checks in [open question 7](#open-questions).
-- It has no usable password ([open question 2](#open-questions)).
+**Approve** (`approved`):
+
+- The account must be active (`is_active: true`), else 409
+  `driver_inactive`: approval status only applies to active accounts
+  ([partners.md](partners.md#approval-status)).
+- The partner's phone must be verified (`phone_verified: true`, FR-003), else
+  409 `partner_phone_not_verified` ([partners.md](partners.md#open-questions)
+  decision 9; requested in the #47 review).
+- The admin has checked the vehicle, its plate and papers in person
+  ([partners.md](partners.md#open-questions) decisions 3 and 6). With
+  `vehicle`, the server creates a vehicle profile (or updates the linked one)
+  with the description and verified payload, links it to the driver profile,
+  and stores the transfer methods on the driver profile. The declared
+  capacity and plate are not changed.
+- Availability is not changed: the partner goes online themselves.
+- Approving a `suspended` partner who already has a verified vehicle needs no
+  `vehicle`.
+
+**Suspend** (`suspended`):
+
+- Sets `is_available = false` ([partners.md](partners.md#approval-status)),
+  so the partner drops out of dispatch at once.
+- A live `offered` assignment is withdrawn as in
+  [withdraw](deliveries.md#post-adminordersreferencewithdraw) (the order
+  returns to `confirmed`, reason `reassigned`). While the partner holds an
+  `accepted` job, suspension is refused with 409 `driver_has_accepted_job`,
+  the same rule as deactivation ([open question 12](#open-questions)).
+- The account can still sign in; to block sign-in, deactivate it
+  ([activation](#post-admindriversidactivation)).
+
+Examples: [approve](examples/admin-driver-approval-request.json),
+[suspend](examples/admin-driver-suspension-request.json),
+[unverified phone](examples/error-partner-phone-not-verified.json).
+
+**Both:**
+
+- Asking for the state the partner is already in, with no `vehicle`,
+  returns 200 with the partner unchanged and writes no audit row.
+- Every change writes one audit row (NFR-004): `driver_approved` or
+  `driver_suspended`, with the reason, and with `vehicle_profile_id`,
+  `safe_payload_litres` and `transfer_methods` when a vehicle was recorded.
+  No phone or plate in `details`.
+- The partner sees the change in their notifications (`account`,
+  [partners.md](partners.md#notifications)).
 
 #### POST /admin/drivers/{id}/activation
 
@@ -388,12 +430,15 @@ Activates or deactivates a partner account (FR-002). `ActivationChange`:
   ([auth.md](auth.md#roles)). It cannot see future job data (FR-002), so a live
   `offered` assignment is withdrawn as in
   [withdraw](deliveries.md#post-adminordersreferencewithdraw) (the order
-  returns to `confirmed`, reason `reassigned`). What happens to an
-  `accepted` job is [open question 12](#open-questions); until it is
-  decided, deactivation is refused with 409 `driver_has_accepted_job` while
-  the driver holds one.
-- **Activate:** the driver can sign in and be offered work again. Their
-  availability is unchanged.
+  returns to `confirmed`, reason `reassigned`). Deactivation is refused with
+  409 `driver_has_accepted_job` while the driver holds an `accepted` job
+  ([open question 12](#open-questions), decided): the job ends first.
+- **Activate:** the driver can sign in again. Their availability and
+  approval status are unchanged, so only an `approved` partner can be offered
+  work.
+- Activation is separate from [approval](#post-admindriversidapproval):
+  activation is account access (FR-002), approval is whether the partner may
+  work ([partners.md](partners.md#approval-status)).
 - Asking for the state the driver is already in returns 200 with the driver
   unchanged and writes no audit row.
 
@@ -696,8 +741,9 @@ Not in the price list, with the reason:
 | 404 | `service_zone_not_found` | Unknown zone id, in a path or a body |
 | 404 | `water_category_not_found` | Unknown category id in a price rule or a zone fee |
 | 404 | `price_list_not_found` | No price list saved yet |
-| 409 | `phone_already_registered` | The phone has an account (already used by auth) |
-| 409 | `driver_has_accepted_job` | Deactivating a driver who holds an accepted job ([open question 12](#open-questions)) |
+| 409 | `driver_has_accepted_job` | Deactivating or suspending a driver who holds an accepted job ([open question 12](#open-questions)) |
+| 409 | `driver_inactive` | Approving or suspending a deactivated account |
+| 409 | `partner_phone_not_verified` | Approving a partner whose phone is not verified (FR-003, [partners.md](partners.md#approval-status)) |
 | 409 | `service_zone_name_taken` | Another zone has this name, ignoring case |
 | 409 | `price_list_changed` | `base_version` is not the current version |
 | 409 | `price_list_unchanged` | The rules equal the current version's |
@@ -717,9 +763,12 @@ For the link issues that follow; the adapters convert with these rules.
 | `Address` | `addresses[]` | `zone` dropped until the screen shows it |
 | `recent_orders[].quantity_litres` + `delivery_type` | `recent_orders[].quantity` | Formatted with the quantity rules in [api-mapping.md](../architecture/api-mapping.md#quantities) |
 | `recent_orders[].status` | `AdminOrderStatus` | [api-mapping.md](../architecture/api-mapping.md#admin-order-status) |
-| `AdminDriver.is_active` | `approval` | `true` → `approved`, `false` → `suspended`; `pending` has no source ([open question 7](#open-questions)) |
+| `AdminDriver.approval_status` | `approval` | Same value (`pending`, `approved`, `suspended`) |
+| `AdminDriver.is_active` | none yet | Deactivated accounts have no design state; the link issue shows them as the error or empty state, never as "suspended" |
 | `is_available` | `online` | Same value |
-| `vehicle.delivery_type`, `vehicle.safe_payload_litres` | `vehicle.type`, `vehicle.tank_gallons` | Tanker gallons = litres ÷ 4; Keke `null` |
+| `vehicle.delivery_type`, `vehicle.safe_payload_litres` | `vehicle.type`, `vehicle.tank_gallons` | Tanker gallons = verified litres ÷ 4; `null` until approval; Keke `null` |
+| `vehicle.plate` | `vehicle.plate` | Same value; empty text when `null` (drivers created with the command-line tool before sign-up) |
+| `ApprovalChange` | `setRiderApproval` input | `approved` and `suspended` only; the approve form adds the verified vehicle (a screen change, G2, in the link issue) |
 | `zones[].name` | `service_areas` | Names |
 | `live_jobs`, `completed_jobs`, `created_at` | `active_orders`, `trips`, `partner_since` | Same values |
 | `ServiceZone.is_active` | `ServiceArea.enabled` | Same value |
@@ -741,32 +790,36 @@ migration):
   a partial unique index). The SRS lists latitude and longitude as optional;
   they are left out until a screen collects them.
 - `driver_service_zones`: `driver_profile_id`, `zone_id`, unique together.
-- `vehicle_profiles.delivery_type`: `keke` or `tanker`, nullable for
-  existing rows.
+- `delivery_type`, `approval_status`, `plate`, `declared_capacity_gallons`,
+  `transfer_methods` and a nullable `vehicle_profile_id`: on
+  `driver_profiles`, already built with partner sign-up (#14), since every
+  driver has a profile and a pending partner has no vehicle profile. No new
+  column for approval. Whether `delivery_type` should also move to
+  `vehicle_profiles` is for @nnamdi-security to decide with #45.
 - `price_list_versions` (`version` unique, `effective_from`, `created_by`,
   `reason`) and `price_rules` (one row per rule, foreign key to its version;
   zone and category foreign keys nullable; amounts `BigInteger` kobo; margin
   type and value).
-- Audit actions (NFR-004): `customer_created`, `customer_address_added`,
-  `driver_created`, `driver_activated`, `driver_deactivated`,
+- Audit actions (NFR-004): `customer_address_added`, `driver_approved`,
+  `driver_suspended`, `driver_activated`, `driver_deactivated`,
   `service_zone_created`, `service_zone_updated`, `price_list_saved`.
 
 ## Open questions
 
 | # | Question | Source of the gap |
 | --- | --- | --- |
-| 1 | Which issue builds these endpoints? **Zones: #30**, **price lists: #37** (lane E). Customers and drivers still need build issues | Process |
-| 2 | How does a customer or driver created by staff sign in? There is no password reset or invite in the backend; `auth.md` says staff accounts come from the command-line tool | Mock says "Forgot password" later; no SRS rule |
-| 3 | May staff send the FR-003 SMS code to a customer who phoned in, and enter the code the customer reads back? Or must the customer verify in the app? | FR-003 says the customer verifies possession; silent on staff help. `auth.md` "Planned" lists a dispatcher fallback needing a written procedure |
-| 4 | Does "ordered this week" mean the last 7 days or the calendar week (Monday to Sunday, Lagos)? | Design wording |
+| 1 | ~~Which issue builds these endpoints?~~ **Decided**: zones #30, price lists #37 (lane E), the Pricing screen design #44, and the customers and drivers build #45 (blocked on #43) | Process |
+| 2 | ~~How does a customer or driver created by staff sign in?~~ **Decided** (@chidimmamogbo, 2026-10-26): staff do not create accounts in the MVP. `POST /admin/customers` and `POST /admin/drivers` are removed; customers register themselves ([auth.md](auth.md)), partners sign up ([partners.md](partners.md#post-authpartner-register)), and "+ New customer" and "+ Add rider" stay "not connected" ([What this covers](#what-this-covers)) | Mock says "Forgot password" later; no SRS rule |
+| 3 | **Partly answered by FR-003:** if SMS fails, a dispatcher-controlled, documented manual verification MAY be used. It must be recorded in the audit log with the verifying staff member, and never presented as automated. **Still open:** whether the app gets a screen and endpoint for it, or it stays a written procedure with the command-line tool | FR-003; `auth.md` "Planned" lists a dispatcher fallback needing a written procedure |
+| 4 | ~~Does "ordered this week" mean the last 7 days or the calendar week?~~ **Decided** (@chidimmamogbo, 2026-10-26): the last 7 days, as proposed (`ordered_last_7_days`) | Design wording |
 | 5 | ~~The Service areas screen has no coordinates field, but FR-010 requires coordinates. Is entering latitude and longitude acceptable, or does the screen need a map?~~ **Decided** (@nnamdi-security, 2026-10-26): `centre` stays required and the admin types latitude and longitude; only the normal ranges are checked | FR-010, decision 10a |
 | 6 | ~~How is a typed address matched to a zone without a map pin (FR-020)?~~ **Decided** (@nnamdi-security, 2026-10-26): the customer picks it from `GET /service-zones` (FR-020: the customer submits the zone); staff pick it for addresses they record; no geocoding | FR-020, #30 scope |
-| 7 | Do new partners need a `pending` state (papers checked before first activation), beyond FR-002's active and inactive? Settle with #14 (partner sign-up and documents) | Design `approval`, FR-002, FR-012 is about sources not partners |
-| 8 | How is a Keke's verified safe payload entered (the design asks only tankers for a capacity)? Settings shows `[SAFE LOAD]` per vehicle type | FR-013, design Settings |
-| 9 | Are a plate number and a fleet code (`KK-014`) part of the driver record? The SRS lists neither | Design fields |
-| 10 | Do customer points exist at all? If yes, their rules (earning, welcome bonus, redemption, rounding) and staff adjustments. Settle in #11 | Design decision 16; no SRS rule |
-| 11 | Is rider and driver pay a price-list rate, a recorded per-order labour or transport cost (FR-042), or out of the MVP? Today's earnings and payout due depend on it (#22 payouts) | Design decision 16; FR-042 |
-| 12 | What happens to a job the driver already accepted when the driver is deactivated: withdrawn, finished first, or failed? Proposed: refuse deactivation until it ends | FR-002, deliveries.md rows 10-11 |
+| 7 | ~~Do new partners need a `pending` state, beyond FR-002's active and inactive?~~ **Decided** in [partners.md](partners.md#approval-status) (#47): `approval_status` `pending`, `approved` or `suspended`, separate from `is_active`. Applied here as [`POST /admin/drivers/{id}/approval`](#post-admindriversidapproval) | Design `approval`, FR-002 |
+| 8 | ~~How is a Keke's verified safe payload entered?~~ **Decided** (#43): the same way as a tanker's, by the admin at approval (`vehicle.safe_payload_litres`, FR-013). The partner never sets it | FR-013, design Settings |
+| 9 | Are a plate number and a fleet code (`KK-014`) part of the driver record? **Plate: decided**: the partner declares it at sign-up and the admin checks it at approval ([partners.md](partners.md#open-questions) decision 3); `AdminDriver.vehicle.plate`. **Fleet code: still open**; the SRS has no fleet code | Design fields |
+| 10 | ~~Do customer points exist at all?~~ **Decided** (@chidimmamogbo, 2026-10-26): out of the MVP, as in the #14 answers. `adjustPoints` stays not proposed | Design decision 16; no SRS rule |
+| 11 | ~~Is rider and driver pay part of the MVP?~~ **Decided** (@chidimmamogbo, 2026-10-26): out of the MVP ([partners.md](partners.md#open-questions) decision 7). Today's earnings and payout due stay "Sample" | Design decision 16; FR-042 |
+| 12 | ~~What happens to a job the driver already accepted when the driver is deactivated?~~ **Decided** (@chidimmamogbo, 2026-10-26): deactivation is refused with 409 `driver_has_accepted_job` until the job ends, as proposed. #43 applies the same rule to suspension, so a suspended partner is never left holding a job | FR-002, deliveries.md rows 10-11 |
 | 13 | ~~Is a zone's fallback rate per order or per trip, and does it differ by water category or vehicle type?~~ **Decided** (@nnamdi-security, 2026-10-26): one fee per zone and water category, **per order**; not by vehicle type | FR-010, FR-022 |
 | 14 | ~~May an admin-entered road distance per zone (decision 10a) stand in for OSRM?~~ **Decided** (@nnamdi-security, 2026-10-26): no. The zone fee is the fallback; `distance_km` and `station_id` are dropped | FR-022, SRS §12.1 |
 | 15 | ~~What does FR-010's zone "eligibility" hold?~~ **Decided** (@nnamdi-security, 2026-10-26): no separate field; in the pilot a zone delivers a category when it has a fee for it. Revisit with OSRM. SRS §5's "default pricing zone" is not stored either: a `zone_id: null` price rule does that job | FR-010 wording |
@@ -779,6 +832,7 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | @nnamdi-security (technical lead, G3), PR #146 |
 | 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | `GET /service-zones` needs no session (any caller), for partner sign-up ([partners.md](partners.md) open question 2) | @nnamdi-security (technical lead) |
