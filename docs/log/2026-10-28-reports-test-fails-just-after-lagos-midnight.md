@@ -15,5 +15,5 @@
   test's times from the start of the Lagos day (for example noon Lagos today)
   instead of `datetime.now(UTC)` minus an offset. Not changed here: the test
   belongs to #102 (reports).
-- **Status:** open
+- **Status:** resolved by #140 (@nnamdi-security): the test now dates its rows inside the Lagos day.
 - **Refs:** #102, #136 (found while running the full suite)

@@ -16,6 +16,7 @@ import { getAdminOrderDetail, getOrderHistory, type AdminOrderDetail, type Admin
 import { listAdminOrders, type AdminOrderRead, type AdminOrderStatus as BackendStatus } from '../../../lib/api/adminOrders'
 import type { OrderList } from '../../../mocks/adminMock'
 import { choiceFromRead } from '../../customer/real/order'
+import { confirmationLine } from '../confirm/logic'
 
 const STATUS_BY_BACKEND: Record<BackendStatus, AdminOrderStatus> = {
   // Not confirmed yet, so no rider can be assigned (admin-confirm-order.md, decision 3).
@@ -209,11 +210,15 @@ function assignmentLine(event: AdminOrderEvent): string | null {
 }
 
 /**
- * The order's timeline: "Order placed", then its assignment events, oldest
- * first (the history comes newest first). An event's note is its detail.
+ * The order's timeline: "Order placed", then its confirmation (#136, design
+ * Q5) and assignment events, oldest first (the history comes newest first).
+ * An assignment event's note is its detail; a confirmation line carries its
+ * own (category, source, window, price, who, note).
  */
 export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
   const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
+    const confirmation = confirmationLine(event)
+    if (confirmation) return [{ label: confirmation.label, at: event.created_at, detail: confirmation.detail }]
     const label = assignmentLine(event)
     return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
   })

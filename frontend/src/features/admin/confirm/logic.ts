@@ -14,7 +14,7 @@ import { missingRequirements, type CategoryOptions, type ConfirmationRequirement
 import type { AdminOrderDetail, AdminOrderEvent } from '../../../lib/api/adminDispatch'
 import { ApiError } from '../../../lib/api/client'
 import { formatDayDate, formatTime } from '../../../lib/format/datetime'
-import { nairaInputToKobo } from '../../../lib/format/money'
+import { formatNaira, nairaInputToKobo } from '../../../lib/format/money'
 
 export type ConfirmKind = 'server' | 'manual'
 
@@ -168,48 +168,25 @@ export function buildConfirmRequest(form: ConfirmForm, kind: ConfirmKind): Confi
   return request
 }
 
-/** One line of the confirmation history (design Q5). */
-export interface HistoryLine {
-  label: string
-  at: string
-  /** Who did it, when staff did. */
-  by: string | null
-  detail: string | null
-  note: string | null
-}
-
 /**
- * The confirmation history (design Q5), oldest first: "Order placed", then
- * for a price request "Awaiting confirmation" (row 26, "Manual price agreed
- * with the customer"), then "Confirmed" with the confirmation line. Other
- * events are left out here: the order timeline owns them (#16).
- *
- * @param formatWindow - Formats the confirmed window for the line.
+ * The timeline line for a confirmation event (design Q5), or `null` for any
+ * other event: "Awaiting confirmation" for a price request's manual price
+ * (row 26), and "Confirmed" with category, source, window and price (row 7),
+ * plus its note. A priced order has no row 26, so it shows "Confirmed" only.
  */
-export function confirmationHistory(
-  createdAt: string,
-  events: AdminOrderEvent[],
-  formatWindow: (start: string, end: string) => string,
-  formatMoney: (kobo: number) => string,
-): HistoryLine[] {
-  const lines: HistoryLine[] = [{ label: 'Order placed', at: createdAt, by: null, detail: null, note: null }]
-  for (const e of [...events].reverse()) {
-    if (e.kind !== 'status_change') continue
-    if (e.reason_code === 'manual_quote' && e.to_status === 'awaiting_confirmation') {
-      lines.push({ label: 'Awaiting confirmation', at: e.created_at, by: e.actor?.name ?? null, detail: 'Manual price agreed with the customer', note: null })
-    } else if (e.to_status === 'confirmed' && e.confirmation) {
-      const c = e.confirmation
-      const price = `${KIND_CHIP[c.manual ? 'manual' : 'server']} ${formatMoney(c.total_minor_units)}`
-      lines.push({
-        label: 'Confirmed',
-        at: e.created_at,
-        by: e.actor?.name ?? null,
-        detail: [c.water_category_label, c.source_name, formatWindow(c.delivery_window.start_at, c.delivery_window.end_at), price].join(' · '),
-        note: e.note,
-      })
-    }
+export function confirmationLine(event: AdminOrderEvent): { label: string; detail: string } | null {
+  if (event.kind !== 'status_change') return null
+  const by = event.actor?.name
+  if (event.reason_code === 'manual_quote' && event.to_status === 'awaiting_confirmation') {
+    return { label: 'Awaiting confirmation', detail: ['Manual price agreed with the customer', by].filter(Boolean).join(' · ') }
   }
-  return lines
+  if (event.to_status === 'confirmed' && event.confirmation) {
+    const c = event.confirmation
+    const price = `${KIND_CHIP[c.manual ? 'manual' : 'server']} ${formatNaira(c.total_minor_units)}`
+    const parts = [c.water_category_label, c.source_name, formatWindow(c.delivery_window.start_at, c.delivery_window.end_at), price, by, event.note]
+    return { label: 'Confirmed', detail: parts.filter(Boolean).join(' · ') }
+  }
+  return null
 }
 
 /** What the sheet shows after a refused or failed confirm (design Q3). */
