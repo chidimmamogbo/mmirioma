@@ -254,7 +254,9 @@ contract owner), without the cancellation SMS (see below). Proposed by
 is approved (G2, 2026-10-24,
 [customer-pilot-status.md](../design/customer-pilot-status.md)). The backend
 review by @chidimmamogbo and the customer UI review by @Cloudcrackamara are
-recorded on the build PR. Nothing here is built yet.
+recorded on the build PR. **Built** in #165 (PR #187): the backend sends
+all three fields and the customer app maps `price` and `water_category`
+(`delivery_window` is not shown yet, #188).
 
 What a pilot customer must see once a dispatcher confirms their order
 (FR-023, FR-037): the confirmed window, the agreed total and the water
@@ -345,6 +347,7 @@ happened.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-28 | **Built:** `delivery_window`, `price` and `water_category` on `OrderRead` (#165, PR #187). The contract is unchanged | @nnamdi-security (approved PR #187) |
 | 2026-10-28 | **Agreed:** [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | @nnamdi-security, technical lead (G3, PR #164) |
 | 2026-10-24 | **Agreed:** `OrderRead` gains `delivery_window`, `price` and `water_category` (additive; `null` until confirmed). The proposed customer cancellation SMS is dropped (F10). See [Customer pilot changes](#customer-pilot-changes-99) | Technical lead (G3); backend and customer UI reviews on the build PR |
 | 2026-10-22 | Proposed: the fields above and a customer cancellation SMS | Superseded by 2026-10-24 |
