@@ -135,7 +135,7 @@ export function TrackMapArt() {
       <path d="M0 82 H354 M232 0 V268 M110 0 V268 M0 176 H354" stroke="#FFFFFF" strokeWidth="10" />
       <path d="M0 236 L 354 30" stroke="#FBE7A1" strokeWidth="12" />
       <path d={route} fill="none" opacity=".25" stroke="#0B4FA8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="7" />
-      <path d={route} className="route-flow" fill="none" stroke="#1570D8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
+      <path d={route} fill="none" stroke="#1570D8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
       <circle cx="58" cy="236" fill="#fff" r="7" stroke="#1570D8" strokeWidth="4" />
     </svg>
   )

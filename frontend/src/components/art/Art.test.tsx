@@ -15,4 +15,11 @@ describe('customer map illustrations', () => {
     expect(container.querySelectorAll('text')).toHaveLength(0)
     expect(container.textContent).toBe('')
   })
+
+  /** No live tracking exists (PRD §9, FR-037): a moving dashed line reads as a vehicle in motion. */
+  it('TrackMapArt draws a still route', () => {
+    const { container } = render(<TrackMapArt />)
+    expect(container.querySelector('.route-flow')).toBeNull()
+    expect(container.querySelectorAll('path[stroke="#1570D8"]')).toHaveLength(1)
+  })
 })
