@@ -41,7 +41,7 @@ from app.modules.orders.models import (
     TankType,
     WaterSourcePreference,
 )
-from app.modules.orders.schemas import OrderRead
+from app.modules.orders.schemas import AdminOrderRead, OrderRead
 from app.modules.orders.service import NewOrder
 from app.modules.pricing import price_lists, quotes
 from app.modules.pricing import service as zones
@@ -472,6 +472,12 @@ def test_an_order_with_a_quote_awaits_confirmation_with_the_quote_frozen(
         assert read.quote is not None
         assert (read.quote.currency, read.quote.total_minor_units) == ("NGN", 880_000)
         assert read.quote.water_category.label == w.utility.label
+        # Amendment #72: staff get the category id to confirm with; customers never do.
+        assert "id" not in read.model_dump()["quote"]["water_category"]
+        admin_read = AdminOrderRead.from_order(order, w.customer, lookups=lookups)
+        assert admin_read.quote is not None
+        assert admin_read.quote.water_category.id == w.utility.id
+        assert admin_read.quote.total_minor_units == 880_000
 
         # T-06: a retry returns the original order, even once the quote expired.
         async with sessions() as session:

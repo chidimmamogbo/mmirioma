@@ -1763,9 +1763,11 @@ Additive, so the shipped dispatch history keeps working:
 **Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
 (technical lead, contract owner), on PR #132. Proposed by @Daveoski (+ Claude
 Code) for the confirm sheet of
-[#72](https://github.com/chidimmamogbo/mmirioma/issues/72) (prompt 14). Not
-built yet: it is built with the confirm screens' link issue. The rest of this
-section stays agreed as it is.
+[#72](https://github.com/chidimmamogbo/mmirioma/issues/72) (prompt 14).
+**Built** in [#136](https://github.com/chidimmamogbo/mmirioma/issues/136),
+part 1 (`AdminOrderQuoteRead` in `orders/schemas.py`, `SourceOptionRead.kind`
+in `confirmation/schemas.py`). The rest of this section stays agreed as it
+is.
 
 **Gap.** Confirming an order placed with a server quote must send the
 quote's `water_category_id`, and for a Tanker order a `source_id` of the
