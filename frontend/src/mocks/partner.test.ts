@@ -5,12 +5,14 @@ import { createOrder, getOrder } from './customerMock'
 import { resetMockDb } from './db'
 import {
   acceptJob,
+  completeUnloading,
   confirmPickup,
   declineJob,
   getEarnings,
   listAvailableJobs,
   listMyActiveJobs,
   partnerSignup,
+  resendCode,
   setOnline,
   verifyCode,
 } from './partnerMock'
@@ -90,6 +92,28 @@ describe('accept, decline, pickup, code', () => {
     await acceptJob(job.reference)
     await expect(confirmPickup(job.reference, { ...loaded, gallons_loaded: 600 })).rejects.toMatchObject({ code: 'load_not_confirmed' })
     expect((await confirmPickup(job.reference, { ...loaded, gallons_loaded: 750 })).stage).toBe('collected')
+  })
+
+  it('issues the code only once unloading is done (#13)', async () => {
+    await mockLogin(RIDER)
+    const [job] = await listAvailableJobs()
+    await acceptJob(job.reference)
+    const collected = await confirmPickup(job.reference, loaded)
+    expect([collected.code_tries_left, collected.demo_code]).toEqual([null, undefined])
+    await expect(verifyCode(job.reference, '000000')).rejects.toMatchObject({ code: 'transition_requirements_unmet', details: { missing: ['unloading_confirmed'] } })
+    await expect(resendCode(job.reference)).rejects.toMatchObject({ code: 'transition_requirements_unmet' })
+    const unloaded = await completeUnloading(job.reference)
+    expect(unloaded.code_tries_left).toBe(3)
+    expect(unloaded.demo_code).toMatch(/^\d{6}$/)
+    expect((await completeUnloading(job.reference)).demo_code).toBe(unloaded.demo_code)
+    expect((await verifyCode(job.reference, unloaded.demo_code!)).stage).toBe('delivered')
+  })
+
+  it('refuses unloading before pickup', async () => {
+    await mockLogin(RIDER)
+    const [job] = await listAvailableJobs()
+    await acceptJob(job.reference)
+    await expect(completeUnloading(job.reference)).rejects.toMatchObject({ code: 'invalid_job_transition' })
   })
 
   it('counts wrong codes down and locks after three', async () => {

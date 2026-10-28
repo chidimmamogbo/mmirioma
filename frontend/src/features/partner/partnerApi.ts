@@ -41,7 +41,8 @@ export const acceptJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock
 export const declineJob = (ref: string, reason: DeclineReason, note: string): Promise<void> =>
   USE_MOCKS ? mock.declineJob(ref, reason, note) : realJobs.declineJob(ref, reason, note)
 export const confirmPickup = (ref: string, p: Pickup): Promise<PartnerJob> => (USE_MOCKS ? mock.confirmPickup(ref, p) : notConnected('Pickup'))
-export const verifyCode = (ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : notConnected('Delivery code'))
+export const completeUnloading = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.completeUnloading(ref) : notConnected('Delivery code'))
+export const verifyCode =(ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : notConnected('Delivery code'))
 export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.resendCode(ref) : notConnected('Delivery code'))
 
 export const getEarnings = (): Promise<PartnerEarnings> => (USE_MOCKS ? mock.getEarnings() : notConnected('Earnings'))

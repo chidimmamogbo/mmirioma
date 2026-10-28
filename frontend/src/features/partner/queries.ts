@@ -73,6 +73,11 @@ export function useConfirmPickup(ref: string) {
   })
 }
 
+export function useCompleteUnloading(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: () => api.completeUnloading(ref), onSuccess: refresh })
+}
+
 export function useVerifyCode(ref: string) {
   const refresh = useRefreshAll()
   // Refresh on failure too: a wrong code changes the tries left.

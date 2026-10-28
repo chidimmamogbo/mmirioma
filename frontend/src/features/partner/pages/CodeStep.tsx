@@ -19,7 +19,7 @@ import { mmss, useSecondsUntil } from '../../../lib/useNow'
 import { JobMiniCard } from '../components/JobParts'
 import { contactSuffix, jobDeliveryType, jobQuantity } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
-import { useJob, useResendCode, useVerifyCode } from '../queries'
+import { useCompleteUnloading, useJob, useResendCode, useVerifyCode } from '../queries'
 
 /**
  * Enter the customer's delivery code (`r-otp`, `t-otp`), including the wrong
@@ -45,6 +45,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
   const { base, vehicle } = usePartnerApp()
   const verify = useVerifyCode(j.reference)
   const resend = useResendCode(j.reference)
+  const unloaded = useCompleteUnloading(j.reference)
   const [code, setCode] = useState('')
   const [wrong, setWrong] = useState<string | null>(null)
 
@@ -148,9 +149,16 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
             </Link>
           </>
         ) : waiting ? (
-          <Notice className="rise-3">
-            <b>Waiting for the delivery code.</b> We send it to the customer when you finish unloading.
-          </Notice>
+          <>
+            <Notice className="rise-3">
+              <b>Waiting for the delivery code.</b> We send it to the customer when you finish unloading.
+            </Notice>
+            {/* The code is issued only after unloading (FR-035, #13). */}
+            <Button className="rise-4" loading={unloaded.isPending} onClick={() => unloaded.mutate()}>
+              Unloading done, send the code
+            </Button>
+            {unloaded.isError && <Notice tone="error">{errorMessage(unloaded.error)}</Notice>}
+          </>
         ) : (
           <>
             <div className="rise-3 flex justify-between text-[13px]">
@@ -179,7 +187,8 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           </>
         )}
       </ScrollArea>
-      {!showError && (
+      {/* While waiting, "Unloading done, send the code" is the only action (G2 on #133). */}
+      {!showError && !waiting && (
         <Footer>
           <Button disabled={code.length !== 6} loading={verify.isPending} onClick={submit}>
             Verify code
