@@ -170,7 +170,7 @@ describe('prices (FR-024)', () => {
 
   it('uses the fixed area fee once admin switches it on (decision 10a)', async () => {
     const [current] = await listPriceLists()
-    await saveArea('ar-gra', { name: 'GRA', enabled: true, station_id: 'st-gra', distance_km: 2.5, fixed_fee_minor_units: 80_000 })
+    await saveArea('ar-gra', { name: 'GRA', enabled: true, centre: { latitude: 6.4584, longitude: 7.5464 }, fixed_fee_minor_units: 80_000 })
     await savePriceList({ ...structuredClone(current), delivery_fee: { ...current.delivery_fee, per_area_enabled: true } })
     await mockLogout()
     await mockLogin(CUSTOMER)

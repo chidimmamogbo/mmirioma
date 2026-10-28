@@ -9,7 +9,8 @@
  * All money is integer kobo. The only fractional step is the per-km fee
  * (rate × distance with one decimal place), rounded to the nearest whole naira.
  */
-import type { PriceList, ServiceArea } from '../domain/admin'
+import type { PriceList } from '../domain/admin'
+import type { MockServiceArea } from './adminSeed'
 import type { Quote, QuoteLine, WaterChoice } from '../domain/orders'
 import { formatNaira } from '../lib/format/money'
 
@@ -31,14 +32,14 @@ export const DEFAULT_PRICE_LIST: PriceList = {
 
 /** Where an order goes, for the delivery fee. `area` is null when the address matches no service area. */
 export interface DeliveryPlace {
-  area: Pick<ServiceArea, 'name' | 'distance_km' | 'fixed_fee_minor_units'> | null
+  area: Pick<MockServiceArea, 'name' | 'distance_km' | 'fixed_fee_minor_units'> | null
 }
 
 /** Any address, for callers that do not know the area (seed data, tests). */
 export const ANY_PLACE: DeliveryPlace = { area: null }
 
 /** The service area an address belongs to: the first enabled area whose name appears in it. */
-export function areaForAddress(address: string, areas: ServiceArea[]): ServiceArea | null {
+export function areaForAddress(address: string, areas: MockServiceArea[]): MockServiceArea | null {
   const a = address.toLowerCase()
   return areas.find((x) => x.enabled && a.includes(x.name.toLowerCase())) ?? null
 }

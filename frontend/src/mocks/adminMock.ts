@@ -52,6 +52,7 @@ import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { formatNaira } from '../lib/format/money'
 import { normalizeNigerianPhone } from '../lib/format/phone'
+import type { MockServiceArea } from './adminSeed'
 import { addActivity, addAudit, currentPrices, papersState, stationForAddress } from './adminState'
 import { requireUserId } from './authMock'
 import { mutate, read } from './db'
@@ -848,11 +849,16 @@ export async function uploadStationPapers(id: string, fileName: string, validUnt
   })
 }
 
+/** The area as the screen sees it, without the mock-only station and distance. */
+function areaView(area: MockServiceArea): ServiceArea {
+  return clone({ id: area.id, name: area.name, enabled: area.enabled, centre: area.centre, fixed_fee_minor_units: area.fixed_fee_minor_units })
+}
+
 export async function listAreas(): Promise<ServiceArea[]> {
   await delay(null)
   const s = read()
   requireAdmin(s)
-  return clone(s.admin.areas)
+  return s.admin.areas.map(areaView)
 }
 
 export async function saveArea(id: string | null, input: Omit<ServiceArea, 'id'>): Promise<ServiceArea> {
@@ -860,24 +866,26 @@ export async function saveArea(id: string | null, input: Omit<ServiceArea, 'id'>
   const name = input.name.trim()
   const details: { loc: string[]; msg: string; type: string }[] = []
   if (name.length < 2) details.push({ loc: ['body', 'name'], msg: 'Enter the area name', type: 'value_error' })
-  if (input.distance_km !== null && (!(input.distance_km > 0) || input.distance_km > 100)) details.push({ loc: ['body', 'distance_km'], msg: 'Enter a distance between 0.1 and 100 km', type: 'value_error' })
+  const { latitude, longitude } = input.centre
+  if (!(latitude >= -90 && latitude <= 90)) details.push({ loc: ['body', 'centre', 'latitude'], msg: 'Enter a latitude between -90 and 90', type: 'value_error' })
+  if (!(longitude >= -180 && longitude <= 180)) details.push({ loc: ['body', 'centre', 'longitude'], msg: 'Enter a longitude between -180 and 180', type: 'value_error' })
   if (input.fixed_fee_minor_units !== null && (!Number.isSafeInteger(input.fixed_fee_minor_units) || input.fixed_fee_minor_units < 0)) details.push({ loc: ['body', 'fixed_fee_minor_units'], msg: 'Enter a fee in whole naira', type: 'value_error' })
   if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
   return mutate((s) => {
     requireAdmin(s)
     if (s.admin.areas.some((a) => a.id !== id && a.name.toLowerCase() === name.toLowerCase())) throw mockError(409, 'area_exists', 'An area with this name already exists')
-    const next = { ...input, name, distance_km: input.distance_km === null ? null : Math.round(input.distance_km * 10) / 10 }
+    const next = { ...input, name }
     if (id) {
       const area = s.admin.areas.find((a) => a.id === id)
       if (!area) throw mockError(404, 'area_not_found', 'Area not found')
       Object.assign(area, next)
       addAudit(s, actorName(s), `Updated service area ${name}`)
-      return clone(area)
+      return areaView(area)
     }
-    const area = { id: newId('ar'), ...next }
+    const area: MockServiceArea = { id: newId('ar'), station_id: null, distance_km: null, ...next }
     s.admin.areas.push(area)
     addAudit(s, actorName(s), `Added service area ${name}`)
-    return clone(area)
+    return areaView(area)
   })
 }
 

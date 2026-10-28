@@ -12,40 +12,51 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatNaira, nairaInputToKobo } from '../../../lib/format/money'
 import * as api from '../adminApi'
 import { AdminFrame, PageHead } from '../AdminParts'
-import { useAdminMutation, useAreas, usePriceLists, useStations } from '../queries'
+import { useAdminMutation, useAreas, usePriceLists } from '../queries'
 
-type Draft = { name: string; enabled: boolean; station_id: string; distance: string; fee: string }
+type Draft = { name: string; enabled: boolean; latitude: string; longitude: string; fee: string }
 
 function toDraft(a: ServiceArea | null): Draft {
   return {
     name: a?.name ?? '',
     enabled: a?.enabled ?? true,
-    station_id: a?.station_id ?? '',
-    distance: a?.distance_km?.toString() ?? '',
+    latitude: a ? String(a.centre.latitude) : '',
+    longitude: a ? String(a.centre.longitude) : '',
     fee: a?.fixed_fee_minor_units != null ? String(a.fixed_fee_minor_units / 100) : '',
   }
 }
 
+/** A coordinate typed in, or `NaN` when it is empty or not a number. */
+const coordinate = (text: string): number => (text.trim() === '' ? NaN : Number(text))
+
+/** Z4's two checks, the only ones the contract makes (admin-directory.md, `centre`). */
+function coordinateErrors(d: Pick<Draft, 'latitude' | 'longitude'>): { latitude?: string; longitude?: string } {
+  const lat = coordinate(d.latitude)
+  const lng = coordinate(d.longitude)
+  return {
+    latitude: lat >= -90 && lat <= 90 ? undefined : 'Enter a latitude between -90 and 90',
+    longitude: lng >= -180 && lng <= 180 ? undefined : 'Enter a longitude between -180 and 180',
+  }
+}
+
+/** The area to save. Call only when `coordinateErrors` finds nothing. */
 function fromDraft(d: Draft): Omit<ServiceArea, 'id'> {
-  const km = d.distance.trim() === '' ? null : Number(d.distance)
   return {
     name: d.name,
     enabled: d.enabled,
-    station_id: d.station_id || null,
-    distance_km: km === null || Number.isNaN(km) ? null : km,
+    centre: { latitude: coordinate(d.latitude), longitude: coordinate(d.longitude) },
     fixed_fee_minor_units: d.fee.trim() === '' ? null : nairaInputToKobo(d.fee),
   }
 }
 
 /**
- * Service areas (added, from the admin table pattern). Orders are accepted
- * for enabled areas; each area has the station that usually serves it, the
- * road distance admin entered (no map provider, decision 10a) and an optional
- * fixed delivery fee. Which of these sets the fee is chosen on the pricing page.
+ * Service areas (Z4, docs/design/handoff-v1.md). Orders are accepted for
+ * enabled areas. Each area has its coordinates, typed in by admin since no map
+ * provider is approved, and an optional delivery fee per order. The boundary is
+ * not edited here. Which of these sets the delivery fee is chosen on the pricing page.
  */
 export function Areas() {
   const areas = useAreas()
-  const stations = useStations('')
   const prices = usePriceLists()
   const fee = prices.data?.[0]?.delivery_fee
   const [adding, setAdding] = useState(false)
@@ -54,7 +65,7 @@ export function Areas() {
     <AdminFrame searchPlaceholder="Search orders, customers, riders">
       <PageHead
         title="Service areas"
-        sub="Where we deliver, which station serves each area, and the distance and fee used for delivery prices."
+        sub="Where we deliver, each area's coordinates, and the delivery fee per order."
         actions={
           <Button size="sm" block={false} onClick={() => setAdding(true)}>
             + Add area
@@ -84,18 +95,22 @@ export function Areas() {
       {areas.data && (
         <Card className="rise-3 flex flex-col p-2">
           <div role="row" className={`${GRID} hidden border-0 border-b border-solid border-line px-3 py-2.5 text-chip font-bold text-mute lg:grid`}>
-            {['Area', 'Taking orders', 'Serving station', 'Distance (km)', 'Fixed fee (₦)', ''].map((h) => (
+            {['Area', 'Taking orders', 'Latitude', 'Longitude', 'Delivery fee per order (₦)', ''].map((h) => (
               <span key={h} role="columnheader">
                 {h}
               </span>
             ))}
           </div>
-          {adding && <AreaRow area={null} stations={stations.data ?? []} onDone={() => setAdding(false)} />}
+          {adding && <AreaRow area={null} onDone={() => setAdding(false)} />}
+          {areas.data.length === 0 && !adding && <p className="m-0 px-3 py-4 text-sub text-mute">No service areas yet. Add the first one.</p>}
           {areas.data.map((a) => (
-            <AreaRow key={a.id} area={a} stations={stations.data ?? []} />
+            <AreaRow key={a.id} area={a} />
           ))}
         </Card>
       )}
+      <p className="m-0 text-caption text-mute">
+        Latitude and longitude: decimal degrees, e.g. 6.4447 and 7.5108. Delivery fee: leave empty for no fee; quotes for this area become manual.
+      </p>
       <p className="m-0 flex items-center gap-2 text-caption text-mute">
         <SampleTag /> The area list is a sample until the first service zone is confirmed (PRD §13.1).
       </p>
@@ -104,21 +119,39 @@ export function Areas() {
 }
 
 /** Table-like columns from 1024 px; below that each area is a stacked card with labelled fields. */
-const GRID = 'lg:grid-cols-[minmax(130px,1.2fr)_96px_minmax(170px,1.6fr)_104px_120px_auto] lg:items-center lg:gap-3'
+const GRID = 'lg:grid-cols-[minmax(130px,1.2fr)_96px_minmax(110px,1fr)_minmax(110px,1fr)_150px_auto] lg:items-start lg:gap-3'
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-chip font-bold text-mute lg:sr-only">{label}</span>
       {children}
+      {error && (
+        <span role="alert" className="text-caption font-bold text-red">
+          {error}
+        </span>
+      )}
     </label>
   )
 }
 
-function AreaRow({ area, stations, onDone }: { area: ServiceArea | null; stations: { id: string; name: string }[]; onDone?: () => void }) {
+/** Keep digits, a decimal point and a leading minus: what a coordinate is made of. */
+const coordinateText = (text: string): string => text.replace(/[^\d.-]/g, '')
+
+function AreaRow({ area, onDone }: { area: ServiceArea | null; onDone?: () => void }) {
   const [d, setD] = useState<Draft>(() => toDraft(area))
+  // Errors show once Save was pressed, so a half-typed coordinate is not flagged early.
+  const [tried, setTried] = useState(false)
   const save = useAdminMutation(() => api.saveArea(area?.id ?? null, fromDraft(d)))
   const dirty = JSON.stringify(d) !== JSON.stringify(toDraft(area))
+  const errors = coordinateErrors(d)
+
+  function submit() {
+    setTried(true)
+    if (errors.latitude || errors.longitude) return
+    save.mutate(undefined, { onSuccess: () => onDone?.() })
+  }
+
   return (
     <div className="border-0 border-b border-solid border-row-line px-3 py-3 last:border-b-0">
       <div className={`${GRID} grid grid-cols-2 gap-3`}>
@@ -135,26 +168,31 @@ function AreaRow({ area, stations, onDone }: { area: ServiceArea | null; station
           <span className="text-chip font-bold text-mute lg:hidden">Taking orders</span>
           <Toggle label={`${d.name || 'New area'} taking orders`} checked={d.enabled} onChange={(v) => setD({ ...d, enabled: v })} />
         </div>
-        <div className="col-span-2 lg:col-span-1">
-          <Field label="Serving station">
-            <select className={INPUT} value={d.station_id} onChange={(e) => setD({ ...d, station_id: e.target.value })}>
-              <option value="">Nearest open station</option>
-              {stations.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <Field label="Distance (km)">
-          <input inputMode="decimal" className={INPUT} value={d.distance} onChange={(e) => setD({ ...d, distance: e.target.value.replace(/[^\d.]/g, '') })} placeholder="e.g. 4.5" />
+        <Field label="Latitude" error={tried ? errors.latitude : undefined}>
+          <input
+            inputMode="decimal"
+            className={INPUT}
+            value={d.latitude}
+            aria-invalid={tried && !!errors.latitude}
+            onChange={(e) => setD({ ...d, latitude: coordinateText(e.target.value) })}
+            placeholder="e.g. 6.4447"
+          />
         </Field>
-        <Field label="Fixed fee (₦)">
+        <Field label="Longitude" error={tried ? errors.longitude : undefined}>
+          <input
+            inputMode="decimal"
+            className={INPUT}
+            value={d.longitude}
+            aria-invalid={tried && !!errors.longitude}
+            onChange={(e) => setD({ ...d, longitude: coordinateText(e.target.value) })}
+            placeholder="e.g. 7.5108"
+          />
+        </Field>
+        <Field label="Delivery fee per order (₦)">
           <input inputMode="numeric" className={INPUT} value={d.fee} onChange={(e) => setD({ ...d, fee: e.target.value.replace(/[^\d,]/g, '') })} placeholder="None" />
         </Field>
         <div className="col-span-2 flex gap-2 lg:col-span-1">
-          <Button size="sm" block={false} className="px-4" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => onDone?.() })}>
+          <Button size="sm" block={false} className="px-4" disabled={!dirty} loading={save.isPending} onClick={submit}>
             Save
           </Button>
           {onDone && (

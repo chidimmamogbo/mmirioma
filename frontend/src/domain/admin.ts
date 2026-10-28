@@ -192,11 +192,16 @@ export interface ServiceArea {
   name: string
   /** Orders to this area are accepted. */
   enabled: boolean
-  /** Station that usually serves the area. */
-  station_id: string | null
-  /** Road distance from that station, entered by admin (decision 10a: no map provider). */
-  distance_km: number | null
-  /** Fixed delivery fee for the area, used when "fixed fee per area" is on. */
+  /**
+   * The area's coordinates, WGS 84 decimal degrees, typed in by admin since no
+   * map provider is approved (FR-010, docs/api/admin-directory.md, `centre`).
+   * Latitude -90 to 90, longitude -180 to 180.
+   */
+  centre: { latitude: number; longitude: number }
+  /**
+   * Delivery fee per order for the pilot water category (Z4, "Delivery fee per
+   * order (₦)"). `null`: no fee, so quotes for the area become manual.
+   */
   fixed_fee_minor_units: number | null
 }
 
