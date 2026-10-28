@@ -209,6 +209,69 @@ def test_t07_another_driver_cannot_accept_or_decline(created: Created) -> None:
     run(scenario)
 
 
+def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> None:
+    """#204: an offered or accepted assignment names its driver; an ended one does not."""
+
+    async def scenario(sessions: async_sessionmaker[AsyncSession]) -> None:
+        admin = await add_user(sessions, created, UserRole.ADMIN)
+        first_driver = await add_driver(sessions, created)
+        second_driver = await add_driver(sessions, created)
+        offered = await confirmed_order(sessions, created)
+        declined = await confirmed_order(sessions, created)
+        unassigned = await confirmed_order(sessions, created)
+        ids = [offered.id, declined.id, unassigned.id]
+
+        async with sessions() as session:
+            assert await service.live_drivers_by_order(session, []) == {}
+            assert await service.live_drivers_by_order(session, ids) == {}
+
+        async with sessions() as session:
+            await service.assign_driver(
+                session, order_id=offered.id, driver_user_id=first_driver.id, admin=admin
+            )
+            await service.assign_driver(
+                session, order_id=declined.id, driver_user_id=second_driver.id, admin=admin
+            )
+        async with sessions() as session:
+            live = await service.live_drivers_by_order(session, ids)
+        # Offered counts as live (decision 2 of the amendment); the unassigned order is absent.
+        assert {order_id: user.id for order_id, user in live.items()} == {
+            offered.id: first_driver.id,
+            declined.id: second_driver.id,
+        }
+
+        async with sessions() as session:
+            await service.accept_assignment(session, order_id=offered.id, driver=first_driver)
+            await service.decline_assignment(
+                session, order_id=declined.id, driver=second_driver, note="Sample: tyre puncture"
+            )
+        async with sessions() as session:
+            live = await service.live_drivers_by_order(session, ids)
+        assert {order_id: user.id for order_id, user in live.items()} == {
+            offered.id: first_driver.id
+        }
+
+        # The admin list carries the same answer on each order of the page.
+        async with sessions() as session:
+            items, _ = await holds.list_orders(
+                session,
+                statuses=[],
+                created_from=None,
+                created_to=None,
+                is_simulated=None,
+                on_hold=None,
+                limit=100,
+                offset=0,
+            )
+        by_id = {item.staff_order.order.id: item.driver for item in items}
+        assert by_id[offered.id] is not None
+        assert by_id[offered.id].id == first_driver.id
+        assert by_id[declined.id] is None
+        assert by_id[unassigned.id] is None
+
+    run(scenario)
+
+
 def test_decline_returns_the_order_and_frees_the_driver(created: Created) -> None:
     async def scenario(sessions: async_sessionmaker[AsyncSession]) -> None:
         admin = await add_user(sessions, created, UserRole.ADMIN)

@@ -113,6 +113,37 @@ describe('adminOrderFromRead', () => {
   })
 })
 
+describe('the driver on a list row (#204)', () => {
+  const [unassigned, , assigned] = PAGE.items
+
+  it('names the driver of a live assignment, without inventing a code, vehicle or plate', () => {
+    expect(adminOrderFromRead(assigned).partner).toEqual({ id: assigned.driver!.id, name: 'Sample Driver One', code: null, vehicle: null, plate: null })
+  })
+
+  it('shows no partner for an order without a live driver (driver: null)', () => {
+    expect(unassigned.driver).toBeNull()
+    expect(adminOrderFromRead(unassigned).partner).toBeNull()
+  })
+
+  it('shows no partner when the server does not send the field, or sends a half-formed one', () => {
+    const without: AdminOrderRead = { ...assigned }
+    delete without.driver
+    expect(adminOrderFromRead(without).partner).toBeNull()
+    expect(adminOrderFromRead({ ...assigned, driver: { id: 'd1' } as never }).partner).toBeNull()
+  })
+
+  it('leaves the detail to its assignment: a declined one names nobody even if a row did', () => {
+    const ended = { ...DETAIL, assignment: { ...DETAIL.assignment!, status: 'declined' as const } }
+    expect(adminOrderFromRead(ended).partner).toBeNull()
+  })
+
+  it('carries the driver through listOrders, one row each', async () => {
+    const { client } = clientByUrl((url) => ({ body: url.includes('limit=1&') ? page([], 3) : PAGE }))
+    const list = await listOrders('all', undefined, client)
+    expect(list.orders.map((o) => o.partner?.name ?? null)).toEqual([null, null, 'Sample Driver One'])
+  })
+})
+
 describe('listOrders (real)', () => {
   it('loads the pill from the server and every pill count from its total', async () => {
     const { fetch, client } = clientByUrl((url) => {

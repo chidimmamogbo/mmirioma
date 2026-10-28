@@ -24,6 +24,7 @@ from app.modules.confirmation.service import ConfirmationLine
 from app.modules.deliveries.holds import (
     CancellationOutcome,
     EligibilityAnswer,
+    HeldOrder,
     HistoryItem,
     HistoryKind,
     HoldEntry,
@@ -48,6 +49,7 @@ from app.modules.dispatch.schemas import (
 )
 from app.modules.orders.models import EVENT_NOTE_MAX_LENGTH, OrderStatus, TransitionReason
 from app.modules.orders.schemas import AdminOrderFilters, AdminOrderRead, OrderHoldRead
+from app.modules.orders.service import ReadLookups
 from app.modules.payments.models import CashEventKind
 from app.modules.payments.schemas import CashEventRead
 from app.modules.payments.service import CashHistoryEntry
@@ -86,10 +88,39 @@ class AdminOrderListFilters(AdminOrderFilters):
     on_hold: bool | None = None
 
 
-class HeldAdminOrderPage(BaseModel):
-    """A page of orders for staff, each with its ``hold``."""
+class AdminOrderListItem(AdminOrderRead):
+    """An order on the admin list: ``AdminOrderRead`` plus its live driver (#204).
 
-    items: list[AdminOrderRead]
+    The detail keeps the full ``assignment`` instead (admin dispatch, decision
+    4); the list carries only who has the order, so the Rider column can name
+    them without a request per row.
+
+    Attributes:
+        driver: The driver of the order's live assignment (``offered`` or
+            ``accepted``), or null (not confirmed, in the pool, declined,
+            withdrawn, delivered, cancelled or failed).
+    """
+
+    driver: PersonRead | None
+
+    @classmethod
+    def from_held(
+        cls, item: HeldOrder, hold: OrderHoldRead | None, *, lookups: ReadLookups
+    ) -> AdminOrderListItem:
+        """Build the list item from an order with its hold and live driver."""
+        base = AdminOrderRead.from_order(
+            item.staff_order.order, item.staff_order.customer, hold, lookups=lookups
+        )
+        return cls(
+            **base.model_dump(),
+            driver=None if item.driver is None else PersonRead.from_user(item.driver),
+        )
+
+
+class HeldAdminOrderPage(BaseModel):
+    """A page of orders for staff, each with its ``hold`` and live ``driver``."""
+
+    items: list[AdminOrderListItem]
     total: int
     limit: int
     offset: int

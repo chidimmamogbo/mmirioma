@@ -48,6 +48,12 @@ export interface AdminOrderCustomer {
   phone_verified: boolean
 }
 
+/** The driver of an order's live assignment, as the list names them (deliveries.md, amendment #204). */
+export interface AdminOrderDriver {
+  id: string
+  name: string
+}
+
 /**
  * `AdminOrderRead`. Sprint 1 orders carry no price: they are manual quote
  * requests until the quotes module exists (FR-021, FR-022).
@@ -77,6 +83,13 @@ export interface AdminOrderRead {
    * R0). A hold is not a status: the order keeps its status while it is open.
    */
   hold: OrderHold | null
+  /**
+   * The driver of the order's live assignment (`offered` or `accepted`), or
+   * `null` (amendment #204). Sent on the list only: the detail names its
+   * driver through `assignment`. Optional so a server without it reads as no
+   * driver.
+   */
+  driver?: AdminOrderDriver | null
   /** Delivery details (#21): `null` on orders sent before them (quantity only). */
   delivery_type: DeliveryType | null
   keke: KekeDetails | null

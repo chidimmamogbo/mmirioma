@@ -169,10 +169,18 @@ class CustomerAcknowledgment:
 
 @dataclass(frozen=True)
 class HeldOrder:
-    """An order for the admin list with its open hold, if any."""
+    """An order for the admin list with its open hold and live driver, if any.
+
+    Attributes:
+        staff_order: The order and its customer.
+        hold: The open hold on the order's current job, or None.
+        driver: The driver of the order's live assignment (``offered`` or
+            ``accepted``), or None (#204).
+    """
 
     staff_order: StaffOrder
     hold: OrderException | None
+    driver: User | None = None
 
 
 @dataclass(frozen=True)
@@ -378,7 +386,8 @@ async def list_orders(
 
     Returns:
         ``(orders, total)``; ``total`` counts every match, so with
-        ``on_hold=True`` it is the On hold count.
+        ``on_hold=True`` it is the On hold count. Each order carries its live
+        driver, read for the whole page at once.
     """
     extra = [] if on_hold is None else [on_hold_condition() if on_hold else ~on_hold_condition()]
     staff_orders, total = await orders_service.list_orders_for_staff(
@@ -391,9 +400,14 @@ async def list_orders(
         offset=offset,
         extra_conditions=extra,
     )
-    holds = await current_holds(session, [item.order.id for item in staff_orders])
+    order_ids = [item.order.id for item in staff_orders]
+    holds = await current_holds(session, order_ids)
+    drivers = await dispatch_service.live_drivers_by_order(session, order_ids)
     return [
-        HeldOrder(staff_order=item, hold=holds.get(item.order.id)) for item in staff_orders
+        HeldOrder(
+            staff_order=item, hold=holds.get(item.order.id), driver=drivers.get(item.order.id)
+        )
+        for item in staff_orders
     ], total
 
 

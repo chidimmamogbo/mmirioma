@@ -36,6 +36,7 @@ from app.modules.deliveries.admin_schemas import (
     AdminOrderEventWithHolds,
     AdminOrderHistoryWithHolds,
     AdminOrderListFilters,
+    AdminOrderListItem,
     AdminTransitionRequest,
     CancellationOutcomeRead,
     HeldAdminOrderPage,
@@ -54,7 +55,6 @@ from app.modules.dispatch.schemas import (
 from app.modules.messaging.sms import SmsProvider, get_sms_provider
 from app.modules.orders import service as orders_service
 from app.modules.orders.models import OrderStatus, TransitionReason
-from app.modules.orders.schemas import AdminOrderRead
 from app.modules.payments import service as payments_service
 from app.modules.payments.schemas import OrderPaymentRead
 
@@ -110,12 +110,7 @@ async def list_orders(
     lookups = await orders_service.read_lookups(db, (item.staff_order.order for item in items))
     return HeldAdminOrderPage(
         items=[
-            AdminOrderRead.from_order(
-                item.staff_order.order,
-                item.staff_order.customer,
-                hold_read(item.hold),
-                lookups=lookups,
-            )
+            AdminOrderListItem.from_held(item, hold_read(item.hold), lookups=lookups)
             for item in items
         ],
         total=total,
