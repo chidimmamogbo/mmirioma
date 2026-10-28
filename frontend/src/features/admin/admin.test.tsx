@@ -51,6 +51,20 @@ describe('admin pages', () => {
     expect(await screen.findByText(/Assigned\./, {}, { timeout: WAIT })).toBeInTheDocument()
     expect(read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage).toBe('assigned')
   }, SLOW)
+
+  it('names the assigned rider after the eligible list refreshes without them (#143)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders?ref=MO-6RTA2KXP9B')
+    const radios = await screen.findAllByRole('radio', {}, { timeout: WAIT })
+    // Pick the second rider, so the refreshed list's first rider is someone else.
+    expect(radios.length).toBeGreaterThan(1)
+    await user.click(radios[1])
+    const button = screen.getByRole('button', { name: /^Assign / })
+    const first = button.textContent!.replace(/^Assign /, '').trim()
+    await user.click(button)
+    expect(await screen.findByText(new RegExp(`^Assigned\\. ${first} gets the order`), {}, { timeout: WAIT })).toBeInTheDocument()
+  }, SLOW)
 })
 
 describe('admin cash (K3 to K5, #19)', () => {
