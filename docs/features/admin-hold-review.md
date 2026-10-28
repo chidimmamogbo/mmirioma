@@ -5,12 +5,14 @@ BR-13, BR-14, NFR-004, SRS §8 · Acceptance tests: T-14, T-23 · Contract:
 [deliveries.md](../api/deliveries.md#admin-hold-review-endpoints), "Admin hold
 review endpoints" (agreed, G3, PR #91) · Design:
 [admin-hold-review.md](../design/admin-hold-review.md) (approved, G2) ·
-Issues: #88 (design and decisions), #93 (backend), #94 (screens)
+Issues: upstream #88 (design and decisions) and #93 (backend); this fork: #128
+(the screens' design), #166 (the screens) and #176 (the "Cancel this order"
+entry on the order panel)
 
 ## 1. Overview and purpose
 
 A driver's job can stop on a **hold**, and until now nothing could clear one,
-so a held job could never finish (#86). This feature lets an administrator
+so a held job could never finish. This feature lets an administrator
 see a held order, read the evidence and decide:
 
 | Hold | Opened when | Decisions |
@@ -21,7 +23,7 @@ see a held order, read the evidence and decide:
 
 It also adds the order's hold to the admin order list and detail, an
 `on_hold` list filter, and hold entries in the history on request. The staff
-screens (#94) show held orders, the review for each kind, the decision
+screens (#166) show held orders, the review for each kind, the decision
 dialogs and the decided cards; see "Screens" below.
 
 ## 2. Feature workflow
@@ -146,8 +148,8 @@ All under `/api/v1`; shapes as in the
 - **Continue (FR-012):** only when the source is eligible for the order's
   water category, answered by the shared check in
   [water-sources.md](water-sources.md) (#112). A free-text source is always
-  `not_eligible`; an order with no water category (set at confirmation,
-  #113) is `cannot_check` ("This order has no water category."). Otherwise
+  `not_eligible`; an order with no water category (set when a dispatcher
+  confirms the order) is `cannot_check` ("This order has no water category."). Otherwise
   Continue is refused with 409 `source_not_eligible`.
 - **Resume:** the note is the safe alternative; the job continues from where
   it stopped.
@@ -189,52 +191,51 @@ customers and drivers get 403 `forbidden`. `POST` requests need the
 
 Every refusal rolls back before answering, so nothing is half-written.
 
-## Screens (frontend, #94)
+## Screens (frontend, #166)
 
-Built from the approved design (canvas Hold01-Hold12) on the API source;
-the mock source has four held fixture jobs for review (`mockHolds.ts`, on in
-the app's mock mode).
+Built from the approved design ([admin-hold-review.md](../design/admin-hold-review.md),
+#128, G2) on the real API. With `VITE_USE_MOCKS=true` the mock has three
+seeded held jobs, one of each kind, in the shapes the server sends; their
+evidence is sample text, and the mock's CANCEL sentence is tagged SAMPLE.
 
 ```
-Directory (/admin/orders)       On hold tag beside the status; "N orders are on hold.";
-                                tick box "On hold (any kind) · N" (on_hold=true);
-                                empty state "No orders are on hold." with Show all orders
-Order detail                    hold banner: kind, since, driver, "Review hold"
-  └─ /admin/orders/:ref/hold    R1, R2 or R3 by the hold's kind: order, banner, evidence,
-                                then "Your decision"
-       ├─ R1  Approve (needs how and when the customer confirmed, and a note)
-       │        ─> "Approve this delivery?" ; Reject ─> "Reject this proof?" (reason)
-       ├─ R2  Continue (only when eligible, with a note) ; Fail ; Cancel
-       └─ R3  Resume (safe alternative) ─> "Resume this job?" ; Withdraw job (before
-              departure only) ; Fail ; Cancel
-     decision ─> back to the order detail: toast and the decided card
-Order detail after a decision   decided card from the newest history entry (approved,
-                                rejected with "Mark delivery failed", continued, resumed,
-                                failed, cancelled); history with hold entries
+Orders page (/admin/orders)     "On hold (n)" pill (GET /admin/orders?on_hold=true; n is the
+                                page's total); a held row keeps its status chip, adds an amber
+                                "On hold" chip and "Proof review · 12 min ago" under it, in every pill
+Order panel                     banner "On hold: <kind>" with the time (Lagos), the driver and
+                                Review; no "Assign a rider" while a hold is open; "Fail this
+                                delivery" on an order that is Driver accepted or later with no hold
+  └─ Review (the confirm sheet's side sheet: 720 px, full screen on a phone)
+       R1 proof review     evidence (the code itself is never shown), Approve (how and when the
+                           customer confirmed, and a note) or Reject (a note)
+       R2 source review    evidence and the server's sentence on the source; Continue delivery
+                           (on only when the server says eligible; a note), Fail, Cancel
+       R3 unsafe stop      the driver's report; Resume (the note is the safe alternative),
+                           Withdraw job (only while `withdraw_allowed`), Fail, Cancel
+     a decision ─> the sheet closes, a toast, the panel refreshes
+Order panel after a decision    the decided card (who, when, the note) and the history entries
 ```
 
 | File | Responsibility |
 | --- | --- |
-| `frontend/src/lib/api/holdTypes.ts` | Hold kinds, decisions, categories, the `hold` schema (shared) |
-| `frontend/src/lib/api/adminHolds.ts` | Typed calls and Zod schemas for the hold review endpoints |
-| `frontend/src/lib/api/adminDispatch.ts` | Detail with `hold`; history with `include=holds` (`kind`, `hold`) |
-| `frontend/src/lib/api/adminOrders.ts` | `hold` on listed orders (checked) and the `on_hold` filter |
-| `frontend/src/features/admin-holds/HoldReviewPage.tsx` | The review screen and its states |
-| `frontend/src/features/admin-holds/ProofReview.tsx`, `SourceAndUnsafeReview.tsx` | R1, R2 and R3 bodies |
-| `frontend/src/features/admin-holds/HoldDialogs.tsx` | Approve, Reject, Resume, Fail and Cancel dialogs |
-| `frontend/src/features/admin-holds/HoldOnOrder.tsx` | Banner, decided card and toast on the order detail |
-| `frontend/src/features/admin-holds/HoldTag.tsx`, `HoldBanner.tsx` | On hold tag and banner (design system additions) |
-| `frontend/src/features/admin-holds/logic.ts`, `labels.ts`, `useHolds.ts` | Pure helpers, wording, TanStack Query hooks |
-| `frontend/src/features/admin-orders/mockHolds.ts` | Held fixture jobs following the contract's rules |
-| `frontend/src/features/admin-dispatch/OrderHistory.tsx` | Hold opened and hold decided entries |
+| `frontend/src/lib/api/holdTypes.ts`, `adminHolds.ts` | Hold kinds, decisions and categories, and the typed calls with their Zod checks for the hold review endpoints |
+| `frontend/src/lib/api/adminDispatch.ts`, `adminOrders.ts` | The detail with `hold`; the history with `include=holds`; `hold` on listed orders and the `on_hold` filter |
+| `frontend/src/features/admin/real/holds.ts`, `real/orders.ts` | The adapters: each decision as one request, and the history lines ("Hold opened: <kind>", the four decisions) |
+| `frontend/src/features/admin/hold/HoldSheet.tsx`, `HoldFrame.tsx` | The sheet, its loading, "no open hold" and error states, and its frame (kind, order, driver, customer call link) |
+| `frontend/src/features/admin/hold/ProofReview.tsx`, `SourceReview.tsx`, `UnsafeReview.tsx`, `Evidence.tsx` | R1, R2 and R3, and the evidence they show |
+| `frontend/src/features/admin/hold/NoteDialog.tsx`, `EndDelivery.tsx`, `EndDialogs.tsx` | The decision dialogs, and the FAIL and CANCEL dialogs (also used by the order panel's cancel entry, #176) |
+| `frontend/src/features/admin/hold/HoldParts.tsx` | The "On hold" chip, the banner and the decided card |
+| `frontend/src/features/admin/hold/logic.ts`, `queries.ts`, `types.ts` | Checks, wording and the failure for each error code; the query hooks; the shared props |
+| `frontend/src/features/admin/pages/Orders.tsx` | The pill, the chip, the banner, the sheet and the "Fail this delivery" entry |
+| `frontend/src/domain/admin.ts`, `frontend/src/mocks/` | The hold labels; the seeded holds and the mock decisions |
 
-Screen rules: error states are chosen by error **code** (design Decision 3):
+Screen rules: error states are chosen by error **code** (design decision 11):
 `hold_not_open`, `hold_not_found` and `invalid_order_transition` show "This
 order has changed." with Refresh; `own_delivery_override` (BR-13, T-23) and
 `source_not_eligible` show the server's message and keep the decision
 disabled; no connection keeps everything typed and lets one new request be
-sent. Every decision button keeps its label, turns busy and sends once.
-The CANCEL sentence is the server's cancellation outcome, word for word.
+sent. Every decision button keeps its label, turns busy and sends once. The
+CANCEL sentence is the server's cancellation outcome, word for word.
 Delivered is shown only after the server says so (BR-06).
 
 ## 9. Testing instructions
@@ -274,29 +275,46 @@ npm run lint && npm run typecheck && npm test && npm run build
 ```
 
 `src/lib/api/adminHolds.test.ts` checks paths, bodies, CSRF and the Zod
-checks (including `hold` on listed orders); `src/features/admin-holds/logic.test.ts`
-the hold age, the Lagos time conversion and which decided card shows;
-`src/features/admin-holds/holds.test.tsx` the screens on the mock source:
-the directory tag, count, filter and empty state, the banner, R1 approve
-and reject (then Mark delivery failed), the BR-13 refusal, "This order has
-changed.", R2 with Continue off, fail, R3 resume, withdraw before departure,
-cancel and "no connection".
+checks (including `hold` on listed orders); `src/features/admin/real/holds.test.ts`
+each adapter call (a success and the error codes: `hold_not_open`,
+`own_delivery_override`, `source_not_eligible`, a cancel that cannot happen);
+`src/features/admin/hold/logic.test.ts` the checks, the wording of each
+failure and the hold age; `src/features/admin/admin.test.tsx` and
+`src/mocks/admin.test.ts` the screens and decisions on the mock source.
 
 ## 10. Known limitations
 
 - **Continue needs the assigned source:** an order confirmed with a
-  category (#113) can continue when the driver collected at its assigned
-  source and that source is eligible (for example a pickup held only for a
-  safety concern). A driver can name another source only in free text
-  (always `not_eligible`); choosing a recorded source at pickup is #109.
+  category can continue when the driver collected at its assigned source and
+  that source is eligible (for example a pickup held only for a safety
+  concern). A driver can name another source only in free text (always
+  `not_eligible`); choosing a recorded source at pickup is not built.
 - **The approval card leaves out two lines the design shows:** the litres
   recorded and how the customer confirmed. No agreed endpoint returns them
   after the decision (they are stored on the proof). The card shows who
   approved and when; adding them needs a small contract change (an open
   question for the technical lead).
-- R2's Continue sends at once (the design draws no confirmation dialog for
-  it); R1 and R3 confirm in a dialog.
-- No end-to-end run on the real API yet; to be recorded like #86.
+- **End-to-end run on the real API (2026-10-28).** The hold review was run
+  through the real HTTP app and a migrated throwaway database, signed in as an
+  administrator, with a held order of each kind: the on-hold list and detail;
+  proof review evidence (the delivery code is never sent: only its state),
+  reject, approve, the BR-13 refusal and a repeat (409 `hold_not_open`); source
+  review evidence, Continue refused for a free-text source (409
+  `source_not_eligible`), Continue accepted for an eligible assigned source,
+  and FAIL closing both of a pickup's holds; unsafe stop evidence, Resume,
+  Withdraw job (the hold closes) and CANCEL with `mmirioma_unable` (the
+  outcome shows no charge); and the history with hold entries for each. The
+  responses were then read by the frontend's own adapters, schemas and
+  timeline code, and the sheet's failure wording matched each refusal.
+- **Not yet clicked through on screen:** only the proof approve and the panel's
+  "Fail this delivery" were clicked in a browser (#166). The sheet for a
+  source review and for an unsafe stop, Reject, Withdraw job, the decided card
+  and the history lines are covered by the run above and by tests, but no one
+  has looked at them on a screen with a held order of each kind (tracked in
+  #190).
+- The admin timeline shows an approval as "Proof approved" and does not add a
+  "Delivered" line, although the history carries the `delivered` status change;
+  the order's status chip shows Delivered.
 - Only the fail and `mmirioma_unable` cancel uses of
   `POST .../transition` exist; the endpoint's other rows (A1-A7) are
   agreed with their screens.
