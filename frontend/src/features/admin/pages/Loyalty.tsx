@@ -2,15 +2,17 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Card } from '../../../components/ui/Card'
-import { SampleTag } from '../../../components/ui/Chip'
+import { Button } from '../../../components/ui/Button'
+import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { INPUT } from '../../../components/ui/Field'
+import { Notice } from '../../../components/ui/Notice'
 import type { SamplePriceTable, SamplePriceTableInput } from '../../../domain/admin'
-import { formatDateTime } from '../../../lib/format/datetime'
+import { errorMessage } from '../../../lib/api/errorMessage'
+import { formatDateTime, formatShortDate } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
 import { MONEY_TABS, editablePrices } from '../adminFormat'
 import { AdminFrame, LinkTabs, PageHead } from '../AdminParts'
 import { useAdminMutation, useAudit, useSamplePriceTables } from '../queries'
-import { ChangeLog } from './Pricing'
 
 /**
  * Loyalty points (a-pricing "Loyalty points" tab; added page). The points
@@ -101,4 +103,44 @@ function Rule({ label, sub, children }: { label: string; sub: string; children: 
 
 function NumberBox({ label, value, onChange }: { label: string; value: number; onChange: (text: string) => void }) {
   return <input aria-label={label} inputMode="numeric" className={`${INPUT} w-24`} value={String(value)} onChange={(e) => onChange(e.target.value)} />
+}
+
+/** The change log with the save button, for the Loyalty points page (moved from Pricing in #173). */
+function ChangeLog({
+  versions,
+  saveLabel,
+  changed,
+  save,
+  onSave,
+}: {
+  versions: SamplePriceTable[]
+  saveLabel: string
+  changed: boolean
+  save: { isPending: boolean; isError: boolean; isSuccess: boolean; error: unknown }
+  onSave: () => void
+}) {
+  return (
+    <Card className="rise-4 flex w-full shrink-0 flex-col gap-3 p-4 xl:sticky xl:top-4 xl:w-[340px]">
+      <h2 className="m-0 text-[18px] font-extrabold">Change log</h2>
+      <ol className="m-0 flex list-none flex-col p-0">
+        {versions.slice(0, 6).map((v) => (
+          <li key={v.version} className="flex items-start gap-3 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+            <Chip tone={v.version === versions[0].version ? 'blue' : 'gray'}>v{v.version}</Chip>
+            <span className="min-w-0">
+              <span className="block text-[14px]">{v.note}</span>
+              <span className="block text-chip text-mute">
+                {v.created_by} · {formatShortDate(v.created_at)}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {save.isError && <Notice tone="error">{errorMessage(save.error)}</Notice>}
+      {save.isSuccess && <Notice tone="success">Saved. New orders use this version; placed orders keep theirs.</Notice>}
+      <Button disabled={!changed} loading={save.isPending} onClick={onSave}>
+        {saveLabel}
+      </Button>
+      {!changed && <p className="m-0 text-center text-caption text-mute">Change a value to save a new version.</p>}
+    </Card>
+  )
 }
