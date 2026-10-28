@@ -101,7 +101,7 @@ We keep information only as long as set out below. Our staff review stored data 
 
 ## 9. How can you request access, correction or deletion?
 
-You can ask us to access, correct or delete your personal information by calling **+234 813 377 4902** or emailing **[olivetgrail@gmail.com](mailto:olivetgrail@gmail.com)**. Before we disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account. For deletion, you can also use "Delete my account" in the app; we still call you back to confirm it is you.
+You can ask us to access, correct or delete your personal information by calling **+234 813 377 4902** or emailing **[olivetgrail@gmail.com](mailto:olivetgrail@gmail.com)**. Before we disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account. For deletion, you can also use "Delete my account" in the customer app; we still call you back to confirm it is you.
 
 - We acknowledge a request within **3 working days**.
 - We aim to complete a straightforward request within **14 calendar days**, and always within any deadline the law sets.

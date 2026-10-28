@@ -29,8 +29,11 @@ with the customer's delivery code, and follow their sample earnings.
    first partner; others see "already taken".
 5. **Trip**: go to the station (`refill`) → confirm pickup (`pickup`: full load
    required, receipt and photo optional) → go to the customer (`customer`) →
-   enter the customer's 6-digit code (`code`: 3 tries, resend after 2 minutes,
-   then ask admin) → done (`done`).
+   unload, then tap "Unloading done, send the code" (`code`: the customer's
+   code is sent only now, FR-035, #13; until then that button is the only
+   action, with no keypad and no "Verify code" footer) → enter the
+   customer's 6-digit code (3 tries, resend after 2 minutes, then ask admin)
+   → done (`done`).
 6. **Account**: earnings and withdraw request, history, notifications,
    vehicle and papers (upload), report a problem, profile, settings (new
    order alerts and SMS updates), change password. Partners have no email and
@@ -87,10 +90,12 @@ when `VITE_USE_MOCKS=false` (#67):
 
 Sign-up matches the typed area to an active zone by name, ignoring case and
 extra spaces, and sends its id as `service_zone_id`. The profile has no
-email, documents, payout account or "News and offers" switch, so the adapter
-returns `null`, `[]`, `null` and `false` for them. When admin has not set a
+documents or payout account, so the adapter returns `[]` and `null` for
+them. When admin has not set a
 vehicle description yet, the adapter writes one from the sign-up details:
-"Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker. The
+"Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker, and just
+"Tanker" for a tanker with no declared capacity (only drivers made with the
+command-line tool; decided by @chidimmamogbo on #86). The
 transfer methods become "Ground tanks", "Overhead tanks", "Ground and
 overhead tanks", or "Not set yet" when the list is empty.
 
@@ -108,12 +113,14 @@ Six job functions call the driver job endpoints in
 
 Conversion follows [api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send).
 
-The job steps (pickup, code, proof: #13), earnings, payouts, document upload
-and problem reports still run on mocks. In real-API mode they fail with
-`not_connected`.
+The job steps (pickup, unloading done, code, proof: #13), earnings, payouts,
+document upload and problem reports still run on mocks. In real-API mode they
+fail with `not_connected`.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 `partner_not_approved` (403), `not_assigned_to_you` (409),
-`invalid_job_transition` (409), `load_not_confirmed` (422), `invalid_code`
+`invalid_job_transition` (409), `transition_requirements_unmet` (409, a code
+step before unloading is done, `details.missing: ["unloading_confirmed"]`),
+`load_not_confirmed` (422), `invalid_code`
 (422, `details.tries_left`), `code_locked` (423), `too_many_attempts` (429,
 `retry_after_seconds`), `insufficient_balance` (422), `no_payout_account` (409).
 
@@ -175,10 +182,9 @@ active job, for calling.
   errors (#80). A refused sign-up never ends without a message.
 - Badges and "Mark all read" use the notification list's `unread_count`, so
   unread messages older than the newest 50 still count (#80).
-- The profile and settings screens show no email and no "News and offers"
-  switch, in mock and real mode (#85). Until the fields leave
-  `PartnerProfile`, the real adapter still refuses them with `not_connected`
-  before any request is sent.
+- Partners have no email and no "News and offers" switch, in mock and real
+  mode (#85). `PartnerProfile` has neither field, and settings change only
+  New order alerts and SMS updates.
 - Real API: a notification `kind` this build does not know is shown with
   the `account` style (shield icon; tapping it opens the profile) and the
   server's title and body. An `approval_status` it does not know is read as
@@ -199,8 +205,10 @@ and lock, payment of the partner, and the customer's order following the
 partner's job. Manual: sign in at `/partner/login` with the demo rider in
 `src/mocks/partnerSeed.ts` (mock mode only); finish MO-7KQ2 with the code the
 customer demo account sees on its tracking screen. For tankers, sign in with
-the demo tanker driver, accept MO-5KL3ZT8QWE (750 gal), load 750 gallons and
-finish with the code shown under the keypad (mock mode).
+the demo tanker driver, accept MO-5KL3ZT8QWE (750 gal), load 750 gallons, tap
+"Unloading done, send the code" and finish with the code shown under the
+keypad (mock mode). In mock mode a customer sees their code from the moment
+they order (the customer mock); the partner app gets it only after unloading.
 
 ## 10. Known limitations
 

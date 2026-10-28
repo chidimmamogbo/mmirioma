@@ -58,7 +58,7 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   delete copy.mock_code
   // Partners never see the order's payment status (FR-040, BR-13).
   delete copy.payment_status
-  const code = job.stage === 'collected' ? codeFor(s, job) : null
+  const code = job.stage === 'collected' && job.code_tries_left !== null ? codeFor(s, job) : null
   if (code) copy.demo_code = code
   return copy
 }
@@ -87,14 +87,10 @@ export async function getPartnerProfile(): Promise<PartnerProfile> {
   return clone({ name: user.name, phone: user.phone, ...data.profile })
 }
 
-export async function updatePartnerProfile(update: { email?: string | null; preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> {
+export async function updatePartnerProfile(update: { preferences?: Partial<PartnerProfile['preferences']> }): Promise<PartnerProfile> {
   await delay(null)
-  if (update.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(update.email)) {
-    throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'email'], msg: 'Enter a valid email address', type: 'value_error' }])
-  }
   mutate((s) => {
     const { data } = partnerOf(s)
-    if (update.email !== undefined) data.profile.email = update.email
     if (update.preferences) data.profile.preferences = { ...data.profile.preferences, ...update.preferences }
   })
   return getPartnerProfile()
@@ -135,7 +131,6 @@ export function newPartnerData(s: MockState, input: Pick<PartnerSignupInput, 've
     fleet_code: nextFleetCode(s, input.vehicle_type),
     rating: null,
     profile: {
-      email: null,
       approval: 'pending',
       online: false,
       partner_since: new Date().toISOString().slice(0, 10),
@@ -153,7 +148,7 @@ export function newPartnerData(s: MockState, input: Pick<PartnerSignupInput, 've
         { id: 'd2', name: input.vehicle_type === 'keke' ? 'Vehicle papers' : 'Tanker papers', status: 'missing', note: 'Upload your road papers', can_upload: true },
         { id: 'd3', name: 'Clean handling training', status: 'missing', note: 'Booked by admin after approval', can_upload: false },
       ],
-      preferences: { new_order_alerts: true, sms_updates: true, offers_and_news: false },
+      preferences: { new_order_alerts: true, sms_updates: true },
       payout_account_ending: null,
     },
     wallet_minor_units: 0,
@@ -289,9 +284,39 @@ export async function confirmPickup(
     job.pickup = pickup
     job.remaining =
       job.customer.distance_km !== null && job.customer.minutes !== null ? { distance_km: job.customer.distance_km, minutes: job.customer.minutes } : null
-    job.code_resend_at = new Date(Date.now() + RESEND_SECONDS * 1000).toISOString()
-    if (!findCustomerOrder(s, reference)) job.mock_code ??= newDeliveryCode()
+    // No code yet: it is issued when unloading is done (FR-035, #13).
+    job.code_tries_left = null
+    job.code_resend_at = null
     applyCollected(s, job, now)
+    return view(s, job)
+  })
+}
+
+/** The job's code step, refused until unloading is done. */
+function waitingCode(s: MockState, reference: string): StoredJob & { code_tries_left: number } {
+  const { id, data } = partnerOf(s)
+  const job = findVisible(s, id, data, reference)
+  if (job.partner_id !== id || job.stage !== 'collected') throw mockError(409, 'invalid_job_transition', 'This order is not waiting for its code')
+  if (job.code_tries_left === null) throw mockError(409, 'transition_requirements_unmet', 'Finish unloading first', { missing: ['unloading_confirmed'] })
+  return job as StoredJob & { code_tries_left: number }
+}
+
+/**
+ * Unloading is done: send the customer's delivery code (FR-035, #13). The
+ * code of a linked customer order is the one the customer already sees.
+ * Repeating it changes nothing.
+ */
+export async function completeUnloading(reference: string): Promise<PartnerJob> {
+  await delay(null, 300)
+  return mutate((s) => {
+    const { id, data } = partnerOf(s)
+    const job = findVisible(s, id, data, reference)
+    if (job.partner_id !== id || job.stage !== 'collected') throw mockError(409, 'invalid_job_transition', 'This order is not being unloaded')
+    if (job.code_tries_left === null) {
+      if (!findCustomerOrder(s, reference)) job.mock_code ??= newDeliveryCode()
+      job.code_tries_left = CODE_TRIES
+      job.code_resend_at = new Date(Date.now() + RESEND_SECONDS * 1000).toISOString()
+    }
     return view(s, job)
   })
 }
@@ -300,14 +325,14 @@ export async function confirmPickup(
  * Check the customer's delivery code. Wrong codes count down from 3; at 0 the
  * code is locked and admin must confirm the delivery (`r-otp-error`).
  *
- * @throws 422 `invalid_code` with `details.tries_left`; 423 `code_locked`.
+ * @throws 409 `transition_requirements_unmet` before unloading is done;
+ *   422 `invalid_code` with `details.tries_left`; 423 `code_locked`.
  */
 export async function verifyCode(reference: string, code: string): Promise<PartnerJob> {
   await delay(null, 400)
   return mutate((s) => {
-    const { id, data } = partnerOf(s)
-    const job = findVisible(s, id, data, reference)
-    if (job.partner_id !== id || job.stage !== 'collected') throw mockError(409, 'invalid_job_transition', 'This order is not waiting for its code')
+    const { data } = partnerOf(s)
+    const job = waitingCode(s, reference)
     if (job.code_tries_left <= 0) throw mockError(423, 'code_locked', 'Too many wrong codes. Ask admin to confirm the delivery.')
     if (code !== codeFor(s, job)) {
       job.code_tries_left -= 1
@@ -319,13 +344,11 @@ export async function verifyCode(reference: string, code: string): Promise<Partn
   })
 }
 
-/** Send the customer a new code. Allowed once the resend wait is over. */
+/** Send the customer a new code. Allowed once unloading is done and the resend wait is over. */
 export async function resendCode(reference: string): Promise<PartnerJob> {
   await delay(null, 300)
   return mutate((s) => {
-    const { id, data } = partnerOf(s)
-    const job = findVisible(s, id, data, reference)
-    if (job.partner_id !== id || job.stage !== 'collected') throw mockError(409, 'invalid_job_transition', 'This order is not waiting for its code')
+    const job = waitingCode(s, reference)
     const wait = job.code_resend_at ? Math.ceil((Date.parse(job.code_resend_at) - Date.now()) / 1000) : 0
     if (wait > 0) throw mockError(429, 'too_many_attempts', 'Wait before sending a new code', { retry_after_seconds: wait })
     const fresh = newDeliveryCode()

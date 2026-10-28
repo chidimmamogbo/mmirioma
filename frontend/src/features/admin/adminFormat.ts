@@ -9,6 +9,7 @@ import type { PaymentMethod } from '../../domain/orders'
 import type { ApprovalStatus } from '../../domain/partner'
 
 export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
+  awaiting_confirmation: 'amber',
   awaiting_rider: 'amber',
   assigned: 'blue',
   loading: 'violet',

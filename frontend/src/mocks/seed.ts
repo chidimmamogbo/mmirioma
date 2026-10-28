@@ -79,7 +79,6 @@ export interface StoredJob extends PartnerJob {
   earning_minor_units: number
   station: JobPlace & { address: string }
   customer: JobPlace & { address: string; contact_name: string; phone: string }
-  code_tries_left: number
   /**
    * The mocks never fail or dispute a job; the admin statuses for those are
    * still open (api-mapping.md, open question 5, #15).

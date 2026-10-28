@@ -1758,6 +1758,51 @@ Additive, so the shipped dispatch history keeps working:
   `{ "water_category_label", "source_name", "delivery_window": { "start_at", "end_at" }, "total_minor_units", "manual": true }`.
   Every other entry has `confirmation: null`.
 
+#### Amendment (#72): the quote's category id and the source kind
+
+**Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
+(technical lead, contract owner), on PR #132. Proposed by @Daveoski (+ Claude
+Code) for the confirm sheet of
+[#72](https://github.com/chidimmamogbo/mmirioma/issues/72) (prompt 14).
+**Built** in [#136](https://github.com/chidimmamogbo/mmirioma/issues/136),
+part 1 (`AdminOrderQuoteRead` in `orders/schemas.py`, `SourceOptionRead.kind`
+in `confirmation/schemas.py`). The rest of this section stays agreed as it
+is.
+
+**Gap.** Confirming an order placed with a server quote must send the
+quote's `water_category_id`, and for a Tanker order a `source_id` of the
+customer's `water_source` kind ([Confirmation rules](#confirmation-rules)).
+Neither can be chosen without guessing:
+
+1. `AdminOrderRead.quote.water_category` has `label` and `supported_uses`
+   only ([order-details-and-price.md](order-details-and-price.md#orderread-changes)).
+   The client could only match the label against the options' categories,
+   which breaks if two categories share a label.
+2. `ConfirmationOptions` sources carry no `kind`, so the sheet cannot show a
+   Tanker order only the sources it may use. The dispatcher would learn only
+   from a 422 on `source_id` after confirming.
+
+**Proposal.** Two additive read fields, no change to the confirm request or
+its rules:
+
+```json
+{ "quote": { "currency": "NGN", "total_minor_units": 2000000,
+             "water_category": { "id": "3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b", "label": "Utility Water", "supported_uses": null } } }
+```
+
+```json
+{ "id": "8e2d4c6b-1a3f-4b5c-9d7e-0f1a2b3c4d5e", "name": "Sample Borehole A", "kind": "borehole", "...": "as today" }
+```
+
+| Field | Rule |
+| --- | --- |
+| `AdminOrderRead.quote.water_category.id` | The id of the category frozen with the quote (FR-024), the one `water_category_id` must equal. **Admin responses only**: the customer's `OrderRead` keeps `label` and `supported_uses` |
+| `ConfirmationOptions.categories[].sources[].kind` | The source's kind: `ninth_mile`, `borehole`, or `null` until the technical lead sets it. Where the water is collected, never its quality (FR-014). A `null` kind does not match a Tanker order (as today) |
+
+Additive: a client that ignores the fields keeps working. No new rule,
+setting or table: both values are already stored (`quotes.water_category_id`,
+`water_sources.kind`).
+
 ### Error codes and condition names added by this section
 
 No new error codes. Condition name `delivery_window_set` (the window

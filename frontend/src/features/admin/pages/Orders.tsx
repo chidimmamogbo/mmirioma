@@ -21,12 +21,15 @@ import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
+import { ConfirmCard } from '../confirm/ConfirmOrder'
+import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
 import { METHOD_LABEL, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
 const FILTERS: { value: AdminOrderFilter; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'awaiting_confirmation', label: 'Awaiting confirmation' },
   { value: 'awaiting_rider', label: 'Awaiting rider' },
   { value: 'in_progress', label: 'In progress' },
   { value: 'delivered', label: 'Delivered' },
@@ -47,7 +50,12 @@ export function Orders() {
   const orders = list.data?.orders ?? []
   const picked = params.get('ref')
   const created = params.get('created')
-  const selected = picked ?? orders.find((o) => o.status === 'awaiting_rider')?.reference ?? orders[0]?.reference ?? null
+  const selected =
+    picked ??
+    orders.find((o) => o.status === 'awaiting_confirmation')?.reference ??
+    orders.find((o) => o.status === 'awaiting_rider')?.reference ??
+    orders[0]?.reference ??
+    null
 
   function select(reference: string) {
     const next = new URLSearchParams(params)
@@ -77,7 +85,7 @@ export function Orders() {
           <>
             <PageHead
               title="Orders"
-              sub={query ? `Results for “${query}”. Select an order to assign or reassign a rider.` : 'Select an order to assign or reassign a rider.'}
+              sub={query ? `Results for “${query}”. Confirm new orders, then assign a rider.` : 'Confirm new orders, then assign a rider.'}
               actions={
                 <ButtonLink to="/admin/orders/new" size="sm" block={false}>
                   + Create order for a customer
@@ -161,6 +169,8 @@ function QuantityCell({ choice }: { choice: WaterChoice }) {
 
 function OrderPanel({ reference, onChange }: { reference: string; onChange: () => void }) {
   const order = useAdminOrder(reference)
+  // The toast after confirming (admin-confirm-order.md, Q4).
+  const [confirmed, setConfirmed] = useState<string | null>(null)
   const o = order.data
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
   if (order.isError || !o) return <Card className="p-4"><ErrorBlock error={order.error} onRetry={() => order.refetch()} /></Card>
@@ -168,39 +178,53 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   const closed = o.status === 'delivered' || o.status === 'cancelled'
   return (
     <>
-      <Card className="rise-2 flex flex-col gap-3 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="m-0 text-[20px] font-extrabold">{o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
-          <StatusChip status={o.status} />
-        </div>
-        <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
-          <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
-          <div className="min-w-0">
-            <div className="font-extrabold">{o.reference}</div>
-            <div className="text-caption text-slate">
-              {o.choice ? `${o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'} · ${describeChoice(o.choice)}` : o.quantity}
-            </div>
-            <div className="text-caption text-slate">
-              {o.customer_name} · {o.area ?? 'No area'}
+      {confirmed && <Notice tone="success">{confirmed}</Notice>}
+      {/* Not confirmed yet: confirm first; no rider can be assigned (Q0). */}
+      {o.status === 'awaiting_confirmation' && (
+        <ConfirmCard
+          reference={o.reference}
+          onConfirmed={(message) => {
+            onChange()
+            setConfirmed(message)
+          }}
+        />
+      )}
+      {!USE_MOCKS && o.status !== 'awaiting_confirmation' && <ConfirmedSummary reference={o.reference} />}
+      {o.status !== 'awaiting_confirmation' && (
+        <Card className="rise-2 flex flex-col gap-3 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="m-0 text-[20px] font-extrabold">{o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
+            <StatusChip status={o.status} />
+          </div>
+          <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
+            <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-extrabold">{o.reference}</div>
+              <div className="text-caption text-slate">
+                {o.choice ? `${o.choice.delivery_type === 'keke' ? 'Keke' : 'Tanker'} · ${describeChoice(o.choice)}` : o.quantity}
+              </div>
+              <div className="text-caption text-slate">
+                {o.customer_name} · {o.area ?? 'No area'}
+              </div>
             </div>
           </div>
-        </div>
-        {o.partner && (
-          <KeyValue
-            label={o.status === 'assigned' ? 'Assigned to' : 'Rider'}
-            value={
-              <span>
-                {o.partner.name} · {o.partner.code}
-                {o.status === 'assigned' && <span className="block text-right text-chip text-mute">Waiting for them to start</span>}
-              </span>
-            }
-          />
-        )}
-        {canAssign && <AssignRiders order={o} onBefore={onChange} />}
-        {o.status === 'on_the_way' && (
-          <Notice>The water is on its way with {o.partner?.name ?? 'the rider'}. To change anything now, use Support (for example, confirm the delivery if the code fails).</Notice>
-        )}
-      </Card>
+          {o.partner && (
+            <KeyValue
+              label={o.status === 'assigned' ? 'Assigned to' : 'Rider'}
+              value={
+                <span>
+                  {o.partner.name} · {o.partner.code}
+                  {o.status === 'assigned' && <span className="block text-right text-chip text-mute">Waiting for them to start</span>}
+                </span>
+              }
+            />
+          )}
+          {canAssign && <AssignRiders order={o} onBefore={onChange} />}
+          {o.status === 'on_the_way' && (
+            <Notice>The water is on its way with {o.partner?.name ?? 'the rider'}. To change anything now, use Support (for example, confirm the delivery if the code fails).</Notice>
+          )}
+        </Card>
+      )}
       <Card className="flex flex-col gap-1 p-4 text-[13.5px]">
         <h3 className="m-0 mb-1 text-[15px] font-extrabold">Details</h3>
         <KeyValue label="Customer" value={`${o.customer_name} · ${formatPhone(o.customer_phone)}`} />
@@ -270,8 +294,10 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
             <span className="min-w-0 flex-1">
               <span className="block font-extrabold">{r.name}</span>
               <span className="block text-caption text-mute">
-                {r.vehicle === 'keke' ? 'Keke' : 'Tanker'}
-                {r.rating !== null && ` · ★ ${r.rating}`} · {r.active_orders} active {r.active_orders === 1 ? 'order' : 'orders'}
+                {/* No vehicle word when the server does not say Keke or tanker (#16). */}
+                {[r.vehicle && (r.vehicle === 'keke' ? 'Keke' : 'Tanker'), r.rating !== null && `★ ${r.rating}`, `${r.active_orders} active ${r.active_orders === 1 ? 'order' : 'orders'}`]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
               {r.works_in_area && <span className="block text-chip font-bold text-green">Works in {order.area}</span>}
             </span>

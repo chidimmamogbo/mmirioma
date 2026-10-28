@@ -29,6 +29,27 @@ describe('order confirmation API functions (deliveries.md, "Order confirmation e
     expect(JSON.stringify(categories)).not.toMatch(/cost/)
   })
 
+  it('reads each source kind (amendment #72), and a missing kind (older server) as null', async () => {
+    const { client } = setup(confirmationOptions)
+    const categories = await getConfirmationOptions('MO-7KQ2M9XH4T', undefined, client)
+    expect(categories[0].sources[0].kind).toBe('borehole')
+    const older = structuredClone(confirmationOptions) as { categories: { sources: Record<string, unknown>[] }[] }
+    for (const c of older.categories) for (const s of c.sources) delete s.kind
+    const { client: olderClient } = setup(older)
+    expect((await getConfirmationOptions('MO-7KQ2M9XH4T', undefined, olderClient))[0].sources[0].kind).toBeNull()
+  })
+
+  it('confirms a priced order with no manual total and passes 409 invalid_order_transition through', async () => {
+    const request: ConfirmRequest = { ...(confirmRequest as ConfirmRequest), expected_status: 'awaiting_confirmation' }
+    delete request.manual_quote_total_minor_units
+    const changed = { error: { code: 'invalid_order_transition', message: 'The order has changed', details: { from: 'confirmed', to: 'confirmed' } } }
+    const { fetchMock, client } = setup(changed, 409)
+    await expect(confirmOrder('MO-7KQ2M9XH4T', request, client)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+    const sent = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body))
+    expect(sent.expected_status).toBe('awaiting_confirmation')
+    expect(sent).not.toHaveProperty('manual_quote_total_minor_units')
+  })
+
   it('reports an unknown eligibility reason as invalid_response, never an eligible source', async () => {
     const body = structuredClone(confirmationOptions)
     body.categories[0].sources[0].reasons = ['flooded']

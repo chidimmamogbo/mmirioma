@@ -34,6 +34,8 @@ from app.modules.auth.models import PhoneVerification, User, UserRole, UserSessi
 
 # Shown wherever the account's name used to appear.
 ANONYMIZED_NAME = "Deleted customer"
+#: A rider or driver's, so staff screens and reports do not call them a customer (#119).
+ANONYMIZED_PARTNER_NAME = "Former rider or driver"
 ANONYMIZED_PHONE_PREFIX = "+0"
 # users.phone is VARCHAR(16): "+0" plus 14 digits fills it.
 _MARKER_DIGITS = 14
@@ -88,8 +90,29 @@ async def get_customer(session: AsyncSession, *, phone: str) -> User:
     return user
 
 
-async def anonymize_account(session: AsyncSession, user: User, *, phone_marker: str) -> None:
-    """Remove the personal details from a customer account. Does not commit.
+async def get_partner(session: AsyncSession, *, phone: str) -> User:
+    """Return the rider or driver account with this phone.
+
+    Args:
+        session: Database session.
+        phone: Normalized E.164 phone.
+
+    Returns:
+        The partner (role ``driver``).
+
+    Raises:
+        LookupError: No rider or driver account has this phone.
+    """
+    user = await session.scalar(select(User).where(User.phone == phone))
+    if user is None or user.role is not UserRole.DRIVER:
+        raise LookupError("no rider or driver account has this phone")
+    return user
+
+
+async def anonymize_account(
+    session: AsyncSession, user: User, *, phone_marker: str, name: str = ANONYMIZED_NAME
+) -> None:
+    """Remove the personal details from an account. Does not commit.
 
     The row is kept (see the module docstring). The name and phone are
     replaced, the password becomes an unknown random one, the account is
@@ -98,11 +121,13 @@ async def anonymize_account(session: AsyncSession, user: User, *, phone_marker: 
 
     Args:
         session: Database session (the caller's transaction).
-        user: The customer to anonymize.
+        user: The customer or partner to anonymize.
         phone_marker: From :func:`new_phone_marker`; also used on the
             customer's orders.
+        name: The name shown in its place: :data:`ANONYMIZED_NAME` for a
+            customer, :data:`ANONYMIZED_PARTNER_NAME` for a rider or driver.
     """
-    user.name = ANONYMIZED_NAME
+    user.name = name
     user.phone = phone_marker
     # Nobody knows this password, and the marker phone cannot be typed at
     # sign-in, so the account can never be used again.

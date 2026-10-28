@@ -1,34 +1,29 @@
 import { Illustration } from '../../../../components/brand/Illustration'
 import { BackLink, Footer, MobileShell, ScrollArea, TopBar } from '../../../../components/layout/MobileShell'
-import { ErrorBlock } from '../../../../components/layout/StateScreens'
 import { ButtonLink } from '../../../../components/ui/Button'
 import { Card } from '../../../../components/ui/Card'
-import { SampleTag } from '../../../../components/ui/Chip'
 import { OptionTile } from '../../../../components/ui/Choice'
-import { KeyValue, SectionHeader, Separator } from '../../../../components/ui/Content'
+import { KeyValue, SectionHeader } from '../../../../components/ui/Content'
 import { CAN_SIZES, canCountsFor, fitCanCount, kekeTotalLitres } from '../../../../domain/orders'
 import { describeQuantity, gallonsFromLitres } from '../../../../domain/quantity'
 import { cx } from '../../../../lib/cx'
-import { formatNaira } from '../../../../lib/format/money'
-import { OptionGroup, OrderStepHeading, SummaryTotal } from '../../components/OrderParts'
+import { OptionGroup, OrderStepHeading, PriceComesLater } from '../../components/OrderParts'
 import { draftChoice } from '../../order/draft'
 import { addressStepPath } from '../../order/flow'
 import { useOrderDraft } from '../../order/orderDraftContext'
-import { useAddresses, useQuote } from '../../queries'
+import { useAddresses } from '../../queries'
 
 /**
  * Keke order: jerrycan size and number of cans (`c-keke`). No water source
  * question for Keke (decision 10).
- * The price comes from the server (FR-022). Without an address there is no
- * delivery fee yet, so the summary shows the water price and says the
- * delivery fee follows (decision 10).
+ * No price here: the price comes on Review, after the address and area,
+ * because a water-only price would reveal the supplier's cost per litre (#42;
+ * customer-live-prices.md, decision 6).
  */
 export function KekeOrder() {
   const { draft, update } = useOrderDraft()
   const addresses = useAddresses()
   const choice = draftChoice({ ...draft, delivery_type: 'keke' })
-  const quote = useQuote(choice, null)
-  const q = quote.data?.status === 'quote_available' ? quote.data : undefined
   const keke = choice.delivery_type === 'keke' ? choice : null
   const counts = canCountsFor(draft.keke.can_size_litres)
 
@@ -72,25 +67,18 @@ export function KekeOrder() {
             ))}
           </div>
         </OptionGroup>
-        {quote.isError ? (
-          <ErrorBlock error={quote.error} onRetry={() => quote.refetch()} />
-        ) : (
-          <Card pad className="rise-4">
-            <SectionHeader title="Order summary" action={<SampleTag>SAMPLE PRICES</SampleTag>} className="mb-2" />
-            <div className="flex items-center gap-3">
-              <Illustration name="keke" className="animate-drive h-auto w-[118px] shrink-0" />
-              <div className="flex-1">
-                <KeyValue label="Water size" value={`${draft.keke.can_size_litres} litres per can`} />
-                <KeyValue label="Quantity" value={`${draft.keke.can_count} cans`} />
-                {keke && <KeyValue label="Total water" value={describeQuantity(kekeTotalLitres(keke))} />}
-                <KeyValue label="Price per can" value={q?.water.unit_minor_units !== undefined ? formatNaira(q.water.unit_minor_units) : '…'} />
-                <KeyValue label="Delivery" value={<span className="font-semibold text-mute">After address</span>} />
-              </div>
+        <Card pad className="rise-4">
+          <SectionHeader title="Order summary" className="mb-2" />
+          <div className="flex items-center gap-3">
+            <Illustration name="keke" className="animate-drive h-auto w-[118px] shrink-0" />
+            <div className="flex-1">
+              <KeyValue label="Water size" value={`${draft.keke.can_size_litres} litres per can`} />
+              <KeyValue label="Quantity" value={`${draft.keke.can_count} cans`} />
+              {keke && <KeyValue label="Total water" value={describeQuantity(kekeTotalLitres(keke))} />}
             </div>
-            <Separator />
-            <SummaryTotal quote={quote.data} label="Water total" loading={quote.isFetching} />
-          </Card>
-        )}
+          </div>
+        </Card>
+        <PriceComesLater className="rise-5" />
       </ScrollArea>
       <Footer>
         <ButtonLink to={addressStepPath(addresses.data)}>Continue</ButtonLink>

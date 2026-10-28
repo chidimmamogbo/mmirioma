@@ -12,7 +12,11 @@ Functions add to the caller's transaction and never commit.
   section 8: "the scrambled code is deleted; the record that delivery was
   confirmed is kept").
 - **Notes** written by drivers and staff are kept as incident and safety
-  records; :func:`count_notes` lets the privacy contact review them.
+  records; :func:`count_notes` and :func:`count_partner_notes` let the
+  privacy contact review them.
+- When a rider or driver is anonymized, the GPS points they recorded are
+  cleared (:func:`clear_partner_gps`), with the same evidence exception
+  (#119).
 """
 
 import uuid
@@ -109,12 +113,40 @@ async def clear_old_gps(
     )
 
 
+async def clear_partner_gps(
+    session: AsyncSession,
+    *,
+    recorded_by: uuid.UUID,
+    keep_order_ids: Collection[uuid.UUID],
+    now: datetime,
+) -> int:
+    """Clear the GPS points a rider or driver recorded, when their account is anonymized.
+
+    The location is their phone's, so it goes with them (#119), except on
+    orders still needed as evidence: disputed, or with an open hold or
+    review (notice section 8, the same exception as the monthly review).
+
+    Args:
+        session: Database session.
+        recorded_by: The rider or driver.
+        keep_order_ids: Orders whose points stay.
+        now: Time of the change.
+
+    Returns:
+        How many points were cleared.
+    """
+    return await _clear_gps(
+        session, now=now, recorded_by=recorded_by, keep_order_ids=keep_order_ids
+    )
+
+
 async def _clear_gps(
     session: AsyncSession,
     *,
     now: datetime,
     order_filter: Collection[uuid.UUID] | None = None,
     recorded_before: datetime | None = None,
+    recorded_by: uuid.UUID | None = None,
     keep_order_ids: Collection[uuid.UUID] = (),
 ) -> int:
     cleared = 0
@@ -131,6 +163,8 @@ async def _clear_gps(
             conditions.append(table.order_id.in_(order_filter))
         if recorded_before is not None:
             conditions.append(table.created_at < recorded_before)
+        if recorded_by is not None:
+            conditions.append(table.recorded_by == recorded_by)
         if keep_order_ids:
             conditions.append(table.order_id.not_in(keep_order_ids))
         result = await session.execute(
@@ -192,3 +226,30 @@ async def count_notes(session: AsyncSession, *, order_ids: Collection[uuid.UUID]
             )
             total += count or 0
     return total
+
+
+async def count_partner_notes(session: AsyncSession, *, driver_id: uuid.UUID) -> int:
+    """Count the free-text notes a rider or driver wrote, for the privacy contact to check.
+
+    Incident notes and pickup safety notes are kept as safety records, like
+    staff notes (#119); the anonymize report counts them so they can be
+    checked by hand for personal details.
+
+    Args:
+        session: Database session.
+        driver_id: The rider or driver.
+
+    Returns:
+        How many notes there are.
+    """
+    incidents = await session.scalar(
+        select(func.count())
+        .select_from(OrderException)
+        .where(OrderException.reported_by == driver_id, OrderException.note.is_not(None))
+    )
+    pickups = await session.scalar(
+        select(func.count())
+        .select_from(PickupRecord)
+        .where(PickupRecord.recorded_by == driver_id, PickupRecord.safety_note.is_not(None))
+    )
+    return (incidents or 0) + (pickups or 0)
