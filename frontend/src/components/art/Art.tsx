@@ -247,8 +247,7 @@ export function RefillMapArt() {
       <path d="M-10 230 C 80 200 140 260 220 236 S 320 196 370 210" fill="none" stroke="#BFDDF7" strokeWidth="20" />
       <path d="M0 120 H354 M160 0 V400 M0 246 H354 M0 380 H354" stroke="#FFFFFF" strokeWidth="12" />
       <path d="M0 330 L 354 70" stroke="#FBE7A1" strokeWidth="14" />
-      <text fill="#5D8A66" {...MAP_TEXT} fontSize="12" x="218" y="70">GRA</text>
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="12" x="30" y="300">Ogui</text>
+      {/* No place names: they would read as where the job is (#157). The screen names the real place. */}
       <path d={route} fill="none" opacity=".22" stroke="#0B4FA8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="9" />
       <path d={route} className="route-flow" fill="none" stroke="#1570D8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="6" />
     </svg>
@@ -268,7 +267,6 @@ export function CustomerMapArt() {
       <path d="M0 150 H354 M160 0 V330" stroke="#FFFFFF" strokeWidth="14" />
       <path d="M0 110 L 354 260" stroke="#FBE7A1" strokeWidth="12" />
       <path d="M-10 186 C 60 170 120 200 200 180 S 300 160 370 170" fill="none" stroke="#BFDDF7" strokeWidth="16" />
-      <text fill="#5D8A66" {...MAP_TEXT} fontSize="12" x="206" y="66">Lakeview Park</text>
       <path d={route} fill="none" opacity=".22" stroke="#0B4FA8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="9" />
       <path d={route} className="route-flow" fill="none" stroke="#1570D8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="6" />
     </svg>
@@ -288,7 +286,6 @@ export function TankerRefillMapArt() {
       <path d="M-10 440 C 90 400 170 480 260 440 S 360 400 400 420" fill="none" stroke="#BFDDF7" strokeWidth="22" />
       <path d="M0 260 H390 M190 0 V844 M0 640 H390" stroke="#FFFFFF" strokeWidth="14" />
       <path d="M0 720 L 390 200" stroke="#FBE7A1" strokeWidth="16" />
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="13" x="40" y="180">Ogui</text>
       <path d={route} fill="none" opacity=".22" stroke="#15803D" strokeLinecap="round" strokeLinejoin="round" strokeWidth="10" />
       <path d={route} className="route-flow" fill="none" stroke="#16A34A" strokeLinecap="round" strokeLinejoin="round" strokeWidth="6" />
     </svg>
@@ -307,7 +304,6 @@ export function TankerCustomerMapArt() {
       <path d="M-10 160 C 70 140 140 180 210 160 S 310 140 370 150" fill="none" stroke="#BFDDF7" strokeWidth="16" />
       <path d="M0 130 H354 M170 0 V330 M0 250 H354" stroke="#FFFFFF" strokeWidth="13" />
       <path d="M0 320 L 354 60" stroke="#FBE7A1" strokeWidth="12" />
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="12" x="212" y="240">New Haven</text>
       <path d={route} fill="none" opacity=".22" stroke="#15803D" strokeLinecap="round" strokeLinejoin="round" strokeWidth="9" />
       <path d={route} className="route-flow" fill="none" stroke="#16A34A" strokeLinecap="round" strokeLinejoin="round" strokeWidth="6" />
     </svg>

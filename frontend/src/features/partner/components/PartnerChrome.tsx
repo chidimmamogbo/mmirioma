@@ -3,6 +3,7 @@ import { BottomTabBar } from '../../../components/layout/BottomTabBar'
 import { MenuLink, NotificationsLink, ProfileLink, TopBar } from '../../../components/layout/MobileShell'
 import { DocumentFoldIcon, DocumentLinesIcon, HomeSolidIcon, PersonIcon, WalletIcon } from '../../../components/icons/icons'
 import { Chip } from '../../../components/ui/Chip'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { usePartnerApp } from '../partnerContext'
 import { usePartnerNotifications, usePartnerProfile } from '../queries'
 
@@ -13,7 +14,8 @@ export function PartnerTabs({ current }: { current: 'home' | 'orders' | 'earning
   const items = [
     { to: base, label: 'Home', icon: (on: boolean) => <HomeSolidIcon size={22} filled={on} /> },
     { to: `${base}/orders`, label: 'Orders', icon: () => <OrdersIcon size={22} /> },
-    { to: `${base}/earnings`, label: 'Earnings', icon: () => <WalletIcon size={22} /> },
+    // Partner pay is out of the MVP (#157): no Earnings tab.
+    ...(PARTNER_PAY_ENABLED ? [{ to: `${base}/earnings`, label: 'Earnings', icon: () => <WalletIcon size={22} /> }] : []),
     { to: `${base}/menu`, label: 'Profile', icon: () => <PersonIcon size={22} roundJoin={false} /> },
   ]
   const currentPath = current === 'home' ? base : current === 'orders' ? `${base}/orders` : `${base}/earnings`

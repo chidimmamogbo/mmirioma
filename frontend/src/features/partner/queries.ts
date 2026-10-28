@@ -15,8 +15,9 @@ export const partnerKeys = {
 }
 
 export const usePartnerProfile = () => useQuery({ queryKey: partnerKeys.profile, queryFn: api.getPartnerProfile })
-export const useEarnings = () => useQuery({ queryKey: partnerKeys.earnings, queryFn: api.getEarnings })
-export const useHistory = () => useQuery({ queryKey: partnerKeys.history, queryFn: api.listHistory })
+/** `enabled` false skips the request (the home screens while partner pay is out of the MVP, #157). */
+export const useEarnings = (enabled = true) => useQuery({ queryKey: partnerKeys.earnings, queryFn: api.getEarnings, enabled })
+export const useHistory = (enabled = true) => useQuery({ queryKey: partnerKeys.history, queryFn: api.listHistory, enabled })
 export const usePartnerNotifications = () => useQuery({ queryKey: partnerKeys.notifications, queryFn: api.listPartnerNotifications })
 
 /**

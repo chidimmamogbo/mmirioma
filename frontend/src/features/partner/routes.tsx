@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router-dom'
 import { RequireRole } from '../auth/RequireRole'
 import { SignedOutOnly } from '../auth/SessionRedirects'
+import { PARTNER_PAY_ENABLED } from '../../lib/features'
 import { PartnerArea, PartnerHomeRedirect } from './PartnerArea'
 
 /**
@@ -34,8 +35,16 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // r-otp, r-otp-error
       { path: 'jobs/:reference/done', lazy: () => import('./pages/RiderDone').then((m) => ({ Component: m.RiderDone })) }, // r-done
       { path: 'jobs/:reference/decline', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.DeclineJob })) }, // added
-      { path: 'earnings', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.RiderEarnings })) }, // r-earnings
-      { path: 'earnings/withdraw', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.WithdrawRequest })) }, // added
+      // r-earnings; partner pay is out of the MVP (#157), so old links go home.
+      ...(PARTNER_PAY_ENABLED
+        ? [
+            { path: 'earnings', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.RiderEarnings })) },
+            { path: 'earnings/withdraw', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.WithdrawRequest })) }, // added
+          ]
+        : [
+            { path: 'earnings', element: <PartnerHomeRedirect /> },
+            { path: 'earnings/withdraw', element: <PartnerHomeRedirect /> },
+          ]),
       { path: 'history', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerHistory })) }, // r-history
       { path: 'notifications', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerNotifications })) }, // r-notifications
       { path: 'vehicle', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerVehicle })) }, // r-vehicle
@@ -60,8 +69,16 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // t-otp
       { path: 'jobs/:reference/done', lazy: () => import('./pages/DriverDone').then((m) => ({ Component: m.DriverDone })) }, // t-done
       { path: 'jobs/:reference/decline', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.DeclineJob })) }, // added
-      { path: 'earnings', lazy: () => import('./pages/DriverEarnings').then((m) => ({ Component: m.DriverEarnings })) }, // t-earnings
-      { path: 'earnings/withdraw', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.WithdrawRequest })) }, // added (Request payout)
+      // t-earnings; hidden while partner pay is out of the MVP (#157).
+      ...(PARTNER_PAY_ENABLED
+        ? [
+            { path: 'earnings', lazy: () => import('./pages/DriverEarnings').then((m) => ({ Component: m.DriverEarnings })) },
+            { path: 'earnings/withdraw', lazy: () => import('./pages/RiderEarnings').then((m) => ({ Component: m.WithdrawRequest })) }, // added (Request payout)
+          ]
+        : [
+            { path: 'earnings', element: <PartnerHomeRedirect /> },
+            { path: 'earnings/withdraw', element: <PartnerHomeRedirect /> },
+          ]),
       { path: 'history', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerHistory })) }, // r-history, tanker words
       { path: 'notifications', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerNotifications })) }, // r-notifications
       { path: 'vehicle', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.PartnerVehicle })) }, // r-vehicle, "Tanker and papers"

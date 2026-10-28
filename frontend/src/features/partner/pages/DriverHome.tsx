@@ -16,9 +16,10 @@ import { AssignedSheet } from '../components/AssignedSheet'
 import { TankTypeChip } from '../components/JobParts'
 import { PartnerTabs } from '../components/PartnerChrome'
 import { greeting } from '../greeting'
-import { jobQuantity, kmSuffix, tankerTripLine } from '../jobHelpers'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
+import { deliveredToday, jobQuantity, kmSuffix, tankerTripLine } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
-import { useActiveJobs, useAvailableJobs, useEarnings, usePartnerProfile, useSetOnline } from '../queries'
+import { useActiveJobs, useAvailableJobs, useEarnings, useHistory, usePartnerProfile, useSetOnline } from '../queries'
 
 /** How many pool orders the dashboard lists before "View all". */
 const HOME_LIST = 2
@@ -32,7 +33,8 @@ export function DriverHome() {
   const { reference } = useParams()
   const { base } = usePartnerApp()
   const profile = usePartnerProfile()
-  const earnings = useEarnings()
+  const earnings = useEarnings(PARTNER_PAY_ENABLED)
+  const history = useHistory(!PARTNER_PAY_ENABLED)
   const active = useActiveJobs()
   const available = useAvailableJobs()
   const setOnline = useSetOnline()
@@ -109,11 +111,19 @@ export function DriverHome() {
             )}
             {setOnline.isError && <Notice tone="error">{errorMessage(setOnline.error)}</Notice>}
 
-            <div className="rise-3 grid grid-cols-3 gap-2">
-              <Stat label="Today" value={e ? formatNaira(e.today_minor_units) : '…'} />
-              <Stat label="Trips" value={e ? String(e.deliveries_today) : '…'} />
-              <Stat label="Wallet" value={e ? formatNaira(e.wallet_minor_units) : '…'} to={`${base}/earnings`} />
-            </div>
+            {PARTNER_PAY_ENABLED ? (
+              <div className="rise-3 grid grid-cols-3 gap-2">
+                <Stat label="Today" value={e ? formatNaira(e.today_minor_units) : '…'} />
+                <Stat label="Trips" value={e ? String(e.deliveries_today) : '…'} />
+                <Stat label="Wallet" value={e ? formatNaira(e.wallet_minor_units) : '…'} to={`${base}/earnings`} />
+              </div>
+            ) : (
+              // Partner pay is out of the MVP (#157): real counts only, never a tile left at "…".
+              <div className="rise-3 grid grid-cols-2 gap-2">
+                <Stat label="Trips today" value={history.data ? String(deliveredToday(history.data)) : history.isError ? '–' : '…'} />
+                <Stat label="Active delivery" value={String(active.data?.filter((j) => j.stage !== 'assigned').length ?? 0)} />
+              </div>
+            )}
 
             {inProgress && (
               <Link

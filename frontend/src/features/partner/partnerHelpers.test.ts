@@ -4,6 +4,7 @@ import { greeting } from './greeting'
 import {
   contactSuffix,
   customerLabel,
+  deliveredToday,
   jobDeliveryType,
   jobQuantity,
   kmSuffix,
@@ -76,6 +77,19 @@ describe('tanker helpers', () => {
     expect(greeting(new Date('2026-10-16T10:30:00Z'))).toBe('Good morning')
     expect(greeting(new Date('2026-10-16T11:30:00Z'))).toBe('Good afternoon')
     expect(greeting(new Date('2026-10-16T16:30:00Z'))).toBe('Good evening')
+  })
+})
+
+describe('deliveredToday (#157)', () => {
+  it('counts jobs delivered today in Lagos, not yesterday and not undelivered ones', () => {
+    // 28 Oct 2026, 00:30 in Lagos is 27 Oct 23:30 UTC.
+    const now = new Date('2026-10-27T23:30:00Z')
+    const jobs = [
+      job({ reference: 'A', delivered_at: '2026-10-27T23:10:00Z' }), // 00:10 Lagos, today
+      job({ reference: 'B', delivered_at: '2026-10-27T22:50:00Z' }), // 23:50 Lagos, yesterday
+      job({ reference: 'C', delivered_at: null }),
+    ]
+    expect(deliveredToday(jobs, now)).toBe(1)
   })
 })
 
