@@ -237,6 +237,29 @@ sent. Every decision button keeps its label, turns busy and sends once.
 The CANCEL sentence is the server's cancellation outcome, word for word.
 Delivered is shown only after the server says so (BR-06).
 
+### Cancel from the order panel (#129, #176)
+
+The Orders panel's "Cancel this order" button opens the same CANCEL dialog
+(`frontend/src/features/admin/hold/EndDelivery.tsx`, `CancelDialog`), so there
+is one cancel flow. Design: `docs/design/admin-order-cancellation.md`.
+
+- **Who sees it:** `canCancel` in `hold/logic.ts`. Not on the page for
+  Delivered, Cancelled and Disputed orders (row 23 refuses them).
+- **Driver line:** `hasLiveDriver` is true for Assigned, Loading and On the
+  way. Then the dialog says the driver's job ends; otherwise "No driver is
+  assigned, so no driver's job changes."
+- **Open hold:** the entry sends no `hold_id` (`hold={null}`); the server closes
+  every open hold on cancel. The dialog still says "This also closes the <kind>
+  hold.", from the `openHold` prop.
+- **Calls:** `getCancellationOutcome` and `transitionOrder` with `to:
+  cancelled`, `reason_code: mmirioma_unable` and `expected_status` from
+  `backendStatusFor(order)`. There is no free-text reason, and no promise that
+  the rider or customer is told or that a refund follows.
+- **Mock mode:** the same dialog, with the server's sentence labelled SAMPLE.
+  The old mock `cancelOrder` is gone.
+- **Not here:** a cancel because the customer asked (`customer_request`) needs a
+  contract change first (#174).
+
 ## 9. Testing instructions
 
 From `backend/` with the virtualenv:

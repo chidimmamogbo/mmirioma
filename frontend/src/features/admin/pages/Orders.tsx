@@ -11,7 +11,6 @@ import { RadioRow } from '../../../components/ui/Choice'
 import { Chip } from '../../../components/ui/Chip'
 import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
-import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { isHoldDecisionLabel, type AdminOrder, type AdminOrderFilter, type EligibleRider } from '../../../domain/admin'
 import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
@@ -24,10 +23,10 @@ import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
 import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
-import { FailDialog } from '../hold/EndDelivery'
+import { CancelDialog, FailDialog } from '../hold/EndDelivery'
 import { DecidedCard, HoldBanner, HoldChip } from '../hold/HoldParts'
 import { HoldSheet } from '../hold/HoldSheet'
-import { backendStatusFor, canFail } from '../hold/logic'
+import { backendStatusFor, canCancel, canFail, hasLiveDriver } from '../hold/logic'
 import { holdSummary, METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { adminKeys, useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
@@ -45,7 +44,7 @@ const FILTERS: { value: AdminOrderFilter; label: string }[] = [
 /**
  * Orders and rider assignment (`a-orders`). Selecting a row opens the side
  * panel: assign or reassign a rider while the water has not been collected,
- * the order's details, and cancel with a reason. `?ref=` selects an order and
+ * the order's details, and cancel (the CANCEL dialog of the hold review). `?ref=` selects an order and
  * `?q=` searches (links from the dashboard and header search).
  */
 export function Orders() {
@@ -195,6 +194,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   const [confirmed, setConfirmed] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
   const [failing, setFailing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const qc = useQueryClient()
   const o = order.data
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
@@ -296,7 +296,39 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
           Fail this delivery
         </Button>
       )}
-      {!closed && <CancelOrder reference={o.reference} onBefore={onChange} />}
+      {canCancel(o) && (
+        <Button
+          variant="line-danger"
+          size="sm"
+          onClick={() => {
+            // Pin the order in the address first: the list refreshes when the cancel lands, and the panel would otherwise move to the next waiting order and lose the toast.
+            onChange()
+            setCancelling(true)
+          }}
+        >
+          Cancel this order
+        </Button>
+      )}
+      {/* No hold_id from the entry: the server closes every open hold on cancel, and the dialog says which (decision 5). */}
+      {cancelling && (
+        <CancelDialog
+          reference={o.reference}
+          expectedStatus={backendStatusFor(o)}
+          hold={null}
+          openHold={o.hold}
+          liveDriver={hasLiveDriver(o)}
+          onClose={() => setCancelling(false)}
+          onDone={(message) => {
+            setCancelling(false)
+            onChange()
+            setConfirmed(message)
+          }}
+          onRefresh={() => {
+            setCancelling(false)
+            void qc.invalidateQueries({ queryKey: adminKeys.all })
+          }}
+        />
+      )}
       {failing && (
         <FailDialog
           reference={o.reference}
@@ -394,36 +426,3 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
     </>
   )
 }
-
-function CancelOrder({ reference, onBefore }: { reference: string; onBefore: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState('')
-  const cancel = useAdminMutation(() => api.cancelOrder(reference, reason))
-  if (!open) {
-    return (
-      <Button variant="line-danger" size="sm" onClick={() => setOpen(true)}>
-        Cancel this order
-      </Button>
-    )
-  }
-  return (
-    <Card className="flex flex-col gap-2.5 p-4">
-      <h3 className="m-0 text-[15px] font-extrabold">Cancel {reference.slice(0, 7)}</h3>
-      <p className="m-0 text-caption text-mute">The rider and the customer are told. A paid order becomes a refund to pay as points.</p>
-      <TextAreaField label="Reason (saved in the audit log)" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Customer asked to cancel by phone" />
-      {cancel.isError && <Notice tone="error">{errorMessage(cancel.error)}</Notice>}
-      <div className="flex gap-2">
-        <Button variant="danger" size="sm" block={false} className="px-4" loading={cancel.isPending} onClick={() => {
-            onBefore()
-            cancel.mutate(undefined)
-          }}>
-          Cancel order
-        </Button>
-        <Button variant="line" size="sm" block={false} className="px-4" onClick={() => setOpen(false)}>
-          Keep it
-        </Button>
-      </div>
-    </Card>
-  )
-}
-

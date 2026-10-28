@@ -6,10 +6,12 @@ import {
   FAIL_REASONS,
   backendStatusFor,
   buildProofRequest,
+  canCancel,
   canFail,
   decisionFailure,
   deliveryCodeLine,
   failErrors,
+  hasLiveDriver,
   initialProofForm,
   noteError,
   outcomeFailure,
@@ -233,5 +235,26 @@ describe('decisionFailure', () => {
   it('falls back to the server’s message for anything else', () => {
     expect(decisionFailure(refusal(500, 'boom')).message).toBe('Sample boom')
     expect(decisionFailure(new Error('x')).message).toBe('Something went wrong. Please try again.')
+  })
+})
+
+describe('the cancel entry on the order panel (#176)', () => {
+  it.each(['awaiting_confirmation', 'awaiting_rider', 'assigned', 'loading', 'on_the_way', 'failed'])('is offered for %s', (status) => {
+    expect(canCancel({ status })).toBe(true)
+  })
+
+  it.each(['delivered', 'cancelled', 'disputed'])('is not on the page for %s', (status) => {
+    expect(canCancel({ status })).toBe(false)
+  })
+
+  it.each([
+    ['assigned', true],
+    ['loading', true],
+    ['on_the_way', true],
+    ['awaiting_confirmation', false],
+    ['awaiting_rider', false],
+    ['failed', false],
+  ])('says a driver’s job is live for %s: %s', (status, live) => {
+    expect(hasLiveDriver({ status })).toBe(live)
   })
 })

@@ -2,8 +2,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   assignOrder,
-  cancelOrder,
-  confirmPayment,
   continueSource,
   createOrderForCustomer,
   decideProof,
@@ -105,16 +103,7 @@ describe('assigning riders', () => {
   })
 })
 
-describe('cancelling', () => {
-  it('needs a reason, and a paid order becomes a refund due', async () => {
-    await expect(cancelOrder('MO-6RTA2KXP9B', '')).rejects.toMatchObject({ code: 'validation_error' })
-    await confirmPayment('MO-3HT8WQ2KZP')
-    const o = await cancelOrder('MO-3HT8WQ2KZP', 'Customer asked by phone')
-    expect(o.status).toBe('cancelled')
-    expect(o.payment.status).toBe('refund_due')
-    expect(read().partners[DEMO_RIDER_ID].notifications[0]).toMatchObject({ kind: 'reassigned', title: 'Order cancelled' })
-  })
-
+describe('refunding', () => {
   it('pays a refund as points at the sample rate (1 point = ₦1)', async () => {
     const before = read().customers['user-kelechi'].points.balance
     await refundAsPoints('MO-4WQ9NC3RZF', 'Cancelled after a bank transfer')
