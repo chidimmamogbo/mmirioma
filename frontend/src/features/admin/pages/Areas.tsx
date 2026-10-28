@@ -13,7 +13,7 @@ import { errorMessage } from '../../../lib/api/errorMessage'
 import { formatNaira, nairaInputToKobo } from '../../../lib/format/money'
 import * as api from '../adminApi'
 import { AdminFrame, PageHead } from '../AdminParts'
-import { useAdminMutation, useAreas, usePriceLists } from '../queries'
+import { useAdminMutation, useAreas, useSamplePriceTables } from '../queries'
 
 type Draft = { name: string; enabled: boolean; latitude: string; longitude: string; fee: string }
 
@@ -61,7 +61,7 @@ function fromDraft(d: Draft): Omit<ServiceArea, 'id'> {
  */
 export function Areas() {
   const areas = useAreas()
-  const prices = usePriceLists()
+  const prices = useSamplePriceTables()
   const fee = prices.data?.[0]?.delivery_fee
   const [adding, setAdding] = useState(false)
 

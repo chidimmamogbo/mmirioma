@@ -3,12 +3,12 @@
  * partner and admin mocks alike (one database). Pure functions on MockState;
  * callers wrap them in `mutate`.
  */
-import type { ActivityKind, AdminStation, PapersState, PriceList } from '../domain/admin'
+import type { ActivityKind, AdminStation, PapersState, SamplePriceTable } from '../domain/admin'
 import type { MockState } from './seed'
 import { newId } from './store'
 
 /** The price list in force: the newest version (FR-024). */
-export function currentPrices(s: MockState): PriceList {
+export function currentPrices(s: MockState): SamplePriceTable {
   return s.admin.prices[s.admin.prices.length - 1]
 }
 

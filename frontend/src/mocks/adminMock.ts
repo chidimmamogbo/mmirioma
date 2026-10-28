@@ -37,8 +37,8 @@ import type {
   NewAddressInput,
   NewCustomerInput,
   NewRiderInput,
-  PriceList,
-  PriceListInput,
+  SamplePriceTable,
+  SamplePriceTableInput,
   ReportRange,
   ResolutionAction,
   ServiceArea,
@@ -900,7 +900,7 @@ export async function saveArea(id: string | null, input: Omit<ServiceArea, 'id'>
 
 /* ---------- Pricing and points ---------- */
 
-export async function listPriceLists(): Promise<PriceList[]> {
+export async function listPriceLists(): Promise<SamplePriceTable[]> {
   await delay(null)
   const s = read()
   requireAdmin(s)
@@ -908,7 +908,7 @@ export async function listPriceLists(): Promise<PriceList[]> {
 }
 
 /** Short summary of what changed between two lists, for the change log. */
-function describeChanges(a: PriceList, b: PriceListInput): string {
+function describeChanges(a: SamplePriceTable, b: SamplePriceTableInput): string {
   const out: string[] = []
   const money = (k: number) => formatNaira(k)
   for (const size of [25, 50] as const) {
@@ -939,7 +939,7 @@ function describeChanges(a: PriceList, b: PriceListInput): string {
   return out.slice(0, 3).join('; ') + (out.length > 3 ? ` and ${out.length - 3} more` : '')
 }
 
-function validPrices(p: PriceListInput): boolean {
+function validPrices(p: SamplePriceTableInput): boolean {
   const kobo = (n: number, allowZero = true) => Number.isSafeInteger(n) && (allowZero ? n >= 0 : n > 0) && n % 100 === 0
   const rows = [500, 750, 1000] as const
   return (
@@ -956,7 +956,7 @@ function validPrices(p: PriceListInput): boolean {
 }
 
 /** Save a new price list version. Orders already placed keep their price (FR-024). */
-export async function savePriceList(input: PriceListInput): Promise<PriceList> {
+export async function savePriceList(input: SamplePriceTableInput): Promise<SamplePriceTable> {
   await delay(null, 400)
   if (!validPrices(input)) throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body'], msg: 'Use whole naira amounts; water and can prices above ₦0', type: 'value_error' }])
   return mutate((s) => {
@@ -964,7 +964,7 @@ export async function savePriceList(input: PriceListInput): Promise<PriceList> {
     const current = currentPrices(s)
     const note = describeChanges(current, input)
     if (!note) throw mockError(409, 'no_changes', 'Nothing has changed since the current version')
-    const next: PriceList = { ...clone(input), version: current.version + 1, created_at: new Date().toISOString(), created_by: actorName(s), note }
+    const next: SamplePriceTable = { ...clone(input), version: current.version + 1, created_at: new Date().toISOString(), created_by: actorName(s), note }
     s.admin.prices.push(next)
     addAudit(s, next.created_by, `Saved price list v${next.version}`, note)
     return clone(next)

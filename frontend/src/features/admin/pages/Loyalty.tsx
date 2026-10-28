@@ -4,12 +4,12 @@ import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreen
 import { Card } from '../../../components/ui/Card'
 import { SampleTag } from '../../../components/ui/Chip'
 import { INPUT } from '../../../components/ui/Field'
-import type { PriceList, PriceListInput } from '../../../domain/admin'
+import type { SamplePriceTable, SamplePriceTableInput } from '../../../domain/admin'
 import { formatDateTime } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
 import { MONEY_TABS, editablePrices } from '../adminFormat'
 import { AdminFrame, LinkTabs, PageHead } from '../AdminParts'
-import { useAdminMutation, useAudit, usePriceLists } from '../queries'
+import { useAdminMutation, useAudit, useSamplePriceTables } from '../queries'
 import { ChangeLog } from './Pricing'
 
 /**
@@ -18,9 +18,9 @@ import { ChangeLog } from './Pricing'
  * and show in the same change log. Points are SAMPLE rewards (decision 16).
  */
 export function Loyalty() {
-  const lists = usePriceLists()
+  const lists = useSamplePriceTables()
   const audit = useAudit()
-  const save = useAdminMutation((draft: PriceListInput) => api.savePriceList(draft))
+  const save = useAdminMutation((draft: SamplePriceTableInput) => api.saveSamplePriceTable(draft))
   const pointChanges = (audit.data ?? []).filter((a) => /points/i.test(a.action)).slice(0, 8)
   return (
     <AdminFrame searchPlaceholder="Search settings">
@@ -54,11 +54,11 @@ export function Loyalty() {
   )
 }
 
-function RulesEditor({ versions, save }: { versions: PriceList[]; save: ReturnType<typeof useAdminMutation<PriceListInput, PriceList>> }) {
+function RulesEditor({ versions, save }: { versions: SamplePriceTable[]; save: ReturnType<typeof useAdminMutation<SamplePriceTableInput, SamplePriceTable>> }) {
   const current = versions[0]
-  const [draft, setDraft] = useState<PriceListInput>(() => editablePrices(current))
+  const [draft, setDraft] = useState<SamplePriceTableInput>(() => editablePrices(current))
   const p = draft.points
-  const set = (k: keyof PriceListInput['points']) => (text: string) => {
+  const set = (k: keyof SamplePriceTableInput['points']) => (text: string) => {
     const n = Number(text.replace(/[^\d]/g, ''))
     setDraft((d) => ({ ...d, points: { ...d.points, [k]: Number.isFinite(n) ? n : 0 } }))
   }
