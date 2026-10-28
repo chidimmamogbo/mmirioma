@@ -73,6 +73,32 @@ async def cash_blockers(session: AsyncSession, *, order_ids: Collection[uuid.UUI
     return sorted(lines)
 
 
+async def driver_cash_blockers(session: AsyncSession, *, driver_id: uuid.UUID) -> list[str]:
+    """Cash a rider or driver must settle before their account is anonymized.
+
+    Any collection they recorded that is not ``reconciled``: they still hold
+    it (``collected``, ``awaiting_remittance``), or staff received it but have
+    not matched it to its order (``remitted``). Their cash must be settled
+    while the account still identifies who owes it (FR-041, BR-12; #119).
+
+    Args:
+        session: Database session.
+        driver_id: The rider or driver.
+
+    Returns:
+        One line per blocking order, ``"<reference>: cash <status>"``, sorted.
+    """
+    rows = await session.execute(
+        select(Order.reference, CashCollection.status)
+        .join(Order, Order.id == CashCollection.order_id)
+        .where(
+            CashCollection.driver_id == driver_id,
+            CashCollection.status != CashCollectionStatus.RECONCILED,
+        )
+    )
+    return sorted(f"{reference}: cash {status.value}" for reference, status in rows)
+
+
 async def cash_warnings(session: AsyncSession, *, order_ids: Collection[uuid.UUID]) -> list[str]:
     """Balances settled outside the app, for the privacy contact to check.
 

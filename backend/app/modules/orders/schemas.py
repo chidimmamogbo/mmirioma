@@ -292,6 +292,22 @@ class OrderQuoteRead(BaseModel):
     water_category: QuoteCategoryRead
 
 
+class AdminQuoteCategoryRead(QuoteCategoryRead):
+    """The quote's category as staff see it: with its ``id`` (deliveries.md, amendment #72).
+
+    The dispatcher confirms a quoted order with this id as
+    ``water_category_id``. Customers never get it.
+    """
+
+    id: uuid.UUID
+
+
+class AdminOrderQuoteRead(OrderQuoteRead):
+    """The order's quote as staff see it: the customer's view plus the category id."""
+
+    water_category: AdminQuoteCategoryRead
+
+
 class FeedbackInput(BaseModel):
     """``PUT /orders/{reference}/feedback`` (FR-051; customer-account.md, "Order feedback").
 
@@ -507,12 +523,14 @@ class AdminOrderRead(OrderBaseRead):
             deliveries module, which owns holds; an order that can be offered
             to a driver (``confirmed``) never has one, because holds close
             when a job ends.
+        quote: As for customers, plus the category's ``id`` (amendment #72).
     """
 
     id: uuid.UUID
     customer: OrderCustomer
     is_simulated: bool
     hold: OrderHoldRead | None = None
+    quote: AdminOrderQuoteRead | None  # type: ignore[assignment]
 
     @classmethod
     def from_order(  # type: ignore[override]
@@ -534,8 +552,21 @@ class AdminOrderRead(OrderBaseRead):
         Returns:
             The admin representation.
         """
+        summary = lookups.quotes.get(order.quote_id) if order.quote_id is not None else None
         return cls(
-            **OrderBaseRead.from_order(order, lookups).model_dump(),
+            **OrderBaseRead.from_order(order, lookups).model_dump(exclude={"quote"}),
+            quote=(
+                AdminOrderQuoteRead(
+                    total_minor_units=summary.total_minor_units,
+                    water_category=AdminQuoteCategoryRead(
+                        id=summary.water_category_id,
+                        label=summary.water_category_label,
+                        supported_uses=summary.supported_uses,
+                    ),
+                )
+                if summary is not None
+                else None
+            ),
             id=order.id,
             customer=OrderCustomer(
                 id=customer.id,

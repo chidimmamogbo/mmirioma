@@ -15,11 +15,23 @@ import type { ApprovalStatus } from './partner'
 /**
  * Admin's view of where an order is, from the job and the customer order (a-orders).
  * `failed` and `disputed` show the backend statuses of the same name
- * (api-mapping.md open question 5, decided in #15).
+ * (api-mapping.md open question 5, decided in #15). `awaiting_confirmation`
+ * covers a quote request and a priced order before a dispatcher confirms
+ * them: no rider can be assigned yet (admin-confirm-order.md, decision 3).
  */
-export type AdminOrderStatus = 'awaiting_rider' | 'assigned' | 'loading' | 'on_the_way' | 'delivered' | 'cancelled' | 'failed' | 'disputed'
+export type AdminOrderStatus =
+  | 'awaiting_confirmation'
+  | 'awaiting_rider'
+  | 'assigned'
+  | 'loading'
+  | 'on_the_way'
+  | 'delivered'
+  | 'cancelled'
+  | 'failed'
+  | 'disputed'
 
 export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
+  awaiting_confirmation: 'Awaiting confirmation',
   awaiting_rider: 'Awaiting rider',
   assigned: 'Assigned',
   loading: 'Loading',
@@ -41,7 +53,7 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
 export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
-export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
+export type AdminOrderFilter = 'all' | 'awaiting_confirmation' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
 
 export interface AdminOrderPartner {
   id: string
@@ -86,12 +98,17 @@ export interface AdminOrder {
 export interface EligibleRider {
   id: string
   name: string
-  vehicle: DeliveryType
+  /** `null` when the server does not say Keke or tanker (its vehicle type is free text). */
+  vehicle: DeliveryType | null
   rating: number | null
   active_orders: number
   online: boolean
-  /** The rider lists the order's area among the areas they work in. No live location (decision 14). */
-  works_in_area: boolean
+  /**
+   * The rider lists the order's area among the areas they work in. No live
+   * location (decision 14). `null` while the server does not check service
+   * areas (deliveries.md, "Driver eligibility").
+   */
+  works_in_area: boolean | null
 }
 
 /* ---------- Customers ---------- */

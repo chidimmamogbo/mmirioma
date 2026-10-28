@@ -104,6 +104,11 @@ describe('partnerProfileFromRead', () => {
     const keke = { ...vehicle, declared_capacity_gallons: null, declared_capacity_litres: null }
     expect(partnerProfileFromRead({ ...pending, vehicle: keke }).vehicle).toMatchObject({ type: 'keke', description: 'Tricycle' })
   })
+
+  it('says "Tanker" for a tanker with no description and no declared capacity (#86)', () => {
+    const vehicle = { ...pending.vehicle, delivery_type: 'tanker' as const, description: null, declared_capacity_gallons: null, declared_capacity_litres: null }
+    expect(partnerProfileFromRead({ ...pending, vehicle }).vehicle).toMatchObject({ type: 'tanker', description: 'Tanker', tank_gallons: null })
+  })
 })
 
 describe('partner account adapters (#67)', () => {

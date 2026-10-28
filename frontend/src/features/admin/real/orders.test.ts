@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import detailSample from '../../../../../docs/api/examples/admin-order-detail.json'
+import historySample from '../../../../../docs/api/examples/admin-order-history.json'
 import pageSample from '../../../../../docs/api/examples/admin-orders-page.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
-import type { AdminOrderDetail } from '../../../lib/api/adminDispatch'
+import type { AdminOrderDetail, AdminOrderEvent } from '../../../lib/api/adminDispatch'
 import type { AdminOrderRead, Page } from '../../../lib/api/adminOrders'
-import { adminOrderFromRead, adminStatusFromBackend, getOrder, listOrders } from './orders'
+import { adminOrderFromRead, adminStatusFromBackend, getOrder, listOrders, timelineFromHistory } from './orders'
 
 /** The agreed contract's examples (docs/api/orders.md, deliveries.md). */
 const DETAIL = detailSample as unknown as AdminOrderDetail
@@ -27,7 +28,9 @@ const page = (items: AdminOrderRead[], total = items.length) => ({ items, total,
 
 describe('adminStatusFromBackend', () => {
   it('follows api-mapping.md, with failed and disputed as their own statuses', () => {
-    expect(adminStatusFromBackend('quote_requested')).toBe('awaiting_rider')
+    // Not confirmed yet: no rider can be assigned (admin-confirm-order.md, decision 3).
+    expect(adminStatusFromBackend('quote_requested')).toBe('awaiting_confirmation')
+    expect(adminStatusFromBackend('awaiting_confirmation')).toBe('awaiting_confirmation')
     expect(adminStatusFromBackend('confirmed')).toBe('awaiting_rider')
     expect(adminStatusFromBackend('accepted')).toBe('assigned')
     expect(adminStatusFromBackend('departed')).toBe('loading')
@@ -109,9 +112,18 @@ describe('listOrders (real)', () => {
     expect(result.counts.delivered).toBe(7)
     expect(result.counts.all).toBe(3)
     const listCall = fetch.mock.calls.map((c) => String(c[0])).find((u) => u.includes('limit=100'))!
+    expect(listCall).toContain('status=confirmed')
+    expect(listCall).toContain('status=awaiting_payment')
+    expect(listCall).not.toContain('status=quote_requested')
+  })
+
+  it('lists quote requests and priced orders under "Awaiting confirmation"', async () => {
+    const { fetch, client } = clientByUrl(() => ({ body: page([ROW]) }))
+    await listOrders('awaiting_confirmation', undefined, client)
+    const listCall = fetch.mock.calls.map((c) => String(c[0])).find((u) => u.includes('limit=100'))!
     expect(listCall).toContain('status=quote_requested')
     expect(listCall).toContain('status=awaiting_confirmation')
-    expect(listCall).toContain('status=confirmed')
+    expect(listCall).not.toContain('status=confirmed')
   })
 
   it('looks a reference up directly', async () => {
@@ -125,7 +137,7 @@ describe('listOrders (real)', () => {
     const { client } = clientByUrl(() => ({ body: NOT_FOUND, status: 404 }))
     expect(await listOrders('all', 'MO-0000000000', client)).toEqual({
       orders: [],
-      counts: { all: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 },
+      counts: { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 },
     })
   })
 
@@ -152,6 +164,35 @@ describe('getOrder (real)', () => {
   it('loads and converts the detail', async () => {
     const { client } = clientByUrl(() => ({ body: DETAIL }))
     expect((await getOrder(DETAIL.reference, client)).station_name).toBe('Sample Borehole A')
+  })
+
+  it('adds the assignment events from the history, oldest first, in the contract wording', async () => {
+    const { client } = clientByUrl((url) => ({ body: url.includes('/history') ? historySample : DETAIL }))
+    const order = await getOrder(DETAIL.reference, client)
+    expect(order.timeline).toEqual([
+      { label: 'Order placed', at: DETAIL.created_at },
+      { label: 'Offered to Sample Driver Two', at: '2026-10-19T08:31:00Z' },
+      { label: 'Declined by Sample Driver Two', at: '2026-10-19T08:50:00Z', detail: 'Truck is at the mechanic.' },
+      { label: 'Offered to Sample Driver One', at: '2026-10-19T09:05:00Z' },
+    ])
+  })
+
+  it('words accepts and withdrawals, and leaves other events out', () => {
+    const driver = { id: 'd1', name: 'Ada' }
+    const event = (from: string | null, to: string | null, reason: string | null, withDriver = true) =>
+      ({ id: 'e', kind: 'status_change', from_status: from, to_status: to, actor: null, reason_code: reason, note: null, created_at: '2026-10-19T10:00:00Z', assignment: withDriver ? { id: 'a', driver, decline_reason: null } : null, hold: null, confirmation: null, cash: null }) as AdminOrderEvent
+    const lines = timelineFromHistory('2026-10-19T07:00:00Z', [
+      event('accepted', 'confirmed', 'reassigned'),
+      event('assigned', 'confirmed', 'reassigned'),
+      event('assigned', 'accepted', null),
+      event('departed', 'collected', null, false),
+    ]).map((t) => t.label)
+    expect(lines).toEqual(['Order placed', 'Accepted by Ada', 'Offer to Ada withdrawn', 'Job withdrawn from Ada'])
+  })
+
+  it('still shows the order when only the history fails', async () => {
+    const { client } = clientByUrl((url) => (url.includes('/history') ? { body: FORBIDDEN, status: 500 } : { body: DETAIL }))
+    expect((await getOrder(DETAIL.reference, client)).timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
   })
 
   it('passes 404 order_not_found through', async () => {

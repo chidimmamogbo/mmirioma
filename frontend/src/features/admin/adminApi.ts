@@ -4,8 +4,8 @@
  * In mock mode the functions use `src/mocks/adminMock.ts`. In real-API mode
  * the linked ones call an adapter from `./real/`; the rest fail with
  * `not_connected` until their endpoints exist. Linked so far: the cash
- * functions (#19), `listOrders`, `getOrder` (#15), and `listAreas`,
- * `saveArea` (#74).
+ * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
+ * `assignOrder` (#16), and `listAreas`, `saveArea` (#74).
  */
 import type { AdminOrderFilter, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
@@ -16,6 +16,7 @@ import * as mock from '../../mocks/adminMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as orders from './real/orders'
+import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
 
@@ -32,8 +33,10 @@ export const listActivity = api('Activity', mock.listActivity)
 export const listOrders = (filter?: AdminOrderFilter, query?: string): Promise<mock.OrderList> =>
   USE_MOCKS ? mock.listOrders(filter, query) : orders.listOrders(filter, query)
 export const getOrder = (reference: string) => (USE_MOCKS ? mock.getOrder(reference) : orders.getOrder(reference))
-export const listEligibleRiders = api('Rider assignment', mock.listEligibleRiders)
-export const assignOrder = api('Rider assignment', mock.assignOrder)
+export const listEligibleRiders = (reference: string) => (USE_MOCKS ? mock.listEligibleRiders(reference) : dispatch.listEligibleRiders(reference))
+export const assignOrder = (reference: string, partnerId: string) =>
+  USE_MOCKS ? mock.assignOrder(reference, partnerId) : dispatch.assignOrder(reference, partnerId)
+// Cancelling the whole order is a transition (#17), not the dispatch withdraw.
 export const cancelOrder = api('Orders', mock.cancelOrder)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)
 export const quoteForAdmin = api('Prices', mock.quoteForAdmin)

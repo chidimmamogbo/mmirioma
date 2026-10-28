@@ -75,8 +75,9 @@ None. The text ships with the frontend.
   requests, order feedback and deletion requests. It is 2.0, not 1.2,
   because what is collected changed (the procedure's version rule;
   privacy contact, 2026-10-27, #104).
-- Section 9 names "Delete my account" in the app as a way to ask for
-  deletion, with the same identity check by call-back.
+- Section 9 names "Delete my account" in the customer app as a way to ask
+  for deletion, with the same identity check by call-back; the partner app
+  has none, so riders and drivers ask by phone or email (#119).
 - Retention periods are applied by a **monthly manual review** with the
   privacy tool; automation is deferred.
 - The support number in the notice is the SRS number (FR-055); a change of
@@ -113,7 +114,7 @@ partner account menu.
   review, not by a test.
 - Deletion, correction and the monthly review are done by staff with the
   command-line tool ([privacy-tool.md](privacy-tool.md)); nothing is
-  automatic. Rider and driver accounts are not covered by the tool yet
-  (procedure, open item 4; #119).
+  automatic. Riders and drivers are anonymized with `anonymize-partner`
+  (#119).
 - No legal review has been done yet (procedure, open item 1).
 - English only.

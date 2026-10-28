@@ -85,7 +85,16 @@ export interface AdminOrderRead {
   /** The zone the customer picked (FR-020), or `null`. */
   service_zone: { id: string; name: string } | null
   /** The quote the order was placed with (FR-024), or `null` for a quote request. */
-  quote: OrderQuoteRead | null
+  quote: AdminOrderQuoteRead | null
+}
+
+/**
+ * The order's quote as staff see it: the customer's view plus the category's
+ * `id`, which a quoted order is confirmed with (deliveries.md, amendment #72).
+ * Optional: an older server does not send it.
+ */
+export type AdminOrderQuoteRead = OrderQuoteRead & {
+  water_category: OrderQuoteRead['water_category'] & { id?: string }
 }
 
 /** Standard list envelope (docs/api/README.md "Pagination"). */

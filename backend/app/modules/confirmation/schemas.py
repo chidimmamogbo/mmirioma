@@ -39,6 +39,7 @@ from app.modules.pricing.models import (
     AgreementMethod,
 )
 from app.modules.sources.eligibility import EligibilityReason
+from app.modules.sources.models import WaterSourceKind
 
 Note = Annotated[str, StringConstraints(strip_whitespace=True, max_length=EVENT_NOTE_MAX_LENGTH)]
 
@@ -148,6 +149,9 @@ class SourceOptionRead(BaseModel):
         report_reference: For this category, or null with no activation.
         approved_until: Lagos date, inclusive, or null with no activation.
         reasons: Empty means it may be chosen.
+        kind: Where it collects water (``ninth_mile``, ``borehole``), or
+            null until set; a quoted Tanker order needs the customer's kind
+            (deliveries.md, amendment #72). Never a quality claim (FR-014).
     """
 
     id: uuid.UUID
@@ -157,6 +161,7 @@ class SourceOptionRead(BaseModel):
     approved_until: date | None
     is_simulated: bool
     reasons: list[EligibilityReason]
+    kind: WaterSourceKind | None
 
     @classmethod
     def from_option(cls, option: SourceOption) -> SourceOptionRead:
@@ -169,6 +174,7 @@ class SourceOptionRead(BaseModel):
             approved_until=None if activation is None else activation.approved_until,
             is_simulated=option.source.is_simulated,
             reasons=option.reasons,
+            kind=option.source.kind,
         )
 
 

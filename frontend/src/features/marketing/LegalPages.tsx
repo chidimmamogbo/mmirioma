@@ -486,7 +486,7 @@ const PRIVACY: Section[] = [
         <p>
           You can ask us to access, correct or delete your personal information by calling <Phone /> or emailing <PrivacyEmail />. Before we
           disclose or change anything, we confirm the request comes from you, normally by calling back the phone number on your account.
-          For deletion, you can also use "Delete my account" in the app; we still call you back to confirm it is you.
+          For deletion, you can also use "Delete my account" in the customer app; we still call you back to confirm it is you.
         </p>
         <List
           items={[

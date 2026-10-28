@@ -4,8 +4,10 @@ Implements the database steps of ``docs/process/privacy-retention.md``,
 which carries out what ``PRIVACY_NOTICE.md`` promises (sections 8 to 10).
 There are no screens: the technical lead runs ``app.modules.privacy.cli``.
 Each module owns its tables, so this service only orchestrates the
-``retention`` functions of ``auth``, ``orders``, ``deliveries`` and
-``payments``.
+``retention`` functions of ``auth``, ``customers``, ``dispatch``,
+``orders``, ``deliveries`` and ``payments``. Customers are anonymized with
+:func:`anonymize_customer`, riders and drivers with
+:func:`anonymize_partner` (#119).
 
 Every operation names the admin account running it and writes an audit row
 (NFR-004) with ids and counts only, never personal data. Anonymizing and
@@ -33,6 +35,7 @@ from app.modules.customers import requests as customer_requests
 from app.modules.customers import retention as addresses
 from app.modules.customers.models import DeletionRequestStatus
 from app.modules.deliveries import retention as deliveries
+from app.modules.dispatch import retention as jobs
 from app.modules.notifications import service as notifications
 from app.modules.orders import retention as orders
 from app.modules.payments import retention as payments
@@ -88,6 +91,42 @@ class AnonymizeResult:
     notifications_deleted: int
     notes_to_review: int
     cash_warnings: list[str]
+    applied: bool
+
+
+class PartnerNotReady(Exception):
+    """The rider or driver has jobs, cash or matters that must close first.
+
+    Attributes:
+        blockers: One readable line per blocking order.
+    """
+
+    def __init__(self, blockers: list[str]) -> None:
+        super().__init__("the partner has live jobs, unsettled cash or open matters")
+        self.blockers = blockers
+
+
+@dataclass(frozen=True)
+class PartnerAnonymizeResult:
+    """What anonymizing a rider or driver changed (or would change, in a dry run).
+
+    Attributes:
+        partner_id: The account's id, for the request register.
+        zones_removed: Service zones removed from their profile.
+        decline_notes_removed: Their own words on declines, replaced.
+        gps_points_cleared: GPS points they recorded, cleared.
+        notifications_deleted: Their in-app notifications deleted.
+        notes_to_review: Incident and pickup safety notes they wrote, kept
+            as safety records, for the privacy contact to check by hand.
+        applied: False for a dry run (nothing was saved).
+    """
+
+    partner_id: uuid.UUID
+    zones_removed: int
+    decline_notes_removed: int
+    gps_points_cleared: int
+    notifications_deleted: int
+    notes_to_review: int
     applied: bool
 
 
@@ -248,6 +287,102 @@ async def anonymize_customer(
         notifications_deleted=deleted_notes,
         notes_to_review=notes,
         cash_warnings=warnings,
+        applied=apply,
+    )
+
+
+async def anonymize_partner(
+    session: AsyncSession,
+    *,
+    actor: User,
+    partner_phone: str,
+    now: datetime,
+    apply: bool,
+) -> PartnerAnonymizeResult:
+    """Anonymize a rider or driver after a verified deletion request (#119).
+
+    Procedure "Deletion", riders and drivers. Rules confirmed by the privacy
+    contact on #119 (2026-10-27). Refused while the partner has a live job
+    (offered or accepted), cash not reconciled (FR-041, BR-12), or an open
+    hold or review, or a dispute, on a job they accepted, so nothing needed
+    for a live job or for the cash records is removed.
+
+    Otherwise, in one transaction: the account is anonymized ("Former rider
+    or driver") and deactivated (``auth.retention``); the profile's plate,
+    capacity, availability, switches and transfer methods are removed or
+    reset and its zones deleted, and the partner's decline notes replaced
+    (``dispatch.retention``); the GPS points they recorded are cleared
+    except on orders still needed as evidence (``deliveries.retention``);
+    their in-app notifications are deleted; and an audit row is written.
+    Assignments, pickups, proofs, incidents, cash records, audit rows and the
+    approval status are kept.
+
+    Args:
+        session: Database session.
+        actor: The admin running it (:func:`get_acting_admin`).
+        partner_phone: The partner's normalized phone.
+        now: Time of the change.
+        apply: Save the changes; otherwise roll them back (dry run).
+
+    Returns:
+        What changed.
+
+    Raises:
+        LookupError: No rider or driver account has this phone.
+        PartnerNotReady: A live job, unsettled cash, or an open matter or
+            dispute on one of their jobs.
+    """
+    partner = await accounts.get_partner(session, phone=partner_phone)
+    partner_id = partner.id
+    worked = await jobs.worked_order_ids(session, driver_id=partner_id)
+
+    blockers = await jobs.live_job_references(session, driver_id=partner_id)
+    blockers += await payments.driver_cash_blockers(session, driver_id=partner_id)
+    open_matters = await deliveries.open_matter_order_ids(session, order_ids=worked)
+    blockers += [
+        f"{reference}: open hold or review"
+        for reference in await orders.order_references(session, order_ids=open_matters)
+    ]
+    disputed = set(await orders.disputed_order_ids(session)) & set(worked)
+    blockers += [
+        f"{reference}: disputed"
+        for reference in await orders.order_references(session, order_ids=disputed)
+    ]
+    if blockers:
+        raise PartnerNotReady(sorted(blockers))
+
+    notes = await deliveries.count_partner_notes(session, driver_id=partner_id)
+    marker = await accounts.new_phone_marker(session)
+    await accounts.anonymize_account(
+        session, partner, phone_marker=marker, name=accounts.ANONYMIZED_PARTNER_NAME
+    )
+    zones = await jobs.clear_profile(session, driver_id=partner_id)
+    declines = await jobs.clear_decline_notes(session, driver_id=partner_id)
+    gps = await deliveries.clear_partner_gps(
+        session, recorded_by=partner_id, keep_order_ids=open_matters | disputed, now=now
+    )
+    deleted_notes = await notifications.delete_for_users(session, user_ids=[partner_id])
+    audit.record(
+        session,
+        actor_id=actor.id,
+        action="partner_anonymized",
+        target_type="user",
+        target_id=partner_id,
+        details={
+            "zones_removed": zones,
+            "decline_notes_removed": declines,
+            "gps_points_cleared": gps,
+            "notifications_deleted": deleted_notes,
+        },
+    )
+    await _finish(session, apply)
+    return PartnerAnonymizeResult(
+        partner_id=partner_id,
+        zones_removed=zones,
+        decline_notes_removed=declines,
+        gps_points_cleared=gps,
+        notifications_deleted=deleted_notes,
+        notes_to_review=notes,
         applied=apply,
     )
 
