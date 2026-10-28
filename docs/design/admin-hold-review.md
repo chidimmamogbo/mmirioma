@@ -13,7 +13,7 @@ T-14, T-23 · Prompt:
 hold review endpoints" (built in #93 and #112; feature doc
 [admin-hold-review.md](../features/admin-hold-review.md))
 Designer: @Cloudcrackamara + Claude Code (for #128, owner @Cloudcrackamara) ·
-Reviewed by: pending · Status: ready for review (G2)
+Reviewed by: @nnamdi-security on 2026-10-28 · Status: approved
 
 A dispatcher finds orders whose driver's job is on **hold**, reads the
 evidence, and decides: approve or reject alternative proof (R1), continue,
@@ -107,7 +107,7 @@ Design choices for the reviewer (G2):
    rejecting a proof ends with "fail the delivery (Other, with a note)" and
    nothing else on the page can do it. The CANCEL dialog is the same one
    [#129](https://github.com/chidimmamogbo/mmirioma/issues/129) will reuse
-   from the order detail (open question 1).
+   from the order detail (decision 14).
 6. **FAIL offers only the three reasons the contract agrees for these
    screens**: source quality concern, unsafe access, other (note required).
    `customer_unreachable` and `vehicle_failure` exist for the dispatch
@@ -148,24 +148,25 @@ Design choices for the reviewer (G2):
     can continue.", "Delivery marked as failed.", "Order cancelled. Tell the
     customer.", "Job withdrawn. The order is back to Confirmed."
 
+Answered in the G2 review (@nnamdi-security, 2026-10-28):
+
+14. **#128 and #129 (answered 2026-10-28).** #128 owns FAIL (both entries:
+    from R2 and R3, and from an order with no hold) and the CANCEL dialog.
+    #129 owns only the "Cancel this order" entry on the order detail, which
+    drops the mock's free-text reasons and promises, and reuses the CANCEL
+    dialog designed here, so there is one cancel flow.
+15. **The approval card (answered 2026-10-28).** It omits the litres recorded
+    and how the customer confirmed, because no agreed endpoint returns them
+    (they are stored on the proof; the feature doc lists this as a known
+    limitation). Accepted for the pilot. A contract change is raised only if
+    staff ask for those two lines.
+16. **History categories (answered 2026-10-28).** An unknown `hold.category`
+    shows no concern line, never a raw code. Accepted.
+
 ## Open questions
 
-1. **Who owns what between #128 and #129 (for the G2 reviewer).** #129 is the
-   order-detail "Cancel this order". This design already needs the CANCEL
-   dialog (from R2 and R3) and a FAIL entry on the order. Proposal: #128
-   owns FAIL (both entries) and the CANCEL dialog; #129 owns the entry on the
-   order detail, drops the mock's reasons and promises, and reuses this
-   dialog, so there is one cancel. @Daveoski asked to take #129 on #128; they
-   have been told on #128 to check with the owner first.
-2. **The approval card cannot show two lines.** After an approval the panel
-   can show who approved, when and the note (from the history), but not the
-   litres recorded or how the customer confirmed: no agreed endpoint returns
-   them (they are stored on the proof; the feature doc lists this as a known
-   limitation). Showing them needs a small additive contract change; until
-   then the card omits them. Not blocking.
-3. **History categories.** The contract gives `hold.category` "for example"
-   and no full list; decision 12 labels the five a hold can open with. Please
-   confirm that an unknown category showing no concern line is acceptable.
+None. The three questions raised for the G2 review were answered on
+2026-10-28 (decisions 14, 15 and 16).
 
 ## Changes to the design system
 
