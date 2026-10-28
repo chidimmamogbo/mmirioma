@@ -60,17 +60,19 @@ Filed:
   rider accepts"**; the dispatcher chooses the source when confirming: #152.
 - **No driver cash screen** (step 11): #20 (open).
 
-Not filed (owner's decision, 2026-10-28; recorded here so they are not lost):
+Filed after the review of this entry (2026-10-28), so each failure has its
+own issue (#23, Done when):
 
 - **The customer's order timeline shows only "Order placed"** for a delivered
-  order, although the server's notifications have every step (FR-037).
+  order, although the server's notifications have every step (FR-037): #155,
+  fixed by #164 (`GET /orders/{reference}/history`).
 - **The driver dashboard's "Today", "Trips" and "Wallet" tiles stay at "…"** in
   real-API mode, and "Wallet" and "View earnings" open "Earnings is not
   connected to the server yet." (partner pay is out of the MVP, partners.md
   decision 7). The trip screens' static maps also carry sample place names
-  ("Ogui", "New Haven") unrelated to the order.
-- The admin sidebar still lists "Loyalty points" and "Rider earnings" (out of
-  the MVP); #107 hid points in the customer app only.
+  ("Ogui", "New Haven") unrelated to the order: #157, fix in #172.
+- **The admin sidebar still listed "Loyalty points" and "Rider earnings"** (out
+  of the MVP; #107 hid points in the customer app only): #156, fixed by #169.
 
 Other observations:
 

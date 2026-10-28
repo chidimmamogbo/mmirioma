@@ -252,6 +252,7 @@ decided by @Bonvee120 for #12 (2026-10-27):
 | `collected_at` | `pickup.picked_up_at` |
 | `delivered_at` | `ended_at` when the order is `delivered` |
 | `code_tries_left` | `delivery_code.attempts_left` |
+| `code_sms_status` | `delivery_code.sms_status`: `accepted`, `failed`, or `null` before a code exists. When it is `failed` the code was recorded but not sent, so the code screen never says "Code sent" (FR-050; #138). The mock sets it with `simulateCodeProblem(reference, 'sms_failed')` |
 | `tank_note`, `accepted_at`, `code_resend_at`, `pickup`, `remaining` | `null`: the job does not carry them |
 
 ### Available orders and declining
