@@ -137,6 +137,7 @@ class FakeHolds:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.error: APIError | None = None
+        self.driver: User | None = None
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         self.calls.append((name, kwargs))
@@ -148,6 +149,7 @@ class FakeHolds:
         item = holds.HeldOrder(
             staff_order=StaffOrder(order=make_order(), customer=USERS[UserRole.CUSTOMER]),
             hold=make_hold(),
+            driver=self.driver,
         )
         return [item], 1
 
@@ -343,6 +345,25 @@ def test_the_list_carries_holds_and_passes_the_on_hold_filter(
         "since": "2026-10-20T08:48:00Z",
     }
     assert fake.calls[0][1]["on_hold"] is True
+
+
+def test_the_list_names_each_orders_live_driver_or_null(api: TestClient, fake: FakeHolds) -> None:
+    """#204: the Rider column reads ``driver``; an order without a live driver says null."""
+    fake.driver = DRIVER
+    response = api.get("/api/v1/admin/orders", headers=sign_in(api, UserRole.ADMIN))
+    assert response.status_code == 200
+    assert response.json()["items"][0]["driver"] == {"id": str(DRIVER.id), "name": DRIVER.name}
+
+    fake.driver = None
+    response = api.get("/api/v1/admin/orders", headers=sign_in(api, UserRole.ADMIN))
+    assert response.json()["items"][0]["driver"] is None
+
+
+def test_the_detail_has_no_driver_field_only_the_assignment(api: TestClient) -> None:
+    """Contract #204: the list carries ``driver``; the detail keeps ``assignment`` as it was."""
+    response = api.get(BASE, headers=sign_in(api, UserRole.ADMIN))
+    assert response.status_code == 200
+    assert "driver" not in response.json()
 
 
 def test_the_detail_carries_the_hold(api: TestClient) -> None:

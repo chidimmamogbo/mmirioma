@@ -15,6 +15,8 @@ import { notReadyToAssign, timeAgo } from './adminFormat'
 // machine or CI runner; give them room instead of Vitest's 5 s default.
 const WAIT = 10_000
 const SLOW = 20_000
+/** A creation time later than any seeded order's, so the order sorts first in the list at any hour (the seed's "today" times follow the clock). */
+const NEWEST = () => new Date(Date.now() + 86_400_000).toISOString()
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -408,13 +410,29 @@ describe('admin pages', () => {
     }, SLOW)
   })
 
+  it('names the driver in the Rider column, and says "None yet" only where there is none (#204)', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders')
+    const table = await screen.findByRole('table', { name: 'Orders' }, { timeout: WAIT })
+    const assignedRow = (await within(table).findByRole('button', { name: 'MO-3HT8WQ2KZP' })).closest('tr')!
+    const poolRow = within(table).getByRole('button', { name: 'MO-6RTA2KXP9B' }).closest('tr')!
+    expect(within(assignedRow).getByText('Chinedu Okafor')).toBeInTheDocument()
+    expect(within(assignedRow).queryByText('None yet')).toBeNull()
+    expect(within(poolRow).getByText('None yet')).toBeInTheDocument()
+  }, SLOW)
+
   it('keeps the panel on the failed order when the address names none (#209)', async () => {
     const user = userEvent.setup()
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     // No ?ref= and nothing waiting: the panel shows the first order of the list. Let that be the Chinedu job, accepted by the driver.
     for (const job of read().jobs) job.stage = 'delivered'
     for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
-    read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
+    const accepted = read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!
+    accepted.stage = 'accepted'
+    // The list is newest first and the seed's "today" times depend on the clock: make this order the newest whatever the hour.
+    accepted.created_at = NEWEST()
+    // A job that also has a customer order is listed by the customer order's time.
+    for (const customer of Object.values(read().customers)) for (const order of customer.orders) if (order.reference === accepted.reference) order.created_at = NEWEST()
     renderAt('/admin/orders')
     await user.click(await screen.findByRole('button', { name: 'Fail this delivery' }, { timeout: WAIT }))
     const dialog = await screen.findByRole('alertdialog')
@@ -438,7 +456,7 @@ describe('admin pages', () => {
     for (const job of read().jobs) job.stage = 'delivered'
     for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
     held.stage = heldStage
-    held.created_at = new Date().toISOString()
+    held.created_at = NEWEST()
     renderAt('/admin/orders')
     await user.click(await screen.findByRole('button', { name: 'Review' }, { timeout: WAIT }))
     await screen.findByText('Reported', {}, { timeout: WAIT })

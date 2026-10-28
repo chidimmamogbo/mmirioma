@@ -1138,8 +1138,12 @@ else of the assignment:
    dispatcher needs to see who an order has been offered to, so as not to
    offer it twice.
 
-**Built in:** not yet. The contract example `examples/admin-orders-page.json`
-gains `driver` with the build.
+**Built in:** [#204](https://github.com/chidimmamogbo/mmirioma/issues/204)
+(`AdminOrderListItem` in `deliveries/admin_schemas.py`,
+`dispatch.service.live_drivers_by_order`). The contract example
+`examples/admin-orders-page.json` carries `driver` (a person on the third item,
+`null` on the others) and `backend/tests/test_admin_order_list_example.py`
+checks it against the built schema.
 
 ## Admin hold review endpoints
 
