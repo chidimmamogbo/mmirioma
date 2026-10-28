@@ -23,6 +23,7 @@ from app.modules.auth import security
 from app.modules.auth import service as auth_service
 from app.modules.auth.dependencies import CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from app.modules.auth.models import User, UserRole, UserSession
+from app.modules.pricing import quotes
 from app.modules.pricing import service as zones_service
 from app.modules.pricing.models import ServiceZone
 from app.modules.pricing.schemas import ServiceZoneList, ServiceZoneOptionList, ServiceZoneRead
@@ -34,12 +35,14 @@ from app.modules.pricing.service import (
     ZoneUpdate,
     ZoneView,
 )
+from app.modules.sources.models import WaterCategory
 from tests.test_dispatch_api import keys
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs" / "api" / "examples"
 NOW = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
 ZONE_ID = uuid.UUID("9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b")
 CATEGORY_ID = uuid.UUID("3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b")
+PILOT_CATEGORY_ID = uuid.UUID("7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d")
 ADMIN_LIST = "/api/v1/admin/service-zones"
 ADMIN_ZONE = f"{ADMIN_LIST}/{ZONE_ID}"
 PUBLIC_LIST = "/api/v1/service-zones"
@@ -83,6 +86,9 @@ class Fake:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.error: APIError | None = None
+        self.pilot: WaterCategory | None = WaterCategory(
+            id=PILOT_CATEGORY_ID, code="utility", label="Utility Water"
+        )
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         self.calls.append((name, kwargs))
@@ -105,12 +111,16 @@ class Fake:
         self._record("update_zone", kwargs)
         return zone_view()
 
+    async def pilot_category(self, _: object) -> WaterCategory | None:
+        return self.pilot
+
 
 @pytest.fixture
 def fake(monkeypatch: pytest.MonkeyPatch) -> Fake:
     fake = Fake()
     for name in ("list_zones", "list_active_zones", "create_zone", "update_zone"):
         monkeypatch.setattr(zones_service, name, getattr(fake, name))
+    monkeypatch.setattr(quotes, "pilot_category", fake.pilot_category)
     return fake
 
 
@@ -230,6 +240,26 @@ def test_list_returns_every_zone_with_fees(api: TestClient) -> None:
         {"latitude": 6.4447, "longitude": 7.5108},
         None,
     )
+
+
+def test_list_names_the_pilot_water_category(api: TestClient) -> None:
+    # Amendment #74 (#109): the category whose fee the Service areas screen edits.
+    response = api.get(ADMIN_LIST, headers=sign_in(api, UserRole.ADMIN))
+    assert response.status_code == 200
+    assert response.json()["pilot_water_category"] == {
+        "id": str(PILOT_CATEGORY_ID),
+        "label": "Utility Water",
+    }
+
+
+def test_list_pilot_water_category_is_null_without_the_configured_category(
+    api: TestClient, fake: Fake
+) -> None:
+    fake.pilot = None
+    response = api.get(ADMIN_LIST, headers=sign_in(api, UserRole.ADMIN))
+    assert response.status_code == 200
+    assert response.json()["pilot_water_category"] is None
+    assert len(response.json()["items"]) == 1
 
 
 def test_create_passes_the_zone_and_returns_201(api: TestClient, fake: Fake) -> None:

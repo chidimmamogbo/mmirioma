@@ -270,9 +270,14 @@ class ServiceZoneRead(BaseModel):
 
 
 class ServiceZoneList(BaseModel):
-    """Body of ``GET /admin/service-zones``: every zone, by name."""
+    """Body of ``GET /admin/service-zones``: every zone, by name.
+
+    ``pilot_water_category`` is the category whose fee the Service areas screen
+    edits (amendment #74), or ``None`` when no category has the configured code.
+    """
 
     items: list[ServiceZoneRead]
+    pilot_water_category: WaterCategoryRef | None
 
 
 class ServiceZoneOption(BaseModel):

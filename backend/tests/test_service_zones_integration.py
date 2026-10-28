@@ -24,6 +24,7 @@ from app.core.config import get_settings
 from app.core.errors import APIError
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User, UserRole
+from app.modules.pricing import quotes
 from app.modules.pricing import service as zones
 from app.modules.pricing.models import ServiceZone
 from app.modules.pricing.service import (
@@ -347,6 +348,21 @@ def test_only_active_zones_are_offered(created: Created, zone_ids: list[uuid.UUI
             offered = {zone.id for zone in await zones.list_active_zones(session)}
         assert active.zone.id in offered
         assert inactive.zone.id not in offered
+
+    run(scenario)
+
+
+# --- The pilot category in the admin list (amendment #74, #109) -------------------------
+
+
+def test_pilot_category_is_the_configured_code(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        potable, utility = await categories(sessions)
+        expected = {"potable": potable, "utility": utility}[get_settings().pilot_water_category]
+        async with sessions() as session:
+            category = await quotes.pilot_category(session)
+        assert category is not None
+        assert (category.id, category.label) == (expected.id, expected.label)
 
     run(scenario)
 

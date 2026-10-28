@@ -509,7 +509,7 @@ The mock's 409 `area_exists` becomes `service_zone_name_taken`.
 
 **Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
 (technical lead), on PR #108. Proposed by @Cloudcrackamara (+ Claude Code).
-Not built yet: #109 builds it. The rest of [Service zones](#service-zones)
+Built in #109. The rest of [Service zones](#service-zones)
 stays agreed as it is.
 
 **Gap.** The Service areas screen edits one fee per area: the pilot water
@@ -539,8 +539,9 @@ Additive: `items` is unchanged, and a client that ignores the new field keeps
 working. No new rule, setting or table: the server already resolves this
 category for every quote.
 
-Until it is built (#109), the Service areas link (#74) shows the fee as
-empty and refuses to write one ("not connected"), rather than guess.
+Built in #109. Until the Service areas screen reads it (#110), the link
+(#74) shows the fee as empty and refuses to write one ("not connected"),
+rather than guess.
 
 #### GET /service-zones
 
