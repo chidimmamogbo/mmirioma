@@ -8,6 +8,7 @@ import { routes } from '../../../app/router'
 import { mockLogin } from '../../../mocks/authMock'
 import { read, resetMockDb } from '../../../mocks/db'
 import { DEMO_PASSWORD } from '../../../mocks/seed'
+import { SampleListNote } from './Areas'
 
 // Whole-app renders load lazy page chunks, which can take seconds on a busy runner.
 const WAIT = 10_000
@@ -31,6 +32,18 @@ async function startAdding(user: ReturnType<typeof userEvent.setup>, name: strin
 }
 
 beforeEach(() => resetMockDb())
+
+describe('the sample note under the area list', () => {
+  it('is shown for the mock list', () => {
+    render(<SampleListNote isSample />)
+    expect(screen.getByText(/The area list is a sample/)).toBeInTheDocument()
+  })
+
+  it('is not shown for the real list, which is the server\'s', () => {
+    const { container } = render(<SampleListNote isSample={false} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})
 
 describe('Service areas screen (Z4, #111)', () => {
   it('has coordinates and a delivery fee per order, and no station or distance', async () => {

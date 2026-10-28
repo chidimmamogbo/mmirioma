@@ -45,9 +45,11 @@ import type {
   StaffMember,
   StationInput,
 } from '../domain/admin'
-import { HOLD_KIND_LABEL, holdConcernLabel, RESOLUTION_LABEL } from '../domain/admin'
+import { endReasonLabel, HOLD_KIND_LABEL, holdConcernLabel, holdDecisionLabel, RESOLUTION_LABEL } from '../domain/admin'
 import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
-import { describeChoice } from '../domain/orders'
+import { choiceLitres, describeChoice } from '../domain/orders'
+import type { WithdrawRequest } from '../lib/api/adminDispatch'
+import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { formatNaira } from '../lib/format/money'
@@ -60,7 +62,7 @@ import { eligible } from './eligibility'
 import { alertPartnersOfNewJob, completeDelivery, findCustomerOrder, jobForNewOrder } from './orderSync'
 import { newPartnerData } from './partnerMock'
 import { ANY_PLACE, areaForAddress, quoteFor } from './pricing'
-import { emptyCustomerData, type CustomerData, type MockCustomerOrder, type MockState, type PartnerData, type StoredJob } from './seed'
+import { emptyCustomerData, type CustomerData, type MockCustomerOrder, type MockHold, type MockState, type PartnerData, type StoredJob } from './seed'
 import { clone, delay, mockError, newDeliveryCode, newId, newReference } from './store'
 
 /* ---------- Access and small helpers ---------- */
@@ -193,10 +195,24 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
   ]
   const held = job?.hold ?? null
   // The history's "Hold opened" line (admin-hold-review.md, H): who, the concern in words, the driver's note.
-  if (held) {
-    const by = partnerSummary(s, job!.partner_id)?.name
-    const detail = [by, holdConcernLabel(held.category), `"${held.driver_note}"`].filter(Boolean).join(' · ')
-    timeline.push({ label: `Hold opened: ${HOLD_KIND_LABEL[held.kind]}`, at: held.since, detail })
+  // It stays after the hold is decided, then the decision follows, as in the real history.
+  const opened = held ?? job?.past_hold ?? null
+  if (opened) {
+    const by = partnerSummary(s, job!.partner_id)?.name ?? job!.withdrawn?.driver
+    const detail = [by, holdConcernLabel(opened.category), `"${opened.driver_note}"`].filter(Boolean).join(' · ')
+    timeline.push({ label: `Hold opened: ${HOLD_KIND_LABEL[opened.kind]}`, at: opened.since, detail })
+  }
+  const decided = job?.hold_decision ?? null
+  if (decided) timeline.push({ label: holdDecisionLabel(decided.decision) ?? 'Hold decided', at: decided.at, detail: `${decided.by} · "${decided.note}"` })
+  // A withdrawn job has no decision line: the withdraw closed the hold, and shows as its own status change.
+  const withdrawn = job?.withdrawn ?? null
+  if (withdrawn) timeline.push({ label: `Job withdrawn from ${withdrawn.driver}`, at: withdrawn.at, ...(withdrawn.note ? { detail: withdrawn.note } : {}) })
+  // A failed or cancelled job shows its status change, with who, why and the note (a hold it closed has no decision line).
+  // An order with a customer order already has its "Cancelled" line from `cancelJob`.
+  const ended = job?.ended ?? null
+  if (ended && !(ended.kind === 'cancelled' && o)) {
+    const detail = [ended.by, endReasonLabel(ended.reason_code), ended.note ? `"${ended.note}"` : null].filter(Boolean).join(' · ')
+    timeline.push({ label: ended.kind === 'failed' ? 'Delivery failed' : 'Cancelled', at: ended.at, detail })
   }
   return {
     reference,
@@ -436,8 +452,12 @@ export async function assignOrder(reference: string, partnerId: string): Promise
   })
 }
 
-/** Cancel inside `mutate`: job, customer order, partner told, paid orders become refund due. */
-function cancelJob(s: MockState, reference: string, reason: string): void {
+/**
+ * Cancel inside `mutate`: job, customer order, paid orders become refund due,
+ * and the partner told. The agreed cancel notifies nobody (deliveries.md,
+ * "POST .../transition (fail and cancel)"), so it passes `notifyDriver` false.
+ */
+function cancelJob(s: MockState, reference: string, reason: string, notifyDriver = true): void {
   const job = s.jobs.find((j) => j.reference === reference)
   const found = findCustomerOrder(s, reference)
   if (!job && !found) throw mockError(404, 'order_not_found', 'Order not found')
@@ -445,7 +465,7 @@ function cancelJob(s: MockState, reference: string, reason: string): void {
   if (job?.stage === 'cancelled' || found?.order.stage === 'cancelled') throw mockError(409, 'order_closed', 'This order is already cancelled')
   const now = new Date().toISOString()
   if (job) {
-    if (job.partner_id) notifyPartner(s.partners[job.partner_id], 'reassigned', 'Order cancelled', `${short(reference)} was cancelled by admin.`, reference)
+    if (notifyDriver && job.partner_id) notifyPartner(s.partners[job.partner_id], 'reassigned', 'Order cancelled', `${short(reference)} was cancelled by admin.`, reference)
     job.stage = 'cancelled'
     job.delivered_at = now
   }
@@ -459,6 +479,260 @@ function cancelJob(s: MockState, reference: string, reason: string): void {
     if (job) job.payment_status = o.payment.status
   }
   addAudit(s, actorName(s), `Cancelled ${short(reference)}`, reason)
+}
+
+/* ---------- Hold review (docs/api/deliveries.md, "Admin hold review endpoints") ---------- */
+
+const minutesBefore = (iso: string, m: number): string => new Date(Date.parse(iso) - m * 60_000).toISOString()
+
+/** The server's answer on the source a held job used (deliveries.md, "Source eligibility (R2)"), worked out from the seeded hold. */
+function sourceAnswer(hold: MockHold): { answer: 'eligible' | 'not_eligible'; message: string } {
+  return hold.category === 'source_mismatch'
+    ? { answer: 'not_eligible', message: 'This source is not in the source records.' }
+    : { answer: 'eligible', message: "This source is activated for the order's water category." }
+}
+
+/** The evidence for a held job, from the seeded hold. All of it is SAMPLE text. */
+function holdEvidence(s: MockState, job: StoredJob): HoldReview {
+  const hold = job.hold!
+  const driver = { id: job.partner_id ?? '', name: partnerSummary(s, job.partner_id)?.name ?? '' }
+  const base = { id: hold.id, kind: hold.kind, since: hold.since, driver, proof: null, pickup: null, source_eligibility: null, report: null, incidents: [], withdraw_allowed: false }
+  if (hold.kind === 'proof_review') {
+    return {
+      ...base,
+      order_status: 'unloading',
+      proof: {
+        delivered_litres: choiceLitres(job.choice) ?? 0,
+        reason: 'customer_cannot_receive_code',
+        driver_note: hold.driver_note,
+        arrived_at: minutesBefore(hold.since, 28),
+        unloading_completed_at: minutesBefore(hold.since, 4),
+        sent_at: hold.since,
+        delivery_code: { issued_at: minutesBefore(hold.since, 4), sms_status: 'accepted', attempts_used: 3, attempts_limit: 5, expired: true },
+        contact_attempts: [{ attempted_at: minutesBefore(hold.since, 2) }],
+        location: null,
+      },
+    }
+  }
+  if (hold.kind === 'source_review') {
+    // A mismatch used another source (not in the source records); a safety concern used the assigned one.
+    const other = hold.category === 'source_mismatch'
+    return {
+      ...base,
+      order_status: 'collected',
+      pickup: {
+        assigned_source: { id: 'source-ninth-mile', name: job.station.name, approximate_location: job.station.address },
+        used_source: other ? { assigned: false, name: 'Borehole near the market' } : { assigned: true },
+        source_reference: 'SR-0042',
+        volume_collected_litres: choiceLitres(job.choice) ?? 0,
+        picked_up_at: job.collected_at ?? minutesBefore(hold.since, 30),
+        safety_concern: !other,
+        safety_note: other ? null : hold.driver_note,
+      },
+      source_eligibility: sourceAnswer(hold),
+      incidents: [{ kind: 'running_late', reported_at: minutesBefore(hold.since, 90), note: 'Traffic on the expressway' }],
+    }
+  }
+  return {
+    ...base,
+    order_status: 'accepted',
+    report: { kind: 'unsafe_access', note: hold.driver_note, reported_at: hold.since, order_status_then: 'accepted' },
+    withdraw_allowed: job.stage === 'accepted',
+  }
+}
+
+export async function getHoldReview(reference: string): Promise<HoldReview> {
+  await delay(null)
+  const s = read()
+  requireAdmin(s)
+  const job = s.jobs.find((j) => j.reference === reference)
+  if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+  if (!job.hold) throw mockError(404, 'hold_not_found', 'This order has no open hold')
+  return holdEvidence(s, job)
+}
+
+/** Approve or reject alternative proof (R1). The same checks the server makes, with its refusals. */
+export async function decideProof(reference: string, request: ProofOverrideRequest): Promise<void> {
+  await delay(null, 250)
+  const details: { loc: string[]; msg: string; type: string }[] = []
+  const note = request.note.trim()
+  if (note.length < 1 || note.length > 500) details.push({ loc: ['body', 'note'], msg: 'Write a note (1 to 500 characters)', type: 'value_error' })
+  if (request.decision === 'approve') {
+    const ack = request.customer_acknowledgment
+    if (ack.method === 'other' && !(ack.note ?? '').trim()) details.push({ loc: ['body', 'customer_acknowledgment', 'note'], msg: 'Add details for Other', type: 'value_error' })
+    if (!(Date.parse(ack.confirmed_at) <= Date.now() + 120_000)) details.push({ loc: ['body', 'customer_acknowledgment', 'confirmed_at'], msg: "The time can't be in the future", type: 'value_error' })
+  }
+  if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = s.jobs.find((j) => j.reference === reference)
+    if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+    // A decision names the hold it decides; a stale one changes nothing (deliveries.md, "Hold review rules").
+    if (!job.hold || job.hold.id !== request.hold_id || job.hold.kind !== 'proof_review') throw mockError(409, 'hold_not_open', 'This hold has already been decided or has changed')
+    const now = new Date().toISOString()
+    const approve = request.decision === 'approve'
+    // Approving delivers the order, as a verified code would; payment is not touched (BR-12).
+    const partner = job.partner_id ? s.partners[job.partner_id] : undefined
+    if (approve) {
+      if (partner) completeDelivery(s, job, partner, now)
+      else {
+        job.stage = 'delivered'
+        job.delivered_at = now
+      }
+    }
+    job.hold_decision = { decision: approve ? 'proof_approved' : 'proof_rejected', by: actorName(s), at: now, note }
+    job.past_hold = job.hold
+    job.hold = null
+    addAudit(s, actorName(s), `${approve ? 'Approved' : 'Rejected'} alternative proof for ${short(reference)}`, note)
+  })
+}
+
+/**
+ * The shared checks of a note decision (continue, resume): a note of 1 to 500
+ * characters (422), then a hold that is still open and of the kind the call
+ * decides (409 `hold_not_open`), as the server refuses them.
+ */
+function openHold(s: MockState, reference: string, request: HoldDecisionRequest, kind: MockHold['kind']): StoredJob & { hold: MockHold } {
+  const job = s.jobs.find((j) => j.reference === reference)
+  if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+  if (!job.hold || job.hold.id !== request.hold_id || job.hold.kind !== kind) throw mockError(409, 'hold_not_open', 'This hold has already been decided or has changed')
+  return job as StoredJob & { hold: MockHold }
+}
+
+function requireDecisionNote(note: string): string {
+  const trimmed = note.trim()
+  if (trimmed.length < 1 || trimmed.length > 500) {
+    throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'note'], msg: 'Write a note (1 to 500 characters)', type: 'value_error' }])
+  }
+  return trimmed
+}
+
+function closeHold(s: MockState, job: StoredJob, decision: NonNullable<StoredJob['hold_decision']>['decision'], note: string): void {
+  job.hold_decision = { decision, by: actorName(s), at: new Date().toISOString(), note }
+  job.past_hold = job.hold
+  job.hold = null
+}
+
+/** Continue after a source review (R2): only when the source can be used, checked again here. */
+export async function continueSource(reference: string, request: HoldDecisionRequest): Promise<void> {
+  await delay(null, 250)
+  const note = requireDecisionNote(request.note)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = openHold(s, reference, request, 'source_review')
+    const answer = sourceAnswer(job.hold)
+    if (answer.answer !== 'eligible') throw mockError(409, 'source_not_eligible', answer.message, { answer: answer.answer })
+    closeHold(s, job, 'source_continued', note)
+    addAudit(s, actorName(s), `Continued the delivery after a source review for ${short(reference)}`, note)
+  })
+}
+
+/** Resume after an unsafe stop (R3), with the safe alternative as the note. */
+export async function resumeUnsafe(reference: string, request: HoldDecisionRequest): Promise<void> {
+  await delay(null, 250)
+  const note = requireDecisionNote(request.note)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = openHold(s, reference, request, 'unsafe_stop')
+    closeHold(s, job, 'unsafe_resumed', note)
+    addAudit(s, actorName(s), `Resumed the delivery after an unsafe stop for ${short(reference)}`, note)
+  })
+}
+
+/**
+ * Take back an accepted job before the driver leaves (R3, row 11): the order
+ * goes back to the pool and the hold closes with it (`withdrawn`, no decision line).
+ */
+export async function withdrawJob(reference: string, request: WithdrawRequest): Promise<void> {
+  await delay(null, 250)
+  const note = (request.note ?? '').trim()
+  if (note.length > 500) throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'note'], msg: 'Up to 500 characters', type: 'value_error' }])
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = s.jobs.find((j) => j.reference === reference)
+    if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+    if (!job.partner_id) throw mockError(404, 'assignment_not_found', 'This order has no driver assigned')
+    // Only an accepted job can be taken back here; after departure it is a fail or a cancel.
+    if (request.expected_status !== 'accepted' || job.stage !== 'accepted') throw mockError(409, 'invalid_order_transition', 'This order has changed')
+    const driver = partnerSummary(s, job.partner_id)?.name ?? 'the driver'
+    job.stage = 'available'
+    job.partner_id = null
+    job.assigned_by = null
+    job.accepted_at = null
+    job.withdrawn = { driver, at: new Date().toISOString(), note: note || null }
+    job.past_hold = job.hold ?? null
+    job.hold = null
+    addAudit(s, actorName(s), `Withdrew the job for ${short(reference)} from ${driver}`, note || null)
+  })
+}
+
+/**
+ * The server's own status for a mock job, for `expected_status`. A job's stage
+ * covers several (a collected job is `collected`, or `unloading` while its
+ * proof is under review).
+ */
+export function mockBackendStatus(job: StoredJob): string {
+  if (job.hold?.kind === 'proof_review') return 'unloading'
+  switch (job.stage) {
+    case 'available':
+      return 'confirmed'
+    default:
+      return job.stage
+  }
+}
+
+/** What cancelling with `mmirioma_unable` costs the customer (FR-044): the server's sentence, here a SAMPLE. */
+export async function getCancellationOutcome(reference: string): Promise<CancellationOutcome> {
+  await delay(null)
+  const s = read()
+  requireAdmin(s)
+  const job = s.jobs.find((j) => j.reference === reference)
+  const stage = job?.stage ?? findCustomerOrder(s, reference)?.order.stage
+  if (!stage) throw mockError(404, 'order_not_found', 'Order not found')
+  if (stage === 'delivered' || stage === 'cancelled') throw mockError(409, 'invalid_order_transition', 'This order can no longer be cancelled')
+  return { reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
+}
+
+const FAIL_REASONS: string[] = ['source_quality_concern', 'unsafe_access', 'other']
+
+/**
+ * Fail a delivery (row 20) or cancel with `mmirioma_unable` (row 23), with the
+ * checks and refusals the server makes. Every open hold on the job closes with
+ * it, with no decision line; nothing notifies the driver.
+ */
+export async function transitionOrder(reference: string, request: AdminTransitionRequest): Promise<void> {
+  await delay(null, 250)
+  const details: { loc: string[]; msg: string; type: string }[] = []
+  const note = (request.note ?? '').trim()
+  const reasonOk = request.to === 'failed' ? FAIL_REASONS.includes(request.reason_code) : request.reason_code === 'mmirioma_unable'
+  if (!reasonOk) details.push({ loc: ['body', 'reason_code'], msg: 'Choose a reason', type: 'value_error' })
+  if (request.to === 'failed' && request.reason_code === 'other' && !note) details.push({ loc: ['body', 'note'], msg: 'A note is required for Other', type: 'value_error' })
+  if (note.length > 500) details.push({ loc: ['body', 'note'], msg: 'Up to 500 characters', type: 'value_error' })
+  if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = s.jobs.find((j) => j.reference === reference)
+    if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+    // The status the dispatcher saw, and the order's rows (20: assigned to unloading; 23: anything not ended).
+    const failable = job.stage === 'assigned' || job.stage === 'accepted' || job.stage === 'collected'
+    const cancellable = job.stage !== 'delivered' && job.stage !== 'cancelled'
+    if (request.expected_status !== mockBackendStatus(job) || !(request.to === 'failed' ? failable : cancellable)) {
+      throw mockError(409, 'invalid_order_transition', 'This order has changed')
+    }
+    if (request.hold_id !== null && (!job.hold || job.hold.id !== request.hold_id)) throw mockError(409, 'hold_not_open', 'This hold has already been decided or has changed')
+    const now = new Date().toISOString()
+    const found = findCustomerOrder(s, reference)
+    if (request.to === 'cancelled') {
+      cancelJob(s, reference, note || 'MmiriOma is unable to deliver', false)
+    } else {
+      job.stage = 'failed'
+      if (found) found.order.timeline.push({ label: 'Delivery failed', at: now })
+    }
+    job.past_hold = job.hold ?? job.past_hold ?? null
+    job.hold = null
+    job.ended = { kind: request.to, reason_code: request.reason_code, note: note || null, by: actorName(s), at: now }
+    addAudit(s, actorName(s), `${request.to === 'failed' ? 'Failed the delivery of' : 'Cancelled'} ${short(reference)}`, note || null)
+  })
 }
 
 export async function cancelOrder(reference: string, reason: string): Promise<AdminOrder> {
