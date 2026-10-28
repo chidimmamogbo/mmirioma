@@ -108,7 +108,8 @@ DRIVER_INCIDENT_CATEGORIES = frozenset(
 )
 
 # What this section agrees for the planned admin transition endpoint (rows 20
-# and 23); its other rows and reasons are agreed with the screens that use them.
+# and 23, with a cancel at the customer's request, #174); its other rows and
+# reasons are agreed with the screens that use them.
 TRANSITION_REASONS = {
     OrderStatus.FAILED: frozenset(
         {
@@ -117,7 +118,9 @@ TRANSITION_REASONS = {
             TransitionReason.OTHER,
         }
     ),
-    OrderStatus.CANCELLED: frozenset({TransitionReason.MMIRIOMA_UNABLE}),
+    OrderStatus.CANCELLED: frozenset(
+        {TransitionReason.MMIRIOMA_UNABLE, TransitionReason.CUSTOMER_REQUEST}
+    ),
 }
 
 NO_CHARGE_MESSAGE = "The customer is not charged for this cancellation."
@@ -1027,15 +1030,16 @@ async def transition_with_holds(
     hold_id: uuid.UUID | None,
     now: datetime | None = None,
 ) -> OrderDetail:
-    """Fail a delivery (row 20) or cancel with ``mmirioma_unable`` (row 23). Commits.
+    """Fail a delivery (row 20) or cancel an order (row 23). Commits.
 
     Only these uses of the planned admin transition endpoint are agreed
-    (contract, "fail and cancel"). The job ends: on failure its assignment is
+    (contract, "fail and cancel", and "Cancel because the customer asked").
+    The job ends: on failure its assignment is
     ``completed`` and its delivery attempt ``failed``; on cancellation the
     assignment is ``withdrawn`` and the job leaves the driver's list (nothing
     notifies the driver). Every open hold on the job is closed. No charge is
     recorded: the failures here are attributable to MmiriOma (FR-038,
-    BR-14), and ``mmirioma_unable`` cancellation is free (FR-044).
+    BR-14), and a cancellation is free in the pilot (FR-044, F5).
 
     Args:
         session: Database session.
@@ -1054,8 +1058,9 @@ async def transition_with_holds(
 
     Raises:
         APIError: 404 ``order_not_found``; 422 ``validation_error`` for a
-            target or reason this section does not cover, or ``other``
-            without a note; 409 ``invalid_order_transition`` when the order
+            target or reason this section does not cover, ``other``
+            without a note, or a cancel from ``unloading`` without a note
+            (FR-044 administrator review); 409 ``invalid_order_transition`` when the order
             is not ``expected_status`` or cannot make the change; 409
             ``hold_not_open``.
     """
@@ -1066,6 +1071,10 @@ async def transition_with_holds(
     if reason_code not in allowed:
         choices = ", ".join(sorted(reason.value for reason in allowed))
         raise _validation_error(["body", "reason_code"], f"Give one of: {choices}")
+    if target is OrderStatus.CANCELLED and expected_status is OrderStatus.UNLOADING and not note:
+        # Unloading has started: FR-044 requires an administrator review, which is this
+        # cancel with its reason recorded (#174, decision 3).
+        raise _validation_error(["body", "note"], "Say why: unloading has already started")
 
     order_id = (await orders_service.get_order_for_staff(session, reference=reference)).order.id
     order = await orders_service.lock_order(session, order_id)
@@ -1133,18 +1142,21 @@ async def cancellation_outcome(
 ) -> CancellationOutcome:
     """The customer's charge if the order were cancelled with ``reason_code``.
 
-    Only ``mmirioma_unable`` is supported until the cancellation feature is
-    built: MmiriOma could not fulfil the order, so the customer is never
-    charged (FR-044). The charge is integer kobo (SRS §5).
+    ``mmirioma_unable`` (MmiriOma could not fulfil the order) and
+    ``customer_request`` (the customer asked, #174) are supported. The pilot has
+    no cancellation charge (F5), so the customer is never charged, for either
+    (FR-044 applies once charges exist). The charge is integer kobo (SRS §5).
 
     Raises:
         APIError: 404 ``order_not_found``; 422 ``validation_error`` for any
-            other reason; 409 ``invalid_order_transition`` when an
+            other reason (``other`` included); 409 ``invalid_order_transition`` when an
             administrator cannot cancel the order now (row 23).
     """
     order = (await orders_service.get_order_for_staff(session, reference=reference)).order
-    if reason_code is not TransitionReason.MMIRIOMA_UNABLE:
-        raise _validation_error(["query", "reason_code"], "Only mmirioma_unable is supported")
+    if reason_code not in TRANSITION_REASONS[OrderStatus.CANCELLED]:
+        raise _validation_error(
+            ["query", "reason_code"], "Only mmirioma_unable and customer_request are supported"
+        )
     check_transition(
         source=order.status,
         target=OrderStatus.CANCELLED,
