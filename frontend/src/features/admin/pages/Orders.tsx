@@ -12,7 +12,7 @@ import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
-import type { AdminOrder, AdminOrderFilter } from '../../../domain/admin'
+import type { AdminOrder, AdminOrderFilter, EligibleRider } from '../../../domain/admin'
 import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -270,14 +270,17 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
 
 function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => void }) {
   const riders = useEligibleRiders(order.reference, true)
-  const assign = useAdminMutation((partnerId: string) => api.assignOrder(order.reference, partnerId))
+  // The mutation takes the whole rider, so the notice can name them from
+  // `assign.variables`: the eligible list refetches after the assign and no
+  // longer contains them (#143).
+  const assign = useAdminMutation((rider: EligibleRider) => api.assignOrder(order.reference, rider.id))
   const [pick, setPick] = useState<string | null>(null)
   const list = riders.data ?? []
   const chosen = list.find((r) => r.id === (pick ?? list[0]?.id))
   const kind = order.choice ? (order.choice.delivery_type === 'keke' ? 'Keke riders' : 'tanker drivers') : 'partners'
 
   if (assign.isSuccess && !assign.isPending) {
-    return <Notice tone="success">Assigned. {chosen?.name.split(' ')[0] ?? 'The rider'} gets the order on their dashboard and must start it or decline with a reason.</Notice>
+    return <Notice tone="success">Assigned. {assign.variables.name.split(' ')[0]} gets the order on their dashboard and must start it or decline with a reason.</Notice>
   }
   return (
     <>
@@ -311,7 +314,7 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
           loading={assign.isPending}
           onClick={() => {
             onBefore()
-            assign.mutate(chosen.id)
+            assign.mutate(chosen)
           }}
         >
           Assign {chosen.name.split(' ')[0]}
