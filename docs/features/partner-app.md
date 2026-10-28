@@ -90,7 +90,9 @@ extra spaces, and sends its id as `service_zone_id`. The profile has no
 documents or payout account, so the adapter returns `[]` and `null` for
 them. When admin has not set a
 vehicle description yet, the adapter writes one from the sign-up details:
-"Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker. The
+"Tricycle" for a Keke, "4,000 gal (16,000 L) tank" for a tanker, and just
+"Tanker" for a tanker with no declared capacity (only drivers made with the
+command-line tool; decided by @chidimmamogbo on #86). The
 transfer methods become "Ground tanks", "Overhead tanks", "Ground and
 overhead tanks", or "Not set yet" when the list is empty.
 
