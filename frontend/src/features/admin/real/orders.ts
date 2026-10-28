@@ -54,17 +54,27 @@ const PAYMENT_BY_BACKEND: Partial<Record<string, AdminPaymentStatus>> = {
   refunded: 'refunded',
 }
 
-/** The backend statuses behind each pill of the order list (`a-orders`). `all` sends none. */
+/**
+ * The backend statuses behind each pill of the order list (`a-orders`). `all`
+ * sends none; `on_hold` sends none either and asks for `on_hold=true` instead
+ * (see `listParams`): a hold is not a status.
+ */
 export const STATUSES_BY_FILTER: Record<AdminOrderFilter, BackendStatus[]> = {
   all: [],
   awaiting_confirmation: ['quote_requested', 'awaiting_confirmation'],
   awaiting_rider: ['confirmed', 'awaiting_payment'],
   in_progress: ['assigned', 'accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading'],
+  on_hold: [],
   delivered: ['delivered'],
   cancelled: ['cancelled'],
 }
 
 const FILTERS = Object.keys(STATUSES_BY_FILTER) as AdminOrderFilter[]
+
+/** The query a pill sends: its statuses, or `on_hold=true` for the "On hold" pill (deliveries.md, "Hold object on admin orders"). */
+function listParams(filter: AdminOrderFilter): { status: BackendStatus[]; on_hold?: boolean } {
+  return filter === 'on_hold' ? { status: [], on_hold: true } : { status: STATUSES_BY_FILTER[filter] }
+}
 
 /** The newest orders a text search looks through: the contract's page maximum. */
 const SEARCH_LIMIT = 100
@@ -80,9 +90,10 @@ export function adminStatusFromBackend(status: string): AdminOrderStatus {
   return Object.hasOwn(STATUS_BY_BACKEND, status) ? STATUS_BY_BACKEND[status as BackendStatus] : 'awaiting_rider'
 }
 
-/** Whether an order matches a pill, by its admin status. */
+/** Whether an order matches a pill, by its admin status (or, for "On hold", its hold). */
 function inFilter(order: AdminOrder, filter: AdminOrderFilter): boolean {
   if (filter === 'all') return true
+  if (filter === 'on_hold') return order.hold !== null
   if (filter === 'in_progress') return order.status === 'assigned' || order.status === 'loading' || order.status === 'on_the_way'
   return order.status === filter
 }
@@ -125,6 +136,8 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
     payment: { method: 'pay_on_delivery', status: (detail?.payment && PAYMENT_BY_BACKEND[detail.payment.status]) ?? null },
     status: adminStatusFromBackend(read.status),
     backend_status: read.status,
+    // Both the list row and the detail carry it (admin hold review, R0); a server without it reads as no hold.
+    hold: read.hold ?? null,
     partner: live
       ? {
           id: live.driver.id,
@@ -146,7 +159,7 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
 /** How many orders each pill holds: one small request per pill, reading `total`. */
 async function serverCounts(client: ApiClient): Promise<Record<AdminOrderFilter, number>> {
   const totals = await Promise.all(
-    FILTERS.map((f) => listAdminOrders({ status: STATUSES_BY_FILTER[f], limit: 1, offset: 0 }, undefined, client).then((p) => p.total)),
+    FILTERS.map((f) => listAdminOrders({ ...listParams(f), limit: 1, offset: 0 }, undefined, client).then((p) => p.total)),
   )
   return Object.fromEntries(FILTERS.map((f, i) => [f, totals[i]])) as Record<AdminOrderFilter, number>
 }
@@ -183,7 +196,7 @@ export async function listOrders(filter: AdminOrderFilter = 'all', query?: strin
     return { orders: found.filter((o) => inFilter(o, filter)), counts: localCounts(found) }
   }
   const [page, counts] = await Promise.all([
-    listAdminOrders({ status: STATUSES_BY_FILTER[filter], limit: SEARCH_LIMIT, offset: 0 }, undefined, client),
+    listAdminOrders({ ...listParams(filter), limit: SEARCH_LIMIT, offset: 0 }, undefined, client),
     serverCounts(client),
   ])
   return { orders: page.items.map(adminOrderFromRead), counts }
