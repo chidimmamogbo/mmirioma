@@ -23,7 +23,7 @@ import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
 import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
-import { METHOD_LABEL, revealDetail } from '../adminFormat'
+import { METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
@@ -174,7 +174,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   const o = order.data
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
   if (order.isError || !o) return <Card className="p-4"><ErrorBlock error={order.error} onRetry={() => order.refetch()} /></Card>
-  const canAssign = o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading'
+  const notReady = notReadyToAssign(o)
+  const canAssign = !notReady && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
   const closed = o.status === 'delivered' || o.status === 'cancelled'
   return (
     <>
@@ -193,7 +194,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
       {o.status !== 'awaiting_confirmation' && (
         <Card className="rise-2 flex flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="m-0 text-[20px] font-extrabold">{o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
+            <h2 className="m-0 text-[20px] font-extrabold">{notReady ? 'Not ready to assign' : o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
             <StatusChip status={o.status} />
           </div>
           <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
@@ -220,6 +221,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
             />
           )}
           {canAssign && <AssignRiders order={o} onBefore={onChange} />}
+          {notReady && <Notice>Waiting for the customer's payment to be verified. A rider can be assigned once this order is confirmed.</Notice>}
           {o.status === 'on_the_way' && (
             <Notice>The water is on its way with {o.partner?.name ?? 'the rider'}. To change anything now, use Support (for example, confirm the delivery if the code fails).</Notice>
           )}

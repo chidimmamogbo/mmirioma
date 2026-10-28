@@ -8,7 +8,7 @@ import { routes } from '../../app/router'
 import { mockLogin } from '../../mocks/authMock'
 import { read, resetMockDb } from '../../mocks/db'
 import { DEMO_PASSWORD } from '../../mocks/seed'
-import { timeAgo } from './adminFormat'
+import { notReadyToAssign, timeAgo } from './adminFormat'
 
 // Whole-app renders load lazy page chunks, which can take seconds on a busy
 // machine or CI runner; give them room instead of Vitest's 5 s default.
@@ -102,6 +102,22 @@ describe('admin cash (K3 to K5, #19)', () => {
     expect(await screen.findByText('Say what happened.')).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   }, SLOW)
+})
+
+describe('notReadyToAssign (#144)', () => {
+  it('lets only a confirmed order be assigned; a prepaid order awaiting payment is not ready', () => {
+    expect(notReadyToAssign({ status: 'awaiting_rider', backend_status: 'confirmed' })).toBe(false)
+    expect(notReadyToAssign({ status: 'awaiting_rider', backend_status: 'awaiting_payment' })).toBe(true)
+  })
+
+  it('treats a mock order, which sends no backend status, as assignable', () => {
+    expect(notReadyToAssign({ status: 'awaiting_rider' })).toBe(false)
+  })
+
+  it('leaves orders that are already past this step alone', () => {
+    expect(notReadyToAssign({ status: 'assigned', backend_status: 'accepted' })).toBe(false)
+    expect(notReadyToAssign({ status: 'awaiting_confirmation', backend_status: 'quote_requested' })).toBe(false)
+  })
 })
 
 describe('timeAgo', () => {

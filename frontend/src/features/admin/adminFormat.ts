@@ -2,7 +2,7 @@
  * Labels and colours for admin statuses. Every status shows a word, never
  * colour alone (handoff README, "Colour").
  */
-import type { AdminOrderStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
+import type { AdminOrder, AdminOrderStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
 import type { ChipTone } from '../../components/ui/Chip'
 import type { AdminPaymentStatus } from '../../domain/admin'
 import type { PaymentMethod } from '../../domain/orders'
@@ -18,6 +18,16 @@ export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
   cancelled: 'red',
   failed: 'red',
   disputed: 'amber',
+}
+
+/**
+ * Whether an "Awaiting rider" order cannot be assigned yet. The design groups
+ * `confirmed` and `awaiting_payment` under that status, but the backend assigns
+ * only `confirmed` orders (deliveries.md, "Admin dispatch endpoints"). A mock
+ * order sends no backend status and is always assignable (#144).
+ */
+export function notReadyToAssign(order: Pick<AdminOrder, 'status' | 'backend_status'>): boolean {
+  return order.status === 'awaiting_rider' && order.backend_status !== undefined && order.backend_status !== 'confirmed'
 }
 
 export const PAYMENT_LABEL: Record<AdminPaymentStatus, string> = {

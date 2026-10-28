@@ -328,6 +328,13 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 | `failed` | `failed` ("Delivery failed") |
 | `disputed` | `disputed` ("Disputed") |
 
+`AdminOrder.backend_status` (optional) carries the backend `status` as sent,
+for the places that must tell apart statuses the design groups. Today that is
+the order panel: `awaiting_rider` covers `confirmed` and `awaiting_payment`,
+but only a `confirmed` order can be assigned, so an `awaiting_payment` order
+shows "Waiting for the customer's payment to be verified" instead of the
+assign panel (#144). Mock orders send none and stay assignable.
+
 `failed` and `disputed` are admin statuses of their own (open question 5,
 decided in #15), with the agreed staff labels from docs/api/orders.md. The
 order's payment status maps only where the design has an exact equivalent
