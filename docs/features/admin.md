@@ -44,8 +44,12 @@ through reports and the audit log.
    (Keke can prices, delivery and rider pay; tanker water by source, delivery
    and driver pay; delivery fee methods; points rules). Each save is a new
    version; placed orders keep their price (FR-024). Confirm payments
-   (FR-040) and pay refunds as points (Terms §7).
+   (FR-040) and pay refunds as points (Terms §7). The **Loyalty points**
+   page and tab are hidden in the pilot (`POINTS_ENABLED`, #156).
 10. **Rider earnings**: wallets and payout requests; mark a payout sent.
+    Hidden in the pilot (`PARTNER_PAY_ENABLED`, #156): not in the menu,
+    `/admin/earnings` goes to the dashboard, and Payments has no "Rider
+    payouts" link. Partner pay is out of the MVP (`partners.md`, decision 7).
 11. **Reports**: orders, deliveries and sample revenue by area, rider and
     station for today, 7 or 30 days; CSV download.
 12. **Support**: issues from customers, riders and drivers. Resolve with one

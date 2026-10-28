@@ -11,6 +11,7 @@ import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminPayment } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { formatShortDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import * as api from '../adminApi'
@@ -49,9 +50,11 @@ export function Payments() {
       <LinkTabs className="rise-2" label="Money settings" tabs={MONEY_TABS} />
       <div className="rise-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-[20px] font-extrabold">Customer payments</h2>
-        <Link to="/admin/earnings" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
-          Rider payouts →
-        </Link>
+        {PARTNER_PAY_ENABLED && (
+          <Link to="/admin/earnings" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
+            Rider payouts →
+          </Link>
+        )}
       </div>
       {customerId && (
         <Notice>
