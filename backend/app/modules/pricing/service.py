@@ -38,6 +38,7 @@ from app.modules.audit import service as audit
 from app.modules.auth.models import User
 from app.modules.pricing.models import ServiceZone, ServiceZoneDeliveryFee
 from app.modules.sources import service as sources
+from app.modules.sources.models import WaterCategory
 
 AUDIT_TARGET_TYPE = "service_zone"
 
@@ -175,6 +176,27 @@ async def list_active_zones(session: AsyncSession) -> list[ServiceZone]:
         .order_by(func.lower(ServiceZone.name), ServiceZone.id)
     )
     return list(rows)
+
+
+async def list_water_categories(session: AsyncSession) -> list[WaterCategory]:
+    """Return every water category, by label, for the Pricing screen's Water picker.
+
+    Source: docs/api/admin-directory.md, "Amendment (#160): the list of water
+    categories" (agreed 2026-10-28). Inactive categories are included, so a
+    price rule or zone fee that already names one still shows its label. They
+    are not refused when a rule names them: only an unknown id is 404
+    ``water_category_not_found``, and whether a category is offered is checked
+    when a quote is made (FR-014).
+
+    Args:
+        session: Database session.
+
+    Returns:
+        All categories, ordered by label. Callers expose ``id``, ``label`` and
+        ``is_active`` only: ``code`` is for the command-line tool, and clients
+        must not key off it.
+    """
+    return await sources.list_categories(session)
 
 
 async def delivery_cost_from_zone(

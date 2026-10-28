@@ -60,6 +60,8 @@ reliable price exists (SRS §6). Customers see the total only.
 | `backend/alembic/versions/20261026_0015_add_price_lists.py` | The two tables |
 | `backend/tests/test_price_lists_api.py` | Endpoint tests, no database |
 | `backend/tests/test_price_lists_integration.py` | Service tests against PostGIS |
+| `backend/tests/test_admin_water_categories_api.py` | The category list: roles, shape against the example, no `code`, no database |
+| `backend/tests/test_admin_water_categories_integration.py` | The category list and the inactive-category rule against PostGIS |
 | `backend/app/modules/pricing/quotes.py` | `create_quote`, `compute_price`, `check_quote_for_order`, `quote_summaries`; the rules below |
 | `backend/app/modules/pricing/rate_limit.py` | The quote rate limits (NFR-002) |
 | `backend/app/modules/dispatch/vehicles.py` | `plan_for`: the vehicle plan (FR-013), outside the dispatch service to avoid an import cycle |
@@ -107,7 +109,17 @@ Versions are never edited or deleted.
 | --- | --- | --- | --- |
 | GET | `/api/v1/admin/price-lists?limit=&offset=` | 200 page of `PriceList`, newest first | 422 `validation_error` |
 | GET | `/api/v1/admin/price-lists/current` | 200 `PriceList` | 404 `price_list_not_found` |
+| GET | `/api/v1/admin/water-categories` | admin; 200 `{items: [{id, label, is_active}]}`, every category by label, inactive ones included (#161) | shared 401/403 |
 | POST | `/api/v1/admin/price-lists` | 201 `PriceList` | 404 `service_zone_not_found`, 404 `water_category_not_found`, 409 `price_list_changed`, 409 `price_list_unchanged`, 422 `price_rules_overlap`, 422 `validation_error` |
+
+The category list feeds the Pricing screen's Water picker
+([amendment #160](../api/admin-directory.md#amendment-160-the-list-of-water-categories),
+[example](../api/examples/admin-water-categories.json)). It leaves out `code`,
+the description and any price. A price rule or zone fee may name an inactive
+category: only an unknown id is 404 `water_category_not_found`, and whether a
+category is offered is checked when a quote is made (FR-014). The service
+function is `service.list_water_categories`, which reads
+`sources.list_categories`.
 
 `PriceList`: `version`, `effective_from`, `created_by {id, name}`, `reason`,
 `rules[]` (with `id` and `margin` as `{"type": "fixed",
@@ -227,6 +239,13 @@ TEST_DATABASE_URL=... pytest tests/test_price_lists_integration.py
   database): first list and a new version with its `changes` and audit rows;
   every refusal; four concurrent saves give one version; matching by zone,
   category and band; no list or no band gives no match.
+- `test_admin_water_categories_api.py` (service faked): the example against
+  the schema and the response shape; only `id`, `label` and `is_active` are
+  shown; inactive categories pass through; 401 signed out, 403 for customers
+  and drivers (T-07); the list is read-only.
+- `test_admin_water_categories_integration.py`: the seeded categories by
+  label; an inactive category listed first by its label; a zone fee naming an
+  inactive category is stored, an unknown id is 404 `water_category_not_found`.
 - Migration: `alembic upgrade head`, `alembic downgrade -1`, `alembic upgrade
   head` and `alembic check` run on a local PostGIS database (2026-10-26).
 - `test_quotes_api.py`: `compute_price` (fixed and percentage margins,

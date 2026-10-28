@@ -28,6 +28,8 @@ from app.modules.auth.dependencies import CurrentAdmin, CurrentCustomer
 from app.modules.pricing import price_lists, quotes, service
 from app.modules.pricing.rate_limit import QuoteRateLimits, get_quote_rate_limits
 from app.modules.pricing.schemas import (
+    AdminWaterCategory,
+    AdminWaterCategoryList,
     PriceListCreate,
     PriceListPage,
     PriceListPageParams,
@@ -60,6 +62,18 @@ _WRITE_ERRORS: dict[int | str, dict[str, object]] = {
     HTTPStatus.NOT_FOUND: {"model": ErrorResponse},
     HTTPStatus.CONFLICT: {"model": ErrorResponse},
 }
+
+
+@router.get("/admin/water-categories", responses=_ADMIN_ERRORS)
+async def list_water_categories(admin: CurrentAdmin, db: DbSession) -> AdminWaterCategoryList:
+    """Every water category, active or not, by label (amendment #160, no pagination)."""
+    categories = await service.list_water_categories(db)
+    return AdminWaterCategoryList(
+        items=[
+            AdminWaterCategory(id=category.id, label=category.label, is_active=category.is_active)
+            for category in categories
+        ]
+    )
 
 
 @router.get("/admin/service-zones", responses=_ADMIN_ERRORS)
