@@ -7,7 +7,7 @@
  * `*_minor_units`, UTC ISO timestamps. Every naira amount here is a SAMPLE
  * (decision 10, 16).
  */
-import type { CanSizeLitres, DeliveryType, PaymentMethod, PaymentStatus, TankSizeGallons, TankType, WaterChoice, WaterSource } from './orders'
+import type { DeliveryType, PaymentMethod, PaymentStatus, TankType, WaterChoice } from './orders'
 import type { ApprovalStatus } from './partner'
 
 /* ---------- Orders ---------- */
@@ -263,36 +263,70 @@ export interface ServiceArea {
 
 /* ---------- Pricing, points, payouts ---------- */
 
-export interface TankerPriceRow {
-  water_minor_units: Record<WaterSource, number>
-  delivery_minor_units: number
-  driver_pay_minor_units: number
+/**
+ * One rule of a price list: the handling and margin for an area, a water
+ * category and a quantity band (FR-022). Docs: docs/api/admin-directory.md,
+ * "Price lists". Every amount is integer kobo (BR-01).
+ */
+export interface PriceRule {
+  id: string
+  /** A service zone, or `null` for every area without a rule of its own. */
+  zone_id: string | null
+  /** A water category, or `null` for every water. */
+  water_category_id: string | null
+  /** Whole litres, inclusive; at least 600 (FR-021). */
+  min_litres: number
+  /** Whole litres, inclusive, or `null` for no upper limit. */
+  max_litres: number | null
+  /** Saved but not used until road distance exists (SRS §12.1): the pilot prices delivery from the area's fee. */
+  base_delivery_fee_minor_units: number
+  /** Saved but not used yet, as above. */
+  distance_rate_minor_units_per_km: number
+  /** Saved but not used yet, as above ("Second trip"). */
+  additional_trip_minor_units: number
+  /** Handling cost per order. */
+  handling_minor_units: number
+  /** 1 % is 100 basis points, so no fractions are sent. */
+  margin: { type: 'fixed'; amount_minor_units: number } | { type: 'percentage'; basis_points: number }
+}
+
+/** One field that differs from the previous version. `from` is `null` for an added rule, `to` for a removed one. */
+export interface PriceChange {
+  /** `rules[2].handling_minor_units`, or `rules[2]` for a whole rule. */
+  path: string
+  from: unknown
+  to: unknown
 }
 
 /**
- * One version of the price list (a-pricing). Every save creates a new
- * version; orders keep the quote they were placed with (FR-024).
+ * One version of the price list (FR-022). Every save creates a new version;
+ * quotes already given and orders keep their price (FR-024).
  */
 export interface PriceList {
   version: number
-  created_at: string
-  created_by: string
-  /** Change summary for the log, e.g. "Tanker 750 gal ₦24,000 → ₦25,000". */
-  note: string
-  keke: { can_minor_units: Record<CanSizeLitres, number>; delivery_minor_units: number; rider_pay_minor_units: number }
-  tanker: Record<TankSizeGallons, TankerPriceRow>
-  /**
-   * Delivery fee methods (decision 10a). With both off, each order pays the
-   * delivery fee in the tables above. "Fixed fee per area" wins when the
-   * area has a fee; otherwise "rate per km" uses the area's distance.
-   */
-  delivery_fee: { per_km_enabled: boolean; per_km_minor_units: number; per_area_enabled: boolean }
-  /** Sample loyalty rule (decision 16). */
-  points: { naira_per_point: number; round_to: number; welcome_bonus: number; naira_per_redeemed_point: number }
+  /** When the version took effect (UTC ISO): the time it was saved. */
+  effective_from: string
+  created_by: { id: string; name: string }
+  reason: string | null
+  rules: PriceRule[]
+  /** What changed from the previous version; empty on version 1. */
+  changes: PriceChange[]
 }
 
-/** What admin edits on the pricing pages; the server adds version, time and author. */
-export type PriceListInput = Omit<PriceList, 'version' | 'created_at' | 'created_by' | 'note'>
+/** A page of price list versions, newest first (the shared page shape). */
+export interface PriceListPage {
+  items: PriceList[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/** A water category as the Pricing screen's Water picker reads it (docs/api/admin-directory.md, amendment #160). */
+export interface WaterCategoryOption {
+  id: string
+  label: string
+  is_active: boolean
+}
 
 export interface AdminPayment {
   reference: string

@@ -25,6 +25,9 @@ export const adminKeys = {
   stations: (query: string) => ['admin', 'stations', query] as const,
   areas: ['admin', 'areas'] as const,
   prices: ['admin', 'prices'] as const,
+  priceCurrent: ['admin', 'price-list', 'current'] as const,
+  priceHistory: ['admin', 'price-list', 'history'] as const,
+  waterCategories: ['admin', 'water-categories'] as const,
   payments: (filter: api.PaymentFilter, customerId: string) => ['admin', 'payments', filter, customerId] as const,
   payouts: ['admin', 'payouts'] as const,
   cashDay: (date: string) => ['admin', 'cash', 'day', date] as const,
@@ -59,7 +62,11 @@ export const useRiders = (filter: api.RiderFilter, query: string) =>
 export const useRider = (id: string | null) => useQuery({ queryKey: adminKeys.rider(id ?? ''), queryFn: () => api.getRider(id!), enabled: Boolean(id) })
 export const useStations = (query: string) => useQuery({ queryKey: adminKeys.stations(query), queryFn: () => api.listStations(query), placeholderData: keepPreviousData })
 export const useAreas = () => useQuery({ queryKey: adminKeys.areas, queryFn: api.listAreas })
-export const usePriceLists = () => useQuery({ queryKey: adminKeys.prices, queryFn: api.listPriceLists })
+/** The current price list (`null`: none saved yet), its history and the water names, for the Pricing page (#173). */
+export const usePriceListCurrent = () => useQuery({ queryKey: adminKeys.priceCurrent, queryFn: api.getCurrentPriceList })
+export const usePriceListHistory = () => useQuery({ queryKey: adminKeys.priceHistory, queryFn: api.listPriceListHistory })
+export const useWaterCategories = () => useQuery({ queryKey: adminKeys.waterCategories, queryFn: api.listWaterCategories })
+export const useMockPriceLists =() => useQuery({ queryKey: adminKeys.prices, queryFn: api.listMockPriceLists })
 export const usePayments = (filter: api.PaymentFilter, customerId: string) =>
   useQuery({ queryKey: adminKeys.payments(filter, customerId), queryFn: () => api.listPayments(filter, customerId || undefined), placeholderData: keepPreviousData })
 export const usePayouts = () => useQuery({ queryKey: adminKeys.payouts, queryFn: api.listPayouts })

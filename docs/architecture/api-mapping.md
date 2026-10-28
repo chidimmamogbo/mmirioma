@@ -348,6 +348,30 @@ and `partially_paid` shown as "Part paid" (the approved cash design,
 docs/design/cash-remittance.md); for the others the order shows no payment chip, and the cash pages show them
 in full (#19).
 
+## Admin price list
+
+`GET /admin/price-lists/current`, `GET /admin/price-lists` and
+`GET /admin/water-categories` (docs/api/admin-directory.md, "Price lists" and
+the #160 amendment) to the Pricing page (#173, `real/prices.ts`). The design
+type `PriceList` in `domain/admin.ts` **is** the contract's shape, so nothing
+is converted; the pre-FR-022 mock shape (flat prices per can and tank, rider
+pay, delivery switches, points) is `MockPriceList` in `mocks/priceListTypes.ts`
+and is never sent to a server.
+
+| Backend | Design | Note |
+| --- | --- | --- |
+| `GET /admin/price-lists/current`, 404 `price_list_not_found` | `getCurrentPriceList()` is `null` | "No price list yet". Any other error reaches the screen as `ApiError` |
+| `GET /admin/price-lists` page, `items` | `listPriceListHistory()` is `PriceList[]`, newest first | The latest 20 versions (`limit` 20, `offset` 0) |
+| `GET /admin/water-categories` `items` | `listWaterCategories()` is `WaterCategoryOption[]` | `id`, `label`, `is_active`; no `code` |
+| `rules[].zone_id`, `water_category_id` | "Every area" / "Every water" when `null`, else the name from the zone list or the water category list | An id the lists do not have reads "Area not listed" / "Water not listed", never the bare id |
+| `rules[].min_litres`, `max_litres` | "600 to 1,999 L", or "2,000 L and up" when `max_litres` is `null` | |
+| `rules[].margin` | "10%" (`basis_points` ÷ 100, up to two decimals) or "₦500" (`amount_minor_units`) | |
+| `changes[]` (`path`, `from`, `to`) | One sentence per change ("Handling, every area, 600 to 1,999 L: ₦400 → ₦500", "Rule added: …"), `pricingFormat.ts` | The rule is looked up by the index in the version's own `rules`; a removed rule is read from `from` |
+| `base_delivery_fee_minor_units`, `distance_rate_minor_units_per_km`, `additional_trip_minor_units` | Shown in the collapsed "saved, not used yet" part | The pilot prices delivery from the area's fee |
+
+Saving a version (`POST /admin/price-lists`) is added with the rule sheet
+(#173, part 2).
+
 ## Open questions
 
 | # | Question | Settled in |

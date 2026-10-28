@@ -1,237 +1,206 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Illustration } from '../../../components/brand/Illustration'
-import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
+import { useMemo } from 'react'
+import { EmptyBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
-import { Toggle } from '../../../components/ui/Controls'
-import { Notice } from '../../../components/ui/Notice'
-import type { PriceList, PriceListInput } from '../../../domain/admin'
-import { TANK_SIZES, WATER_SOURCE_LABEL } from '../../../domain/orders'
-import { litresFromGallons } from '../../../domain/quantity'
-import { errorMessage } from '../../../lib/api/errorMessage'
-import { formatShortDate } from '../../../lib/format/datetime'
-import * as api from '../adminApi'
-import { MONEY_TABS, editablePrices as editable } from '../adminFormat'
-import { AdminFrame, LinkTabs, NairaInput, PageHead } from '../AdminParts'
-import { useAdminMutation, usePriceLists } from '../queries'
-
+import type { PriceList, PriceRule } from '../../../domain/admin'
+import { USE_MOCKS } from '../../../lib/api/mode'
+import { formatDateTime } from '../../../lib/format/datetime'
+import { formatNaira } from '../../../lib/format/money'
+import { AdminFrame, PageHead } from '../AdminParts'
+import { areaName, bandText, describeChange, marginText, ruleScope, waterName, type PriceNames } from '../pricingFormat'
+import { useAreas, usePriceListCurrent, usePriceListHistory, useWaterCategories } from '../queries'
 
 /**
- * Pricing (`a-pricing`, Pricing tab). Every save is a new version and orders
- * already placed keep their price (FR-024). Ninth Mile tanker water has its
- * own price (decision 10b); the delivery fee methods are switched here
- * (decision 10a). All values are SAMPLES, not agreed prices.
+ * Pricing (P0, docs/design/admin-pricing.md): the rules of the current FR-022
+ * price list, the road-distance rates saved for later, and the version
+ * history in words. Reading only so far; adding, editing and saving a version
+ * come with the rule sheet (#173, part 2). Pricing stands alone, without the
+ * Money tabs (decision 9).
+ *
+ * The names of areas and waters come from the zone list and the water
+ * category list; the page waits for both, so a rule never shows a bare id.
  */
 export function Pricing() {
-  const lists = usePriceLists()
-  // Owned here so "Saved" survives the editor restarting on the new version.
-  const save = useAdminMutation((draft: PriceListInput) => api.savePriceList(draft))
-  if (lists.isPending) return <Frame><LoadingBlock label="Loading prices" /></Frame>
-  if (lists.isError) return <Frame><ErrorBlock error={lists.error} onRetry={() => lists.refetch()} /></Frame>
-  // Remount the editor when a new version arrives, so it starts from that version.
-  return (
-    <Frame>
-      <PriceEditor key={lists.data[0].version} versions={lists.data} save={save} />
-    </Frame>
-  )
-}
+  const current = usePriceListCurrent()
+  const areas = useAreas()
+  const waters = useWaterCategories()
+  const names = useMemo<PriceNames | null>(() => {
+    if (!areas.data || !waters.data) return null
+    return { areas: new Map(areas.data.map((a) => [a.id, a.name])), waters: new Map(waters.data.map((w) => [w.id, w.label])) }
+  }, [areas.data, waters.data])
 
-type SaveMutation = ReturnType<typeof useAdminMutation<PriceListInput, PriceList>>
+  const failed = [current, areas, waters].find((q) => q.isError)
+  const retry = () => [current, areas, waters].filter((q) => q.isError).forEach((q) => void q.refetch())
 
-function Frame({ children }: { children: ReactNode }) {
+  let body
+  if (failed) body = <LoadFailed onRetry={retry} />
+  else if (current.data === undefined || !names) body = <LoadingBlock label="Loading prices" />
+  else if (current.data === null) body = <EmptyBlock title="No price list yet" text="Quotes need a price list. The first one you save will show here." />
+  else body = <PriceListView list={current.data} names={names} />
+
   return (
     <AdminFrame searchPlaceholder="Search settings">
-      <PageHead title="Pricing, points and payouts" sub="Every change is versioned. Orders already placed keep their price." actions={<SampleTag>SAMPLE VALUES, NOT AGREED PRICES</SampleTag>} />
-      <LinkTabs className="rise-2" label="Money settings" tabs={MONEY_TABS} />
-      {children}
+      <PageHead
+        title="Pricing"
+        sub="Every save is a new version. Quotes already given and placed orders keep their price."
+        actions={USE_MOCKS ? <SampleTag>SAMPLE VALUES, NOT AGREED PRICES</SampleTag> : undefined}
+      />
+      <HowAPriceIsMade />
+      {body}
     </AdminFrame>
   )
 }
 
-function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMutation }) {
-  const current = versions[0]
-  const [draft, setDraft] = useState<PriceListInput>(() => editable(current))
-  const set = (fn: (d: PriceListInput) => void) =>
-    setDraft((d) => {
-      const next = structuredClone(d)
-      fn(next)
-      return next
-    })
-  const changed = JSON.stringify(draft) !== JSON.stringify(editable(current))
-
+function LoadFailed({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-      <div className="rise-3 flex min-w-0 flex-1 flex-col gap-4">
-        <Card className="p-4">
-          <div className="mb-2 flex items-center gap-3">
-            <Illustration name="keke" className="w-24 shrink-0" />
-            <div>
-              <h2 className="m-0 text-[18px] font-extrabold">Keke prices</h2>
-              <p className="m-0 text-mute">Per jerrycan, plus one delivery fee per order</p>
-            </div>
-          </div>
-          <PriceHead cols={KEKE_COLS} labels={['Item', 'Customer pays (₦)', 'Rider earns (₦)']} />
-          {([25, 50] as const).map((size) => (
-            <PriceRow key={size} cols={KEKE_COLS} title={`${size} L can`}>
-              <Cell label="Customer pays (₦)">
-                <NairaInput label={`${size} L can price`} value={draft.keke.can_minor_units[size]} onChange={(v) => set((d) => (d.keke.can_minor_units[size] = v ?? 0))} />
-              </Cell>
-              <Cell label="Rider earns (₦)">
-                <span className="text-mute">Per trip below</span>
-              </Cell>
-            </PriceRow>
-          ))}
-          <PriceRow cols={KEKE_COLS} title="Delivery and pouring">
-            <Cell label="Customer pays (₦)">
-              <NairaInput label="Keke delivery fee" value={draft.keke.delivery_minor_units} onChange={(v) => set((d) => (d.keke.delivery_minor_units = v ?? 0))} />
-            </Cell>
-            <Cell label="Rider earns (₦)">
-              <NairaInput label="Keke rider pay per trip" value={draft.keke.rider_pay_minor_units} onChange={(v) => set((d) => (d.keke.rider_pay_minor_units = v ?? 0))} />
-            </Cell>
-          </PriceRow>
-        </Card>
-
-        <Card className="p-4">
-          <div className="mb-2 flex items-center gap-3">
-            <Illustration name="tanker" className="w-24 shrink-0" />
-            <div>
-              <h2 className="m-0 text-[18px] font-extrabold">Tanker prices</h2>
-              <p className="m-0 text-mute">Ground and overhead use the same base price. Ninth Mile water costs more.</p>
-            </div>
-          </div>
-          <PriceHead cols={TANKER_COLS} labels={['Capacity', `${WATER_SOURCE_LABEL.borehole} (₦)`, `${WATER_SOURCE_LABEL.ninth_mile} (₦)`, 'Delivery (₦)', 'Driver earns (₦)']} />
-          {TANK_SIZES.map((size) => {
-            const g = size.toLocaleString('en-NG')
-            return (
-              <PriceRow key={size} cols={TANKER_COLS} title={`${g} gal · ${litresFromGallons(size).toLocaleString('en-NG')} L`}>
-                <Cell label={`${WATER_SOURCE_LABEL.borehole} (₦)`}>
-                  <NairaInput label={`${g} gal borehole water`} value={draft.tanker[size].water_minor_units.borehole} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.borehole = v ?? 0))} />
-                </Cell>
-                <Cell label={`${WATER_SOURCE_LABEL.ninth_mile} (₦)`}>
-                  <NairaInput label={`${g} gal Ninth Mile water`} value={draft.tanker[size].water_minor_units.ninth_mile} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.ninth_mile = v ?? 0))} />
-                </Cell>
-                <Cell label="Delivery (₦)">
-                  <NairaInput label={`${g} gal delivery`} value={draft.tanker[size].delivery_minor_units} onChange={(v) => set((d) => (d.tanker[size].delivery_minor_units = v ?? 0))} />
-                </Cell>
-                <Cell label="Driver earns (₦)">
-                  <NairaInput label={`${g} gal driver pay`} value={draft.tanker[size].driver_pay_minor_units} onChange={(v) => set((d) => (d.tanker[size].driver_pay_minor_units = v ?? 0))} />
-                </Cell>
-              </PriceRow>
-            )
-          })}
-          <PriceRow cols={TANKER_COLS} title="Custom size">
-            <Cell label="Price">
-              <Chip tone="amber">Manual quote by admin</Chip>
-            </Cell>
-          </PriceRow>
-        </Card>
-
-        <Card className="flex flex-col gap-3 p-4">
-          <h2 className="m-0 text-[18px] font-extrabold">Delivery fee method</h2>
-          <p className="m-0 text-mute">
-            With both off, each order pays the delivery fee in the tables above. A fixed area fee wins where the area has one; otherwise the rate per km uses the area's distance.
-          </p>
-          <div className="mo-li">
-            <span className="flex-1">
-              <span className="block font-bold">Rate per km</span>
-              <span className="text-chip text-mute">Distance from the refill station to the area, entered on Service areas</span>
-            </span>
-            <NairaInput label="Rate per km" value={draft.delivery_fee.per_km_minor_units} onChange={(v) => set((d) => (d.delivery_fee.per_km_minor_units = v ?? 0))} />
-            <Toggle label="Rate per km" checked={draft.delivery_fee.per_km_enabled} onChange={(v) => set((d) => (d.delivery_fee.per_km_enabled = v))} />
-          </div>
-          <div className="mo-li">
-            <span className="flex-1">
-              <span className="block font-bold">Fixed fee per area</span>
-              <span className="text-chip text-mute">
-                Set each area's fee on{' '}
-                <Link to="/admin/areas" className="font-bold text-primary no-underline hover:text-primary-dark">
-                  Service areas
-                </Link>
-              </span>
-            </span>
-            <Toggle label="Fixed fee per area" checked={draft.delivery_fee.per_area_enabled} onChange={(v) => set((d) => (d.delivery_fee.per_area_enabled = v))} />
-          </div>
-        </Card>
-      </div>
-
-      <ChangeLog versions={versions} saveLabel={`Save as version ${current.version + 1}`} changed={changed} save={save} onSave={() => save.mutate(draft)} />
-    </div>
-  )
-}
-
-/**
- * Price rows: a table-like grid from 768 px; on phones each row is a block
- * with its title on top and labelled fields in two columns.
- */
-const KEKE_COLS = 'md:grid-cols-[minmax(150px,1.2fr)_1fr_1fr]'
-const TANKER_COLS = 'md:grid-cols-[minmax(100px,0.8fr)_repeat(4,1fr)]'
-
-function PriceHead({ cols, labels }: { cols: string; labels: string[] }) {
-  return (
-    <div aria-hidden="true" className={`hidden gap-3 border-0 border-b border-solid border-line px-3 py-2.5 text-chip font-bold text-mute md:grid ${cols}`}>
-      {labels.map((l) => (
-        <span key={l}>{l}</span>
-      ))}
-    </div>
-  )
-}
-
-function PriceRow({ cols, title, children }: { cols: string; title: string; children: ReactNode }) {
-  return (
-    <div className={`grid grid-cols-2 items-center gap-3 border-0 border-b border-solid border-row-line px-3 py-3 last:border-b-0 md:gap-3 ${cols}`}>
-      <div className="col-span-2 font-bold md:col-span-1">{title}</div>
-      {children}
-    </div>
-  )
-}
-
-function Cell({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-chip font-bold text-mute md:hidden">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-/** The change log with the save button, shared by Pricing and Loyalty points. */
-export function ChangeLog({
-  versions,
-  saveLabel,
-  changed,
-  save,
-  onSave,
-}: {
-  versions: PriceList[]
-  saveLabel: string
-  changed: boolean
-  save: { isPending: boolean; isError: boolean; isSuccess: boolean; error: unknown }
-  onSave: () => void
-}) {
-  return (
-    <Card className="rise-4 flex w-full shrink-0 flex-col gap-3 p-4 xl:sticky xl:top-4 xl:w-[340px]">
-      <h2 className="m-0 text-[18px] font-extrabold">Change log</h2>
-      <ol className="m-0 flex list-none flex-col p-0">
-        {versions.slice(0, 6).map((v) => (
-          <li key={v.version} className="flex items-start gap-3 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
-            <Chip tone={v.version === versions[0].version ? 'blue' : 'gray'}>v{v.version}</Chip>
-            <span className="min-w-0">
-              <span className="block text-[14px]">{v.note}</span>
-              <span className="block text-chip text-mute">
-                {v.created_by} · {formatShortDate(v.created_at)}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      {save.isError && <Notice tone="error">{errorMessage(save.error)}</Notice>}
-      {save.isSuccess && <Notice tone="success">Saved. New orders use this version; placed orders keep theirs.</Notice>}
-      <Button disabled={!changed} loading={save.isPending} onClick={onSave}>
-        {saveLabel}
+    <Card pad role="alert" className="flex flex-col gap-3">
+      <p className="m-0 font-bold text-red">We couldn&apos;t load the prices.</p>
+      <Button variant="alt" size="sm" block={false} className="self-start px-4" onClick={onRetry}>
+        Try again
       </Button>
-      {!changed && <p className="m-0 text-center text-caption text-mute">Change a value to save a new version.</p>}
+    </Card>
+  )
+}
+
+/** "How a price is made": the four parts and where each one is set (decision 2). */
+function HowAPriceIsMade() {
+  return (
+    <Card pad className="rise-2">
+      <h2 className="m-0 text-[18px] font-extrabold">How a price is made</h2>
+      <p className="mt-1 mb-0 text-sub text-mute">
+        A price adds up four parts: water, delivery, handling and margin. The water cost is set on each water source, and delivery is the area&apos;s fee under Service
+        areas. Handling and margin are set here, by area, water and quantity.
+      </p>
+    </Card>
+  )
+}
+
+function PriceListView({ list, names }: { list: PriceList; names: PriceNames }) {
+  return (
+    <>
+      <RulesTable list={list} names={names} />
+      <DistanceRates list={list} names={names} />
+      <History names={names} />
+    </>
+  )
+}
+
+/** Table-like columns from 1024 px; below that each rule is a card (P2). */
+const GRID = 'lg:grid-cols-[minmax(160px,1.6fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_minmax(90px,0.8fr)] lg:items-center lg:gap-3'
+
+function RulesTable({ list, names }: { list: PriceList; names: PriceNames }) {
+  return (
+    <Card className="rise-3 flex flex-col p-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+        <h2 className="m-0 text-[18px] font-extrabold">Rules</h2>
+        <Chip tone="blue">Version {list.version}</Chip>
+        <span className="text-chip text-mute">In use since {formatDateTime(list.effective_from)}</span>
+      </div>
+      <div role="row" className={`${GRID} hidden border-0 border-y border-solid border-line px-3 py-2.5 text-chip font-bold text-mute lg:grid`}>
+        {['Area and water', 'Quantity', 'Handling', 'Margin'].map((h) => (
+          <span key={h} role="columnheader">
+            {h}
+          </span>
+        ))}
+      </div>
+      {list.rules.map((rule) => (
+        <RuleRow key={rule.id} rule={rule} names={names} />
+      ))}
+    </Card>
+  )
+}
+
+function RuleRow({ rule, names }: { rule: PriceRule; names: PriceNames }) {
+  const water = rule.water_category_id === null ? null : waterName(rule.water_category_id, names)
+  return (
+    <div role="row" className="border-0 border-b border-solid border-row-line px-3 py-3 last:border-b-0">
+      <div className={`${GRID} grid grid-cols-2 gap-x-3 gap-y-1`}>
+        <div className="col-span-2 lg:col-span-1">
+          <b className="text-[15px]">{areaName(rule.zone_id, names)}</b>
+          <div className="text-caption text-mute">{water ?? 'Every water'}</div>
+        </div>
+        <Cell label="Quantity">{bandText(rule.min_litres, rule.max_litres)}</Cell>
+        <Cell label="Handling">{formatNaira(rule.handling_minor_units)}</Cell>
+        <Cell label="Margin">{marginText(rule.margin)}</Cell>
+      </div>
+    </div>
+  )
+}
+
+function Cell({ label, children }: { label: string; children: string }) {
+  return (
+    <div role="cell">
+      <span className="block text-chip font-bold text-mute lg:sr-only">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+/** The three road-distance rates, kept but collapsed: the pilot prices delivery from the area's fee (decision 1). */
+function DistanceRates({ list, names }: { list: PriceList; names: PriceNames }) {
+  return (
+    <Card pad className="rise-4">
+      <details>
+        <summary className="cursor-pointer text-[15px] font-extrabold">Road-distance rates (saved, not used yet)</summary>
+        <p className="mt-2 mb-3 text-sub text-mute">
+          The pilot prices delivery from each area&apos;s fee, so these rates are saved with every version but not used until road distance is.
+        </p>
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {list.rules.map((rule) => (
+            <li key={rule.id} className="text-[14px]">
+              <b>{ruleScope(rule, names)}</b>
+              <div className="text-mute">
+                Base delivery fee {formatNaira(rule.base_delivery_fee_minor_units)} · Distance rate {formatNaira(rule.distance_rate_minor_units_per_km)} per km · Second trip{' '}
+                {formatNaira(rule.additional_trip_minor_units)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </Card>
+  )
+}
+
+/** Version history in words (decision 5): reason, what changed, who and when. */
+function History({ names }: { names: PriceNames }) {
+  const history = usePriceListHistory()
+  return (
+    <Card pad className="rise-5 flex flex-col gap-3">
+      <h2 className="m-0 text-[18px] font-extrabold">Version history</h2>
+      {history.isPending && <LoadingBlock label="Loading history" />}
+      {history.isError && (
+        <div role="alert" className="flex flex-col gap-2">
+          <p className="m-0 font-bold text-red">We couldn&apos;t load the history.</p>
+          <Button variant="alt" size="sm" block={false} className="self-start px-4" onClick={() => void history.refetch()}>
+            Try again
+          </Button>
+        </div>
+      )}
+      {history.data && (
+        <ol className="m-0 flex list-none flex-col p-0">
+          {history.data.map((version) => (
+            <li key={version.version} className="flex items-start gap-3 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+              <Chip tone={version.version === history.data[0].version ? 'blue' : 'gray'}>v{version.version}</Chip>
+              <span className="min-w-0">
+                {version.reason && <span className="block text-[14px] font-bold">{version.reason}</span>}
+                {version.changes.length === 0 ? (
+                  <span className="block text-[14px]">{version.version === 1 ? 'First price list' : 'No changes recorded'}</span>
+                ) : (
+                  version.changes.map((change) => (
+                    <span key={change.path} className="block text-[14px]">
+                      {describeChange(change, version, names)}
+                    </span>
+                  ))
+                )}
+                <span className="block text-chip text-mute">
+                  {version.created_by.name} · {formatDateTime(version.effective_from)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </Card>
   )
 }

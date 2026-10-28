@@ -271,9 +271,11 @@ TEST_DATABASE_URL=... pytest tests/test_price_lists_integration.py
 - The quote validity is a server setting; an admin screen for it is #22.
 - A quote's total of ₦0 (all components zero) could be stored but not
   confirmed, because the confirmation snapshot requires at least ₦1.00.
-- No screen: the fork's admin Pricing page still shows the old flat prices
-  on mocks and needs a redesign around FR-022 rates (G2) before it can link
-  to these endpoints.
+- The admin Pricing page (designed in #44, linked in #173) reads the current
+  version, the history and the water categories, and is read-only so far.
+  Adding or editing rules and saving a version from the screen is part 2 of
+  #173; until then a new version can only be saved through
+  `POST /admin/price-lists`.
 - The distance rate is unused until OSRM exists (SRS §12.1).
 - Versions take effect when saved; scheduling a future version is not
   supported.

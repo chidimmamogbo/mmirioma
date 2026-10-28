@@ -5,9 +5,10 @@
  * the linked ones call an adapter from `./real/`; the rest fail with
  * `not_connected` until their endpoints exist. Linked so far: the cash
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
- * `assignOrder` (#16), and `listAreas`, `saveArea` (#74).
+ * `assignOrder` (#16), `listAreas`, `saveArea` (#74), and the price list reads
+ * `getCurrentPriceList`, `listPriceListHistory`, `listWaterCategories` (#173).
  */
-import type { AdminOrderFilter, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceList, ServiceArea, WaterCategoryOption } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
@@ -16,6 +17,7 @@ import * as mock from '../../mocks/adminMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as orders from './real/orders'
+import * as prices from './real/prices'
 import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -62,8 +64,14 @@ export const listAreas = (): Promise<ServiceArea[]> => (USE_MOCKS ? mock.listAre
 export const saveArea = (id: string | null, input: Omit<ServiceArea, 'id'>): Promise<ServiceArea> =>
   USE_MOCKS ? mock.saveArea(id, input) : areas.saveArea(id, input)
 
-export const listPriceLists = api('Pricing', mock.listPriceLists)
-export const savePriceList = api('Pricing', mock.savePriceList)
+// The mock-era price list (flat prices, points rule): Loyalty points and the Service areas notice only. Mock-only; the real price list is below.
+// The FR-022 price list (#173): linked to the agreed price list endpoints; reading only so far.
+export const getCurrentPriceList = (): Promise<PriceList | null> => (USE_MOCKS ? mock.getCurrentPriceList() : prices.getCurrentPriceList())
+export const listPriceListHistory = (): Promise<PriceList[]> => (USE_MOCKS ? mock.listPriceListHistory() : prices.listPriceListHistory())
+export const listWaterCategories = (): Promise<WaterCategoryOption[]> => (USE_MOCKS ? mock.listWaterCategories() : prices.listWaterCategories())
+
+export const listMockPriceLists = api('Pricing', mock.listPriceLists)
+export const saveMockPriceList = api('Pricing', mock.savePriceList)
 
 export const listPayments = api('Payments', mock.listPayments)
 export const confirmPayment = api('Payments', mock.confirmPayment)

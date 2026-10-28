@@ -18,6 +18,8 @@ import type {
   StaffMember,
 } from '../domain/admin'
 import type { CashMockData } from './adminCashMock'
+import type { MockPriceList } from './priceListTypes'
+import { samplePriceVersions } from './priceListSample'
 import { DEFAULT_PRICE_LIST } from './pricing'
 import { lagosAt, lagosToday } from './time'
 
@@ -41,7 +43,9 @@ export interface AdminData {
   stations: AdminStation[]
   areas: MockServiceArea[]
   /** Price list versions, oldest first; the last one is current. */
-  prices: PriceList[]
+  prices: MockPriceList[]
+  /** The FR-022 price list versions (contract shape, SAMPLE), oldest first; the last is current. Absent in demos saved before #173. */
+  price_versions?: PriceList[]
   issues: AdminIssue[]
   /** Next support issue number (#CP-0NN), shared by customer, rider and admin reports. */
   next_issue_number: number
@@ -59,7 +63,7 @@ function minutesAgo(now: Date, m: number): string {
 }
 
 /** The design's three versions: v1 first list, v2 Keke fee ₦500, v3 Tanker 750 gal ₦24,000 → ₦25,000. */
-function priceVersions(): PriceList[] {
+function priceVersions(): MockPriceList[] {
   const v3 = structuredClone(DEFAULT_PRICE_LIST)
   const v2 = structuredClone(v3)
   v2.version = 2
@@ -268,6 +272,7 @@ export function seedAdmin(now = new Date()): AdminData {
     stations,
     areas,
     prices: priceVersions(),
+    price_versions: samplePriceVersions(),
     issues,
     next_issue_number: 13,
     audit,

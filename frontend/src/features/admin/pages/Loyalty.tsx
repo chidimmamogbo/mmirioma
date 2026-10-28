@@ -1,16 +1,19 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
+import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
-import { SampleTag } from '../../../components/ui/Chip'
+import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { INPUT } from '../../../components/ui/Field'
-import type { PriceList, PriceListInput } from '../../../domain/admin'
-import { formatDateTime } from '../../../lib/format/datetime'
+import { Notice } from '../../../components/ui/Notice'
+import type { MockPriceList, MockPriceListInput } from '../../../mocks/priceListTypes'
+import { errorMessage } from '../../../lib/api/errorMessage'
+import { formatDateTime, formatShortDate } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
 import { MONEY_TABS, editablePrices } from '../adminFormat'
 import { AdminFrame, LinkTabs, PageHead } from '../AdminParts'
-import { useAdminMutation, useAudit, usePriceLists } from '../queries'
-import { ChangeLog } from './Pricing'
+import { useAdminMutation, useAudit, useMockPriceLists } from '../queries'
+
 
 /**
  * Loyalty points (a-pricing "Loyalty points" tab; added page). The points
@@ -18,9 +21,9 @@ import { ChangeLog } from './Pricing'
  * and show in the same change log. Points are SAMPLE rewards (decision 16).
  */
 export function Loyalty() {
-  const lists = usePriceLists()
+  const lists = useMockPriceLists()
   const audit = useAudit()
-  const save = useAdminMutation((draft: PriceListInput) => api.savePriceList(draft))
+  const save = useAdminMutation((draft: MockPriceListInput) => api.saveMockPriceList(draft))
   const pointChanges = (audit.data ?? []).filter((a) => /points/i.test(a.action)).slice(0, 8)
   return (
     <AdminFrame searchPlaceholder="Search settings">
@@ -54,11 +57,11 @@ export function Loyalty() {
   )
 }
 
-function RulesEditor({ versions, save }: { versions: PriceList[]; save: ReturnType<typeof useAdminMutation<PriceListInput, PriceList>> }) {
+function RulesEditor({ versions, save }: { versions: MockPriceList[]; save: ReturnType<typeof useAdminMutation<MockPriceListInput, MockPriceList>> }) {
   const current = versions[0]
-  const [draft, setDraft] = useState<PriceListInput>(() => editablePrices(current))
+  const [draft, setDraft] = useState<MockPriceListInput>(() => editablePrices(current))
   const p = draft.points
-  const set = (k: keyof PriceListInput['points']) => (text: string) => {
+  const set = (k: keyof MockPriceListInput['points']) => (text: string) => {
     const n = Number(text.replace(/[^\d]/g, ''))
     setDraft((d) => ({ ...d, points: { ...d.points, [k]: Number.isFinite(n) ? n : 0 } }))
   }
@@ -101,4 +104,44 @@ function Rule({ label, sub, children }: { label: string; sub: string; children: 
 
 function NumberBox({ label, value, onChange }: { label: string; value: number; onChange: (text: string) => void }) {
   return <input aria-label={label} inputMode="numeric" className={`${INPUT} w-24`} value={String(value)} onChange={(e) => onChange(e.target.value)} />
+}
+
+/** The change log with the save button for the mock points rule. */
+function ChangeLog({
+  versions,
+  saveLabel,
+  changed,
+  save,
+  onSave,
+}: {
+  versions: MockPriceList[]
+  saveLabel: string
+  changed: boolean
+  save: { isPending: boolean; isError: boolean; isSuccess: boolean; error: unknown }
+  onSave: () => void
+}) {
+  return (
+    <Card className="rise-4 flex w-full shrink-0 flex-col gap-3 p-4 xl:sticky xl:top-4 xl:w-[340px]">
+      <h2 className="m-0 text-[18px] font-extrabold">Change log</h2>
+      <ol className="m-0 flex list-none flex-col p-0">
+        {versions.slice(0, 6).map((v) => (
+          <li key={v.version} className="flex items-start gap-3 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+            <Chip tone={v.version === versions[0].version ? 'blue' : 'gray'}>v{v.version}</Chip>
+            <span className="min-w-0">
+              <span className="block text-[14px]">{v.note}</span>
+              <span className="block text-chip text-mute">
+                {v.created_by} · {formatShortDate(v.created_at)}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {save.isError && <Notice tone="error">{errorMessage(save.error)}</Notice>}
+      {save.isSuccess && <Notice tone="success">Saved. New orders use this version; placed orders keep theirs.</Notice>}
+      <Button disabled={!changed} loading={save.isPending} onClick={onSave}>
+        {saveLabel}
+      </Button>
+      {!changed && <p className="m-0 text-center text-caption text-mute">Change a value to save a new version.</p>}
+    </Card>
+  )
 }

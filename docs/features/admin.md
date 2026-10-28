@@ -40,9 +40,15 @@ through reports and the audit log.
    water category's entry (#110), written on add and on save; when the server
    names no pilot category, a fee stays "not connected". The boundary is not
    edited here.
-9. **Pricing / Loyalty points / Payouts and payments**: edit the price list
-   (Keke can prices, delivery and rider pay; tanker water by source, delivery
-   and driver pay; delivery fee methods; points rules). Each save is a new
+9. **Pricing** (FR-022, #173): the rules of the current price list (handling
+   and margin by area, water and quantity), the road-distance rates kept as
+   "saved, not used yet", and the version history in words. Pricing stands
+   alone, without the Money tabs. In real-API mode it reads
+   `GET /admin/price-lists/current`, `GET /admin/price-lists` and
+   `GET /admin/water-categories`; it is **read-only so far** (adding, editing
+   and saving a version are #173, part 2). The mock shows SAMPLE rules.
+   **Loyalty points / Payouts and payments**: edit the mock-era points rule
+   (Loyalty hidden in the pilot). Each save is a new
    version; placed orders keep their price (FR-024). Confirm payments
    (FR-040) and pay refunds as points (Terms §7). The **Loyalty points**
    page and tab are hidden in the pilot (`POINTS_ENABLED`, #156).
@@ -78,7 +84,11 @@ through reports and the audit log.
 | `frontend/src/mocks/adminMock.ts` | Mock admin server and its rules |
 | `frontend/src/mocks/adminState.ts` | Current price list, station choice (FR-012), activity, audit and notification helpers shared by all mocks |
 | `frontend/src/mocks/adminSeed.ts` | Stations, areas, price versions, issues, activity, staff (design samples) |
-| `frontend/src/mocks/pricing.ts` | Quote rules over a price list, including the delivery fee methods |
+| `frontend/src/mocks/pricing.ts` | Quote rules over the mock-era price list (`MockPriceList`, `priceListTypes.ts`), including the delivery fee methods |
+| `frontend/src/mocks/priceListSample.ts` | SAMPLE FR-022 price list versions and water categories in the contract's shape (Pricing page, mock mode) |
+| `frontend/src/lib/api/priceLists.ts` | Typed, zod-checked calls: current price list, history, water categories (#173) |
+| `frontend/src/features/admin/real/prices.ts` | Price list adapter: "no price list yet" is `null` |
+| `frontend/src/features/admin/pricingFormat.ts` | Staff wording for rules and the history |
 
 ## 4. Database models and relationships
 
