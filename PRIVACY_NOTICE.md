@@ -94,7 +94,7 @@ We keep information only as long as set out below. Our staff review stored data 
 | Complaints, disputes and incident records | 3 years after resolution | Deleted or anonymized, unless continued retention is justified |
 | Calls and messages on our support line | 12 months after the matter is resolved | Deleted, unless linked to an unresolved matter |
 | Problems you report in the app | 3 years after our staff resolve it | Deleted. If your account is closed sooner, your message and our staff's note about it are removed then, and the rest of the record is kept until the 3 years end |
-| Account deletion requests | As long as we need to show that we handled your request | The reason you gave is removed when your account is closed; the reference, dates and outcome are kept as a record that the request was handled |
+| Account deletion requests | 3 years after we complete or refuse your request | Deleted. Until then, the reference, dates and outcome are kept as a record that the request was handled; the reason you gave is removed earlier, when your account is closed |
 | Sign-in sessions | A session lasts up to 7 days | Ended sessions are deleted at the next monthly review |
 | Server logs | 90 days | Deleted, unless needed to investigate a security incident |
 | Encrypted backups | Up to 30 days | They expire on schedule (section 10) |

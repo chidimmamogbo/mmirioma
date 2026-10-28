@@ -454,7 +454,10 @@ Example: [error-default-address.json](examples/error-default-address.json).
   (privacy notice §9). Its retention review adds support requests resolved
   over 3 years ago (§8). A new step sets a deletion request's status
   (`acknowledged`, `completed`, or `refused` with a reason) and records the
-  outcome on the request ([decision 10](#decisions)).
+  outcome on the request ([decision 10](#decisions)). The retention review
+  also deletes deletion requests completed or refused over 3 years ago
+  (privacy contact, 2026-10-27, #118; the same period as complaints);
+  requests still `received` or `acknowledged` are never deleted.
 
 All reviewed Alembic migrations; no new library.
 
@@ -513,6 +516,7 @@ question is left open.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-27 | "Data needed": the retention review deletes deletion requests completed or refused over 3 years ago (#118) | @nnamdi-security (privacy contact), decided on the PR #106 review |
 | 2026-10-27 | Agreed (G3); the switches row's WhatsApp reason updated (support WhatsApp was confirmed on #8), as @chidimmamogbo noted on PR #60 | @nnamdi-security (technical lead) and @chidimmamogbo, PR #60 |
 | 2026-10-26 | Brought to agreement (#48): open questions 1-13 decided and recorded as "Decisions", and applied in the body (no email, photo or switches; name staff only; last address removable; 20-address limit; feedback fields optional, no time limit; notifications follow order retention; deletion statuses through the privacy tool; Monday-Friday working days; points out of the MVP; label 1-50); notification object, page and mark-read made one shape with partners.md (`read_at`, `unread_count`, optional `ids`); no later `PATCH /me/profile`; privacy tool changes named in "Data needed" | Decisions by @chidimmamogbo; contract not yet agreed |
 | 2026-10-26 | Saved addresses carry the zone the customer picked (`zone`, required `zone_id`), one `customer_addresses` table shared with admin-directory.md, as agreed for #30; open question 13 added | Not yet |

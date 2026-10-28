@@ -45,6 +45,8 @@ UNVERIFIED_ACCOUNT_PERIOD = timedelta(days=30)
 GPS_PERIOD = timedelta(days=90)
 ORDER_PERIOD_YEARS = 3
 COMPLAINT_PERIOD_YEARS = 3
+#: Deletion requests, after they are completed or refused (#118).
+DELETION_REQUEST_PERIOD_YEARS = 3
 
 
 class CustomerNotReady(Exception):
@@ -145,6 +147,8 @@ class ReviewResult:
         orders_anonymized: Orders finished over 3 years ago anonymized.
         support_requests_deleted: Support requests resolved over 3 years
             ago deleted (complaints, notice §8; #82).
+        deletion_requests_deleted: Deletion requests completed or refused
+            over 3 years ago deleted (notice §8; #118).
         applied: False for a dry run (nothing was saved).
     """
 
@@ -156,6 +160,7 @@ class ReviewResult:
     gps_points_cleared: int
     orders_anonymized: int
     support_requests_deleted: int
+    deletion_requests_deleted: int
     applied: bool
 
 
@@ -444,7 +449,9 @@ async def retention_review(
     - orders finished over 3 years ago: contact and address removed, as when
       a customer is anonymized;
     - support requests resolved over 3 years ago: deleted (complaints;
-      technical lead, 2026-10-27, #82).
+      technical lead, 2026-10-27, #82);
+    - deletion requests completed or refused over 3 years ago: deleted;
+      open ones are never touched (privacy contact, 2026-10-27, #118).
 
     Support-line messages, server logs, backups and the request register
     are checked by hand (the command lists them).
@@ -484,6 +491,9 @@ async def retention_review(
     support_deleted = await addresses.delete_resolved_support_requests(
         session, resolved_before=years_before(now, COMPLAINT_PERIOD_YEARS)
     )
+    deletion_deleted = await addresses.delete_handled_deletion_requests(
+        session, handled_before=years_before(now, DELETION_REQUEST_PERIOD_YEARS)
+    )
 
     keep = set(await orders.disputed_order_ids(session))
     keep |= await deliveries.open_matter_order_ids(session)
@@ -506,6 +516,7 @@ async def retention_review(
         gps_points_cleared=gps,
         orders_anonymized=anonymized,
         support_requests_deleted=support_deleted,
+        deletion_requests_deleted=deletion_deleted,
         applied=apply,
     )
     audit.record(

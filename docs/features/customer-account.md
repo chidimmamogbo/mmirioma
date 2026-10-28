@@ -185,6 +185,8 @@ Bodies match the contract examples (`customer-profile.json`,
 privacy notice §9):
 
 - The request deletes nothing; the account stays active and signed in.
+- The privacy tool's monthly review deletes a request 3 years after it was
+  completed or refused (#118); open requests are kept.
 - Asking again while a request is `received` or `acknowledged` returns that
   request with 200.
 - `acknowledge_by` is the Lagos date 3 working days later, Monday to Friday,

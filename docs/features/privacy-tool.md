@@ -82,7 +82,7 @@ No tables of its own. The tool changes rows of other modules:
 | `users` | Name "Deleted customer", phone marker, unknown password, inactive, not verified; row kept | Never-verified customers created over 30 days ago and without orders are deleted; those that audit rows name as the actor are anonymized as in the first column instead (#82) |
 | `customer_addresses` | Deleted | Deleted for every never-verified account the review deletes or anonymizes |
 | `support_requests` | Message and the staff's resolution note replaced by "Removed at the customer's request." (#117); row kept | Deleted with a never-verified account the review deletes (message replaced when it anonymizes one); requests resolved over 3 years ago deleted (#82) |
-| `deletion_requests` | Reason blanked; status set separately with `set-deletion-status` | Deleted with a never-verified account the review deletes |
+| `deletion_requests` | Reason blanked; status set separately with `set-deletion-status` | Deleted with a never-verified account the review deletes; requests completed or refused over 3 years ago deleted, open ones never (#118) |
 | `notifications` | Deleted (contract decision 8) | Deleted when the review anonymizes an account; they go with a deleted one (cascade) |
 | `user_sessions` | Deleted | Ended (expired or revoked) sessions deleted |
 | `phone_verifications` | Deleted | `code_hash` blanked on expired codes; rows kept |
@@ -185,7 +185,9 @@ None.
   then deleted by the review (technical lead, 2026-10-27, #82; notice
   section 8 allows deleting or anonymizing).
 - **Retention periods** (notice section 8): never-verified accounts 30 days,
-  GPS 90 days, orders 3 years after their last status change.
+  GPS 90 days, orders 3 years after their last status change, support
+  requests 3 years after resolution, deletion requests 3 years after they
+  are completed or refused (privacy contact, 2026-10-27, #118).
 - **Idempotent:** every step is selected by time or by "not yet done", so a
   second run changes nothing.
 

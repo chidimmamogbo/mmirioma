@@ -207,7 +207,7 @@ in section 8 has passed:
 | Cash payment and refund records | Nothing to do until the first records reach 6 years; before then, confirm the accounting period (open item 3) |
 | Complaints, disputes and incidents | Tool: the order's personal details go with the order at 3 years. By hand: staff notes are kept, so check notes on incidents resolved more than 3 years ago for personal details |
 | Problems you report in the app | Tool: support requests resolved more than 3 years ago are deleted (technical lead, 2026-10-27, #82). Open ones are kept until resolved |
-| Account deletion requests | Nothing yet: the notice keeps them "as long as we need to show that we handled your request". #118 sets 3 years after completion or refusal and adds it to the tool |
+| Account deletion requests | Tool: requests completed or refused more than 3 years ago are deleted (privacy contact, 2026-10-27, #118). Requests still received or acknowledged are open work and are never deleted |
 | Support line messages (by hand) | Delete messages on the support phone 12 months after the matter was resolved |
 | Sign-in sessions | Tool: delete expired or ended sessions |
 | Server logs (by hand) | Check that log rotation keeps at most 90 days |
