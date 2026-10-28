@@ -126,7 +126,14 @@ can send several backend steps, each only if the job has not made it yet
 | `reportIssue` | `POST .../incidents`; a report with no order fails with `not_connected` |
 
 Earnings, payouts and document upload still run on mocks. In real-API mode
-they fail with `not_connected`.
+they fail with `not_connected`. Earnings and payouts are **hidden in the
+pilot** (`PARTNER_PAY_ENABLED` in `lib/features.ts`, #157; partner pay is out
+of the MVP, `partners.md` decision 7): no Earnings tab, menu item or "View
+earnings" button, and `.../earnings` goes home. The home tiles show real
+counts only: rider "Completed" and driver "Trips today" count today's
+delivered jobs (Lagos time) from the history, beside the active order. The
+trip maps are illustrations with no place names; the screen names the real
+station and address.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 `partner_not_approved` (403), `not_assigned_to_you` (409),
 `invalid_job_transition` (409), `transition_requirements_unmet` (409, a code

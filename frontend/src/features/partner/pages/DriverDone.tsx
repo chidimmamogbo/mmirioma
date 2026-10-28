@@ -7,6 +7,7 @@ import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreen
 import { ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { KeyValue } from '../../../components/ui/Content'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { jobQuantity } from '../jobHelpers'
@@ -69,9 +70,11 @@ export function DriverDone() {
             </Card>
             <div className="rise-5 flex w-full flex-col gap-2">
               <ButtonLink to={base}>Back to dashboard</ButtonLink>
-              <ButtonLink to={`${base}/earnings`} variant="alt">
-                View earnings
-              </ButtonLink>
+              {PARTNER_PAY_ENABLED && (
+                <ButtonLink to={`${base}/earnings`} variant="alt">
+                  View earnings
+                </ButtonLink>
+              )}
             </div>
           </>
         )}

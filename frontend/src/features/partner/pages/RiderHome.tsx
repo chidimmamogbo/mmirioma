@@ -15,16 +15,23 @@ import { formatNaira } from '../../../lib/format/money'
 import { AssignedSheet } from '../components/AssignedSheet'
 import { PartnerHomeTopBar, PartnerTabs } from '../components/PartnerChrome'
 import { greeting } from '../greeting'
-import { jobQuantity, placeAddress, tripMinutes } from '../jobHelpers'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
+import { deliveredToday, jobQuantity, placeAddress, tripMinutes } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
-import { useActiveJobs, useAvailableJobs, useEarnings, usePartnerProfile, useSetOnline } from '../queries'
+import { useActiveJobs, useAvailableJobs, useEarnings, useHistory, usePartnerProfile, useSetOnline } from '../queries'
 
 /** Rider dashboard with the online switch (`r-home`), plus the assigned-order sheet (`r-assigned`). */
 export function RiderHome() {
   const { reference } = useParams()
   const { base } = usePartnerApp()
   const profile = usePartnerProfile()
-  const earnings = useEarnings()
+  const earnings = useEarnings(PARTNER_PAY_ENABLED)
+  // Partner pay is out of the MVP (#157): "Completed" counts today's delivered jobs from the history.
+  const history = useHistory(!PARTNER_PAY_ENABLED)
+  const trips = (n: number) => `${n} trip${n === 1 ? '' : 's'}`
+  const completedToday = PARTNER_PAY_ENABLED
+    ? earnings.data ? trips(earnings.data.deliveries_today) : '…'
+    : history.data ? trips(deliveredToday(history.data)) : history.isError ? '–' : '…'
   const active = useActiveJobs()
   const available = useAvailableJobs()
   const setOnline = useSetOnline()
@@ -96,10 +103,14 @@ export function RiderHome() {
             {setOnline.isError && <Notice tone="error">{errorMessage(setOnline.error)}</Notice>}
 
             <div className="rise-3 grid grid-cols-2 gap-2.5">
-              <Stat tone="green" icon={<CurrencyIcon size={16} strokeWidth={2.2} roundJoin={false} />} label="Today's earnings" value={earnings.data ? formatNaira(earnings.data.today_minor_units) : '…'} />
-              <Stat tone="blue" icon={<CheckIcon size={16} strokeWidth={2.4} roundJoin={false} />} label="Completed" value={earnings.data ? `${earnings.data.deliveries_today} trip${earnings.data.deliveries_today === 1 ? '' : 's'}` : '…'} />
+              {PARTNER_PAY_ENABLED && (
+                <Stat tone="green" icon={<CurrencyIcon size={16} strokeWidth={2.2} roundJoin={false} />} label="Today's earnings" value={earnings.data ? formatNaira(earnings.data.today_minor_units) : '…'} />
+              )}
+              <Stat tone="blue" icon={<CheckIcon size={16} strokeWidth={2.4} roundJoin={false} />} label="Completed" value={completedToday} />
               <Stat tone="gold" icon={<ClockIcon size={16} strokeWidth={2.2} roundJoin={false} />} label="Active order" value={String(active.data?.filter((j) => j.stage !== 'assigned').length ?? 0)} />
-              <Stat to={`${base}/earnings`} tone="violet" icon={<WalletIcon size={16} />} label="Wallet" value={earnings.data ? formatNaira(earnings.data.wallet_minor_units) : '…'} />
+              {PARTNER_PAY_ENABLED && (
+                <Stat to={`${base}/earnings`} tone="violet" icon={<WalletIcon size={16} />} label="Wallet" value={earnings.data ? formatNaira(earnings.data.wallet_minor_units) : '…'} />
+              )}
             </div>
 
             {inProgress && (

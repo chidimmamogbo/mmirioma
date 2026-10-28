@@ -1,7 +1,19 @@
 import { describeChoice, shortReference } from '../../domain/orders'
 import type { JobPlace, PartnerJob, VehicleType } from '../../domain/partner'
 import { describeQuantity } from '../../domain/quantity'
-import { formatDate, formatDayDate, formatTime } from '../../lib/format/datetime'
+import { APP_TIME_ZONE, formatDate, formatDayDate, formatTime } from '../../lib/format/datetime'
+
+const lagosDay = new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/**
+ * Jobs delivered today, Lagos time, from the partner's history: the trips
+ * count on the home screens, from real data rather than earnings (partner
+ * pay is out of the MVP, #157).
+ */
+export function deliveredToday(jobs: PartnerJob[], now: Date = new Date()): number {
+  const today = lagosDay.format(now)
+  return jobs.filter((job) => job.delivered_at !== null && lagosDay.format(new Date(job.delivered_at)) === today).length
+}
 
 /**
  * Total litres across jobs. Every job counts in litres (tankers: gallons × 4,

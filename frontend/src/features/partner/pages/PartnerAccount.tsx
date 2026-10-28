@@ -28,6 +28,7 @@ import { Avatar } from '../../../components/ui/Avatar'
 import { Card } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
+import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { CountBadge, MenuItem } from '../../../components/ui/Content'
 import { Toggle } from '../../../components/ui/Controls'
 import { Notice } from '../../../components/ui/Notice'
@@ -123,9 +124,11 @@ export function PartnerMenu() {
       </MenuItem>
       {tanker ? (
         <>
-          <MenuItem to={`${base}/earnings`} icon={<WalletIcon size={20} />}>
-            Earnings and payouts
-          </MenuItem>
+          {PARTNER_PAY_ENABLED && (
+            <MenuItem to={`${base}/earnings`} icon={<WalletIcon size={20} />}>
+              Earnings and payouts
+            </MenuItem>
+          )}
           <MenuItem to={`${base}/history`} icon={<HistoryIcon size={20} />}>
             Trip history
           </MenuItem>
@@ -138,9 +141,11 @@ export function PartnerMenu() {
           <MenuItem to={`${base}/history`} icon={<HistoryIcon size={20} />}>
             Order history
           </MenuItem>
-          <MenuItem to={`${base}/earnings`} icon={<WalletIcon size={20} />}>
-            My earnings
-          </MenuItem>
+          {PARTNER_PAY_ENABLED && (
+            <MenuItem to={`${base}/earnings`} icon={<WalletIcon size={20} />}>
+              My earnings
+            </MenuItem>
+          )}
           <MenuItem to={`${base}/vehicle`} icon={<VehicleIcon size={20} />}>
             Vehicle details
           </MenuItem>
