@@ -2011,7 +2011,7 @@ them changes.
 | `GET /admin/orders/{reference}/cancellation-outcome` | `reason_code` may be `customer_request` as well as `mmirioma_unable`. Any other value stays 422 `validation_error` at `query.reason_code` |
 | `CancellationOutcome` for `customer_request` | `{ "reason_code": "customer_request", "customer_charge_minor_units": 0, "message": "The customer is not charged for this cancellation." }`: the same sentence and amount as `mmirioma_unable` (decision 1) |
 | `POST /admin/orders/{reference}/transition` | `to: cancelled` accepts `reason_code` `customer_request` as well as `mmirioma_unable`. `other` stays 422 (decision 2). `expected_status`, `hold_id` and the 409s are as already agreed |
-| `note` | Optional, up to 500 characters, as for `mmirioma_unable`; **required** when `expected_status` is `unloading` (decision 3) |
+| `note` | Optional, up to 500 characters, as for `mmirioma_unable`; **required** when `expected_status` is `unloading` (decision 3), for both reasons: a `mmirioma_unable` cancel at `unloading` without a note is now 422 at `body.note` |
 | Audit | The `order_events` row for the cancel records `reason_code` `customer_request` and the note, the administrator and the time (NFR-004). The history line is the status change, as for `mmirioma_unable` |
 | Effect | The same as an `mmirioma_unable` cancel: the live assignment is `withdrawn`, the job leaves the driver's list (nothing notifies the driver), every open hold closes with `resolution` `cancelled`, and no customer SMS is sent (F10: the administrator tells the customer) |
 | Allowed from | Row 23, unchanged: any status except `cancelled`, `delivered` and `disputed`. From those: 409 `invalid_order_transition`, nothing changes |
@@ -2046,7 +2046,10 @@ as recommended.
 3. **`unloading` needs a recorded reason.** FR-044 requires administrator
    review for a cancel once unloading has started. The administrator's cancel
    is that review, so the note is required there and says why; it is optional
-   at every other stage. *Agreed.*
+   at every other stage. The rule applies to **both** reasons, so a
+   `mmirioma_unable` cancel at `unloading` without a note is now refused too
+   (422 at `body.note`); this is the one change to that reason. *Agreed; scope
+   (both reasons) confirmed by the technical lead on PR #208.*
 4. **The sentence is the server's.** As today, the client shows `message` as
    written and never works out an amount. A client that does not know the
    reason code still shows the server's sentence. *Agreed.*
@@ -2061,7 +2064,8 @@ through `unloading` and `failed`, on a pay-on-delivery order; the outcome is
 `reason_code` `customer_request` in its event; the assignment is withdrawn and
 every open hold is closed. Also tested: 409 from `cancelled`, `delivered` and
 `disputed`; 422 for `other`; 422 when the note is missing at `unloading`;
-and that `mmirioma_unable` behaves exactly as before. The prepaid half of T-26
+and that `mmirioma_unable` behaves as before except for the `unloading` note
+rule (decision 3), which applies to it too. The prepaid half of T-26
 needs payments before delivery, which the pilot does not have; it waits for
 charges.
 
