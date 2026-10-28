@@ -262,8 +262,11 @@ is one cancel flow. Design: `docs/design/admin-order-cancellation.md`.
   the rider or customer is told or that a refund follows.
 - **Mock mode:** the same dialog, with the server's sentence labelled SAMPLE.
   The old mock `cancelOrder` is gone.
-- **Not here:** a cancel because the customer asked (`customer_request`) needs a
-  contract change first (#174).
+- **Reason choice (#174):** the dialog asks why: "The customer asked to cancel"
+  or "MmiriOma is unable to deliver", neither chosen, and Cancel order stays off
+  until one is chosen and the server's sentence for it has loaded. A cancel from
+  `unloading` needs a note (FR-044 administrator review). `other` is refused.
+  See [admin-order-cancellation.md](../design/admin-order-cancellation.md#change-the-reason-choice-174).
 
 ## 9. Testing instructions
 

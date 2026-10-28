@@ -1995,7 +1995,8 @@ PR #203. Proposed by @Cloudcrackamara (+ Claude Code) the same day. The reason
 comes from open
 question 1 of the [admin order cancellation design](../design/admin-order-cancellation.md#open-questions)
 (#129, PR #171), which @chidimmamogbo decided on 2026-10-28 should be opened
-now. Not built.
+now. **Built in #206** (backend, PR #208) and in #207 (the CANCEL dialog's
+reason choice, PR #213; design: [admin-order-cancellation.md](../design/admin-order-cancellation.md#change-the-reason-choice-174)).
 
 A customer phoning to cancel is the most common real case. The agreed cancel
 accepts only `mmirioma_unable`, so a dispatcher who cancels because the
