@@ -93,8 +93,6 @@ export function MapFrame({ height, className, children }: { height: number; clas
   )
 }
 
-const MAP_TEXT = { fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700 } as const
-
 /** Street-map art of the delivery details screen (`c-details`, 354 × 132). */
 export function DetailsMapArt() {
   return (
@@ -105,8 +103,6 @@ export function DetailsMapArt() {
       <path d="M0 40 H354 M120 0 V132 M0 118 H354 M250 0 V132" stroke="#FFFFFF" strokeWidth="9" />
       <path d="M40 0 L 210 132" stroke="#FBE7A1" strokeWidth="10" />
       <path d="M0 70 H354" stroke="#FFFFFF" strokeWidth="6" />
-      <text fill="#5D8A66" {...MAP_TEXT} fontSize="10" x="270" y="34">GRA Park</text>
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="10" x="14" y="62">Lakeview</text>
     </svg>
   )
 }
@@ -138,9 +134,6 @@ export function TrackMapArt() {
       <path d="M-10 150 C 60 128 120 176 190 150 S 300 112 370 126" fill="none" stroke="#BFDDF7" strokeWidth="18" />
       <path d="M0 82 H354 M232 0 V268 M110 0 V268 M0 176 H354" stroke="#FFFFFF" strokeWidth="10" />
       <path d="M0 236 L 354 30" stroke="#FBE7A1" strokeWidth="12" />
-      <text fill="#5D8A66" {...MAP_TEXT} fontSize="11" x="262" y="50">GRA Park</text>
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="11" x="22" y="120">Ogui</text>
-      <text fill="#7A8797" {...MAP_TEXT} fontSize="11" x="130" y="214">Independence Layout</text>
       <path d={route} fill="none" opacity=".25" stroke="#0B4FA8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="7" />
       <path d={route} className="route-flow" fill="none" stroke="#1570D8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
       <circle cx="58" cy="236" fill="#fff" r="7" stroke="#1570D8" strokeWidth="4" />
