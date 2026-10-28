@@ -294,8 +294,10 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
             <span className="min-w-0 flex-1">
               <span className="block font-extrabold">{r.name}</span>
               <span className="block text-caption text-mute">
-                {r.vehicle === 'keke' ? 'Keke' : 'Tanker'}
-                {r.rating !== null && ` · ★ ${r.rating}`} · {r.active_orders} active {r.active_orders === 1 ? 'order' : 'orders'}
+                {/* No vehicle word when the server does not say Keke or tanker (#16). */}
+                {[r.vehicle && (r.vehicle === 'keke' ? 'Keke' : 'Tanker'), r.rating !== null && `★ ${r.rating}`, `${r.active_orders} active ${r.active_orders === 1 ? 'order' : 'orders'}`]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
               {r.works_in_area && <span className="block text-chip font-bold text-green">Works in {order.area}</span>}
             </span>

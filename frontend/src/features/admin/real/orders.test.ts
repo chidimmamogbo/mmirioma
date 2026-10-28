@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import detailSample from '../../../../../docs/api/examples/admin-order-detail.json'
+import historySample from '../../../../../docs/api/examples/admin-order-history.json'
 import pageSample from '../../../../../docs/api/examples/admin-orders-page.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
-import type { AdminOrderDetail } from '../../../lib/api/adminDispatch'
+import type { AdminOrderDetail, AdminOrderEvent } from '../../../lib/api/adminDispatch'
 import type { AdminOrderRead, Page } from '../../../lib/api/adminOrders'
-import { adminOrderFromRead, adminStatusFromBackend, getOrder, listOrders } from './orders'
+import { adminOrderFromRead, adminStatusFromBackend, getOrder, listOrders, timelineFromHistory } from './orders'
 
 /** The agreed contract's examples (docs/api/orders.md, deliveries.md). */
 const DETAIL = detailSample as unknown as AdminOrderDetail
@@ -163,6 +164,35 @@ describe('getOrder (real)', () => {
   it('loads and converts the detail', async () => {
     const { client } = clientByUrl(() => ({ body: DETAIL }))
     expect((await getOrder(DETAIL.reference, client)).station_name).toBe('Sample Borehole A')
+  })
+
+  it('adds the assignment events from the history, oldest first, in the contract wording', async () => {
+    const { client } = clientByUrl((url) => ({ body: url.includes('/history') ? historySample : DETAIL }))
+    const order = await getOrder(DETAIL.reference, client)
+    expect(order.timeline).toEqual([
+      { label: 'Order placed', at: DETAIL.created_at },
+      { label: 'Offered to Sample Driver Two', at: '2026-10-19T08:31:00Z' },
+      { label: 'Declined by Sample Driver Two', at: '2026-10-19T08:50:00Z', detail: 'Truck is at the mechanic.' },
+      { label: 'Offered to Sample Driver One', at: '2026-10-19T09:05:00Z' },
+    ])
+  })
+
+  it('words accepts and withdrawals, and leaves other events out', () => {
+    const driver = { id: 'd1', name: 'Ada' }
+    const event = (from: string | null, to: string | null, reason: string | null, withDriver = true) =>
+      ({ id: 'e', kind: 'status_change', from_status: from, to_status: to, actor: null, reason_code: reason, note: null, created_at: '2026-10-19T10:00:00Z', assignment: withDriver ? { id: 'a', driver, decline_reason: null } : null, hold: null, confirmation: null, cash: null }) as AdminOrderEvent
+    const lines = timelineFromHistory('2026-10-19T07:00:00Z', [
+      event('accepted', 'confirmed', 'reassigned'),
+      event('assigned', 'confirmed', 'reassigned'),
+      event('assigned', 'accepted', null),
+      event('departed', 'collected', null, false),
+    ]).map((t) => t.label)
+    expect(lines).toEqual(['Order placed', 'Accepted by Ada', 'Offer to Ada withdrawn', 'Job withdrawn from Ada'])
+  })
+
+  it('still shows the order when only the history fails', async () => {
+    const { client } = clientByUrl((url) => (url.includes('/history') ? { body: FORBIDDEN, status: 500 } : { body: DETAIL }))
+    expect((await getOrder(DETAIL.reference, client)).timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
   })
 
   it('passes 404 order_not_found through', async () => {

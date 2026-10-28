@@ -98,12 +98,17 @@ export interface AdminOrder {
 export interface EligibleRider {
   id: string
   name: string
-  vehicle: DeliveryType
+  /** `null` when the server does not say Keke or tanker (its vehicle type is free text). */
+  vehicle: DeliveryType | null
   rating: number | null
   active_orders: number
   online: boolean
-  /** The rider lists the order's area among the areas they work in. No live location (decision 14). */
-  works_in_area: boolean
+  /**
+   * The rider lists the order's area among the areas they work in. No live
+   * location (decision 14). `null` while the server does not check service
+   * areas (deliveries.md, "Driver eligibility").
+   */
+  works_in_area: boolean | null
 }
 
 /* ---------- Customers ---------- */
