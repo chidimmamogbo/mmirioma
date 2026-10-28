@@ -169,9 +169,18 @@ Every endpoint also returns 401 `not_authenticated` and 403 `forbidden`;
   customer or `is_simulated`. The views get zone names and quote summaries
   from the pricing module through `service.read_lookups`. Since #82 it also
   carries `feedback` (the customer's FR-051 feedback, or null;
-  [customer-account.md](customer-account.md)).
+  [customer-account.md](customer-account.md)), and since #165 the customer-only
+  `delivery_window` (`start_at`, `end_at`, from the order's window columns),
+  `price` (`total_minor_units`, `currency`, `manual`) and `water_category`
+  (`label`, `supported_uses`): all null until a dispatcher confirms the order
+  ([orders.md](../api/orders.md), "Customer pilot changes (#99)"). The price
+  and the label come from the order's price snapshot, so a later label change
+  does not alter a confirmed order (FR-014, FR-024); `supported_uses` is read
+  live from the category. `quote` stays the price before confirmation.
+  `service.read_lookups(..., with_confirmed=True)` fetches them.
 - **`AdminOrderRead`**: the shared fields (`OrderBaseRead`, everything in
-  `OrderRead` except `feedback`) plus `id`, `customer` (`id`, `name`,
+  `OrderRead` except `feedback`, `delivery_window`, `price` and
+  `water_category`) plus `id`, `customer` (`id`, `name`,
   `phone`, `phone_verified`) and `is_simulated`.
 - **Paging:** `limit` 1–100 (default 50), `offset` ≥ 0.
 - **Admin filters:** `status` (repeatable), `created_from` / `created_to`
@@ -293,6 +302,13 @@ TEST_DATABASE_URL="$(grep '^DATABASE_URL=' ../.env | cut -d= -f2-)" pytest tests
 - `test_order_details_integration.py`: details stored and read with the
   zone's name; the database CHECK refusing a mismatch; unknown zone refused,
   inactive accepted; retries comparing the details (T-06).
+- `test_order_confirmed_api.py` (no database): the confirmed window, price
+  and category on `GET /orders/{reference}`, the list and `POST /orders`
+  (always null there), manual and non-manual prices, 404 for another
+  customer's order. `test_order_confirmed_integration.py`: an order confirmed
+  through the real confirmation service, a renamed category keeping its
+  frozen label while `supported_uses` stays current, and the staff views
+  not carrying the fields.
 - `test_order_details_api.py` also passes `quote_id` through and lets each
   quote refusal through; `test_quotes_integration.py` covers ordering with a
   quote against the database ([pricing.md](pricing.md)).
@@ -310,8 +326,9 @@ alembic upgrade head && alembic check`.
   row 22) but not built.
 - The customer screens (#9) do not send `quote_id` yet. Water category and
   slots are set only at confirmation.
-- The #99 fields of `OrderRead` (`delivery_window`, `price`,
-  `water_category`) are agreed in `orders.md` but not built in the fork.
+- The customer app shows the confirmed price and category, but has no place
+  yet for the confirmed `delivery_window`: the order screens have no window
+  field, so the adapter does not map it.
 - `order_events` has no event type or metadata column, and customers cannot
   see the history yet.
 - Admin date filters use creation date; a delivery-date filter waits for slots.

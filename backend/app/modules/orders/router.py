@@ -78,7 +78,9 @@ async def create_order(
     )
     if not created:
         response.status_code = HTTPStatus.OK
-    return OrderRead.from_order(order, await service.read_lookups(db, [order], with_feedback=True))
+    return OrderRead.from_order(
+        order, await service.read_lookups(db, [order], with_feedback=True, with_confirmed=True)
+    )
 
 
 @router.get("/orders", responses=_AUTH_ERRORS)
@@ -89,7 +91,7 @@ async def list_my_orders(
     orders, total = await service.list_customer_orders(
         db, customer_id=customer.id, limit=page.limit, offset=page.offset
     )
-    lookups = await service.read_lookups(db, orders, with_feedback=True)
+    lookups = await service.read_lookups(db, orders, with_feedback=True, with_confirmed=True)
     return OrderPage(
         items=[OrderRead.from_order(order, lookups) for order in orders],
         total=total,
@@ -107,7 +109,9 @@ async def get_my_order(reference: str, customer: CurrentCustomer, db: DbSession)
             (T-07).
     """
     order = await service.get_customer_order(db, customer_id=customer.id, reference=reference)
-    return OrderRead.from_order(order, await service.read_lookups(db, [order], with_feedback=True))
+    return OrderRead.from_order(
+        order, await service.read_lookups(db, [order], with_feedback=True, with_confirmed=True)
+    )
 
 
 @router.get("/orders/{reference}/history", responses={**_AUTH_ERRORS, **_NOT_FOUND})

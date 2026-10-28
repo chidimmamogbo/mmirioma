@@ -54,6 +54,7 @@ from app.modules.orders.transitions import Actor, Requirement, check_transition
 from app.modules.pricing import quotes
 from app.modules.pricing import service as pricing
 from app.modules.pricing.models import OrderPriceSnapshot
+from app.modules.sources.models import WaterCategory
 from app.shared.lagos_time import lagos_day_start_utc
 
 # Crockford base32: digits and upper-case letters without I, L, O and U, so a
@@ -362,6 +363,25 @@ async def create_order(
 
 
 @dataclass(frozen=True)
+class ConfirmedPrice:
+    """What a customer sees of an order's confirmed price (orders.md, #99).
+
+    Attributes:
+        total_minor_units: The total frozen at confirmation, in kobo (FR-024).
+        is_manual: True for a manual quote entered by the dispatcher (F2).
+        water_category_label: The label frozen with the price, so a later
+            label change does not alter a confirmed order (FR-014, FR-024).
+        supported_uses: The category's current supported-uses text, read
+            live (orders.md, decided question 2), or None when none is set.
+    """
+
+    total_minor_units: int
+    is_manual: bool
+    water_category_label: str
+    supported_uses: str | None
+
+
+@dataclass(frozen=True)
 class ReadLookups:
     """What the order views need from other modules (order details contract).
 
@@ -374,15 +394,22 @@ class ReadLookups:
         quotes: Customer-visible summary by quote id (total only, decision 6).
         feedback: The customer's feedback by order id (FR-051), shown on the
             customer's ``OrderRead`` only.
+        confirmed: The confirmed price and category by order id, shown on the
+            customer's ``OrderRead`` only; orders not yet confirmed are absent.
     """
 
     zone_names: Mapping[uuid.UUID, str] = field(default_factory=dict)
     quotes: Mapping[uuid.UUID, quotes.QuoteSummary] = field(default_factory=dict)
     feedback: Mapping[uuid.UUID, OrderFeedback] = field(default_factory=dict)
+    confirmed: Mapping[uuid.UUID, ConfirmedPrice] = field(default_factory=dict)
 
 
 async def read_lookups(
-    session: AsyncSession, orders: Iterable[Order], *, with_feedback: bool = False
+    session: AsyncSession,
+    orders: Iterable[Order],
+    *,
+    with_feedback: bool = False,
+    with_confirmed: bool = False,
 ) -> ReadLookups:
     """Fetch the zone names and quote summaries the given orders' views need.
 
@@ -391,6 +418,9 @@ async def read_lookups(
         orders: The orders about to be shown.
         with_feedback: Also fetch the customer's feedback (customer views
             only; staff views do not show it).
+        with_confirmed: Also fetch the confirmed price and category (customer
+            views only; staff read the full snapshot from the confirmation
+            module).
 
     Returns:
         The lookups, covering every zone and quote of ``orders``, and their
@@ -403,6 +433,11 @@ async def read_lookups(
         feedback=(
             await feedback_by_order(session, [order.id for order in orders])
             if with_feedback
+            else {}
+        ),
+        confirmed=(
+            await confirmed_prices_by_order(session, [order.id for order in orders])
+            if with_confirmed
             else {}
         ),
     )
@@ -424,6 +459,41 @@ async def feedback_by_order(
         return {}
     rows = await session.scalars(select(OrderFeedback).where(OrderFeedback.order_id.in_(order_ids)))
     return {row.order_id: row for row in rows}
+
+
+async def confirmed_prices_by_order(
+    session: AsyncSession, order_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, ConfirmedPrice]:
+    """Return the confirmed price and category of these orders, by order id.
+
+    The price and the category label come from the price snapshot written when
+    the dispatcher confirmed the order (FR-024). The supported-uses text is
+    read live from the category, because FR-024 freezes the price inputs and
+    the uses text is not one (orders.md, decided question 2).
+
+    Args:
+        session: Database session.
+        order_ids: The orders.
+
+    Returns:
+        The confirmed price by order id; orders without a snapshot are absent.
+    """
+    if not order_ids:
+        return {}
+    rows = await session.execute(
+        select(OrderPriceSnapshot, WaterCategory.supported_uses)
+        .join(WaterCategory, WaterCategory.id == OrderPriceSnapshot.water_category_id)
+        .where(OrderPriceSnapshot.order_id.in_(order_ids))
+    )
+    return {
+        snapshot.order_id: ConfirmedPrice(
+            total_minor_units=snapshot.total_minor_units,
+            is_manual=snapshot.is_manual,
+            water_category_label=snapshot.water_category_label,
+            supported_uses=supported_uses,
+        )
+        for snapshot, supported_uses in rows
+    }
 
 
 @dataclass(frozen=True)

@@ -1,11 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import expiredSample from '../../../../../docs/api/examples/error-quote-expired.json'
 import historySample from '../../../../../docs/api/examples/order-history.json'
+import confirmedSample from '../../../../../docs/api/examples/order-confirmed.json'
 import orderSample from '../../../../../docs/api/examples/order-with-details.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
 import type { OrderRead } from '../../../lib/api/orders'
 import type { CreateOrderInput } from '../../../mocks/customerMock'
-import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput, submitFeedback, timelineFromHistory } from './order'
+import {
+  createOrder,
+  customerOrderFromRead,
+  getOrder,
+  listOrders,
+  orderCreateFromInput,
+  priceFromRead,
+  submitFeedback,
+  timelineFromHistory,
+} from './order'
 
 /** The agreed contract's example order (docs/api/order-details-and-price.md). */
 const SAMPLE = orderSample as unknown as OrderRead
@@ -89,6 +99,57 @@ describe('customerOrderFromRead', () => {
 
   it('never reveals an assignment the driver has not accepted (FR-032)', () => {
     expect(customerOrderFromRead({ ...SAMPLE, status: 'assigned' }).stage).toBe('waiting_rider')
+  })
+})
+
+/** The agreed example of an order a dispatcher has confirmed (docs/api/orders.md, #99). */
+const CONFIRMED = confirmedSample as unknown as OrderRead
+
+describe('the confirmed price (#165)', () => {
+  it('shows the confirmed manual price and category instead of "Preparing your price"', () => {
+    // A price request confirmed at a manual price: it never had a server quote.
+    const order = customerOrderFromRead(CONFIRMED)
+    expect(order.stage).toBe('waiting_rider')
+    expect(order.quote).toEqual({
+      currency: 'NGN',
+      total_minor_units: 4_500_000,
+      water: null,
+      delivery: null,
+      is_sample: false,
+      category_label: 'Utility Water',
+    })
+  })
+
+  it('shows the confirmed price over the quote the order was placed with', () => {
+    const quoted: OrderRead = {
+      ...CONFIRMED,
+      quote: { currency: 'NGN', total_minor_units: 2_000_000, water_category: { label: 'Potable Water', supported_uses: null } },
+    }
+    expect(priceFromRead(quoted)?.total_minor_units).toBe(4_500_000)
+    // The label frozen with the confirmed price, not the quote's.
+    expect(priceFromRead(quoted)?.category_label).toBe('Utility Water')
+  })
+
+  it('shows the quote before confirmation, when the price is null', () => {
+    const order = customerOrderFromRead({ ...SAMPLE, price: null, water_category: null, delivery_window: null })
+    expect(order.quote?.total_minor_units).toBe(2_000_000)
+  })
+
+  it('has no price for a quote request, and for a server that sends no confirmed fields', () => {
+    expect(priceFromRead({ quote: null, price: null, water_category: null })).toBeNull()
+    expect(priceFromRead({ quote: null })).toBeNull()
+  })
+
+  it('loads a confirmed order through getOrder with its price', async () => {
+    const { client } = clientReturning({ body: CONFIRMED }, { body: historySample })
+    const order = await getOrder(CONFIRMED.reference, client)
+    expect(order.quote?.total_minor_units).toBe(4_500_000)
+  })
+
+  it('passes 404 order_not_found through for an order of another customer', async () => {
+    const missing = { error: { code: 'order_not_found', message: 'Order not found', details: null } }
+    const { client } = clientReturning({ body: missing, status: 404 }, { body: missing, status: 404 })
+    await expect(getOrder('MO-X', client)).rejects.toMatchObject({ code: 'order_not_found' })
   })
 })
 

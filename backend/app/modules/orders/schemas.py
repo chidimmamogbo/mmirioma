@@ -2,7 +2,9 @@
 
 Field rules come from the contract's "Field rules" table (FR-020, FR-021),
 and the delivery details from docs/api/order-details-and-price.md
-("Delivery details", agreed 2026-10-26, #21). Responses carry no price yet.
+("Delivery details", agreed 2026-10-26, #21). A customer's ``OrderRead`` also
+carries the confirmed price, window and category (orders.md, "Customer pilot
+changes", #99); ``quote`` is the price before confirmation.
 """
 
 import uuid
@@ -293,6 +295,25 @@ class OrderQuoteRead(BaseModel):
     water_category: QuoteCategoryRead
 
 
+class DeliveryWindowRead(BaseModel):
+    """The delivery window the dispatcher confirmed (UTC; the client shows Lagos time)."""
+
+    start_at: datetime
+    end_at: datetime
+
+
+class OrderPriceRead(BaseModel):
+    """The price confirmed with the customer, from the price snapshot (FR-024).
+
+    Total only: never a breakdown, who entered it, or how the customer agreed
+    (staff detail). ``manual`` is true for a pilot manual quote (F2).
+    """
+
+    total_minor_units: int
+    currency: Literal["NGN"] = "NGN"
+    manual: bool
+
+
 class AdminQuoteCategoryRead(QuoteCategoryRead):
     """The quote's category as staff see it: with its ``id`` (deliveries.md, amendment #72).
 
@@ -493,9 +514,18 @@ class OrderRead(OrderBaseRead):
     Attributes:
         feedback: The customer's feedback on the order (FR-051), or null.
             Customers only: not on the staff views (customer-account.md).
+        delivery_window: The confirmed window, or null until a dispatcher
+            confirms the order (#99). Never the preferred date.
+        price: The confirmed price, or null until confirmed (#99). Separate
+            from ``quote``, the price before confirmation.
+        water_category: The category agreed at confirmation, or null until
+            confirmed (#99); its label is the one frozen with the price.
     """
 
     feedback: FeedbackRead | None = None
+    delivery_window: DeliveryWindowRead | None = None
+    price: OrderPriceRead | None = None
+    water_category: QuoteCategoryRead | None = None
 
     @classmethod
     def from_order(cls, order: Order, lookups: ReadLookups) -> Self:
@@ -510,9 +540,32 @@ class OrderRead(OrderBaseRead):
             The customer representation.
         """
         feedback = lookups.feedback.get(order.id)
+        confirmed = lookups.confirmed.get(order.id)
+        start_at = order.delivery_window_start_at
+        end_at = order.delivery_window_end_at
         return cls(
             **OrderBaseRead.from_order(order, lookups).model_dump(),
             feedback=FeedbackRead.from_feedback(feedback) if feedback is not None else None,
+            # Both window columns are set together (``delivery_window_valid``).
+            delivery_window=(
+                DeliveryWindowRead(start_at=start_at, end_at=end_at)
+                if start_at is not None and end_at is not None
+                else None
+            ),
+            price=(
+                OrderPriceRead(
+                    total_minor_units=confirmed.total_minor_units, manual=confirmed.is_manual
+                )
+                if confirmed is not None
+                else None
+            ),
+            water_category=(
+                QuoteCategoryRead(
+                    label=confirmed.water_category_label, supported_uses=confirmed.supported_uses
+                )
+                if confirmed is not None
+                else None
+            ),
         )
 
 
