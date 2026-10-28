@@ -235,6 +235,8 @@ export function seedState(now = new Date()): MockState {
         created_at: activeCreated,
         stage: 'on_the_way',
         payment: { method: 'pay_on_delivery', status: 'unpaid' },
+        // The window the dispatcher agreed, so the order detail's row shows in the demo.
+        delivery_window: { start_at: lagosToday(10, 0, now), end_at: lagosToday(12, 0, now) },
         eta_minutes: 8,
         delivery_code: '482791',
         timeline: [

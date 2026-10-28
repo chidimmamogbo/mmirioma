@@ -1,7 +1,7 @@
 import type { IllustrationName } from '../../components/brand/Illustration'
 import { describeChoice, isActiveStage, type CustomerOrder, type PaymentStatus } from '../../domain/orders'
 import { describeQuantity } from '../../domain/quantity'
-import { formatDate, formatTime } from '../../lib/format/datetime'
+import { formatDate, formatDayDate, formatShortDate, formatTime } from '../../lib/format/datetime'
 import { formatNaira } from '../../lib/format/money'
 
 export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
@@ -56,4 +56,29 @@ export function orderPlaceLabel(order: CustomerOrder): string {
 export function orderIllustration(order: CustomerOrder, keke: IllustrationName = 'keke'): IllustrationName {
   if (!order.choice) return 'drop-hero'
   return order.choice.delivery_type === 'keke' ? keke : 'tanker'
+}
+
+/** What the order detail's "Delivery window" row says about the agreed window (customer-delivery-window.md). */
+export interface WindowText {
+  /** "Tue, 27 Oct 2026", or the start day when the window crosses midnight. */
+  day: string
+  /** "10:00 AM – 12:00 PM", or both days when the window crosses midnight. */
+  times: string
+}
+
+/**
+ * The agreed delivery window in Africa/Lagos time, or `null` when the row must
+ * not show: no window, or the order is delivered, cancelled or failed (decision 3
+ * and 9). It is the dispatcher's window, never an arrival time (FR-037).
+ */
+export function deliveryWindowText(order: Pick<CustomerOrder, 'delivery_window' | 'stage'>): WindowText | null {
+  const w = order.delivery_window
+  if (!w || order.stage === 'delivered' || order.stage === 'cancelled' || order.stage === 'failed') return null
+  if (formatDate(w.start_at) === formatDate(w.end_at)) {
+    return { day: formatDayDate(w.start_at), times: `${formatTime(w.start_at)} – ${formatTime(w.end_at)}` }
+  }
+  return {
+    day: formatDayDate(w.start_at),
+    times: `${formatShortDate(w.start_at)}, ${formatTime(w.start_at)} – ${formatShortDate(w.end_at)}, ${formatTime(w.end_at)}`,
+  }
 }
