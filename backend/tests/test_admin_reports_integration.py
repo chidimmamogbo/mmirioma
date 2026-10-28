@@ -33,7 +33,7 @@ from app.modules.orders.service import REFERENCE_ALPHABET
 from app.modules.payments.models import CashCollection, CashCollectionStatus, CashRemittance
 from app.modules.reporting import service as reporting
 from app.modules.sources.models import WaterSource
-from app.shared.lagos_time import lagos_today
+from app.shared.lagos_time import LAGOS_TZ, lagos_day_start_utc, lagos_today
 from tests import test_admin_operations_integration as part1
 from tests import test_dispatch_integration as dispatch_tests
 from tests import test_partners_integration as partners_tests
@@ -49,6 +49,15 @@ pytestmark = [
 created = part1.created
 
 NOW = datetime.now(UTC).replace(microsecond=0)
+# The Lagos day NOW falls in. Rows the "today" report must count are dated
+# within it, so the test passes at any time of day, including just after
+# midnight in Lagos (it failed in CI at 00:20 Lagos time, #123).
+TODAY_START = lagos_day_start_utc(NOW.astimezone(LAGOS_TZ).date())
+# The waiting order is always from an earlier Lagos day, at least 90 minutes
+# ago: the dashboard counts it as still open, the "today" report does not.
+WAITING_AT = min(NOW - timedelta(minutes=90), TODAY_START - timedelta(minutes=1))
+# Picked up shortly before delivery, but never before today began.
+PICKUP_AT = max(NOW - timedelta(minutes=30), TODAY_START)
 
 
 async def add_order(
@@ -163,7 +172,7 @@ async def deliver(
                     order_id=order.id,
                     source_id=source_id,
                     volume_collected_litres=1200,
-                    picked_up_at=NOW - timedelta(minutes=30),
+                    picked_up_at=PICKUP_AT,
                     recorded_by=driver.id,
                 )
             )
@@ -242,7 +251,7 @@ def test_dashboard_and_report_count_real_or_simulated_never_both(created: Create
             customer,
             status=OrderStatus.CONFIRMED,
             zone_id=zone.id,
-            created_at=NOW - timedelta(minutes=90),
+            created_at=WAITING_AT,
         )
         await add_order(
             sessions, customer, status=OrderStatus.EN_ROUTE, created_at=NOW - timedelta(days=3)
@@ -295,11 +304,12 @@ def test_dashboard_and_report_count_real_or_simulated_never_both(created: Create
         assert dash_real.drivers.keke - dash_real0.drivers.keke == 1
         assert dash_real.sources_not_usable - dash_real0.sources_not_usable == 1  # no activation
 
-        # Report, today, real: the open order from 3 days ago is not in range.
-        assert report_real.orders.total - report_real0.orders.total == 3
+        # Report, today, real: the waiting order (an earlier day) and the open
+        # order from 3 days ago are not in range; the two delivered ones are.
+        assert report_real.orders.total - report_real0.orders.total == 2
         zones = {row.zone_id: (row.orders, row.delivered) for row in report_real.by_zone}
         zones0 = {row.zone_id: (row.orders, row.delivered) for row in report_real0.by_zone}
-        assert zones[zone.id] == (2, 1)
+        assert zones[zone.id] == (1, 1)
         assert (
             zones[None][0] - zones0.get(None, (0, 0))[0],
             zones[None][1] - zones0.get(None, (0, 0))[1],
