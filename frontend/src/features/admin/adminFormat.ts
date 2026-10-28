@@ -2,7 +2,7 @@
  * Labels and colours for admin statuses. Every status shows a word, never
  * colour alone (handoff README, "Colour").
  */
-import type { AdminOrder, AdminOrderStatus, PapersState, PriceList, PriceListInput } from '../../domain/admin'
+import { HOLD_KIND_LABEL, type AdminOrder, type AdminOrderHold, type AdminOrderStatus, type PapersState, type PriceList, type PriceListInput } from '../../domain/admin'
 import type { ChipTone } from '../../components/ui/Chip'
 import type { AdminPaymentStatus } from '../../domain/admin'
 import type { PaymentMethod } from '../../domain/orders'
@@ -75,6 +75,11 @@ export function timeAgo(iso: string, now = Date.now()): string {
   if (hours < 24) return `${hours} h ago`
   if (hours < 48) return 'Yesterday'
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'Africa/Lagos' }).format(new Date(iso))
+}
+
+/** "Proof review · 12 min ago": a hold's kind and age, under the status in the order list (admin-hold-review.md, R0). */
+export function holdSummary(hold: AdminOrderHold): string {
+  return `${HOLD_KIND_LABEL[hold.kind]} · ${timeAgo(hold.since)}`
 }
 
 /** Days until a Lagos calendar date (negative when past). */

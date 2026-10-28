@@ -75,6 +75,17 @@ export interface CustomerData {
  * addresses, the receiver and the code tries, so those are never `null`
  * here (mock mode keeps every value, @chidimmamogbo on #12).
  */
+/**
+ * A held job's hold in the mock: what the admin order carries (`id`, `kind`,
+ * `since`) plus what the driver reported, which the history shows ("Hold
+ * opened") and the review sheet will read. The note is SAMPLE text.
+ */
+export type MockHold = AdminOrderHold & {
+  /** The exception category the hold opened with (deliveries.md, "Event object"). */
+  category: 'alternative_proof' | 'source_mismatch' | 'pickup_safety_concern' | 'unsafe_access'
+  driver_note: string
+}
+
 export interface StoredJob extends PartnerJob {
   choice: WaterChoice
   earning_minor_units: number
@@ -100,7 +111,7 @@ export interface StoredJob extends PartnerJob {
    * endpoints"): it stops the job and shows on the admin order. A hold is not
    * a stage. Admin decisions clear it.
    */
-  hold?: AdminOrderHold | null
+  hold?: MockHold | null
   /** When the order was placed (admin lists). */
   created_at: string
 }

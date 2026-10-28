@@ -225,6 +225,34 @@ describe('getOrder (real)', () => {
     expect(lines).toEqual(['Order placed', 'Accepted by Ada', 'Offer to Ada withdrawn', 'Job withdrawn from Ada'])
   })
 
+  it('words the hold entries: "Hold opened" with who, the concern and the driver’s note, and the decision with who and the note (H)', () => {
+    const driver = { id: 'd1', role: 'driver' as const, name: 'Ada' }
+    const admin = { id: 'a1', role: 'admin' as const, name: 'Sample Dispatcher' }
+    const entry = (kind: string, actor: typeof driver | typeof admin, note: string | null, category: string, decision: string | null, at: string) =>
+      ({ id: kind + at, kind, from_status: null, to_status: null, actor, reason_code: null, note, created_at: at, assignment: null, hold: { id: 'h1', kind: 'proof_review', category, decision }, confirmation: null, cash: null }) as AdminOrderEvent
+    // Newest first, as the server sends them.
+    const lines = timelineFromHistory('2026-10-20T07:00:00Z', [
+      entry('hold_decided', admin, 'The person who answered is not the customer.', 'alternative_proof', 'proof_rejected', '2026-10-20T09:31:00Z'),
+      entry('hold_opened', driver, "Customer's phone is off.", 'alternative_proof', null, '2026-10-20T08:48:00Z'),
+    ])
+    expect(lines.slice(1)).toEqual([
+      { label: 'Hold opened: Proof review', at: '2026-10-20T08:48:00Z', detail: `Ada · Alternative proof · "Customer's phone is off."` },
+      { label: 'Proof rejected', at: '2026-10-20T09:31:00Z', detail: 'Sample Dispatcher · "The person who answered is not the customer."' },
+    ])
+  })
+
+  it('shows no concern for a category it does not know, and no decision line for a hold closed by a fail', () => {
+    const driver = { id: 'd1', role: 'driver' as const, name: 'Ada' }
+    const hold = (kind: string, category: string, decision: string | null) =>
+      ({ id: kind, kind, from_status: null, to_status: null, actor: driver, reason_code: null, note: null, created_at: '2026-10-20T08:48:00Z', assignment: null, hold: { id: 'h1', kind: 'source_review', category, decision }, confirmation: null, cash: null }) as AdminOrderEvent
+    const lines = timelineFromHistory('2026-10-20T07:00:00Z', [hold('hold_decided', 'source_mismatch', 'failed'), hold('hold_opened', 'a_new_category', null)])
+    // Never a raw code, and a decision the contract does not list for hold_decided shows nothing.
+    expect(lines).toEqual([
+      { label: 'Order placed', at: '2026-10-20T07:00:00Z' },
+      { label: 'Hold opened: Source review', at: '2026-10-20T08:48:00Z', detail: 'Ada' },
+    ])
+  })
+
   it('still shows the order when only the history fails', async () => {
     const { client } = clientByUrl((url) => (url.includes('/history') ? { body: FORBIDDEN, status: 500 } : { body: DETAIL }))
     expect((await getOrder(DETAIL.reference, client)).timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])

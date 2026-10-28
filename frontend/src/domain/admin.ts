@@ -69,6 +69,35 @@ export const HOLD_KIND_LABEL: Record<HoldKind, string> = {
   unsafe_stop: 'Unsafe stop',
 }
 
+const HOLD_CONCERN_LABEL: Partial<Record<string, string>> = {
+  alternative_proof: 'Alternative proof',
+  source_mismatch: 'Another source used',
+  pickup_safety_concern: 'Safety concern at pickup',
+  unsafe_access: 'Unsafe access',
+  unsafe_transfer: 'Unsafe transfer',
+}
+
+/**
+ * The kind of concern a hold opened with, in words (admin-hold-review.md,
+ * decision 12). A category the app does not know has no label and shows no
+ * concern line, never a raw code (decision 16).
+ */
+export const holdConcernLabel = (category: string): string | null => HOLD_CONCERN_LABEL[category] ?? null
+
+const HOLD_DECISION_LABEL: Partial<Record<string, string>> = {
+  proof_approved: 'Proof approved',
+  proof_rejected: 'Proof rejected',
+  source_continued: 'Source continued',
+  unsafe_resumed: 'Delivery resumed after unsafe stop',
+}
+
+/**
+ * The words for a decision recorded on a hold (deliveries.md, "GET .../history
+ * (change)"). A hold closed by a fail, cancel or withdraw has none: its status
+ * change shows it.
+ */
+export const holdDecisionLabel = (decision: string): string | null => HOLD_DECISION_LABEL[decision] ?? null
+
 /**
  * The open hold on an order's live job. A hold is not a status: the order keeps
  * its status while it is open. `id` is sent back with a decision.
