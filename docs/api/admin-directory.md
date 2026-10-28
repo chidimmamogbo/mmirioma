@@ -590,11 +590,11 @@ connected"), rather than guess.
 
 #### Amendment (#160): the list of water categories
 
-**Status: proposed** (G3 pending). Proposed by @Cloudcrackamara (+ Claude
-Code) for #160; the technical lead decided in the G3 call of 2026-10-28
+**Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead),
+on PR #163. Proposed by @DevBoanvee (+ Claude Code) for #160, whose owner is
+@Cloudcrackamara; the technical lead decided in the G3 call of 2026-10-28
 (PR #158, [admin-pricing.md](../design/admin-pricing.md), decision 8) that
-the endpoint is wanted. It becomes `Status: agreed` when one reviewer who is
-not the author agrees it. Building it is #161. The rest of
+the endpoint is wanted. Building it is #161. The rest of
 [Service zones](#service-zones) and [Price lists](#price-lists) stays agreed
 as it is.
 
@@ -895,7 +895,7 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-28 | Proposed for #160: `GET /admin/water-categories` (`id`, `label`, `is_active`; `code` left out; inactive categories listed) for the Pricing screen's Water picker ([amendment](#amendment-160-the-list-of-water-categories)); building is #161 | Not yet (G3 pending) |
+| 2026-10-28 | Amended for #160: `GET /admin/water-categories` (`id`, `label`, `is_active`; `code` left out; inactive categories listed) for the Pricing screen's Water picker ([amendment](#amendment-160-the-list-of-water-categories)); building is #161 | @nnamdi-security (technical lead, G3), PR #163 |
 | 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | @nnamdi-security (technical lead, G3), PR #146 |
 | 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
