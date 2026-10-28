@@ -48,7 +48,8 @@ import type {
 import { HOLD_KIND_LABEL, holdConcernLabel, holdDecisionLabel, RESOLUTION_LABEL } from '../domain/admin'
 import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { choiceLitres, describeChoice } from '../domain/orders'
-import type { HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
+import type { WithdrawRequest } from '../lib/api/adminDispatch'
+import type { HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { formatNaira } from '../lib/format/money'
@@ -61,7 +62,7 @@ import { eligible } from './eligibility'
 import { alertPartnersOfNewJob, completeDelivery, findCustomerOrder, jobForNewOrder } from './orderSync'
 import { newPartnerData } from './partnerMock'
 import { ANY_PLACE, areaForAddress, quoteFor } from './pricing'
-import { emptyCustomerData, type CustomerData, type MockCustomerOrder, type MockState, type PartnerData, type StoredJob } from './seed'
+import { emptyCustomerData, type CustomerData, type MockCustomerOrder, type MockHold, type MockState, type PartnerData, type StoredJob } from './seed'
 import { clone, delay, mockError, newDeliveryCode, newId, newReference } from './store'
 
 /* ---------- Access and small helpers ---------- */
@@ -197,12 +198,15 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
   // It stays after the hold is decided, then the decision follows, as in the real history.
   const opened = held ?? job?.past_hold ?? null
   if (opened) {
-    const by = partnerSummary(s, job!.partner_id)?.name
+    const by = partnerSummary(s, job!.partner_id)?.name ?? job!.withdrawn?.driver
     const detail = [by, holdConcernLabel(opened.category), `"${opened.driver_note}"`].filter(Boolean).join(' · ')
     timeline.push({ label: `Hold opened: ${HOLD_KIND_LABEL[opened.kind]}`, at: opened.since, detail })
   }
   const decided = job?.hold_decision ?? null
   if (decided) timeline.push({ label: holdDecisionLabel(decided.decision) ?? 'Hold decided', at: decided.at, detail: `${decided.by} · "${decided.note}"` })
+  // A withdrawn job has no decision line: the withdraw closed the hold, and shows as its own status change.
+  const withdrawn = job?.withdrawn ?? null
+  if (withdrawn) timeline.push({ label: `Job withdrawn from ${withdrawn.driver}`, at: withdrawn.at, ...(withdrawn.note ? { detail: withdrawn.note } : {}) })
   return {
     reference,
     created_at: o?.created_at ?? job!.created_at,
@@ -470,6 +474,13 @@ function cancelJob(s: MockState, reference: string, reason: string): void {
 
 const minutesBefore = (iso: string, m: number): string => new Date(Date.parse(iso) - m * 60_000).toISOString()
 
+/** The server's answer on the source a held job used (deliveries.md, "Source eligibility (R2)"), worked out from the seeded hold. */
+function sourceAnswer(hold: MockHold): { answer: 'eligible' | 'not_eligible'; message: string } {
+  return hold.category === 'source_mismatch'
+    ? { answer: 'not_eligible', message: 'This source is not in the source records.' }
+    : { answer: 'eligible', message: "This source is activated for the order's water category." }
+}
+
 /** The evidence for a held job, from the seeded hold. All of it is SAMPLE text. */
 function holdEvidence(s: MockState, job: StoredJob): HoldReview {
   const hold = job.hold!
@@ -493,19 +504,21 @@ function holdEvidence(s: MockState, job: StoredJob): HoldReview {
     }
   }
   if (hold.kind === 'source_review') {
+    // A mismatch used another source (not in the source records); a safety concern used the assigned one.
+    const other = hold.category === 'source_mismatch'
     return {
       ...base,
       order_status: 'collected',
       pickup: {
         assigned_source: { id: 'source-ninth-mile', name: job.station.name, approximate_location: job.station.address },
-        used_source: { assigned: false, name: 'Borehole near the market' },
+        used_source: other ? { assigned: false, name: 'Borehole near the market' } : { assigned: true },
         source_reference: 'SR-0042',
         volume_collected_litres: choiceLitres(job.choice) ?? 0,
         picked_up_at: job.collected_at ?? minutesBefore(hold.since, 30),
-        safety_concern: true,
-        safety_note: hold.driver_note,
+        safety_concern: !other,
+        safety_note: other ? null : hold.driver_note,
       },
-      source_eligibility: { answer: 'not_eligible', message: 'This source is not in the source records.' },
+      source_eligibility: sourceAnswer(hold),
       incidents: [{ kind: 'running_late', reported_at: minutesBefore(hold.since, 90), note: 'Traffic on the expressway' }],
     }
   }
@@ -560,6 +573,85 @@ export async function decideProof(reference: string, request: ProofOverrideReque
     job.past_hold = job.hold
     job.hold = null
     addAudit(s, actorName(s), `${approve ? 'Approved' : 'Rejected'} alternative proof for ${short(reference)}`, note)
+  })
+}
+
+/**
+ * The shared checks of a note decision (continue, resume): a note of 1 to 500
+ * characters (422), then a hold that is still open and of the kind the call
+ * decides (409 `hold_not_open`), as the server refuses them.
+ */
+function openHold(s: MockState, reference: string, request: HoldDecisionRequest, kind: MockHold['kind']): StoredJob & { hold: MockHold } {
+  const job = s.jobs.find((j) => j.reference === reference)
+  if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+  if (!job.hold || job.hold.id !== request.hold_id || job.hold.kind !== kind) throw mockError(409, 'hold_not_open', 'This hold has already been decided or has changed')
+  return job as StoredJob & { hold: MockHold }
+}
+
+function requireDecisionNote(note: string): string {
+  const trimmed = note.trim()
+  if (trimmed.length < 1 || trimmed.length > 500) {
+    throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'note'], msg: 'Write a note (1 to 500 characters)', type: 'value_error' }])
+  }
+  return trimmed
+}
+
+function closeHold(s: MockState, job: StoredJob, decision: NonNullable<StoredJob['hold_decision']>['decision'], note: string): void {
+  job.hold_decision = { decision, by: actorName(s), at: new Date().toISOString(), note }
+  job.past_hold = job.hold
+  job.hold = null
+}
+
+/** Continue after a source review (R2): only when the source can be used, checked again here. */
+export async function continueSource(reference: string, request: HoldDecisionRequest): Promise<void> {
+  await delay(null, 250)
+  const note = requireDecisionNote(request.note)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = openHold(s, reference, request, 'source_review')
+    const answer = sourceAnswer(job.hold)
+    if (answer.answer !== 'eligible') throw mockError(409, 'source_not_eligible', answer.message, { answer: answer.answer })
+    closeHold(s, job, 'source_continued', note)
+    addAudit(s, actorName(s), `Continued the delivery after a source review for ${short(reference)}`, note)
+  })
+}
+
+/** Resume after an unsafe stop (R3), with the safe alternative as the note. */
+export async function resumeUnsafe(reference: string, request: HoldDecisionRequest): Promise<void> {
+  await delay(null, 250)
+  const note = requireDecisionNote(request.note)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = openHold(s, reference, request, 'unsafe_stop')
+    closeHold(s, job, 'unsafe_resumed', note)
+    addAudit(s, actorName(s), `Resumed the delivery after an unsafe stop for ${short(reference)}`, note)
+  })
+}
+
+/**
+ * Take back an accepted job before the driver leaves (R3, row 11): the order
+ * goes back to the pool and the hold closes with it (`withdrawn`, no decision line).
+ */
+export async function withdrawJob(reference: string, request: WithdrawRequest): Promise<void> {
+  await delay(null, 250)
+  const note = (request.note ?? '').trim()
+  if (note.length > 500) throw mockError(422, 'validation_error', 'Request validation failed', [{ loc: ['body', 'note'], msg: 'Up to 500 characters', type: 'value_error' }])
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = s.jobs.find((j) => j.reference === reference)
+    if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+    if (!job.partner_id) throw mockError(404, 'assignment_not_found', 'This order has no driver assigned')
+    // Only an accepted job can be taken back here; after departure it is a fail or a cancel.
+    if (request.expected_status !== 'accepted' || job.stage !== 'accepted') throw mockError(409, 'invalid_order_transition', 'This order has changed')
+    const driver = partnerSummary(s, job.partner_id)?.name ?? 'the driver'
+    job.stage = 'available'
+    job.partner_id = null
+    job.assigned_by = null
+    job.accepted_at = null
+    job.withdrawn = { driver, at: new Date().toISOString(), note: note || null }
+    job.past_hold = job.hold ?? null
+    job.hold = null
+    addAudit(s, actorName(s), `Withdrew the job for ${short(reference)} from ${driver}`, note || null)
   })
 }
 

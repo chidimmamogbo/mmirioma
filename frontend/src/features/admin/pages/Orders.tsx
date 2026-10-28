@@ -195,8 +195,6 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   const closed = o.status === 'delivered' || o.status === 'cancelled'
   // After a decision: who decided, when and the note, from the history line (no open hold any more).
   const decided = o.hold ? undefined : [...o.timeline].reverse().find((t) => isHoldDecisionLabel(t.label))
-  // Proof review is the one kind the sheet can decide so far; the others follow.
-  const canReview = o.hold?.kind === 'proof_review'
   return (
     <>
       {confirmed && <Notice tone="success">{confirmed}</Notice>}
@@ -217,7 +215,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
             <h2 className="m-0 text-[20px] font-extrabold">{notReady ? 'Not ready to assign' : o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
             <StatusChip status={o.status} />
           </div>
-          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} onReview={canReview ? () => setReviewing(true) : undefined} />}
+          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} onReview={() => setReviewing(true)} />}
           {decided && <DecidedCard entry={decided} />}
           <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
             <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
@@ -283,7 +281,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         <p className="mt-1 mb-0 text-chip text-mute">Placed {formatDateTime(o.created_at)}</p>
       </Card>
       {!closed && <CancelOrder reference={o.reference} onBefore={onChange} />}
-      {reviewing && canReview && (
+      {reviewing && o.hold && (
         <HoldSheet
           reference={o.reference}
           customer={{ name: o.customer_name, phone: o.customer_phone }}

@@ -135,7 +135,26 @@ export interface DecisionFailure {
   changed: boolean
   /** A field the server refused (422), to show under it. */
   fields: ProofErrors
+  /** Continue only: the server's new answer on the source (409 `source_not_eligible`), so the card can update. */
+  eligibility?: 'not_eligible' | 'cannot_check'
 }
+
+/** Whether a decision note is valid: 1 to 500 characters once trimmed. */
+export const noteError = (note: string): string | undefined =>
+  note.trim().length < 1 || note.trim().length > NOTE_MAX ? `Write a note (up to ${NOTE_MAX} characters).` : undefined
+
+/** The server's answer on a source, as the card shows it (design R2). */
+export const ELIGIBILITY_CHIP = {
+  eligible: { label: 'Can be used', tone: 'green' },
+  not_eligible: { label: 'Cannot be used', tone: 'red' },
+  cannot_check: { label: 'Cannot be checked', tone: 'amber' },
+} as const
+
+/** The kind of unsafe report (R3). */
+export const REPORT_KIND_LABEL: Record<string, string> = { unsafe_access: 'Unsafe access', unsafe_transfer: 'Unsafe transfer' }
+
+/** Why Continue is off when the source cannot be used (design R2). */
+export const CONTINUE_OFF = 'Continue is only possible when the source can be used. Fail or cancel the order instead.'
 
 /** Which form field a 422 `loc` points at. */
 function fieldOf(loc: unknown): keyof ProofErrors | null {
@@ -161,6 +180,13 @@ export function decisionFailure(error: unknown): DecisionFailure {
       return { message: CHANGED_MESSAGE, changed: true, fields: none }
     case 'own_delivery_override':
       return { message: "You can't approve proof for a delivery you made.", changed: false, fields: none }
+    case 'source_not_eligible': {
+      // The server's sentence as written, and its new answer for the card.
+      const answer = (error.details as { answer?: unknown } | null)?.answer
+      return { message: error.message, changed: false, fields: none, ...(answer === 'not_eligible' || answer === 'cannot_check' ? { eligibility: answer } : {}) }
+    }
+    case 'assignment_not_found':
+      return { message: 'This order has no driver assigned', changed: false, fields: none }
     case 'csrf_failed':
       return { message: 'Your security check failed. Reload the page.', changed: false, fields: none }
     case 'validation_error': {
@@ -184,3 +210,7 @@ export const PROOF_TOAST = {
   approve: 'Proof approved. The order is now Delivered.',
   reject: 'Proof rejected. The driver can send a new code.',
 } as const
+
+export const CONTINUE_TOAST = 'Continued. The driver can go on to the customer.'
+export const RESUME_TOAST = 'Resumed. The driver can continue.'
+export const WITHDRAW_TOAST = 'Job withdrawn. The order is back to Confirmed.'

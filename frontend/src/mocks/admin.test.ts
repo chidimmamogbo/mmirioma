@@ -4,6 +4,7 @@ import {
   assignOrder,
   cancelOrder,
   confirmPayment,
+  continueSource,
   createOrderForCustomer,
   decideProof,
   getDashboard,
@@ -13,6 +14,7 @@ import {
   listOrders,
   listPriceLists,
   refundAsPoints,
+  resumeUnsafe,
   resolveIssue,
   saveArea,
   savePriceList,
@@ -20,6 +22,7 @@ import {
   setStationOpen,
   uploadStationPapers,
   verifyCustomerPhone,
+  withdrawJob,
 } from './adminMock'
 import { DEMO_ADMIN_ID } from './adminSeed'
 import { mockLogin, mockLogout } from './authMock'
@@ -56,11 +59,11 @@ describe('admin access', () => {
 
   it('seeds one held order of each kind, and the "On hold" filter lists only those (admin hold review, R0)', async () => {
     const held = await listOrders('on_hold')
-    expect(held.counts.on_hold).toBe(3)
-    expect(held.orders.map((o) => o.hold?.kind).sort()).toEqual(['proof_review', 'source_review', 'unsafe_stop'])
+    expect(held.counts.on_hold).toBe(4)
+    expect(held.orders.map((o) => o.hold?.kind).sort()).toEqual(['proof_review', 'source_review', 'source_review', 'unsafe_stop'])
     // A hold is not a status: the orders keep theirs, and show under the other pills too.
     const all = await listOrders('all')
-    expect(all.orders.filter((o) => o.hold !== null)).toHaveLength(3)
+    expect(all.orders.filter((o) => o.hold !== null)).toHaveLength(4)
     expect(all.orders.filter((o) => o.hold === null).every((o) => !held.orders.includes(o))).toBe(true)
     // Each hold opened before now, so "12 minutes ago" is a past time.
     expect(held.orders.every((o) => Date.parse(o.hold!.since) < Date.now())).toBe(true)
@@ -247,9 +250,13 @@ describe('hold review (#166)', () => {
     expect(proof.proof).toMatchObject({ reason: 'customer_cannot_receive_code', location: null, delivery_code: { attempts_used: 3, attempts_limit: 5, expired: true } })
     // The code itself is never part of the evidence.
     expect(JSON.stringify(proof)).not.toMatch(/\b\d{6}\b/)
-    const source = await getHoldReview('MO-3SRC8WT5NB')
-    expect(source.pickup).toMatchObject({ used_source: { assigned: false }, safety_concern: true })
-    expect(source.source_eligibility).toEqual({ answer: 'not_eligible', message: 'This source is not in the source records.' })
+    // A source that is not in the records cannot be continued; the assigned one with a safety concern can.
+    const other = await getHoldReview('MO-3SRC8WT5NB')
+    expect(other.pickup).toMatchObject({ used_source: { assigned: false, name: 'Borehole near the market' }, safety_concern: false })
+    expect(other.source_eligibility).toEqual({ answer: 'not_eligible', message: 'This source is not in the source records.' })
+    const assigned = await getHoldReview('MO-8SRC5LV3QE')
+    expect(assigned.pickup).toMatchObject({ used_source: { assigned: true }, safety_concern: true, safety_note: expect.stringContaining('flooded') })
+    expect(assigned.source_eligibility).toEqual({ answer: 'eligible', message: "This source is activated for the order's water category." })
     const unsafe = await getHoldReview('MO-9UNS4VH2ZC')
     expect(unsafe).toMatchObject({ order_status: 'accepted', withdraw_allowed: true, report: { kind: 'unsafe_access' } })
   })
@@ -264,7 +271,7 @@ describe('hold review (#166)', () => {
     const order = await getAdminOrder(PROOF_REF)
     expect(order.status).toBe('delivered')
     expect(order.hold).toBeNull()
-    expect((await listOrders('on_hold')).counts.on_hold).toBe(2)
+    expect((await listOrders('on_hold')).counts.on_hold).toBe(3)
     expect(order.timeline.map((t) => t.label).slice(-2)).toEqual(['Hold opened: Proof review', 'Proof approved'])
     expect(order.timeline.at(-1)!.detail).toBe('Chidimma M. · "Customer confirmed by phone that 1,000 litres were delivered."')
     expect(read().admin.audit[0].action).toMatch(/Approved alternative proof/)
@@ -307,5 +314,68 @@ describe('hold review (#166)', () => {
     await mockLogin(RIDER)
     await expect(getHoldReview(PROOF_REF)).rejects.toMatchObject({ status: 403, code: 'forbidden' })
     await expect(decideProof(PROOF_REF, approveRequest())).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    await expect(continueSource('MO-8SRC5LV3QE', { hold_id: 'hold-source-2', note: 'Fine.' })).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    await expect(resumeUnsafe('MO-9UNS4VH2ZC', { hold_id: 'hold-unsafe-1', note: 'Fine.' })).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    await expect(withdrawJob('MO-9UNS4VH2ZC', { expected_status: 'accepted', note: null })).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+  })
+
+  describe('continue, resume and withdraw (R2, R3)', () => {
+    const SOURCE_OK = 'MO-8SRC5LV3QE'
+    const SOURCE_BAD = 'MO-3SRC8WT5NB'
+    const UNSAFE = 'MO-9UNS4VH2ZC'
+
+    it('continues a source that can be used: the hold closes, the decision is recorded, the order keeps its status', async () => {
+      const before = (await getAdminOrder(SOURCE_OK)).status
+      await continueSource(SOURCE_OK, { hold_id: 'hold-source-2', note: ' Source records match the order category. ' })
+      const order = await getAdminOrder(SOURCE_OK)
+      expect([order.status, order.hold]).toEqual([before, null])
+      expect(order.timeline.map((t) => t.label).slice(-2)).toEqual(['Hold opened: Source review', 'Source continued'])
+      expect(order.timeline.at(-1)!.detail).toBe('Chidimma M. · "Source records match the order category."')
+      expect(read().admin.audit[0].action).toMatch(/Continued the delivery after a source review/)
+    })
+
+    it('refuses to continue a source that cannot be used, with the server’s sentence and its answer, changing nothing', async () => {
+      const error = await continueSource(SOURCE_BAD, { hold_id: 'hold-source-1', note: 'Looks fine.' }).then(() => null, (e: unknown) => e as { status: number; code: string; message: string; details: unknown })
+      expect(error).toMatchObject({ status: 409, code: 'source_not_eligible', message: 'This source is not in the source records.', details: { answer: 'not_eligible' } })
+      expect((await getAdminOrder(SOURCE_BAD)).hold).not.toBeNull()
+    })
+
+    it('resumes after an unsafe stop with the safe alternative', async () => {
+      await resumeUnsafe(UNSAFE, { hold_id: 'hold-unsafe-1', note: 'Use the side gate on Zik Avenue.' })
+      const order = await getAdminOrder(UNSAFE)
+      expect(order.hold).toBeNull()
+      expect(order.timeline.at(-1)).toMatchObject({ label: 'Delivery resumed after unsafe stop', detail: 'Chidimma M. · "Use the side gate on Zik Avenue."' })
+    })
+
+    it('needs a note to continue or resume, and a hold of the right kind that is still open', async () => {
+      await expect(continueSource(SOURCE_OK, { hold_id: 'hold-source-2', note: '  ' })).rejects.toMatchObject({ status: 422, code: 'validation_error' })
+      await expect(resumeUnsafe(UNSAFE, { hold_id: 'hold-unsafe-1', note: '' })).rejects.toMatchObject({ status: 422, code: 'validation_error' })
+      // A proof hold is not decided by continue; a stale id is not open; a decided hold cannot be decided twice.
+      await expect(continueSource(PROOF_REF, { hold_id: 'hold-proof-1', note: 'Fine.' })).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+      await expect(resumeUnsafe(UNSAFE, { hold_id: 'old-hold', note: 'Fine.' })).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+      await resumeUnsafe(UNSAFE, { hold_id: 'hold-unsafe-1', note: 'Fine.' })
+      await expect(resumeUnsafe(UNSAFE, { hold_id: 'hold-unsafe-1', note: 'Fine.' })).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+    })
+
+    it('withdraws an accepted job: back to the pool with no driver, the hold closed, no decision line', async () => {
+      await withdrawJob(UNSAFE, { expected_status: 'accepted', note: 'Road closed for the day.' })
+      const job = read().jobs.find((j) => j.reference === UNSAFE)!
+      expect([job.stage, job.partner_id, job.hold, job.hold_decision]).toEqual(['available', null, null, undefined])
+      const order = await getAdminOrder(UNSAFE)
+      expect(order.status).toBe('awaiting_rider')
+      expect(order.partner).toBeNull()
+      expect(order.timeline.map((t) => t.label).slice(-2)).toEqual(['Hold opened: Unsafe stop', 'Job withdrawn from Daniel Nnadi'])
+      expect(order.timeline.at(-1)!.detail).toBe('Road closed for the day.')
+      expect(order.timeline.some((t) => t.label === 'Delivery resumed after unsafe stop')).toBe(false)
+      expect((await listOrders('on_hold')).counts.on_hold).toBe(3)
+    })
+
+    it('refuses to withdraw once the driver has left, or when nobody is assigned', async () => {
+      await expect(withdrawJob(SOURCE_OK, { expected_status: 'accepted', note: null })).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      await expect(withdrawJob(UNSAFE, { expected_status: 'offered', note: null })).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      await withdrawJob(UNSAFE, { expected_status: 'accepted', note: null })
+      await expect(withdrawJob(UNSAFE, { expected_status: 'accepted', note: null })).rejects.toMatchObject({ status: 404, code: 'assignment_not_found', message: 'This order has no driver assigned' })
+      expect((await getAdminOrder(SOURCE_OK)).hold).not.toBeNull()
+    })
   })
 })
