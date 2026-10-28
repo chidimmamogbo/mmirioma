@@ -169,8 +169,9 @@ class AdminTransitionRequest(_Request):
         expected_status: The order status the administrator saw.
         reason_code: For ``failed``: ``source_quality_concern``,
             ``unsafe_access`` or ``other``; for ``cancelled``:
-            ``mmirioma_unable`` (checked by the service).
-        note: Optional, up to 500 characters; required with ``other``.
+            ``mmirioma_unable`` or ``customer_request`` (checked by the service).
+        note: Optional, up to 500 characters; required with ``other``, and
+            for a cancel from ``unloading`` (checked by the service).
         hold_id: The hold FAIL or CANCEL was opened from, if any.
     """
 

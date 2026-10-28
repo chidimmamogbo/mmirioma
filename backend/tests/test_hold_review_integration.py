@@ -47,7 +47,7 @@ from app.modules.deliveries.models import (
 from app.modules.dispatch import service as dispatch_service
 from app.modules.dispatch.models import Assignment, AssignmentStatus
 from app.modules.messaging.sms import MockSmsProvider
-from app.modules.orders.models import Order, OrderStatus, TransitionReason
+from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
 from tests import test_deliveries_integration as part1
 from tests.test_deliveries_integration import (
     TEST_DATABASE_URL,
@@ -644,7 +644,7 @@ def test_cancelling_with_mmirioma_unable_is_free_and_ends_the_job(created: Creat
         async with sessions() as session:
             unsupported = await expect_error(
                 holds.cancellation_outcome(
-                    session, reference=reference, reason_code=TransitionReason.CUSTOMER_REQUEST
+                    session, reference=reference, reason_code=TransitionReason.OTHER
                 )
             )
         assert (unsupported.status_code, unsupported.code) == (422, "validation_error")
@@ -674,6 +674,190 @@ def test_cancelling_with_mmirioma_unable_is_free_and_ends_the_job(created: Creat
                 )
             )
         assert (terminal.status_code, terminal.code) == (409, "invalid_order_transition")
+
+    run(scenario)
+
+
+# --- Cancelling because the customer asked (#174, T-26 in its pilot form) ----------
+
+
+async def cancel_event(sessions: Sessions, reference: str) -> OrderEvent:
+    async with sessions() as session:
+        order = await session.scalar(select(Order).where(Order.reference == reference))
+        assert order is not None
+        return (
+            await session.scalars(
+                select(OrderEvent).where(
+                    OrderEvent.order_id == order.id, OrderEvent.to_status == S.CANCELLED
+                )
+            )
+        ).one()
+
+
+CANCELLABLE = [
+    (S.QUOTE_REQUESTED, AssignmentStatus.WITHDRAWN),
+    (S.AWAITING_CONFIRMATION, AssignmentStatus.WITHDRAWN),
+    (S.CONFIRMED, AssignmentStatus.OFFERED),
+    (S.ASSIGNED, AssignmentStatus.OFFERED),
+    (S.ACCEPTED, AssignmentStatus.ACCEPTED),
+    (S.DEPARTED, AssignmentStatus.ACCEPTED),
+    (S.COLLECTED, AssignmentStatus.ACCEPTED),
+    (S.EN_ROUTE, AssignmentStatus.ACCEPTED),
+    (S.ARRIVED, AssignmentStatus.ACCEPTED),
+    (S.UNLOADING, AssignmentStatus.ACCEPTED),
+    (S.FAILED, AssignmentStatus.WITHDRAWN),
+]
+
+
+def test_t26_a_cancel_at_the_customers_request_is_free_from_every_cancellable_status(
+    created: Created,
+) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        for status, assignment_status in CANCELLABLE:
+            reference = await add_job(
+                sessions,
+                s,
+                driver,
+                order_status=status,
+                assignment_status=assignment_status,
+                window_start=WINDOW_START,
+                ended_at=WINDOW_START if assignment_status is AssignmentStatus.WITHDRAWN else None,
+            )
+            async with sessions() as session:
+                outcome = await holds.cancellation_outcome(
+                    session, reference=reference, reason_code=TransitionReason.CUSTOMER_REQUEST
+                )
+            assert outcome.reason_code is TransitionReason.CUSTOMER_REQUEST
+            assert outcome.customer_charge_minor_units == 0
+            assert outcome.message == "The customer is not charged for this cancellation."
+
+            note = "The customer phoned to cancel." if status is S.UNLOADING else None
+            async with sessions() as session:
+                detail = await holds.transition_with_holds(
+                    session,
+                    reference=reference,
+                    admin=s.admin,
+                    target=S.CANCELLED,
+                    expected_status=status,
+                    reason_code=TransitionReason.CUSTOMER_REQUEST,
+                    note=note,
+                    hold_id=None,
+                )
+            assert detail.dispatch.staff_order.order.status is S.CANCELLED
+            if assignment_status in (AssignmentStatus.OFFERED, AssignmentStatus.ACCEPTED):
+                assert detail.dispatch.assignment is not None
+                assert detail.dispatch.assignment.assignment.status is AssignmentStatus.WITHDRAWN
+            event = await cancel_event(sessions, reference)
+            assert event.reason_code is TransitionReason.CUSTOMER_REQUEST
+            assert event.note == note
+
+    run(scenario)
+
+
+def test_a_customer_request_cancel_closes_the_open_hold(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        reference = await to_en_route(sessions, s, driver)
+        await report_unsafe(sessions, driver, reference)
+        async with sessions() as session:
+            review = await holds.get_hold_review(session, reference=reference)
+        async with sessions() as session:
+            detail = await holds.transition_with_holds(
+                session,
+                reference=reference,
+                admin=s.admin,
+                target=S.CANCELLED,
+                expected_status=S.EN_ROUTE,
+                reason_code=TransitionReason.CUSTOMER_REQUEST,
+                note=None,
+                hold_id=review.hold.id,
+            )
+        assert detail.hold is None
+        rows = [r for r in await exceptions_of(sessions, reference) if r.hold_kind is not None]
+        assert [row.resolution for row in rows] == [HoldResolution.CANCELLED]
+
+    run(scenario)
+
+
+def test_a_customer_request_cancel_is_refused_from_a_closed_order(created: Created) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        for status in (S.CANCELLED, S.DELIVERED, S.DISPUTED):
+            reference = await add_job(
+                sessions,
+                s,
+                driver,
+                order_status=status,
+                assignment_status=AssignmentStatus.WITHDRAWN,
+                window_start=WINDOW_START,
+                ended_at=WINDOW_START,
+            )
+            async with sessions() as session:
+                error = await expect_error(
+                    holds.cancellation_outcome(
+                        session, reference=reference, reason_code=TransitionReason.CUSTOMER_REQUEST
+                    )
+                )
+            assert (error.status_code, error.code) == (409, "invalid_order_transition")
+            async with sessions() as session:
+                error = await expect_error(
+                    holds.transition_with_holds(
+                        session,
+                        reference=reference,
+                        admin=s.admin,
+                        target=S.CANCELLED,
+                        expected_status=status,
+                        reason_code=TransitionReason.CUSTOMER_REQUEST,
+                        note="The customer phoned.",
+                        hold_id=None,
+                    )
+                )
+            assert (error.status_code, error.code) == (409, "invalid_order_transition")
+
+    run(scenario)
+
+
+def test_cancel_reasons_other_than_the_two_agreed_are_refused_and_unloading_needs_a_note(
+    created: Created,
+) -> None:
+    async def scenario(sessions: Sessions) -> None:
+        s = await setup(sessions, created)
+        driver = await add_user(sessions, created, UserRole.DRIVER)
+        reference = await add_job(
+            sessions,
+            s,
+            driver,
+            order_status=S.UNLOADING,
+            assignment_status=AssignmentStatus.ACCEPTED,
+            window_start=WINDOW_START,
+        )
+
+        async def cancel(reason: TransitionReason, note: str | None) -> APIError:
+            async with sessions() as session:
+                return await expect_error(
+                    holds.transition_with_holds(
+                        session,
+                        reference=reference,
+                        admin=s.admin,
+                        target=S.CANCELLED,
+                        expected_status=S.UNLOADING,
+                        reason_code=reason,
+                        note=note,
+                        hold_id=None,
+                    )
+                )
+
+        other = await cancel(TransitionReason.OTHER, "Some other reason.")
+        assert (other.status_code, other.code) == (422, "validation_error")
+        for reason in (TransitionReason.CUSTOMER_REQUEST, TransitionReason.MMIRIOMA_UNABLE):
+            missing = await cancel(reason, None)
+            assert (missing.status_code, missing.code) == (422, "validation_error")
+        # Nothing changed: the order is still unloading.
+        assert (await order_of(sessions, reference)).status is S.UNLOADING
 
     run(scenario)
 

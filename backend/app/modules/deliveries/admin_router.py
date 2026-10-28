@@ -288,7 +288,7 @@ async def cancellation_outcome(
 
     Raises:
         APIError: 404 ``order_not_found``; 422 ``validation_error`` for a
-            reason other than ``mmirioma_unable``; 409
+            reason other than ``mmirioma_unable`` or ``customer_request``; 409
             ``invalid_order_transition``.
     """
     outcome = await holds.cancellation_outcome(db, reference=reference, reason_code=reason_code)

@@ -42,7 +42,7 @@ R2  POST .../hold/continue              {hold_id, note}: only if the source is e
 R3  POST .../hold/resume                {hold_id, note = the safe alternative}
     POST .../withdraw                   before departure; also closes the unsafe stop
 FAIL/CANCEL
-    GET  .../cancellation-outcome?reason_code=mmirioma_unable   charge 0, sentence
+    GET  .../cancellation-outcome?reason_code=mmirioma_unable|customer_request   charge 0, sentence
     POST .../transition                 {to, expected_status, reason_code, note?, hold_id?}
          failed (row 20) or cancelled (row 23); the job ends; every open hold closed
 HISTORY
@@ -156,7 +156,9 @@ All under `/api/v1`; shapes as in the
 - **Withdraw before departure** (row 11, decision 4) also closes an unsafe
   stop (`withdrawn`).
 - **Fail (row 20)** with `source_quality_concern`, `unsafe_access` or `other`
-  (note required); **cancel (row 23)** with `mmirioma_unable` only. Both need
+  (note required); **cancel (row 23)** with `mmirioma_unable` or `customer_request`
+  (the customer asked, #174; `other` is refused, and a cancel from `unloading`
+  needs a note). Both need
   `expected_status`, end the job (failed: assignment `completed`, attempt
   `failed`; cancelled: assignment `withdrawn`) and close every open hold. No
   charge is recorded: these failures are attributable to MmiriOma (FR-038,
@@ -337,7 +339,7 @@ failure and the hold age; `src/features/admin/admin.test.tsx` and
 - The admin timeline shows an approval as "Proof approved" and does not add a
   "Delivered" line, although the history carries the `delivered` status change;
   the order's status chip shows Delivered.
-- Only the fail and `mmirioma_unable` cancel uses of
+- Only the fail and the `mmirioma_unable` and `customer_request` cancel uses of
   `POST .../transition` exist; the endpoint's other rows (A1-A7) are
   agreed with their screens.
 - Rescheduling a failed delivery (R4, row 21) is design ahead.
