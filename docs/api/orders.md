@@ -318,7 +318,7 @@ Decided by the technical lead on 2026-10-24.
 
 ## `GET /orders/{reference}/history` (#155)
 
-**Status: proposed** on 2026-10-28 by @Daveoski (+ Claude Code), for G3.
+**Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead), on PR #164. Proposed by @Daveoski (+ Claude Code).
 
 The customer's order timeline (FR-037). Every status change of one of the
 customer's own orders, oldest first, from `order_events`
@@ -345,7 +345,7 @@ happened.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-28 | Proposed: [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | For G3 |
+| 2026-10-28 | **Agreed:** [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | @nnamdi-security, technical lead (G3, PR #164) |
 | 2026-10-24 | **Agreed:** `OrderRead` gains `delivery_window`, `price` and `water_category` (additive; `null` until confirmed). The proposed customer cancellation SMS is dropped (F10). See [Customer pilot changes](#customer-pilot-changes-99) | Technical lead (G3); backend and customer UI reviews on the build PR |
 | 2026-10-22 | Proposed: the fields above and a customer cancellation SMS | Superseded by 2026-10-24 |
 | 2026-10-22 | `AdminOrderDetail` gains `water_category`, `source`, `delivery_window`, `price` (manual quote snapshot) and `confirmation_sms`; `POST /admin/orders/{reference}/transition` confirms an order (rows 26 and 7). All additive. Defined in [deliveries.md](deliveries.md#order-confirmation-endpoints) | Technical lead, @chidimmamogbo (G3, PR #111) |

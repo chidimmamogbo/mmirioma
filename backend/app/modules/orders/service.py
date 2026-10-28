@@ -535,7 +535,9 @@ async def customer_order_history(
     events = await session.scalars(
         select(OrderEvent)
         .where(OrderEvent.order_id == order.id)
-        # id breaks ties between the two events of one transaction (rows 26 and 7).
+        # Events written together get increasing times (rows 26 and 7, 1 µs
+        # apart: confirmation/service.py), so time alone orders them; the
+        # random id only keeps the order stable if two times ever tie.
         .order_by(OrderEvent.created_at, OrderEvent.id)
     )
     return list(events)
