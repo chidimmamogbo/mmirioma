@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
+import { EndDialogs } from './EndDialogs'
 import { EligibilityCard, OtherReports, PickupEvidenceView } from './Evidence'
 import { FailureNotice, HoldFrame } from './HoldFrame'
 import { CONTINUE_OFF, CONTINUE_TOAST, decisionFailure, type DecisionFailure } from './logic'
@@ -17,6 +18,7 @@ export function SourceReview({ reference, customer, hold, onClose, onDecided, on
   const pickup = hold.pickup!
   const decide = useContinueSource(reference)
   const [asking, setAsking] = useState(false)
+  const [ending, setEnding] = useState<'fail' | 'cancel' | null>(null)
   const [failure, setFailure] = useState<DecisionFailure | null>(null)
   // The answer on the card: the evidence's, until a refusal at the request brings a new one.
   const [refusal, setRefusal] = useState<{ answer: 'not_eligible' | 'cannot_check'; message: string } | null>(null)
@@ -44,12 +46,20 @@ export function SourceReview({ reference, customer, hold, onClose, onDecided, on
       reference={reference}
       customer={customer}
       hold={hold}
-      locked={decide.isPending || asking}
+      locked={decide.isPending || asking || ending !== null}
       onClose={onClose}
       footer={
-        <Button size="sm" block={false} disabled={!canContinue} onClick={() => setAsking(true)}>
-          Continue delivery
-        </Button>
+        <>
+          <Button variant="line-danger" size="sm" block={false} onClick={() => setEnding('cancel')}>
+            Cancel order
+          </Button>
+          <Button variant="line-danger" size="sm" block={false} onClick={() => setEnding('fail')}>
+            Fail delivery
+          </Button>
+          <Button size="sm" block={false} disabled={!canContinue} onClick={() => setAsking(true)}>
+            Continue delivery
+          </Button>
+        </>
       }
     >
       <PickupEvidenceView pickup={pickup} />
@@ -73,6 +83,8 @@ export function SourceReview({ reference, customer, hold, onClose, onDecided, on
       >
         The driver can continue to the customer.
       </NoteDialog>
+
+      <EndDialogs ending={ending} reference={reference} hold={hold} onClose={() => setEnding(null)} onDone={onDecided} onRefresh={onRefresh} />
     </HoldFrame>
   )
 }

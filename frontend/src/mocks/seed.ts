@@ -92,10 +92,10 @@ export interface StoredJob extends PartnerJob {
   station: JobPlace & { address: string }
   customer: JobPlace & { address: string; contact_name: string; phone: string }
   /**
-   * The mocks never fail or dispute a job; the admin statuses for those are
-   * still open (api-mapping.md, open question 5, #15).
+   * The mocks never dispute a job (`under_review`). An administrator can fail
+   * one, from a held job or an accepted one (admin-hold-review.md, FAIL).
    */
-  stage: Exclude<JobStage, 'failed' | 'under_review'>
+  stage: Exclude<JobStage, 'under_review'>
   /** Staff only (admin screens); partners never see it (FR-040, BR-13). */
   payment_status: PaymentStatus
   /** Partner who has (or is assigned) the job. */
@@ -116,6 +116,8 @@ export interface StoredJob extends PartnerJob {
   past_hold?: MockHold | null
   /** Set when an administrator withdrew the job (the driver, when, the note): the hold closed with it, and the history shows the withdraw. */
   withdrawn?: { driver: string; at: string; note: string | null } | null
+  /** Set when an administrator failed or cancelled the job from the admin screens: why, who, when, for the history. Any open hold closed with it. */
+  ended?: { kind: 'failed' | 'cancelled'; reason_code: string; note: string | null; by: string; at: string } | null
   /** The decision on `past_hold` (who, when, the note), for the history and the decided card. */
   hold_decision?: { decision: 'proof_approved' | 'proof_rejected' | 'source_continued' | 'unsafe_resumed'; by: string; at: string; note: string } | null
   /** When the order was placed (admin lists). */

@@ -7,6 +7,7 @@ import {
   continueSource,
   createOrderForCustomer,
   decideProof,
+  getCancellationOutcome,
   getDashboard,
   getHoldReview,
   getOrder as getAdminOrder,
@@ -20,6 +21,7 @@ import {
   savePriceList,
   setRiderApproval,
   setStationOpen,
+  transitionOrder,
   uploadStationPapers,
   verifyCustomerPhone,
   withdrawJob,
@@ -376,6 +378,79 @@ describe('hold review (#166)', () => {
       await withdrawJob(UNSAFE, { expected_status: 'accepted', note: null })
       await expect(withdrawJob(UNSAFE, { expected_status: 'accepted', note: null })).rejects.toMatchObject({ status: 404, code: 'assignment_not_found', message: 'This order has no driver assigned' })
       expect((await getAdminOrder(SOURCE_OK)).hold).not.toBeNull()
+    })
+  })
+
+  describe('fail and cancel (FAIL, CANCEL)', () => {
+    const SOURCE_OK = 'MO-8SRC5LV3QE'
+    const UNSAFE = 'MO-9UNS4VH2ZC'
+    const fail = (over: Record<string, unknown> = {}) =>
+      ({ to: 'failed', expected_status: 'collected', reason_code: 'source_quality_concern', note: 'Source flooded. Driver cannot use it.', hold_id: 'hold-source-2', ...over }) as Parameters<typeof transitionOrder>[1]
+    const cancel = (over: Record<string, unknown> = {}) =>
+      ({ to: 'cancelled', expected_status: 'accepted', reason_code: 'mmirioma_unable', note: null, hold_id: 'hold-unsafe-1', ...over }) as Parameters<typeof transitionOrder>[1]
+
+    it('says what a cancel costs the customer in the server’s sentence, and refuses one that cannot be cancelled', async () => {
+      expect(await getCancellationOutcome(UNSAFE)).toEqual({ reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
+      await expect(getCancellationOutcome('MO-0000000000')).rejects.toMatchObject({ status: 404, code: 'order_not_found' })
+      await transitionOrder(UNSAFE, cancel())
+      await expect(getCancellationOutcome(UNSAFE)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+    })
+
+    it('fails a held delivery: the order shows Delivery failed, the hold closes with it, and the history says why', async () => {
+      await transitionOrder(SOURCE_OK, fail())
+      const order = await getAdminOrder(SOURCE_OK)
+      expect([order.status, order.hold]).toEqual(['failed', null])
+      expect(order.timeline.map((t) => t.label).slice(-2)).toEqual(['Hold opened: Source review', 'Delivery failed'])
+      expect(order.timeline.at(-1)!.detail).toBe('Chidimma M. · Source quality concern · "Source flooded. Driver cannot use it."')
+      // A hold closed by a fail has no decision line.
+      expect(order.timeline.some((t) => /Source continued/.test(t.label))).toBe(false)
+      expect(read().admin.audit[0].action).toMatch(/Failed the delivery of/)
+      expect((await listOrders('on_hold')).counts.on_hold).toBe(3)
+    })
+
+    it('cancels from a hold: the order is cancelled, the hold closes, and the driver is not notified', async () => {
+      const notifications = read().partners[DANIEL_ID].notifications.length
+      await transitionOrder(UNSAFE, cancel({ note: 'Road closed for the day.' }))
+      const order = await getAdminOrder(UNSAFE)
+      expect([order.status, order.hold]).toEqual(['cancelled', null])
+      expect(order.timeline.at(-1)).toMatchObject({ label: 'Cancelled', detail: 'Chidimma M. · MmiriOma is unable to deliver · "Road closed for the day."' })
+      expect(read().partners[DANIEL_ID].notifications).toHaveLength(notifications)
+    })
+
+    it('fails an accepted job that has no hold, and sends no hold id', async () => {
+      const job = read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!
+      job.stage = 'accepted'
+      await transitionOrder('MO-3HT8WQ2KZP', { to: 'failed', expected_status: 'accepted', reason_code: 'unsafe_access', note: null, hold_id: null })
+      expect((await getAdminOrder('MO-3HT8WQ2KZP')).status).toBe('failed')
+    })
+
+    it('refuses a status the dispatcher did not see, an order that cannot move, and a hold that is not open, changing nothing', async () => {
+      await expect(transitionOrder(SOURCE_OK, fail({ expected_status: 'accepted' }))).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      await expect(transitionOrder(SOURCE_OK, fail({ hold_id: 'old-hold' }))).rejects.toMatchObject({ status: 409, code: 'hold_not_open' })
+      // An order still in the pool (confirmed, no driver) cannot be failed: row 20 starts at assigned.
+      await expect(transitionOrder('MO-6RTA2KXP9B', { to: 'failed', expected_status: 'confirmed', reason_code: 'unsafe_access', note: null, hold_id: null })).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      await transitionOrder(UNSAFE, cancel())
+      await expect(transitionOrder(UNSAFE, cancel())).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      expect((await getAdminOrder(SOURCE_OK)).hold).not.toBeNull()
+    })
+
+    it('checks the reason and the note (422): Other needs a note, and only the agreed reasons exist', async () => {
+      const refusal = async (request: Parameters<typeof transitionOrder>[1]) => {
+        const error = await transitionOrder(SOURCE_OK, request).then(() => null, (e: unknown) => e as { code: string; details: { loc: string[] }[] })
+        expect(error?.code).toBe('validation_error')
+        return error!.details.map((d) => d.loc.join('.'))
+      }
+      expect(await refusal(fail({ reason_code: 'other', note: '  ' }))).toEqual(['body.note'])
+      expect(await refusal(fail({ reason_code: 'vehicle_failure' }))).toEqual(['body.reason_code'])
+      expect(await refusal(cancel({ reason_code: 'customer_request' }))).toEqual(['body.reason_code'])
+      expect((await getAdminOrder(SOURCE_OK)).hold).not.toBeNull()
+    })
+
+    it('refuses customers and partners (403)', async () => {
+      await mockLogout()
+      await mockLogin(RIDER)
+      await expect(getCancellationOutcome(UNSAFE)).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+      await expect(transitionOrder(UNSAFE, cancel())).rejects.toMatchObject({ status: 403, code: 'forbidden' })
     })
   })
 })

@@ -11,7 +11,7 @@ import { apiClient, type ApiClient } from '../../../lib/api/client'
 import { withdrawAssignment, type WithdrawRequest } from '../../../lib/api/adminDispatch'
 import * as holds from '../../../lib/api/adminHolds'
 
-export type { HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../../../lib/api/adminHolds'
+export type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../../../lib/api/adminHolds'
 export type { WithdrawRequest } from '../../../lib/api/adminDispatch'
 
 /**
@@ -53,6 +53,29 @@ export async function continueSource(reference: string, request: holds.HoldDecis
  */
 export async function resumeUnsafe(reference: string, request: holds.HoldDecisionRequest, client: ApiClient = apiClient): Promise<void> {
   await holds.resumeUnsafe(reference, request, client)
+}
+
+/**
+ * What cancelling with `mmirioma_unable` would cost the customer: the server's
+ * sentence, shown as written (the dialog never states a cost it worked out).
+ *
+ * @throws {ApiError} 409 `invalid_order_transition` (the order cannot be
+ *   cancelled, row 23); 404 `order_not_found`; `invalid_response`.
+ */
+export function getCancellationOutcome(reference: string, client: ApiClient = apiClient): Promise<holds.CancellationOutcome> {
+  return holds.getCancellationOutcome(reference, undefined, client)
+}
+
+/**
+ * Fail a delivery (row 20) or cancel with `mmirioma_unable` (row 23). Every
+ * open hold on the job closes with it; nothing notifies the driver.
+ *
+ * @throws {ApiError} 409 `invalid_order_transition` (`expected_status` is not
+ *   the order's status, or it cannot move) or `hold_not_open`; 422
+ *   `validation_error`; 403 `csrf_failed`; `network_error`.
+ */
+export async function transitionOrder(reference: string, request: holds.AdminTransitionRequest, client: ApiClient = apiClient): Promise<void> {
+  await holds.transitionOrder(reference, request, client)
 }
 
 /**
