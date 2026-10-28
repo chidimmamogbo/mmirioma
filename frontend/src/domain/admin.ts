@@ -15,11 +15,23 @@ import type { ApprovalStatus } from './partner'
 /**
  * Admin's view of where an order is, from the job and the customer order (a-orders).
  * `failed` and `disputed` show the backend statuses of the same name
- * (api-mapping.md open question 5, decided in #15).
+ * (api-mapping.md open question 5, decided in #15). `awaiting_confirmation`
+ * covers a quote request and a priced order before a dispatcher confirms
+ * them: no rider can be assigned yet (admin-confirm-order.md, decision 3).
  */
-export type AdminOrderStatus = 'awaiting_rider' | 'assigned' | 'loading' | 'on_the_way' | 'delivered' | 'cancelled' | 'failed' | 'disputed'
+export type AdminOrderStatus =
+  | 'awaiting_confirmation'
+  | 'awaiting_rider'
+  | 'assigned'
+  | 'loading'
+  | 'on_the_way'
+  | 'delivered'
+  | 'cancelled'
+  | 'failed'
+  | 'disputed'
 
 export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
+  awaiting_confirmation: 'Awaiting confirmation',
   awaiting_rider: 'Awaiting rider',
   assigned: 'Assigned',
   loading: 'Loading',
@@ -41,7 +53,7 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
 export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
 /** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
-export type AdminOrderFilter = 'all' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
+export type AdminOrderFilter = 'all' | 'awaiting_confirmation' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
 
 export interface AdminOrderPartner {
   id: string

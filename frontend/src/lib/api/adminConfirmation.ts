@@ -27,6 +27,12 @@ const sourceOptionSchema = z.object({
   is_simulated: z.boolean(),
   /** Empty means the source may be chosen for this category (FR-012). */
   reasons: z.array(z.enum(SOURCE_REASONS)),
+  /**
+   * Where it collects water, or `null` until set (amendment #72). A quoted
+   * Tanker order needs the customer's kind. Missing (an older server) reads
+   * as `null`. Never a quality claim (FR-014).
+   */
+  kind: z.enum(['ninth_mile', 'borehole']).nullable().default(null),
 })
 /** One source for one category. The cost per litre is never sent. */
 export type SourceOption = z.infer<typeof sourceOptionSchema>
@@ -46,17 +52,27 @@ const optionsSchema = z.object({ categories: z.array(categoryOptionsSchema) })
 export const CONFIRMATION_REQUIREMENTS = ['phone_verified', 'source_eligible', 'delivery_window_set'] as const
 export type ConfirmationRequirement = (typeof CONFIRMATION_REQUIREMENTS)[number]
 
-/** Body of `POST .../transition` with `to: confirmed` (rows 26 and 7). */
+/**
+ * Body of `POST .../transition` with `to: confirmed`: a quote request with a
+ * manual total (rows 26 and 7), or an order placed with a server quote (row 7
+ * alone, #21), which sends no total.
+ */
 export interface ConfirmRequest {
   to: 'confirmed'
-  /** Only `quote_requested` orders can be confirmed in the pilot. */
-  expected_status: 'quote_requested'
+  /** `quote_requested` (manual price) or `awaiting_confirmation` (server price). */
+  expected_status: 'quote_requested' | 'awaiting_confirmation'
+  /** For a quoted order, the quote's category (amendment #72), else 422. */
   water_category_id: string
+  /** For a quoted Tanker order, a source of the customer's kind, else 422. */
   source_id: string
   /** Aware ISO timestamps; the end after the start, the start not in the past. */
   delivery_window: DeliveryWindow
-  /** Integer kobo, a whole naira (multiple of 100), at least 100. No upper limit (decision 7). */
-  manual_quote_total_minor_units: number
+  /**
+   * With `quote_requested`: integer kobo, a whole naira (multiple of 100), at
+   * least 100, no upper limit (decision 7). With `awaiting_confirmation`:
+   * absent (422 if sent); the quote's total is confirmed.
+   */
+  manual_quote_total_minor_units?: number
   customer_agreement: {
     method: AgreementMethod
     /** Aware ISO timestamp, not in the future, not before the order was sent. */
@@ -106,9 +122,10 @@ export async function getConfirmationOptions(
 }
 
 /**
- * Confirm an order with a manual quote, window, category and source
- * (`POST .../transition`, `to: confirmed`). One request writes rows 26 and 7;
- * the confirmation SMS is sent after it and its outcome is on the order.
+ * Confirm an order with its window, category and source, and a manual quote
+ * for a quote request (`POST .../transition`, `to: confirmed`). One request
+ * writes rows 26 and 7 (row 7 alone for a quoted order); the confirmation
+ * SMS is sent after it and its outcome is on the order.
  *
  * @returns The order, now `confirmed`.
  * @throws {ApiError} `transition_requirements_unmet` (409, `details.missing`);

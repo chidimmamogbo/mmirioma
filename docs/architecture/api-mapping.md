@@ -279,7 +279,8 @@ Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).
 
 | Backend `status` | Design status |
 | --- | --- |
-| `quote_requested`, `awaiting_confirmation`, `confirmed`, `awaiting_payment` | `awaiting_rider` |
+| `quote_requested`, `awaiting_confirmation` | `awaiting_confirmation` ("Awaiting confirmation"; [admin-confirm-order.md](../design/admin-confirm-order.md), decision 3, built in #136) |
+| `confirmed`, `awaiting_payment` | `awaiting_rider` |
 | `assigned`, `accepted` | `assigned` |
 | `departed` | `loading` |
 | `collected`, `en_route`, `arrived`, `unloading` | `on_the_way` |
@@ -305,5 +306,5 @@ in full (#19).
 | 2 | ~~Keke 25 L × 12 cans is 300 L, below the 600 L minimum~~ Decided: removed (decision 4) | done |
 | 3 | ~~A customer stage for a status the app does not know~~ Decided in #9: a new stage `order_update`, labelled "Order update" as the contract asks ([Customer order stage](#customer-order-stage)) | done |
 | 4 | ~~Partner stages for `failed` and `disputed`~~ Decided: `failed` and `under_review` ([Partner job stage](#partner-job-stage)) | done |
-| 5 | ~~Admin statuses for `failed` and `disputed`~~ Decided in #15: their own admin statuses, "Delivery failed" and "Disputed" ([Admin order status](#admin-order-status)). Whether staff also need the backend's own labels to confirm orders before dispatch stays with #17 | done |
+| 5 | ~~Admin statuses for `failed` and `disputed`~~ Decided in #15: their own admin statuses, "Delivery failed" and "Disputed" ([Admin order status](#admin-order-status)). Staff confirm orders before dispatch under "Awaiting confirmation" (#72, built in #136) | done |
 | 6 | ~~The design's "available" job pool has no backend endpoint~~ Decided: no pool in the MVP; `listAvailableJobs` returns `[]` ([Available orders and declining](#available-orders-and-declining)) | done |

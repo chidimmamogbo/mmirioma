@@ -27,7 +27,9 @@ const page = (items: AdminOrderRead[], total = items.length) => ({ items, total,
 
 describe('adminStatusFromBackend', () => {
   it('follows api-mapping.md, with failed and disputed as their own statuses', () => {
-    expect(adminStatusFromBackend('quote_requested')).toBe('awaiting_rider')
+    // Not confirmed yet: no rider can be assigned (admin-confirm-order.md, decision 3).
+    expect(adminStatusFromBackend('quote_requested')).toBe('awaiting_confirmation')
+    expect(adminStatusFromBackend('awaiting_confirmation')).toBe('awaiting_confirmation')
     expect(adminStatusFromBackend('confirmed')).toBe('awaiting_rider')
     expect(adminStatusFromBackend('accepted')).toBe('assigned')
     expect(adminStatusFromBackend('departed')).toBe('loading')
@@ -109,9 +111,18 @@ describe('listOrders (real)', () => {
     expect(result.counts.delivered).toBe(7)
     expect(result.counts.all).toBe(3)
     const listCall = fetch.mock.calls.map((c) => String(c[0])).find((u) => u.includes('limit=100'))!
+    expect(listCall).toContain('status=confirmed')
+    expect(listCall).toContain('status=awaiting_payment')
+    expect(listCall).not.toContain('status=quote_requested')
+  })
+
+  it('lists quote requests and priced orders under "Awaiting confirmation"', async () => {
+    const { fetch, client } = clientByUrl(() => ({ body: page([ROW]) }))
+    await listOrders('awaiting_confirmation', undefined, client)
+    const listCall = fetch.mock.calls.map((c) => String(c[0])).find((u) => u.includes('limit=100'))!
     expect(listCall).toContain('status=quote_requested')
     expect(listCall).toContain('status=awaiting_confirmation')
-    expect(listCall).toContain('status=confirmed')
+    expect(listCall).not.toContain('status=confirmed')
   })
 
   it('looks a reference up directly', async () => {
@@ -125,7 +136,7 @@ describe('listOrders (real)', () => {
     const { client } = clientByUrl(() => ({ body: NOT_FOUND, status: 404 }))
     expect(await listOrders('all', 'MO-0000000000', client)).toEqual({
       orders: [],
-      counts: { all: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 },
+      counts: { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 },
     })
   })
 
