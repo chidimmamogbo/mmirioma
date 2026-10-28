@@ -648,8 +648,9 @@ Every category, by label, so the order is the same on every call
 - "Error codes" and "Data needed" do not change: no new error code, table or
   column. The endpoint reads the existing `water_categories` table.
 
-Built in #161. Until it is built, the Water picker offers "Every water" and the
-categories the zone list names (admin-pricing.md, decision 8).
+Built in #161 (`GET /admin/water-categories`). Until the Pricing link reads
+it, the Water picker offers "Every water" and the categories the zone list
+names (admin-pricing.md, decision 8).
 
 #### GET /service-zones
 
