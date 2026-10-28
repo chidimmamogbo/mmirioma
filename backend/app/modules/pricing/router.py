@@ -42,6 +42,7 @@ from app.modules.pricing.schemas import (
     ServiceZoneOptionList,
     ServiceZoneRead,
     ServiceZoneUpdate,
+    WaterCategoryRef,
     quote_read,
 )
 
@@ -63,9 +64,18 @@ _WRITE_ERRORS: dict[int | str, dict[str, object]] = {
 
 @router.get("/admin/service-zones", responses=_ADMIN_ERRORS)
 async def list_zones(admin: CurrentAdmin, db: DbSession) -> ServiceZoneList:
-    """Every zone, active or not, by name, with its fees (no pagination)."""
+    """Every zone, active or not, by name, with its fees (no pagination).
+
+    Also names the pilot water category (amendment #74): the one quotes price.
+    """
     views = await service.list_zones(db)
-    return ServiceZoneList(items=[ServiceZoneRead.from_view(view) for view in views])
+    category = await quotes.pilot_category(db)
+    return ServiceZoneList(
+        items=[ServiceZoneRead.from_view(view) for view in views],
+        pilot_water_category=(
+            WaterCategoryRef(id=category.id, label=category.label) if category else None
+        ),
+    )
 
 
 @router.post("/admin/service-zones", status_code=HTTPStatus.CREATED, responses=_WRITE_ERRORS)

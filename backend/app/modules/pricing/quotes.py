@@ -171,7 +171,13 @@ def compute_price(
     return Breakdown(water, delivery, handling, margin, total - subtotal, total)
 
 
-async def _pilot_category(session: AsyncSession) -> WaterCategory | None:
+async def pilot_category(session: AsyncSession) -> WaterCategory | None:
+    """Return the category every pilot quote prices, if it exists.
+
+    It is the category whose ``code`` is the ``PILOT_WATER_CATEGORY`` setting.
+    ``GET /admin/service-zones`` returns it too (amendment #74, built in #109),
+    so admins edit the fee of the same category quotes use.
+    """
     code = get_settings().pilot_water_category
     for category in await sources.list_categories(session):
         if category.code == code:
@@ -222,7 +228,7 @@ async def create_quote(
     if zone is None or not zone.is_active:
         return manual(ManualReason.OUTSIDE_SERVICE_ZONE)
 
-    category = await _pilot_category(session)
+    category = await pilot_category(session)
     if (
         category is None
         or not category.is_active
