@@ -788,6 +788,7 @@ export async function createOrderForCustomer(input: CreateOrderByAdminInput): Pr
       eta_minutes: null,
       delivery_code: newDeliveryCode(),
       timeline: [{ label: 'Order placed', at: now, detail: `By support (${actor})` }],
+      delivery_window: null,
       delivered_at: null,
       delivered_quantity: null,
       points_earned: null,

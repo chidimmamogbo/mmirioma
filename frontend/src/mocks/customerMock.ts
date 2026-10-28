@@ -295,6 +295,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CustomerOrde
         eta_minutes: null,
         delivery_code: newDeliveryCode(),
         timeline: [{ label: 'Order placed', at: now }],
+        delivery_window: null,
         delivered_at: null,
         delivered_quantity: null,
         points_earned: null,

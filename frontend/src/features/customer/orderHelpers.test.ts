@@ -20,6 +20,7 @@ const ORDER: CustomerOrder = {
   eta_minutes: null,
   delivery_code: null,
   timeline: [],
+  delivery_window: null,
   delivered_at: null,
   delivered_quantity: null,
   points_earned: null,
