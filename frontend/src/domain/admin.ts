@@ -85,6 +85,13 @@ export interface AdminOrder {
   /** `status` is `null` when the server sends none (the order list, or before confirmation). */
   payment: { method: PaymentMethod; status: AdminPaymentStatus | null }
   status: AdminOrderStatus
+  /**
+   * The server's own order status behind `status`, for the few places that must
+   * tell apart statuses the design groups: only a `confirmed` order can be
+   * assigned, but `awaiting_rider` also covers `awaiting_payment` (#144). Absent
+   * in mock mode, which has no such statuses.
+   */
+  backend_status?: string
   partner: AdminOrderPartner | null
   assigned_by: string | null
   /** Where the water is collected, once a source is chosen; `null` before. */

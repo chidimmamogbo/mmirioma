@@ -124,6 +124,7 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
     // Every pilot order is pay on delivery (F4); the status comes with the detail only.
     payment: { method: 'pay_on_delivery', status: (detail?.payment && PAYMENT_BY_BACKEND[detail.payment.status]) ?? null },
     status: adminStatusFromBackend(read.status),
+    backend_status: read.status,
     partner: live
       ? {
           id: live.driver.id,
