@@ -54,6 +54,10 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
   // No tries count yet means no code was issued yet: wait for it, never "locked" (@chidimmamogbo on #12).
   const waiting = j.code_tries_left === null
   const locked = (j.code_tries_left !== null && j.code_tries_left <= 0) || (verify.error instanceof ApiError && verify.error.code === 'code_locked')
+  // The backend still stores a code whose SMS was refused; never say it was sent (FR-050, #138).
+  const smsFailed = j.code_sms_status === 'failed'
+  // An expired code is not a wrong one: the driver needs a new code, not another try (#138).
+  const expired = verify.error instanceof ApiError && verify.error.code === 'delivery_code_expired'
   const firstName = j.customer.contact_name?.split(' ')[0] ?? 'the customer'
   const keke = jobDeliveryType(j, vehicle) === 'keke'
   const tankType = j.choice?.delivery_type === 'tanker' ? j.choice.tank_type : null
@@ -62,8 +66,8 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
   function submit() {
     verify.mutate(code, {
       onSuccess: () => navigate(`${base}/jobs/${j.reference}/done`, { replace: true }),
-      onError: () => {
-        setWrong(code)
+      onError: (error) => {
+        if (!(error instanceof ApiError && error.code === 'delivery_code_expired')) setWrong(code)
       },
     })
   }
@@ -74,7 +78,9 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
     verify.reset()
   }
 
-  const showError = wrong !== null || locked
+  const showError = wrong !== null || locked || expired
+  // A new code is sent here and in the "Send a new code" card; `tryAgain` clears the error either way.
+  const newCodeSent = resend.isSuccess && !smsFailed
   return (
     <MobileShell>
       <TopBar left={<BackLink to={`${base}/jobs/${j.reference}/customer`} />} />
@@ -85,7 +91,9 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           sub={
             showError
               ? `${j.reference}${contactSuffix(j)}`
-              : keke
+              : smsFailed
+                ? `The code could not be sent to ${j.customer.contact_name ? `${firstName}'s phone` : 'the customer'}. Send a new code.`
+                : keke
                 ? `Pour the water first. Then ask the customer for the 6-digit code we sent to their phone${j.customer.phone ? ` ending ${phoneEnding(j.customer.phone)}` : ''}.`
                 : `Pump the water in first, then ask ${firstName} for the 6-digit code sent to their phone.`
           }
@@ -107,6 +115,10 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
                 <div>
                   <b>Too many wrong codes.</b> The code is locked. Ask admin to confirm the delivery.
                 </div>
+              ) : expired ? (
+                <div>
+                  <b>This code has expired.</b> Send a new code, then ask the customer to read it to you.
+                </div>
               ) : (
                 <div>
                   <b>That code is not right.</b> Ask the customer to read it again. You have{' '}
@@ -117,7 +129,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
                 </div>
               )}
             </div>
-            {!locked && (
+            {!locked && !expired && (
               <Button className="rise-3" onClick={tryAgain}>
                 Try again
               </Button>
@@ -141,7 +153,7 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
               >
                 {wait > 0 ? `Send a new code in ${mmss(wait)}` : 'Send a new code'}
               </Button>
-              {resend.isSuccess && <Notice tone="success">A new code was sent to the customer.</Notice>}
+              {newCodeSent && <Notice tone="success">A new code was sent to the customer.</Notice>}
               {resend.isError && <Notice tone="error">{errorMessage(resend.error)}</Notice>}
             </Card>
             <Link to={issueLink} className="rise-5 text-center text-sub font-bold text-primary no-underline hover:text-primary-dark">
@@ -161,18 +173,30 @@ function CodeEntryScreen({ job: j }: { job: PartnerJob }) {
           </>
         ) : (
           <>
-            <div className="rise-3 flex justify-between text-[13px]">
-              <span className="text-mute">Code sent to customer</span>
-              <button
-                type="button"
-                disabled={wait > 0 || resend.isPending}
-                onClick={() => resend.mutate()}
-                className="cursor-pointer border-0 bg-transparent p-0 font-bold text-primary disabled:cursor-default"
-              >
-                {wait > 0 ? `Resend in ${mmss(wait)}` : 'Resend code'}
-              </button>
-            </div>
-            {resend.isSuccess && <Notice tone="success">A new code was sent to the customer.</Notice>}
+            {smsFailed ? (
+              <>
+                <Notice className="rise-3" tone="error">
+                  <b>The code could not be sent to the customer.</b> Send a new code.
+                </Notice>
+                <Button className="rise-3 h-[46px]" variant="alt" disabled={wait > 0} loading={resend.isPending} onClick={() => resend.mutate()}>
+                  {wait > 0 ? `Send a new code in ${mmss(wait)}` : 'Send a new code'}
+                </Button>
+              </>
+            ) : (
+              <div className="rise-3 flex justify-between text-[13px]">
+                <span className="text-mute">Code sent to customer</span>
+                <button
+                  type="button"
+                  disabled={wait > 0 || resend.isPending}
+                  onClick={() => resend.mutate()}
+                  className="cursor-pointer border-0 bg-transparent p-0 font-bold text-primary disabled:cursor-default"
+                >
+                  {wait > 0 ? `Resend in ${mmss(wait)}` : 'Resend code'}
+                </button>
+              </div>
+            )}
+            {newCodeSent && <Notice tone="success">A new code was sent to the customer.</Notice>}
+            {resend.isError && smsFailed && <Notice tone="error">{errorMessage(resend.error)}</Notice>}
             <div className="rise-4">
               <Keypad value={code} onChange={setCode} disabled={verify.isPending} />
             </div>

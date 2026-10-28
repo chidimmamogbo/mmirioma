@@ -56,6 +56,7 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   delete copy.partner_id
   delete copy.declined_by
   delete copy.mock_code
+  delete copy.mock_code_expired
   // Partners never see the order's payment status (FR-040, BR-13).
   delete copy.payment_status
   const code = job.stage === 'collected' && job.code_tries_left !== null ? codeFor(s, job) : null
@@ -316,8 +317,25 @@ export async function completeUnloading(reference: string): Promise<PartnerJob> 
       if (!findCustomerOrder(s, reference)) job.mock_code ??= newDeliveryCode()
       job.code_tries_left = CODE_TRIES
       job.code_resend_at = new Date(Date.now() + RESEND_SECONDS * 1000).toISOString()
+      job.code_sms_status = 'accepted'
     }
     return view(s, job)
+  })
+}
+
+/**
+ * Demo and test switch: make the job's current code look like the backend's
+ * trouble cases (#138). `sms_failed`: the SMS was refused, so the code was
+ * not sent. `expired`: `verifyCode` answers `delivery_code_expired`. `null`
+ * clears both. A new code (`resendCode`) clears them too.
+ *
+ * @throws 409 `transition_requirements_unmet` before unloading is done.
+ */
+export function simulateCodeProblem(reference: string, problem: 'sms_failed' | 'expired' | null): void {
+  mutate((s) => {
+    const job = waitingCode(s, reference)
+    job.code_sms_status = problem === 'sms_failed' ? 'failed' : 'accepted'
+    job.mock_code_expired = problem === 'expired'
   })
 }
 
@@ -334,6 +352,7 @@ export async function verifyCode(reference: string, code: string): Promise<Partn
     const { data } = partnerOf(s)
     const job = waitingCode(s, reference)
     if (job.code_tries_left <= 0) throw mockError(423, 'code_locked', 'Too many wrong codes. Ask admin to confirm the delivery.')
+    if (job.mock_code_expired) throw mockError(400, 'delivery_code_expired', 'This code has expired. Send a new code.')
     if (code !== codeFor(s, job)) {
       job.code_tries_left -= 1
       if (job.code_tries_left <= 0) throw mockError(423, 'code_locked', 'Too many wrong codes. Ask admin to confirm the delivery.')
@@ -357,6 +376,8 @@ export async function resendCode(reference: string): Promise<PartnerJob> {
     else job.mock_code = fresh
     job.code_tries_left = CODE_TRIES
     job.code_resend_at = new Date(Date.now() + RESEND_SECONDS * 1000).toISOString()
+    job.code_sms_status = 'accepted'
+    job.mock_code_expired = false
     return view(s, job)
   })
 }
