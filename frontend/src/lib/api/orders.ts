@@ -202,3 +202,19 @@ export function getOrder(reference: string, signal?: AbortSignal, client: ApiCli
     signal,
   })
 }
+
+/** One status change of the customer's order (#155): the new status (any, as `OrderRead.status`) and when (UTC). */
+export interface OrderHistoryEntry {
+  status: AdminOrderStatus
+  at: string
+}
+
+/**
+ * Every status change of one of the customer's orders, oldest first
+ * (`GET /api/v1/orders/{reference}/history`, #155).
+ *
+ * @throws {ApiError} 404 `order_not_found`, also for another customer's order (T-07).
+ */
+export function getOrderHistory(reference: string, signal?: AbortSignal, client: ApiClient = apiClient) {
+  return client.request<{ items: OrderHistoryEntry[] }>(`/api/v1/orders/${encodeURIComponent(reference)}/history`, { signal })
+}

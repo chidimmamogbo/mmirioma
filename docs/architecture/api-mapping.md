@@ -192,6 +192,10 @@ built in #121).
 
 Adapters must never fail on an unknown `status` (docs/api/orders.md).
 
+The order timeline (`GET /orders/{reference}/history`, #155) uses this table:
+"Order placed", then one step each time the stage changes, so `assigned`
+adds nothing before the driver accepts.
+
 ## Partner job stage
 
 Backend driver job (`lib/api/driverJobs.ts`: `status` plus the order

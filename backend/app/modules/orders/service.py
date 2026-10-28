@@ -523,6 +523,24 @@ async def get_customer_order(
     return order
 
 
+async def customer_order_history(
+    session: AsyncSession, *, customer_id: uuid.UUID, reference: str
+) -> list[OrderEvent]:
+    """Return every status change of one of the customer's orders, oldest first (#155).
+
+    Raises:
+        APIError: 404 ``order_not_found``, also for another customer's order (T-07).
+    """
+    order = await get_customer_order(session, customer_id=customer_id, reference=reference)
+    events = await session.scalars(
+        select(OrderEvent)
+        .where(OrderEvent.order_id == order.id)
+        # id breaks ties between the two events of one transaction (rows 26 and 7).
+        .order_by(OrderEvent.created_at, OrderEvent.id)
+    )
+    return list(events)
+
+
 async def list_customer_orders(
     session: AsyncSession, *, customer_id: uuid.UUID, limit: int, offset: int
 ) -> tuple[list[Order], int]:

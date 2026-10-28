@@ -316,10 +316,36 @@ Decided by the technical lead on 2026-10-24.
    question 2). `payment_method` (and `payment_status`) come to customers
    with prepaid payments and their own designed states.
 
+## `GET /orders/{reference}/history` (#155)
+
+**Status: proposed** on 2026-10-28 by @Daveoski (+ Claude Code), for G3.
+
+The customer's order timeline (FR-037). Every status change of one of the
+customer's own orders, oldest first, from `order_events`
+([order-history.json](examples/order-history.json)):
+
+```json
+{ "items": [ { "status": "quote_requested", "at": "2026-10-28T08:00:00Z" }, { "status": "awaiting_confirmation", "at": "2026-10-28T08:00:00.000001Z" } ] }
+```
+
+- `status` is any order status, as `OrderRead.status` (clients never fail on
+  an unknown one); `at` is UTC. No actor, note or reason: those are staff
+  detail.
+- Customer only; 404 `order_not_found` for another customer's order (T-07).
+  No pagination: an order has few events.
+- The client shows each new customer stage once, with the agreed labels
+  ([api-mapping.md](../architecture/api-mapping.md), "Customer order stage"),
+  so `assigned` shows nothing new before the driver accepts (FR-032).
+
+Rejected: building the timeline from notifications. They are messages, sent
+for some steps only, so a missing one would read as a step that never
+happened.
+
 ## Changes
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-28 | Proposed: [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | For G3 |
 | 2026-10-24 | **Agreed:** `OrderRead` gains `delivery_window`, `price` and `water_category` (additive; `null` until confirmed). The proposed customer cancellation SMS is dropped (F10). See [Customer pilot changes](#customer-pilot-changes-99) | Technical lead (G3); backend and customer UI reviews on the build PR |
 | 2026-10-22 | Proposed: the fields above and a customer cancellation SMS | Superseded by 2026-10-24 |
 | 2026-10-22 | `AdminOrderDetail` gains `water_category`, `source`, `delivery_window`, `price` (manual quote snapshot) and `confirmation_sms`; `POST /admin/orders/{reference}/transition` confirms an order (rows 26 and 7). All additive. Defined in [deliveries.md](deliveries.md#order-confirmation-endpoints) | Technical lead, @chidimmamogbo (G3, PR #111) |
@@ -339,8 +365,9 @@ Decided by the technical lead on 2026-10-24.
 - Water category on the order (FR-023), once categories are approved (PRD §13.2).
 - Delivery slots (FR-025).
 - Admin confirm, cancel and the transitions marked "later" above.
-- Customer view of order history (`order_events`), delivered quantity and
-  cancel/fail reasons (customer design Q3, admin design screen 7).
+- Delivered quantity and cancel/fail reasons for customers (customer design
+  Q3, admin design screen 7). The order history itself is proposed above
+  (#155).
 - A delivery-date filter on the dispatcher queue once slots exist. Sprint 1
   filters on creation date, as the approved admin design does (resolves the
   former open question on FR-030's "date").
