@@ -11,7 +11,7 @@ Requirements: FR-036, FR-044, FR-050, NFR-004, SRS fallback F10 · Prompt:
 "GET /admin/orders/{reference}/cancellation-outcome" and "POST
 /admin/orders/{reference}/transition (fail and cancel)"
 Designer: @nnamdi-security + Claude Code (for #129, owner @Cloudcrackamara) ·
-Reviewed by: pending · Status: ready for review (G2)
+Reviewed by: @chidimmamogbo on 2026-10-28 · Status: approved (G2)
 
 The "Cancel this order" button on the Orders page's order panel is redesigned
 around the agreed cancel. It keeps its place and opens the CANCEL dialog of
