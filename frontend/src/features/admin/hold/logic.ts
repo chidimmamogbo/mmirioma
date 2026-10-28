@@ -270,6 +270,24 @@ export function canFail(order: { status: string; backend_status?: string }): boo
   return ['accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading'].includes(backendStatusFor(order))
 }
 
+/**
+ * Whether the order panel offers "Cancel this order" (admin-order-cancellation.md,
+ * decision 2). The contract refuses a cancel from cancelled, delivered and
+ * disputed (row 23), so the button is not on the page for those.
+ */
+export function canCancel(order: { status: string }): boolean {
+  return !['delivered', 'cancelled', 'disputed'].includes(order.status)
+}
+
+/**
+ * Whether a driver's job is live, so the CANCEL dialog may say it ends
+ * (decision 4). Before a rider is assigned, and after a failed delivery,
+ * there is no live assignment to end.
+ */
+export function hasLiveDriver(order: { status: string }): boolean {
+  return ['assigned', 'loading', 'on_the_way'].includes(order.status)
+}
+
 export const FAIL_TOAST = 'Delivery marked as failed.'
 export const CANCEL_TOAST = 'Order cancelled. Tell the customer.'
 

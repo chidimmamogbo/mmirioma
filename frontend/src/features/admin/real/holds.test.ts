@@ -129,6 +129,12 @@ describe('admin hold review adapters (#166)', () => {
     expect(sent().body).toEqual(request)
   })
 
+  it('transitionOrder passes a stale cancel through as 409 invalid_order_transition ("This order has changed.")', async () => {
+    const request = { to: 'cancelled' as const, expected_status: 'assigned' as const, reason_code: 'mmirioma_unable' as const, note: null, hold_id: null }
+    const error = await rejection(transitionOrder('MO-7KQ2M9XH4T', request, setup(envelope('invalid_order_transition'), 409).client))
+    expect([error.status, error.code]).toEqual([409, 'invalid_order_transition'])
+  })
+
   it.each([
     [409, 'hold_not_open'],
     [409, 'invalid_order_transition'],

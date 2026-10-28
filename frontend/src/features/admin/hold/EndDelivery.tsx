@@ -117,7 +117,25 @@ export function FailDialog({ reference, expectedStatus, hold, onClose, onDone, o
  * dispatcher tells them, fallback F10). Shared by the hold review sheet (#166)
  * and the order panel's entry (#129).
  */
-export function CancelDialog({ reference, expectedStatus, hold, liveDriver, onClose, onDone, onRefresh }: EndProps & { liveDriver: boolean }) {
+export function CancelDialog({
+  reference,
+  expectedStatus,
+  hold,
+  openHold = hold,
+  liveDriver,
+  onClose,
+  onDone,
+  onRefresh,
+}: EndProps & {
+  liveDriver: boolean
+  /**
+   * The open hold the cancel will close, for the line "This also closes the
+   * <kind> hold." Defaults to `hold`. The order panel's entry passes `hold={null}`
+   * (it sends no `hold_id`; the server closes every open hold on cancel) and
+   * the order's open hold here, so the dialog still says what happens.
+   */
+  openHold?: EndProps['hold']
+}) {
   const outcome = useCancellationOutcome(reference, true)
   const transition = useTransitionOrder(reference)
   const [note, setNote] = useState('')
@@ -192,7 +210,7 @@ export function CancelDialog({ reference, expectedStatus, hold, liveDriver, onCl
         <span className="text-sub">
           {liveDriver ? CANCEL_DRIVER_LIVE : CANCEL_DRIVER_NONE} <b>{CANCEL_CUSTOMER}</b>
         </span>
-        <HoldLine hold={hold} />
+        <HoldLine hold={openHold} />
         {failure && !failure.fields.note && <FailureNotice failure={failure} onRefresh={onRefresh} />}
       </span>
     </ConfirmDialog>
