@@ -1,0 +1,84 @@
+import { describe, expect, it, vi } from 'vitest'
+import adminOrderDetail from '../../../../../docs/api/examples/admin-order-detail.json'
+import { ApiError, createApiClient } from '../../../lib/api/client'
+import { decideProof, getHoldReview } from './holds'
+
+/** A client whose `fetch` answers every request with `body` and `status`, recording what was sent. */
+function setup(body: unknown, status = 200) {
+  const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
+  const client = createApiClient({ baseUrl: 'http://api.test', fetch: fetchMock })
+  client.setCsrfToken('csrf-token')
+  const sent = () => {
+    const [url, init] = fetchMock.mock.calls[0]
+    const request = init as RequestInit
+    return { url: String(url), method: request.method ?? 'GET', body: request.body ? JSON.parse(String(request.body)) : null }
+  }
+  return { client, sent }
+}
+
+const envelope = (code: string) => ({ error: { code, message: `Sample ${code}`, details: null } })
+
+async function rejection(promise: Promise<unknown>): Promise<ApiError> {
+  const error = await promise.then(
+    () => null,
+    (e: unknown) => e,
+  )
+  expect(error).toBeInstanceOf(ApiError)
+  return error as ApiError
+}
+
+const HOLD = {
+  id: 'hold-1',
+  kind: 'proof_review',
+  since: '2026-10-20T08:48:00Z',
+  order_status: 'unloading',
+  driver: { id: 'd1', name: 'Sample Driver One' },
+  proof: {
+    delivered_litres: 1000,
+    reason: 'customer_cannot_receive_code',
+    driver_note: 'Customer\'s phone is off.',
+    arrived_at: '2026-10-20T08:20:00Z',
+    unloading_completed_at: '2026-10-20T08:44:00Z',
+    sent_at: '2026-10-20T08:48:00Z',
+    delivery_code: { issued_at: '2026-10-20T08:44:00Z', sms_status: 'accepted', attempts_used: 3, attempts_limit: 5, expired: true },
+    contact_attempts: [],
+    location: null,
+  },
+  pickup: null,
+  source_eligibility: null,
+  report: null,
+  incidents: [],
+  withdraw_allowed: false,
+}
+
+describe('admin hold review adapters (#166)', () => {
+  it('getHoldReview reads the evidence for the order’s open hold', async () => {
+    const { client, sent } = setup(HOLD)
+    const review = await getHoldReview('MO-7KQ2M9XH4T', client)
+    expect(sent()).toMatchObject({ url: 'http://api.test/api/v1/admin/orders/MO-7KQ2M9XH4T/hold', method: 'GET' })
+    expect(review).toMatchObject({ id: 'hold-1', kind: 'proof_review', proof: { delivered_litres: 1000 } })
+  })
+
+  it('getHoldReview passes "no open hold" through as a 404', async () => {
+    const error = await rejection(getHoldReview('MO-7KQ2M9XH4T', setup(envelope('hold_not_found'), 404).client))
+    expect([error.status, error.code]).toEqual([404, 'hold_not_found'])
+  })
+
+  it('decideProof posts the decision with the hold id, and returns nothing', async () => {
+    // The server answers with the whole order; the adapter only reports that it worked.
+    const { client, sent } = setup({ ...adminOrderDetail, hold: null })
+    const request = { hold_id: 'hold-1', decision: 'reject' as const, note: 'The person who answered is not the customer.' }
+    await expect(decideProof('MO-7KQ2M9XH4T', request, client)).resolves.toBeUndefined()
+    expect(sent()).toMatchObject({ url: 'http://api.test/api/v1/admin/orders/MO-7KQ2M9XH4T/proof-overrides', method: 'POST', body: request })
+  })
+
+  it.each([
+    [403, 'own_delivery_override'],
+    [409, 'hold_not_open'],
+    [409, 'invalid_order_transition'],
+  ])('decideProof passes %i %s through', async (status, code) => {
+    const { client } = setup(envelope(code), status)
+    const error = await rejection(decideProof('MO-7KQ2M9XH4T', { hold_id: 'hold-1', decision: 'reject', note: 'No.' }, client))
+    expect([error.status, error.code]).toEqual([status, code])
+  })
+})

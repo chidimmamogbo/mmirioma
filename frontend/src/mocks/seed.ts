@@ -112,6 +112,10 @@ export interface StoredJob extends PartnerJob {
    * a stage. Admin decisions clear it.
    */
   hold?: MockHold | null
+  /** The hold that was open before an administrator decided it, so the history still shows how it opened. */
+  past_hold?: MockHold | null
+  /** The decision on `past_hold` (who, when, the note), for the history and the decided card. */
+  hold_decision?: { decision: 'proof_approved' | 'proof_rejected' | 'source_continued' | 'unsafe_resumed'; by: string; at: string; note: string } | null
   /** When the order was placed (admin lists). */
   created_at: string
 }
