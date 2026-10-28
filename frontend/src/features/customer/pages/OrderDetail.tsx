@@ -14,7 +14,7 @@ import { formatShortDate, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { useOrderDraft } from '../order/orderDraftContext'
 import { draftFromOrder } from '../order/reorder'
-import { PAYMENT_LABEL, PRICE_PENDING, orderIllustration, orderQuantityText } from '../orderHelpers'
+import { PAYMENT_LABEL, PRICE_PENDING, deliveryWindowText, orderIllustration, orderQuantityText } from '../orderHelpers'
 import { useAddresses, useOrder } from '../queries'
 import { POINTS_ENABLED } from '../../../lib/features'
 
@@ -42,6 +42,7 @@ export function OrderDetail() {
   }
 
   const keke = o?.choice?.delivery_type === 'keke'
+  const agreed = o ? deliveryWindowText(o) : null
   return (
     <MobileShell>
       <TopBar
@@ -119,6 +120,13 @@ export function OrderDetail() {
             </Card>
 
             <Card pad className="rise-3">
+              {/* The dispatcher's agreed window, not an arrival time; no row and no placeholder without one (customer-delivery-window.md). */}
+              {agreed && (
+                <>
+                  <KeyValue label="Delivery window" value={<span className="block text-right">{agreed.day}<br />{agreed.times}</span>} />
+                  <p className="m-0 mb-1 text-caption text-mute">The time agreed with the dispatcher. Not a live arrival time.</p>
+                </>
+              )}
               <KeyValue label="Deliver to" value={o.address_label ? `${o.address_label} · ${o.address.split(',')[0]}` : o.address} />
               <KeyValue label="Payment" value={paymentText(o)} />
               {/* The server sends the total only (order-details-and-price.md, decision 6); only mock orders have lines. */}
