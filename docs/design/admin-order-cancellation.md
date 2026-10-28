@@ -119,8 +119,8 @@ Design choices for the reviewer (G2):
 
 ## Change: the reason choice (#174)
 
-Status: **draft**, for G2 by one reviewer who is not the author. Drafted
-2026-10-28 by @Cloudcrackamara (+ Claude Code). Resolves open question 1 and
+Status: **approved** (G2) on 2026-10-28 by @nnamdi-security (technical lead), on
+PR #210. Drafted the same day by @Cloudcrackamara (+ Claude Code). Resolves open question 1 and
 replaces decision 3. The contract it uses is agreed and built: [Cancel because
 the customer asked (#174)](../api/deliveries.md#cancel-because-the-customer-asked-174)
 (G3, PR #203; backend in PR #208).
@@ -178,19 +178,7 @@ panel entry and the hold review sheet.
 
 ### Open questions
 
-1. The reason labels: "The customer asked to cancel" and "MmiriOma is unable to
-   deliver". Say at review if the first should read differently (for example
-   "Customer requested").
-
-## Changes to the design system
-
-None. The outlined danger button, the dialog and the toast already exist
-(handoff v1 and [admin-hold-review.md](admin-hold-review.md)).
-
-## After approval
-
-Open the link issue for `cancelOrder` (the Done-when item of #129): the entry
-on the order panel, the two dialog variants, and the adapter for
-`cancellation-outcome` and `transition` with `to: cancelled`, with the mock for
-`VITE_USE_MOCKS=true`. It depends on the CANCEL dialog from #166. The status
-label for a cancelled order needs no new row in `api-mapping.md`.
+None. The reason labels stay as written: "The customer asked to cancel" and
+"MmiriOma is unable to deliver" (@nnamdi-security, 2026-10-28). The note
+required at `unloading` (decision 13) applies to both reasons, as decided on
+PR #208.
