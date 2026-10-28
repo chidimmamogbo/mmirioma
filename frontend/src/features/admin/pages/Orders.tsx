@@ -246,10 +246,13 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         <h3 className="m-0 mt-2 mb-1 text-[15px] font-extrabold">Timeline</h3>
         <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
           {o.timeline.map((t, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-              <b>{t.label}</b> · {formatTime(t.at)}
-              {t.detail && <span className="text-mute"> · {t.detail}</span>}
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+              {/* The detail on its own line: confirmation lines are long (#136, Q5). */}
+              <span className="min-w-0">
+                <b>{t.label}</b> · {formatTime(t.at)}
+                {t.detail && <span className="block text-mute">{t.detail}</span>}
+              </span>
             </li>
           ))}
         </ol>

@@ -4,11 +4,12 @@ import optionsSample from '../../../../../docs/api/examples/confirmation-options
 import type { CategoryOptions } from '../../../lib/api/adminConfirmation'
 import { adminOrderEventSchema } from '../../../lib/api/adminDispatch'
 import { ApiError } from '../../../lib/api/client'
+import { timelineFromHistory } from '../real/orders'
 import {
   buildConfirmRequest,
   confirmKind,
   confirmProblem,
-  confirmationHistory,
+  confirmationLine,
   formErrors,
   lagosIso,
   requiredSourceKind,
@@ -151,20 +152,23 @@ describe('confirmProblem', () => {
   })
 })
 
-describe('confirmationHistory (Q5)', () => {
+describe('the confirmation in the order timeline (Q5)', () => {
   it('shows a price request as Order placed, Awaiting confirmation, then Confirmed (contract sample)', () => {
     const events = historyConfirmed.items.map((e) => adminOrderEventSchema.parse(e))
-    const lines = confirmationHistory('2026-10-19T08:00:00Z', events, (s, e) => `${s}-${e}`, (k) => `N${k / 100}`)
+    const lines = timelineFromHistory('2026-10-19T08:00:00Z', events)
     expect(lines.map((l) => l.label)).toEqual(['Order placed', 'Awaiting confirmation', 'Confirmed'])
-    expect(lines[1].detail).toBe('Manual price agreed with the customer')
-    expect(lines[2].detail).toBe('Potable Water · Sample Borehole A · 2026-10-20T09:00:00Z-2026-10-20T11:00:00Z · Manual price N45000')
-    expect(lines[2].note).toBe('Customer asked the driver to call on arrival.')
+    expect(lines[1].detail).toBe('Manual price agreed with the customer · Sample Dispatcher')
+    expect(lines[2].detail).toMatch(/^Potable Water · Sample Borehole A · .+ · Manual price ₦45,000 · Sample Dispatcher · Customer asked the driver to call on arrival\.$/)
   })
 
-  it('shows a priced order as Order placed then Confirmed with "Server price"', () => {
-    const confirmed = adminOrderEventSchema.parse({ ...historyConfirmed.items[0], from_status: 'awaiting_confirmation', confirmation: { ...historyConfirmed.items[0].confirmation, manual: false } })
-    const lines = confirmationHistory('2026-10-19T08:00:00Z', [confirmed], (s, e) => `${s}-${e}`, (k) => `N${k / 100}`)
+  it('shows a priced order as Confirmed with "Server price", and no manual step', () => {
+    const confirmed = adminOrderEventSchema.parse({ ...historyConfirmed.items[0], confirmation: { ...historyConfirmed.items[0].confirmation, manual: false } })
+    const lines = timelineFromHistory('2026-10-19T08:00:00Z', [confirmed])
     expect(lines.map((l) => l.label)).toEqual(['Order placed', 'Confirmed'])
-    expect(lines[1].detail).toContain('Server price N45000')
+    expect(lines[1].detail).toContain('Server price ₦45,000')
+  })
+
+  it('leaves events that are neither confirmation nor assignment out', () => {
+    expect(confirmationLine(adminOrderEventSchema.parse({ ...historyConfirmed.items[1], reason_code: null }))).toBeNull()
   })
 })

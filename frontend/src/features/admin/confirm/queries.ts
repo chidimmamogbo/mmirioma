@@ -7,14 +7,13 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { confirmOrder, getConfirmationOptions, type ConfirmRequest } from '../../../lib/api/adminConfirmation'
-import { getAdminOrderDetail, getOrderHistory } from '../../../lib/api/adminDispatch'
+import { getAdminOrderDetail } from '../../../lib/api/adminDispatch'
 import { USE_MOCKS } from '../../../lib/api/mode'
 import { adminKeys } from '../queries'
 
 const confirmKeys = {
   detail: (reference: string) => [...adminKeys.all, 'confirm', 'detail', reference] as const,
   options: (reference: string) => [...adminKeys.all, 'confirm', 'options', reference] as const,
-  history: (reference: string) => [...adminKeys.all, 'confirm', 'history', reference] as const,
 }
 
 /** The order with its quote, checks and confirmation fields. */
@@ -29,10 +28,6 @@ export const useConfirmationOptions = (reference: string, open: boolean) =>
     enabled: open && !USE_MOCKS,
     staleTime: 0,
   })
-
-/** The order's history, for the confirmation lines (Q5). */
-export const useConfirmHistory = (reference: string, enabled: boolean) =>
-  useQuery({ queryKey: confirmKeys.history(reference), queryFn: ({ signal }) => getOrderHistory(reference, signal), enabled: enabled && !USE_MOCKS })
 
 /**
  * Confirm the order: one request, never retried on its own (a repeat of a

@@ -2,26 +2,23 @@ import { AlertCircleIcon } from '../../../components/icons/icons'
 import { Card } from '../../../components/ui/Card'
 import { KeyValue } from '../../../components/ui/Content'
 import { Notice } from '../../../components/ui/Notice'
-import { formatDateTime, formatTime } from '../../../lib/format/datetime'
+import { formatDateTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
-import { AGREEMENT_LABEL, REASON_LABEL, confirmationHistory, formatWindow } from './logic'
+import { AGREEMENT_LABEL, REASON_LABEL, formatWindow } from './logic'
 import { PriceChip } from './ConfirmOrder'
-import { useConfirmDetail, useConfirmHistory } from './queries'
+import { useConfirmDetail } from './queries'
 
 /**
- * Q4 and Q5: what was confirmed, with the SMS and source warnings, and the
- * confirmation history. Shows only once the order has a confirmed price
- * (real-API mode); renders nothing before or in mock mode.
+ * Q4: what was confirmed, with the SMS and source warnings. Shows only once
+ * the order has a confirmed price (real-API mode); renders nothing before or
+ * in mock mode. The confirmation history (Q5) is in the order's timeline.
  */
 export function ConfirmedSummary({ reference }: { reference: string }) {
   const detail = useConfirmDetail(reference)
   const d = detail.data
-  const confirmed = Boolean(d?.price)
-  const history = useConfirmHistory(reference, confirmed)
   if (!d?.price) return null
   const p = d.price
   const kind = p.manual ? 'manual' : 'server'
-  const lines = history.data ? confirmationHistory(d.created_at, history.data, formatWindow, formatNaira) : []
   return (
     <Card className="rise-2 flex flex-col gap-1.5 p-4 text-sub">
       <h3 className="m-0 mb-1 text-[16px] font-extrabold">Confirmed</h3>
@@ -62,24 +59,6 @@ export function ConfirmedSummary({ reference }: { reference: string }) {
           ))}
           This order was confirmed with it. Check with the technical lead before a driver collects from it.
         </Notice>
-      )}
-      {lines.length > 0 && (
-        <>
-          <h4 className="m-0 mt-2 text-[14px] font-extrabold">History</h4>
-          <ol className="m-0 flex list-none flex-col gap-2 p-0">
-            {lines.map((l) => (
-              <li key={`${l.label}-${l.at}`} className="flex gap-2">
-                <span aria-hidden="true" className={l.label === 'Confirmed' ? 'mt-1.5 size-2 shrink-0 rounded-full bg-green' : 'mt-1.5 size-2 shrink-0 rounded-full bg-radio-line'} />
-                <span>
-                  <b>{l.label}</b> · {formatTime(l.at)}
-                  {l.by && ` · ${l.by}`}
-                  {l.detail && <span className="block text-slate">{l.detail}</span>}
-                  {l.note && <span className="block text-mute">{l.note}</span>}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </>
       )}
     </Card>
   )
