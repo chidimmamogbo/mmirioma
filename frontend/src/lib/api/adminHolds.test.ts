@@ -165,10 +165,17 @@ describe('admin hold review API functions (docs/api/deliveries.md, "Admin hold r
     }
   })
 
+  it('reads the cancellation outcome for customer_request too (#174)', async () => {
+    const outcome = { reason_code: 'customer_request', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
+    const { fetchMock, client } = setup(outcome)
+    expect(await getCancellationOutcome('MO-4PRF7K2Q9X', 'customer_request', undefined, client)).toEqual(outcome)
+    expect(sent(fetchMock).url).toBe(`${BASE}/cancellation-outcome?reason_code=customer_request`)
+  })
+
   it('reads the cancellation outcome for mmirioma_unable, in kobo', async () => {
     const outcome = { reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
     const { fetchMock, client } = setup(outcome)
-    expect(await getCancellationOutcome('MO-4PRF7K2Q9X', undefined, client)).toEqual(outcome)
+    expect(await getCancellationOutcome('MO-4PRF7K2Q9X', 'mmirioma_unable', undefined, client)).toEqual(outcome)
     expect(sent(fetchMock).url).toBe(`${BASE}/cancellation-outcome?reason_code=mmirioma_unable`)
   })
 

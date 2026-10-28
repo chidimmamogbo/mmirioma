@@ -379,10 +379,18 @@ describe('hold review (#166)', () => {
       ({ to: 'cancelled', expected_status: 'accepted', reason_code: 'mmirioma_unable', note: null, hold_id: 'hold-unsafe-1', ...over }) as Parameters<typeof transitionOrder>[1]
 
     it('says what a cancel costs the customer in the server’s sentence, and refuses one that cannot be cancelled', async () => {
-      expect(await getCancellationOutcome(UNSAFE)).toEqual({ reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
-      await expect(getCancellationOutcome('MO-0000000000')).rejects.toMatchObject({ status: 404, code: 'order_not_found' })
+      expect(await getCancellationOutcome(UNSAFE, 'mmirioma_unable')).toEqual({ reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
+      expect(await getCancellationOutcome(UNSAFE, 'customer_request')).toMatchObject({ reason_code: 'customer_request', customer_charge_minor_units: 0 })
+      await expect(getCancellationOutcome('MO-0000000000', 'mmirioma_unable')).rejects.toMatchObject({ status: 404, code: 'order_not_found' })
       await transitionOrder(UNSAFE, cancel())
-      await expect(getCancellationOutcome(UNSAFE)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+      await expect(getCancellationOutcome(UNSAFE, 'mmirioma_unable')).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+    })
+
+    it('cancels because the customer asked, and refuses other cancel reasons and a missing note at unloading (#174)', async () => {
+      await transitionOrder(UNSAFE, cancel({ reason_code: 'customer_request' }))
+      expect((await getAdminOrder(UNSAFE)).status).toBe('cancelled')
+      await expect(transitionOrder(SOURCE_OK, cancel({ expected_status: 'collected', reason_code: 'other', hold_id: 'hold-source-2' }))).rejects.toMatchObject({ status: 422, code: 'validation_error' })
+      await expect(transitionOrder(SOURCE_OK, cancel({ expected_status: 'unloading', reason_code: 'customer_request', hold_id: null }))).rejects.toMatchObject({ status: 422, code: 'validation_error' })
     })
 
     it('fails a held delivery: the order shows Delivery failed, the hold closes with it, and the history says why', async () => {
@@ -431,14 +439,14 @@ describe('hold review (#166)', () => {
       }
       expect(await refusal(fail({ reason_code: 'other', note: '  ' }))).toEqual(['body.note'])
       expect(await refusal(fail({ reason_code: 'vehicle_failure' }))).toEqual(['body.reason_code'])
-      expect(await refusal(cancel({ reason_code: 'customer_request' }))).toEqual(['body.reason_code'])
+      expect(await refusal(cancel({ reason_code: 'other' }))).toEqual(['body.reason_code'])
       expect((await getAdminOrder(SOURCE_OK)).hold).not.toBeNull()
     })
 
     it('refuses customers and partners (403)', async () => {
       await mockLogout()
       await mockLogin(RIDER)
-      await expect(getCancellationOutcome(UNSAFE)).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+      await expect(getCancellationOutcome(UNSAFE, 'mmirioma_unable')).rejects.toMatchObject({ status: 403, code: 'forbidden' })
       await expect(transitionOrder(UNSAFE, cancel())).rejects.toMatchObject({ status: 403, code: 'forbidden' })
     })
   })

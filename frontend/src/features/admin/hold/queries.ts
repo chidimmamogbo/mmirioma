@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import * as api from '../adminApi'
 import { adminKeys, useAdminMutation } from '../queries'
-import type { AdminTransitionRequest, HoldDecisionRequest, ProofOverrideRequest, WithdrawRequest } from '../real/holds'
+import type { AdminTransitionRequest, CancelReason, HoldDecisionRequest, ProofOverrideRequest, WithdrawRequest } from '../real/holds'
 
 const holdKeys = {
   review: (reference: string) => [...adminKeys.all, 'hold', reference] as const,
@@ -30,12 +30,20 @@ export const useContinueSource = (reference: string) => useAdminMutation((reques
 export const useResumeUnsafe = (reference: string) => useAdminMutation((request: HoldDecisionRequest) => api.resumeUnsafe(reference, request))
 
 /**
- * What cancelling would cost the customer: the server's sentence, read each
- * time the CANCEL dialog opens. Not retried: a 409 ("can no longer be
- * cancelled") is an answer; Try again is the dispatcher's.
+ * What cancelling for the chosen reason would cost the customer: the server's
+ * sentence, read each time a reason is chosen (none, nothing asked). Not
+ * retried: a 409 ("can no longer be cancelled") is an answer; Try again is the
+ * dispatcher's.
  */
-export const useCancellationOutcome = (reference: string, open: boolean) =>
-  useQuery({ queryKey: [...adminKeys.all, 'cancellation-outcome', reference] as const, queryFn: () => api.getCancellationOutcome(reference), enabled: open, retry: false, staleTime: 0, gcTime: 0 })
+export const useCancellationOutcome = (reference: string, reason: CancelReason | null) =>
+  useQuery({
+    queryKey: [...adminKeys.all, 'cancellation-outcome', reference, reason] as const,
+    queryFn: () => api.getCancellationOutcome(reference, reason as CancelReason),
+    enabled: reason !== null,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  })
 
 /** Fail the delivery or cancel the order (FAIL, CANCEL): one request, never repeated on its own. Every admin query refreshes after it. */
 export const useTransitionOrder = (reference: string) => useAdminMutation((request: AdminTransitionRequest) => api.transitionOrder(reference, request))
