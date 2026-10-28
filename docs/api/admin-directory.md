@@ -1,9 +1,9 @@
 # Admin directory contract: customers, drivers, service zones, price lists
 
-**Status: proposed** on 2026-10-26 by @Cloudcrackamara (+ Claude Code), for
-review by @nnamdi-security or @chidimmamogbo (#18). Not agreed, not built.
-It becomes `Status: agreed` when one reviewer other than its author has agreed
-it (CLAUDE.md, "Team fork workflow", since 2026-10-27).
+**Status: agreed** on 2026-10-28 (G3, #43): proposed on 2026-10-26 by
+@Cloudcrackamara (+ Claude Code) in #18, and every section is now agreed. It
+became `Status: agreed` when one reviewer other than its author agreed it
+(CLAUDE.md, "Team fork workflow", since 2026-10-27).
 
 **Amended 2026-10-26 for #30** (service zones): open questions 5, 6, 13, 14
 and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee
@@ -13,8 +13,10 @@ See [Changes](#changes).
 **[Service zones](#service-zones): `Status: agreed`** on 2026-10-26 by
 @nnamdi-security (technical lead, sole approver under PR #36), so #30 can
 build it. **[Price lists](#price-lists): `Status: agreed`** on 2026-10-26 by
-@nnamdi-security (technical lead, #36), so #37 can build it. The rest of this
-contract is still proposed.
+@nnamdi-security (technical lead, #36), so #37 can build it.
+**[Customers](#customers) and [Drivers](#drivers): `Status: agreed`** on
+2026-10-28 by @nnamdi-security (technical lead, PR #146), so #45 can build
+them.
 
 **Revised 2026-10-28 for #43** (customers and drivers, after @chidimmamogbo's
 review of 2026-10-26): partner approval with vehicle verification added; the
@@ -105,6 +107,9 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
   to contact and address information is restricted to admins).
 
 ## Customers
+
+**Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
+#43).
 
 ### Objects
 
@@ -247,6 +252,9 @@ admin design for them).
 The design says "rider" (Keke) and "driver" (Tanker), together "partner"; the
 server role is `driver` for both ([api-mapping.md](../architecture/api-mapping.md#names)).
 Paths use `drivers`.
+
+**Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
+#43).
 
 ### Objects
 
@@ -824,7 +832,7 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
-| 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | Not yet |
+| 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | @nnamdi-security (technical lead, G3), PR #146 |
 | 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
 | 2026-10-26 | `GET /service-zones` needs no session (any caller), for partner sign-up ([partners.md](partners.md) open question 2) | @nnamdi-security (technical lead) |
