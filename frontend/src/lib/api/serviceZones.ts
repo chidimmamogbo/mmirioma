@@ -37,7 +37,16 @@ export const serviceZoneSchema = z.object({
 })
 export type ServiceZone = z.infer<typeof serviceZoneSchema>
 
-const serviceZoneListSchema = z.object({ items: z.array(serviceZoneSchema) })
+const serviceZoneListSchema = z.object({
+  items: z.array(serviceZoneSchema),
+  /**
+   * The category the Service areas fee is for: the one quotes price
+   * (admin-directory.md, amendment #74, built in #109). `null` when no
+   * category has the configured code.
+   */
+  pilot_water_category: z.object({ id: z.string(), label: z.string() }).nullable(),
+})
+export type ServiceZoneList = z.infer<typeof serviceZoneListSchema>
 
 /**
  * `ServiceZoneWrite` with every field optional (`PATCH`). An absent field is
@@ -66,12 +75,13 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 }
 
 /**
- * Every zone, active or not, by name (`GET /admin/service-zones`).
+ * Every zone, active or not, by name, with the pilot water category
+ * (`GET /admin/service-zones`).
  *
  * @throws {ApiError} `invalid_response`; shared 401/403; `network_error`.
  */
-export async function listAdminServiceZones(signal?: AbortSignal, client: ApiClient = apiClient): Promise<ServiceZone[]> {
-  return parse(serviceZoneListSchema, await client.request<unknown>(ADMIN_ZONES_PATH, { signal })).items
+export async function listAdminServiceZones(signal?: AbortSignal, client: ApiClient = apiClient): Promise<ServiceZoneList> {
+  return parse(serviceZoneListSchema, await client.request<unknown>(ADMIN_ZONES_PATH, { signal }))
 }
 
 /**

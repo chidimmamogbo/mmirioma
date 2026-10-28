@@ -584,9 +584,9 @@ Additive: `items` is unchanged, and a client that ignores the new field keeps
 working. No new rule, setting or table: the server already resolves this
 category for every quote.
 
-Built in #109. Until the Service areas screen reads it (#110), the link
-(#74) shows the fee as empty and refuses to write one ("not connected"),
-rather than guess.
+Built in #109 and read by the Service areas link (#110). When the field is
+`null`, the link shows the fee as empty and refuses to write one ("not
+connected"), rather than guess.
 
 #### GET /service-zones
 
