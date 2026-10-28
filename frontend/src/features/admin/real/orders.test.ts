@@ -49,6 +49,8 @@ describe('adminOrderFromRead', () => {
     const order = adminOrderFromRead(DETAIL)
     expect(order.reference).toBe(DETAIL.reference)
     expect(order.status).toBe('assigned')
+    // The server's status stays available where the design groups several (#144).
+    expect(order.backend_status).toBe(DETAIL.status)
     expect(order.customer_name).toBe(DETAIL.customer.name)
     expect(order.partner).toEqual({ id: DETAIL.assignment!.driver.id, name: 'Sample Driver One', code: null, vehicle: null, plate: null })
     expect(order.assigned_by).toBe(DETAIL.assignment!.offered_by.name)
