@@ -38,6 +38,24 @@ export interface OrderQuoteRead {
   water_category: { label: string; supported_uses: string | null }
 }
 
+/** The window a dispatcher confirmed for the delivery (UTC; show it in Africa/Lagos). Never the preferred date. */
+export interface DeliveryWindowRead {
+  start_at: string
+  end_at: string
+}
+
+/**
+ * The price confirmed with the customer (FR-024): the total only, never a
+ * breakdown, who entered it, or how the customer agreed (docs/api/orders.md, #99).
+ */
+export interface OrderPriceRead {
+  /** Integer kobo, a whole number of naira (FR-022). */
+  total_minor_units: number
+  currency: 'NGN'
+  /** True for a pilot manual quote (F2). */
+  manual: boolean
+}
+
 /**
  * `OrderRead`, the customer's view of their own order. The delivery details
  * are `null` on orders sent before #21 (quantity only), and `quote` is `null`
@@ -76,6 +94,15 @@ export interface OrderRead {
    * part 3; absent from an older server, so read it as missing then.
    */
   feedback?: FeedbackRead | null
+  /**
+   * The confirmed window, `null` until a dispatcher confirms the order (#99,
+   * built in #165). Absent from an older server, so read it as missing then.
+   */
+  delivery_window?: DeliveryWindowRead | null
+  /** The confirmed price, `null` until confirmed. `quote` stays the price before confirmation. */
+  price?: OrderPriceRead | null
+  /** The category agreed at confirmation: the label frozen with the price, the current supported uses. */
+  water_category?: { label: string; supported_uses: string | null } | null
 }
 
 /**

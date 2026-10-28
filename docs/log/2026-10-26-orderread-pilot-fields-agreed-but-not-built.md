@@ -12,5 +12,6 @@
   linking (#9) needs them to show a confirmed order's window, price and
   category; raise a backend issue for the #99 fields before #9 links the
   order detail.
-- **Status:** open
-- **Refs:** #21, #9, `docs/api/orders.md#customer-pilot-changes-99`
+- **Status:** resolved (built in #165; the customer adapter now shows the
+  confirmed price and category, not yet the window)
+- **Refs:** #21, #9, #165, `docs/api/orders.md#customer-pilot-changes-99`

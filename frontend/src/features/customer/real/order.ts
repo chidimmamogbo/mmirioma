@@ -58,6 +58,38 @@ export function choiceFromRead(read: Pick<OrderRead, 'delivery_type' | 'keke' | 
   return null
 }
 
+/**
+ * The price the order shows: the confirmed price once a dispatcher has
+ * confirmed it (#99), else the quote the order was placed with, else `null`
+ * for a quote request still waiting for its price (FR-022 manual fallback).
+ * Total only, never a breakdown (order-details-and-price.md, decision 6).
+ */
+export function priceFromRead(read: Pick<OrderRead, 'quote' | 'price' | 'water_category'>): CustomerOrder['quote'] {
+  if (read.price) {
+    return {
+      currency: read.price.currency,
+      total_minor_units: read.price.total_minor_units,
+      water: null,
+      delivery: null,
+      is_sample: false,
+      // The label frozen with the confirmed price (FR-014, FR-024).
+      category_label: read.water_category?.label ?? read.quote?.water_category.label ?? null,
+    }
+  }
+  if (read.quote) {
+    return {
+      currency: read.quote.currency,
+      total_minor_units: read.quote.total_minor_units,
+      water: null,
+      delivery: null,
+      is_sample: false,
+      // The category accepted with the price (FR-023), shown on "Order placed".
+      category_label: read.quote.water_category.label,
+    }
+  }
+  return null
+}
+
 /** Backend order to the design's order (docs/architecture/api-mapping.md). */
 export function customerOrderFromRead(read: OrderRead): CustomerOrder {
   return {
@@ -77,18 +109,7 @@ export function customerOrderFromRead(read: OrderRead): CustomerOrder {
     // Every pilot order is pay on delivery (F4); customers are not sent a
     // payment status yet (docs/api/orders.md, decided question 3).
     payment: { method: 'pay_on_delivery', status: null },
-    // Total only, never a breakdown (order-details-and-price.md, decision 6).
-    quote: read.quote
-      ? {
-          currency: read.quote.currency,
-          total_minor_units: read.quote.total_minor_units,
-          water: null,
-          delivery: null,
-          is_sample: false,
-          // The category accepted with the price (FR-023), shown on "Order placed".
-          category_label: read.quote.water_category.label,
-        }
-      : null,
+    quote: priceFromRead(read),
     // Not in OrderRead: the screens leave these out.
     partner: null,
     station_name: null,

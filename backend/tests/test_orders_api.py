@@ -162,6 +162,12 @@ def fake_orders(monkeypatch: pytest.MonkeyPatch) -> FakeOrders:
         return {}
 
     monkeypatch.setattr(service, "feedback_by_order", no_feedback)
+
+    # Customer views add the confirmed price (#165); no order here has one.
+    async def no_confirmed(_: object, order_ids: object) -> dict[object, object]:
+        return {}
+
+    monkeypatch.setattr(service, "confirmed_prices_by_order", no_confirmed)
     return fake
 
 
@@ -347,6 +353,10 @@ def test_customer_response_matches_contract(api: TestClient) -> None:
         "quote",
         # Customer account contract (#82): the customer's feedback, or null.
         "feedback",
+        # Customer pilot changes (#99, built in #165): null until confirmed.
+        "delivery_window",
+        "price",
+        "water_category",
     }
     assert order["status"] == "quote_requested"
     assert order["created_at"] == "2026-10-14T09:30:00Z"
