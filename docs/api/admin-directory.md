@@ -772,7 +772,7 @@ For the link issues that follow; the adapters convert with these rules.
 | `zones[].name` | `service_areas` | Names |
 | `live_jobs`, `completed_jobs`, `created_at` | `active_orders`, `trips`, `partner_since` | Same values |
 | `ServiceZone.is_active` | `ServiceArea.enabled` | Same value |
-| `ServiceZone.fallback_delivery_fees` | `ServiceArea.fixed_fee_minor_units` | The pilot category's fee (one category is priced in the pilot, #10), or `null` when the zone has none. Saving writes that one entry and keeps the others. `station_id` and `distance_km` have no source (`null`). The screen has no `centre` input, so creating a zone from it needs a screen change (G2) in the link issue |
+| `ServiceZone.fallback_delivery_fees` | `ServiceArea.fixed_fee_minor_units` | The pilot category's fee (one category is priced in the pilot, #10), or `null` when the zone has none. Saving writes that one entry and keeps the others; adding a zone with a fee sends it as that entry. `ServiceZone.centre` maps to the screen's Latitude and Longitude (`ServiceArea.centre`), typed in by admin (Z4, #111). The design's `station_id` and `distance_km` are dropped from `ServiceArea`; only the mock keeps them, as mock-only data for its dispatch and per-km pricing |
 | `PriceList` | `PriceList` | Different shape: the screen is redesigned (decision 1) |
 
 ## Data needed

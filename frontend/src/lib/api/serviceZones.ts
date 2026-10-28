@@ -94,3 +94,22 @@ export async function listAdminServiceZones(signal?: AbortSignal, client: ApiCli
 export async function updateAdminServiceZone(id: string, update: ServiceZoneUpdate, client: ApiClient = apiClient): Promise<ServiceZone> {
   return parse(serviceZoneSchema, await client.request<unknown>(`${ADMIN_ZONES_PATH}/${encodeURIComponent(id)}`, { method: 'PATCH', body: update }))
 }
+
+/** `ServiceZoneWrite` for `POST` (admin-directory.md): fees may be left out, which means none. */
+export interface ServiceZoneCreate {
+  name: string
+  is_active: boolean
+  centre: { latitude: number; longitude: number }
+  boundary?: unknown
+  fallback_delivery_fees?: { water_category_id: string; fee_minor_units: number }[]
+}
+
+/**
+ * Add a zone (`POST /admin/service-zones`).
+ *
+ * @throws {ApiError} `water_category_not_found` (404); `service_zone_name_taken`
+ *   (409); `validation_error` (422); `csrf_failed`; `invalid_response`; `network_error`.
+ */
+export async function createAdminServiceZone(zone: ServiceZoneCreate, client: ApiClient = apiClient): Promise<ServiceZone> {
+  return parse(serviceZoneSchema, await client.request<unknown>(ADMIN_ZONES_PATH, { method: 'POST', body: zone }))
+}

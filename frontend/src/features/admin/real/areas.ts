@@ -1,26 +1,24 @@
 /**
- * Admin service area adapters (#74, #110): the real-API side of `listAreas` and
- * `saveArea` in `adminApi.ts`, converting with docs/api/admin-directory.md,
- * "Service zones" (mapping table).
+ * Admin service area adapters (#74, #110, #111): the real-API side of
+ * `listAreas` and `saveArea` in `adminApi.ts`, converting with
+ * docs/api/admin-directory.md, "Service zones" (mapping table) and the
+ * approved Z4 screen (docs/design/handoff-v1.md).
  *
- * The screen still has its pre-Z4 fields, so only what the contract can carry
- * is linked:
- *
- * - `station_id` and `distance_km` have no source and are always `null`.
+ * - `centre` is the zone's coordinates, typed in by admin (required).
+ * - Adding an area is `POST /admin/service-zones`. The boundary is not edited
+ *   on this screen, so it is never sent.
  * - The fee is the pilot water category's entry in the zone's
  *   `fallback_delivery_fees`, or `null` when the zone has none. The category
  *   comes from `pilot_water_category` in the zone list (#109). Saving writes
  *   that one entry and keeps the others. When the server names no pilot
  *   category, the fee reads as `null` and writing one is not connected.
- * - Adding an area needs the zone's coordinates, which the screen cannot enter
- *   until the Z4 screen change, so it is not connected either.
  *
  * Nothing is guessed: a value the server does not give stays empty.
  */
 import type { ServiceArea } from '../../../domain/admin'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
 import { notConnected } from '../../../lib/api/notConnected'
-import { listAdminServiceZones, updateAdminServiceZone, type ServiceZone, type ServiceZoneUpdate } from '../../../lib/api/serviceZones'
+import { createAdminServiceZone, listAdminServiceZones, updateAdminServiceZone, type ServiceZone, type ServiceZoneUpdate } from '../../../lib/api/serviceZones'
 
 /** The pilot category's fee for a zone in kobo, or `null` when the zone has none or the server names no pilot category. */
 function pilotFee(zone: ServiceZone, pilotCategoryId: string | null): number | null {
@@ -34,8 +32,7 @@ export function serviceAreaFromZone(zone: ServiceZone, pilotCategoryId: string |
     id: zone.id,
     name: zone.name,
     enabled: zone.is_active,
-    station_id: null,
-    distance_km: null,
+    centre: zone.centre,
     fixed_fee_minor_units: pilotFee(zone, pilotCategoryId),
   }
 }
@@ -63,31 +60,36 @@ function feesWithPilot(zone: ServiceZone, pilotCategoryId: string, fee: number |
 }
 
 /**
- * Save an area's name, whether it takes orders and its delivery fee.
+ * Add an area (`id` is `null`) or save an existing one: its name, whether it
+ * takes orders, its coordinates and its delivery fee.
  *
- * The current zone is read first: the fee is sent only when it changed, and
- * then with the other categories' fees kept.
+ * The zone list is read first, for the pilot category. When saving, the fee is
+ * sent only when it changed, and then with the other categories' fees kept.
+ * When adding, a fee becomes the pilot category's entry.
  *
- * @param id - The zone's id; `null` adds an area, which is not connected yet.
- * @throws {ApiError} `not_connected` for adding an area, for a station or
- *   distance, or for a fee when the server names no pilot category; 404
- *   `service_zone_not_found`; 409 `service_zone_name_taken` with the screen's
- *   wording; otherwise as the server sends it.
+ * @param id - The zone's id; `null` adds an area.
+ * @throws {ApiError} `not_connected` for a fee when the server names no pilot
+ *   category; 404 `service_zone_not_found`; 409 `service_zone_name_taken` with
+ *   the screen's wording; 422 `validation_error`; otherwise as the server
+ *   sends it.
  */
 export async function saveArea(id: string | null, input: Omit<ServiceArea, 'id'>, client: ApiClient = apiClient): Promise<ServiceArea> {
-  if (id === null) return notConnected('Adding service areas')
-  if (input.station_id !== null || input.distance_km !== null) return notConnected('Serving station and distance')
   const { items, pilot_water_category } = await listAdminServiceZones(undefined, client)
   const pilotCategoryId = pilot_water_category?.id ?? null
-  const current = items.find((zone) => zone.id === id)
-  if (!current) {
-    throw new ApiError({ kind: 'http', status: 404, code: 'service_zone_not_found', message: 'Area not found' })
-  }
-  const feeChanged = input.fixed_fee_minor_units !== pilotFee(current, pilotCategoryId)
-  if (feeChanged && pilotCategoryId === null) return notConnected('The delivery fee per area')
-  const update: ServiceZoneUpdate = { name: input.name.trim(), is_active: input.enabled }
-  if (feeChanged && pilotCategoryId !== null) update.fallback_delivery_fees = feesWithPilot(current, pilotCategoryId, input.fixed_fee_minor_units)
+  const body = { name: input.name.trim(), is_active: input.enabled, centre: input.centre }
   try {
+    if (id === null) {
+      if (input.fixed_fee_minor_units === null) return serviceAreaFromZone(await createAdminServiceZone(body, client), pilotCategoryId)
+      if (pilotCategoryId === null) return notConnected('The delivery fee per area')
+      const fees = [{ water_category_id: pilotCategoryId, fee_minor_units: input.fixed_fee_minor_units }]
+      return serviceAreaFromZone(await createAdminServiceZone({ ...body, fallback_delivery_fees: fees }, client), pilotCategoryId)
+    }
+    const current = items.find((zone) => zone.id === id)
+    if (!current) throw new ApiError({ kind: 'http', status: 404, code: 'service_zone_not_found', message: 'Area not found' })
+    const feeChanged = input.fixed_fee_minor_units !== pilotFee(current, pilotCategoryId)
+    if (feeChanged && pilotCategoryId === null) return notConnected('The delivery fee per area')
+    const update: ServiceZoneUpdate = body
+    if (feeChanged && pilotCategoryId !== null) update.fallback_delivery_fees = feesWithPilot(current, pilotCategoryId, input.fixed_fee_minor_units)
     return serviceAreaFromZone(await updateAdminServiceZone(id, update, client), pilotCategoryId)
   } catch (error) {
     if (error instanceof ApiError && error.code === 'service_zone_name_taken') {

@@ -33,8 +33,13 @@ through reports and the audit log.
    closed), upload water-source papers with an expiry date, loading log.
    Closed stations and expired or missing papers are never used for new
    orders (FR-012).
-8. **Service areas**: which areas take orders, the serving station, the road
-   distance and an optional fixed delivery fee.
+8. **Service areas** (Z4, #111): which areas take orders, each area's
+   latitude and longitude (typed in, required) and an optional delivery fee
+   per order. No serving station or distance. In real-API mode the list,
+   adding and saving use the service zones endpoints. The fee is the pilot
+   water category's entry (#110), written on add and on save; when the server
+   names no pilot category, a fee stays "not connected". The boundary is not
+   edited here.
 9. **Pricing / Loyalty points / Payouts and payments**: edit the price list
    (Keke can prices, delivery and rider pay; tanker water by source, delivery
    and driver pay; delivery fee methods; points rules). Each save is a new

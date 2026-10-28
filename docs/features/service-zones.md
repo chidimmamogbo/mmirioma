@@ -174,8 +174,8 @@ the write example, then `GET /api/v1/service-zones` signed out.
 
 - No quote uses the fee yet: `POST /quotes` is #21, and handling and margin
   need price lists (#37).
-- No screen is linked: the admin Service areas screen has no latitude and
-  longitude inputs (a G2 change in its link issue), and the customer and
+- The admin Service areas screen lists, adds and saves zones with their
+  coordinates (#74, #111); its fee field waits for #110. The customer and
   partner screens need a zone picker (#9, #14).
 - No road distance (OSRM, SRS §12.1); the centre is stored for it but
   unused, and there is no spatial index.

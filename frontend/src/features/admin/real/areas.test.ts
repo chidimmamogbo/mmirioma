@@ -52,23 +52,25 @@ function zoneWith(fees: { category: { id: string; label: string }; fee: number }
 const zoneList = (items: unknown[], pilot: { id: string; label: string } | null = PILOT) => ({ items, pilot_water_category: pilot })
 
 const zone = zonesSample.items[0]
-const unchanged = { name: zone.name, enabled: true, station_id: null, distance_km: null, fixed_fee_minor_units: null }
+const centre = { latitude: 6.4447, longitude: 7.5108 }
+const unchanged = { name: zone.name, enabled: true, centre, fixed_fee_minor_units: null }
+const ZONES_URL = 'http://api.test/api/v1/admin/service-zones'
 
-describe('admin service area adapters (#74, #110)', () => {
-  it('listAreas maps every zone; the fee is the pilot category’s entry, nothing else', async () => {
+describe('admin service area adapters (#74, #110, #111)', () => {
+  it('listAreas maps every zone with its coordinates; the fee is the pilot category’s entry, nothing else', async () => {
     const withBoth = zoneWith([
       { category: OTHER, fee: 300_000 },
       { category: PILOT, fee: 450_000 },
     ])
-    const onlyOther = zoneWith([{ category: OTHER, fee: 300_000 }], { id: 'z-2', name: 'New Haven', is_active: false })
+    const onlyOther = zoneWith([{ category: OTHER, fee: 300_000 }], { id: 'z-2', name: 'New Haven', is_active: false, centre: { latitude: 6.4549, longitude: 7.5052 } })
     const noFees = zoneWith([], { id: 'z-3', name: 'GRA' })
     const { client, requests } = setup(zoneList([withBoth, onlyOther, noFees]))
     const areas = await listAreas(client)
-    expect(requests()[0]).toMatchObject({ url: 'http://api.test/api/v1/admin/service-zones', method: 'GET' })
+    expect(requests()[0]).toMatchObject({ url: ZONES_URL, method: 'GET' })
     expect(areas).toEqual([
-      { id: zone.id, name: 'Independence Layout', enabled: true, station_id: null, distance_km: null, fixed_fee_minor_units: 450_000 },
-      { id: 'z-2', name: 'New Haven', enabled: false, station_id: null, distance_km: null, fixed_fee_minor_units: null },
-      { id: 'z-3', name: 'GRA', enabled: true, station_id: null, distance_km: null, fixed_fee_minor_units: null },
+      { id: zone.id, name: 'Independence Layout', enabled: true, centre, fixed_fee_minor_units: 450_000 },
+      { id: 'z-2', name: 'New Haven', enabled: false, centre: { latitude: 6.4549, longitude: 7.5052 }, fixed_fee_minor_units: null },
+      { id: 'z-3', name: 'GRA', enabled: true, centre, fixed_fee_minor_units: null },
     ])
   })
 
@@ -94,12 +96,12 @@ describe('admin service area adapters (#74, #110)', () => {
     expect(error.code).toBe('invalid_response')
   })
 
-  it('saveArea sends only the name and the active flag when the fee is unchanged', async () => {
+  it('saveArea sends the name, the active flag and the coordinates when the fee is unchanged', async () => {
     const current = zoneWith([{ category: PILOT, fee: 450_000 }])
     const { client, writes } = setup(zoneList([current]), { body: { ...current, is_active: false } })
     const area = await saveArea(zone.id, { ...unchanged, enabled: false, fixed_fee_minor_units: 450_000 }, client)
-    expect(writes()).toEqual([{ url: `http://api.test/api/v1/admin/service-zones/${zone.id}`, method: 'PATCH', body: { name: zone.name, is_active: false } }])
-    expect(area).toMatchObject({ enabled: false, fixed_fee_minor_units: 450_000 })
+    expect(writes()).toEqual([{ url: `${ZONES_URL}/${zone.id}`, method: 'PATCH', body: { name: zone.name, is_active: false, centre } }])
+    expect(area).toMatchObject({ enabled: false, centre, fixed_fee_minor_units: 450_000 })
   })
 
   it('saveArea writes the pilot fee and keeps the other categories’ fees', async () => {
@@ -113,6 +115,7 @@ describe('admin service area adapters (#74, #110)', () => {
     expect(writes()[0].body).toEqual({
       name: zone.name,
       is_active: true,
+      centre,
       fallback_delivery_fees: [
         { water_category_id: OTHER.id, fee_minor_units: 300_000 },
         { water_category_id: PILOT.id, fee_minor_units: 500_000 },
@@ -152,17 +155,49 @@ describe('admin service area adapters (#74, #110)', () => {
     expect(writes()).toEqual([])
   })
 
-  it('saveArea still saves the name and flag when there is no pilot category and the fee is untouched', async () => {
+  it('saveArea still saves the name, flag and coordinates when there is no pilot category and the fee is untouched', async () => {
     const current = zoneWith([])
     const { client, writes } = setup(zoneList([current], null), { body: current })
     await saveArea(zone.id, unchanged, client)
-    expect(writes()[0].body).toEqual({ name: zone.name, is_active: true })
+    expect(writes()[0].body).toEqual({ name: zone.name, is_active: true, centre })
   })
 
-  it('saveArea words a taken name as the screen does', async () => {
-    const { client } = setup(zoneList([zoneWith([])]), { body: nameTakenSample, status: 409 })
-    const error = await rejection(saveArea(zone.id, unchanged, client))
-    expect([error.status, error.code, error.message]).toEqual([409, 'service_zone_name_taken', 'An area with this name already exists'])
+  it('saveArea adds an area with a POST, trimming the name and sending no boundary or fees', async () => {
+    const { client, writes } = setup(zoneList([]), { body: zoneWith([], { name: 'Abakpa Nike' }), status: 201 })
+    const area = await saveArea(null, { ...unchanged, name: ' Abakpa Nike ' }, client)
+    expect(writes()).toEqual([{ url: ZONES_URL, method: 'POST', body: { name: 'Abakpa Nike', is_active: true, centre } }])
+    expect(area).toMatchObject({ id: zone.id, name: 'Abakpa Nike', centre, fixed_fee_minor_units: null })
+  })
+
+  it('saveArea adds an area with a fee as the pilot category’s entry', async () => {
+    const { client, writes } = setup(zoneList([]), { body: zoneWith([{ category: PILOT, fee: 450_000 }]), status: 201 })
+    const area = await saveArea(null, { ...unchanged, fixed_fee_minor_units: 450_000 }, client)
+    expect(writes()).toEqual([
+      { url: ZONES_URL, method: 'POST', body: { name: zone.name, is_active: true, centre, fallback_delivery_fees: [{ water_category_id: PILOT.id, fee_minor_units: 450_000 }] } },
+    ])
+    expect(area.fixed_fee_minor_units).toBe(450_000)
+  })
+
+  it('saveArea does not add an area with a fee when the server names no pilot category', async () => {
+    const { client, writes } = setup(zoneList([], null))
+    const error = await rejection(saveArea(null, { ...unchanged, fixed_fee_minor_units: 450_000 }, client))
+    expect(error.code).toBe('not_connected')
+    expect(writes()).toEqual([])
+  })
+
+  it('saveArea words a taken name as the screen does, when adding and when saving', async () => {
+    for (const id of [null, zone.id]) {
+      const { client } = setup(zoneList([zoneWith([])]), { body: nameTakenSample, status: 409 })
+      const error = await rejection(saveArea(id, unchanged, client))
+      expect([error.status, error.code, error.message]).toEqual([409, 'service_zone_name_taken', 'An area with this name already exists'])
+    }
+  })
+
+  it('saveArea passes a 422 on adding through', async () => {
+    const body = envelope('validation_error', [{ loc: ['body', 'centre', 'latitude'], msg: 'bad', type: 'value_error' }])
+    const { client } = setup(zoneList([]), { body, status: 422 })
+    const error = await rejection(saveArea(null, unchanged, client))
+    expect([error.status, error.code]).toEqual([422, 'validation_error'])
   })
 
   it('saveArea passes a 404 from the server through', async () => {
@@ -176,16 +211,5 @@ describe('admin service area adapters (#74, #110)', () => {
     const error = await rejection(saveArea(zone.id, unchanged, client))
     expect([error.status, error.code]).toEqual([404, 'service_zone_not_found'])
     expect(writes()).toEqual([])
-  })
-
-  it.each([
-    ['adding an area', null, unchanged],
-    ['a station', zone.id, { ...unchanged, station_id: 'st-1' }],
-    ['a distance', zone.id, { ...unchanged, distance_km: 4.5 }],
-  ])('saveArea does not send %s, which the server cannot take yet', async (_, id, input) => {
-    const { client, fetchMock } = setup(zoneList([zone]))
-    const error = await rejection(saveArea(id, input, client))
-    expect(error.code).toBe('not_connected')
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

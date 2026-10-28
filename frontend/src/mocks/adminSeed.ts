@@ -24,10 +24,22 @@ import { lagosAt, lagosToday } from './time'
 export const DEMO_ADMIN_ID = 'user-admin'
 export const ADMIN_NAME = 'Chidimma M.'
 
+/**
+ * A stored service area. The mock keeps the serving station and road distance
+ * that the old screen edited, because mock dispatch (`stationForAddress`) and
+ * per-km delivery pricing still read them. The Z4 screen no longer edits them
+ * (the real contract has neither), so they stay as seeded, and `null` for an
+ * area added on the screen.
+ */
+export interface MockServiceArea extends ServiceArea {
+  station_id: string | null
+  distance_km: number | null
+}
+
 /** Admin-only state in the mock database. */
 export interface AdminData {
   stations: AdminStation[]
-  areas: ServiceArea[]
+  areas: MockServiceArea[]
   /** Price list versions, oldest first; the last one is current. */
   prices: PriceList[]
   issues: AdminIssue[]
@@ -140,15 +152,18 @@ export function seedAdmin(now = new Date()): AdminData {
     },
   ]
 
-  const area = (id: string, name: string, station_id: string, distance_km: number): ServiceArea => ({
+  // SAMPLE coordinates: Independence Layout is the contract's example; the other
+  // areas share a point in central Enugu. They are not surveyed positions.
+  const area = (id: string, name: string, station_id: string, distance_km: number): MockServiceArea => ({
     id,
     name,
     enabled: true,
+    centre: id === 'ar-indep' ? { latitude: 6.4447, longitude: 7.5108 } : { latitude: 6.4584, longitude: 7.5464 },
     station_id,
     distance_km,
     fixed_fee_minor_units: null,
   })
-  const areas: ServiceArea[] = [
+  const areas: MockServiceArea[] = [
     area('ar-gra', 'GRA', 'st-gra', 2.5),
     area('ar-ogui', 'Ogui', 'st-ogui', 2.0),
     area('ar-indep', 'Independence Layout', 'st-indep', 3.0),
