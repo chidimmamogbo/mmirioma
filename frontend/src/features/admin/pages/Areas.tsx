@@ -6,6 +6,7 @@ import { Card } from '../../../components/ui/Card'
 import { SampleTag } from '../../../components/ui/Chip'
 import { Toggle } from '../../../components/ui/Controls'
 import { INPUT } from '../../../components/ui/Field'
+import { cx } from '../../../lib/cx'
 import { Notice } from '../../../components/ui/Notice'
 import type { ServiceArea } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -26,8 +27,11 @@ function toDraft(a: ServiceArea | null): Draft {
   }
 }
 
-/** A coordinate typed in, or `NaN` when it is empty or not a number. */
-const coordinate = (text: string): number => (text.trim() === '' ? NaN : Number(text))
+/** Plain decimal degrees: an optional minus, digits and an optional decimal point. Rejects "1e1", "0x10", "Infinity" and the like. */
+const DECIMAL_DEGREES = /^-?(\d+\.?\d*|\.\d+)$/
+
+/** A coordinate typed in, or `NaN` when it is empty or not plain decimal degrees. */
+const coordinate = (text: string): number => (DECIMAL_DEGREES.test(text.trim()) ? Number(text) : NaN)
 
 /** Z4's two checks, the only ones the contract makes (admin-directory.md, `centre`). */
 function coordinateErrors(d: Pick<Draft, 'latitude' | 'longitude'>): { latitude?: string; longitude?: string } {
@@ -135,6 +139,9 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   )
 }
 
+/** The red border of an invalid field, as the shared text field draws it. */
+const INVALID = 'border-[#DC2626] bg-[#FEF2F2]'
+
 /** Keep digits, a decimal point and a leading minus: what a coordinate is made of. */
 const coordinateText = (text: string): string => text.replace(/[^\d.-]/g, '')
 
@@ -171,9 +178,9 @@ function AreaRow({ area, onDone }: { area: ServiceArea | null; onDone?: () => vo
         <Field label="Latitude" error={tried ? errors.latitude : undefined}>
           <input
             inputMode="decimal"
-            className={INPUT}
+            className={cx(INPUT, tried && errors.latitude && INVALID)}
             value={d.latitude}
-            aria-invalid={tried && !!errors.latitude}
+            aria-invalid={tried && errors.latitude ? true : undefined}
             onChange={(e) => setD({ ...d, latitude: coordinateText(e.target.value) })}
             placeholder="e.g. 6.4447"
           />
@@ -181,9 +188,9 @@ function AreaRow({ area, onDone }: { area: ServiceArea | null; onDone?: () => vo
         <Field label="Longitude" error={tried ? errors.longitude : undefined}>
           <input
             inputMode="decimal"
-            className={INPUT}
+            className={cx(INPUT, tried && errors.longitude && INVALID)}
             value={d.longitude}
-            aria-invalid={tried && !!errors.longitude}
+            aria-invalid={tried && errors.longitude ? true : undefined}
             onChange={(e) => setD({ ...d, longitude: coordinateText(e.target.value) })}
             placeholder="e.g. 7.5108"
           />

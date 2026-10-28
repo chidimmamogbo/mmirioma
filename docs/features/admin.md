@@ -36,8 +36,10 @@ through reports and the audit log.
 8. **Service areas** (Z4, #111): which areas take orders, each area's
    latitude and longitude (typed in, required) and an optional delivery fee
    per order. No serving station or distance. In real-API mode the list,
-   adding and saving use the service zones endpoints; the fee stays "not
-   connected" until #110. The boundary is not edited here.
+   adding and saving use the service zones endpoints. The fee is the pilot
+   water category's entry (#110), written on add and on save; when the server
+   names no pilot category, a fee stays "not connected". The boundary is not
+   edited here.
 9. **Pricing / Loyalty points / Payouts and payments**: edit the price list
    (Keke can prices, delivery and rider pay; tanker water by source, delivery
    and driver pay; delivery fee methods; points rules). Each save is a new

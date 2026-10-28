@@ -57,6 +57,20 @@ describe('Service areas screen (Z4, #111)', () => {
     expect(read().admin.areas.some((a) => a.name === 'Abakpa Nike')).toBe(false)
   }, SLOW)
 
+  it('refuses a coordinate that is not plain decimal degrees, and marks the field', async () => {
+    const user = userEvent.setup()
+    await openAreas()
+    await startAdding(user, 'Abakpa Nike')
+    const latitude = screen.getAllByPlaceholderText('e.g. 6.4447')[0]
+    expect(latitude).not.toHaveAttribute('aria-invalid')
+    await user.type(latitude, '6.4.4')
+    await user.type(screen.getAllByPlaceholderText('e.g. 7.5108')[0], '7.5108')
+    await user.click(screen.getAllByRole('button', { name: 'Save' })[0])
+    expect(await screen.findByText('Enter a latitude between -90 and 90')).toBeInTheDocument()
+    expect(latitude).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByText('Enter a longitude between -180 and 180')).not.toBeInTheDocument()
+  }, SLOW)
+
   it('adds an area with its coordinates', async () => {
     const user = userEvent.setup()
     await openAreas()
