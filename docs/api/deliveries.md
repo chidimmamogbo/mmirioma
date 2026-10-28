@@ -1087,10 +1087,9 @@ questions:
 
 ### Amendment (#204): the driver on the admin order list
 
-**Status: proposed.** Proposed by @Daveoski (+ Claude Code) for
-[#204](https://github.com/chidimmamogbo/mmirioma/issues/204), option B. It
-needs a reviewer who is not the author to mark it `Status: agreed` (G3) before
-anything is built.
+**Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead), on
+PR #205. Proposed by @Daveoski (+ Claude Code) for
+[#204](https://github.com/chidimmamogbo/mmirioma/issues/204), option B.
 
 **Gap.** `GET /admin/orders` returns `AdminOrderRead`, which names no driver;
 only the detail does, through `assignment.driver`
@@ -1129,11 +1128,15 @@ else of the assignment:
 - **Cost.** The server reads the live assignments of the whole page in one
   query, not one per row.
 
-**Open question for the reviewer.** An `offered` assignment is live, so the
-column would show the driver's name before they accept. The panel says
-"Assigned to <name> · Waiting for them to start" in that case, so the two
-agree. If the column should show a driver only after the driver accepts, the
-rule becomes `accepted` only and an offer reads `null`: say so when agreeing.
+**Decisions** (2026-10-28, @nnamdi-security, on PR #205):
+
+1. **Option B.** The list carries the driver, rather than the frontend-only
+   wording change (option A).
+2. **An offered assignment shows the driver's name** (`offered` or
+   `accepted`), not only after the driver accepts. The panel says "Assigned to
+   <name> · Waiting for them to start" in that case, so the two agree, and a
+   dispatcher needs to see who an order has been offered to, so as not to
+   offer it twice.
 
 **Built in:** not yet. The contract example `examples/admin-orders-page.json`
 gains `driver` with the build.
