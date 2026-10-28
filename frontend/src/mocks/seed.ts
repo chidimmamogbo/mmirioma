@@ -92,6 +92,8 @@ export interface StoredJob extends PartnerJob {
   declined_by: string[]
   /** Delivery code for seeded jobs with no customer order (mock only). */
   mock_code: string | null
+  /** Mock only: the code has expired, so `verifyCode` answers `delivery_code_expired` (#138). */
+  mock_code_expired?: boolean
   /** When the order was placed (admin lists). */
   created_at: string
 }

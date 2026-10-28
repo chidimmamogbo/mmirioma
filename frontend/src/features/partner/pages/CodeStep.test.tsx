@@ -9,7 +9,7 @@ import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { mockLogin, mockLogout } from '../../../mocks/authMock'
 import { resetMockDb } from '../../../mocks/db'
-import { acceptJob, confirmPickup, listAvailableJobs } from '../../../mocks/partnerMock'
+import { acceptJob, completeUnloading, confirmPickup, listAvailableJobs, simulateCodeProblem } from '../../../mocks/partnerMock'
 import { DEMO_PASSWORD } from '../../../mocks/seed'
 import { CodeStep } from './CodeStep'
 
@@ -57,5 +57,58 @@ describe('CodeStep before the code is issued (#13)', () => {
     const expected = errorMessage(new ApiError({ kind: 'http', status: 401, code: 'not_authenticated', message: 'Not signed in' }))
     expect(await screen.findByText(expected)).toBeInTheDocument()
     expect(screen.getByText('Waiting for the delivery code.')).toBeInTheDocument()
+  })
+})
+
+/** A collected job whose code was already issued (unloading done). */
+async function codeIssuedJob(): Promise<string> {
+  const reference = await collectedJob()
+  await completeUnloading(reference)
+  return reference
+}
+
+/** Type six digits on the keypad and press "Verify code". */
+async function enterCode(digit: string) {
+  const user = userEvent.setup()
+  for (let i = 0; i < 6; i++) await user.click(await screen.findByRole('button', { name: digit }))
+  await user.click(screen.getByRole('button', { name: 'Verify code' }))
+}
+
+describe('CodeStep when the code SMS failed (#138, FR-050)', () => {
+  it('never says the code was sent, and offers a new code', async () => {
+    const reference = await codeIssuedJob()
+    simulateCodeProblem(reference, 'sms_failed')
+    renderCodeStep(reference)
+    expect(await screen.findByText('The code could not be sent to the customer.')).toBeInTheDocument()
+    expect(screen.queryByText('Code sent to customer')).not.toBeInTheDocument()
+    expect(screen.queryByText(/we sent to their phone/)).not.toBeInTheDocument()
+    // The mock holds a new code back for two minutes after the first, so the button shows the wait.
+    expect(screen.getByRole('button', { name: /Send a new code in \d+:\d{2}/ })).toBeDisabled()
+  })
+
+  it('says "Code sent to customer" when the SMS was accepted', async () => {
+    renderCodeStep(await codeIssuedJob())
+    expect(await screen.findByText('Code sent to customer')).toBeInTheDocument()
+    expect(screen.queryByText('The code could not be sent to the customer.')).not.toBeInTheDocument()
+  })
+})
+
+describe('CodeStep when the code expired (#138)', () => {
+  it('shows the expired state, not "That code is not right"', async () => {
+    const reference = await codeIssuedJob()
+    simulateCodeProblem(reference, 'expired')
+    renderCodeStep(reference)
+    await enterCode('1')
+    expect(await screen.findByText('This code has expired.')).toBeInTheDocument()
+    expect(screen.queryByText('That code is not right.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Send a new code/ })).toBeInTheDocument()
+  })
+
+  it('still shows "That code is not right" for a wrong code', async () => {
+    renderCodeStep(await codeIssuedJob())
+    await enterCode('0')
+    expect(await screen.findByText('That code is not right.')).toBeInTheDocument()
+    expect(screen.queryByText('This code has expired.')).not.toBeInTheDocument()
   })
 })

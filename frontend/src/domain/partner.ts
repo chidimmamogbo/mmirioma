@@ -101,6 +101,12 @@ export interface PartnerJob {
   code_tries_left: number | null
   /** When a new code may be requested again (UTC ISO). */
   code_resend_at: string | null
+  /**
+   * Whether the SMS provider accepted the customer's code. `'failed'` means
+   * the code was recorded but not sent, so the code screen must not say it
+   * was sent (FR-050, #138). `null` or absent: no code issued yet.
+   */
+  code_sms_status?: 'accepted' | 'failed' | null
   accepted_at: string | null
   collected_at: string | null
   delivered_at: string | null

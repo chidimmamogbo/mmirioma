@@ -133,7 +133,11 @@ Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 step before unloading is done, `details.missing: ["unloading_confirmed"]`),
 `load_not_confirmed` (422), `invalid_code`
 (422, `details.tries_left`), `code_locked` (423), `too_many_attempts` (429,
-`retry_after_seconds`), `insufficient_balance` (422), `no_payout_account` (409).
+`retry_after_seconds`), `insufficient_balance` (422), `no_payout_account` (409),
+`delivery_code_expired` (400, as the backend names it; set up with
+`simulateCodeProblem(reference, 'expired')`). `simulateCodeProblem(reference,
+'sms_failed')` makes the job report `code_sms_status` `failed`, as a refused
+SMS does. A new code clears both.
 
 ## 6. Important business rules
 
@@ -177,6 +181,11 @@ active job, for calling.
 - Reloading a trip screen at the wrong stage redirects to the right step.
 - Taken orders, a locked code and a resend that is too soon each show a
   clear message.
+- Code screen (#138, FR-050): when `code_sms_status` is `failed` the screen
+  says the code could not be sent and offers "Send a new code"; it never says
+  "Code sent". A `delivery_code_expired` answer shows "This code has expired"
+  with "Send a new code", not "That code is not right". The wording is a
+  draft until a reviewer approves it (G2).
 - Real API: server errors reach the screens unchanged as `ApiError`. Going
   online while pending or suspended shows the server's `partner_not_approved`
   message. A driver with no driver profile gets the error screen

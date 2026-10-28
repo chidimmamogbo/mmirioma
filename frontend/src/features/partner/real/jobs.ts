@@ -118,6 +118,7 @@ export function partnerJobFromRead(job: DriverJobSummary | DriverJobDetail): Par
     assigned_by: null,
     code_tries_left: detail?.delivery_code?.attempts_left ?? null,
     code_resend_at: null,
+    code_sms_status: detail?.delivery_code?.sms_status ?? null,
     accepted_at: null,
     collected_at: detail?.pickup?.picked_up_at ?? null,
     delivered_at: job.order_status === 'delivered' ? job.ended_at : null,

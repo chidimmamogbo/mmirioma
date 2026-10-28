@@ -117,6 +117,14 @@ describe('partnerJobFromRead', () => {
     expect(partnerJobFromRead(unloadingComplete as never).code_tries_left).toBe(5)
   })
 
+  it('carries whether the code SMS was accepted or failed (#138)', () => {
+    const detail = unloadingComplete as unknown as DriverJobDetail
+    const failed = { ...detail, delivery_code: { ...detail.delivery_code!, sms_status: 'failed' as const } }
+    expect(partnerJobFromRead(detail).code_sms_status).toBe('accepted')
+    expect(partnerJobFromRead(failed).code_sms_status).toBe('failed')
+    expect(partnerJobFromRead(driverJobDetail as never).code_sms_status).toBeNull()
+  })
+
   it('converts an ended summary with the delivery time and no address or receiver', () => {
     const job = partnerJobFromRead(doneJob)
     expect(job.stage).toBe('delivered')
