@@ -63,6 +63,6 @@ real API until a contract is agreed and the endpoint is built in this fork.
 | Partner profile, going online, documents, sign-up, earnings, payouts | #14 |
 | Admin customers, riders, stations | #18 (customers and drivers to be built in #45; stations stay on the command-line tool) |
 | Admin service areas | #18 (built in #30; screen linked in #74) |
-| Admin price lists | #18 (built in #37; screen needs the redesign in #44 first) |
+| Admin price lists | #18 (built in #37; screen redesigned in #44, [admin-pricing.md](../design/admin-pricing.md), then a link issue) |
 | Dashboard, live map, reports, support, audit log, notifications, settings | #22 (contract agreed; backend to be built in #102) |
 | Rider payouts, saving settings | #22 (not proposed: payouts are out of the MVP, settings come from backend configuration) |
