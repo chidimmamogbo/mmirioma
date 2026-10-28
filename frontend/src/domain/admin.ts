@@ -52,8 +52,33 @@ export const ADMIN_STATUS_LABEL: Record<AdminOrderStatus, string> = {
  */
 export type AdminPaymentStatus = PaymentStatus | 'pending_collection' | 'partially_paid'
 
-/** Order list filters (a-orders pills). "In progress" covers assigned, loading and on the way. */
-export type AdminOrderFilter = 'all' | 'awaiting_confirmation' | 'awaiting_rider' | 'in_progress' | 'delivered' | 'cancelled'
+/**
+ * Order list filters (a-orders pills). "In progress" covers assigned, loading
+ * and on the way. "On hold" lists every order with an open hold, whatever its
+ * status (admin-hold-review.md, R0).
+ */
+export type AdminOrderFilter = 'all' | 'awaiting_confirmation' | 'awaiting_rider' | 'in_progress' | 'on_hold' | 'delivered' | 'cancelled'
+
+/** Why a driver's job is on hold (docs/api/deliveries.md, "Hold object on admin orders"). */
+export type HoldKind = 'proof_review' | 'source_review' | 'unsafe_stop'
+
+/** Staff words for the hold kinds (admin-hold-review.md, decision 12). */
+export const HOLD_KIND_LABEL: Record<HoldKind, string> = {
+  proof_review: 'Proof review',
+  source_review: 'Source review',
+  unsafe_stop: 'Unsafe stop',
+}
+
+/**
+ * The open hold on an order's live job. A hold is not a status: the order keeps
+ * its status while it is open. `id` is sent back with a decision.
+ */
+export interface AdminOrderHold {
+  id: string
+  kind: HoldKind
+  /** When the hold opened (UTC ISO); shown as Lagos time and "12 minutes ago". */
+  since: string
+}
 
 export interface AdminOrderPartner {
   id: string
@@ -92,6 +117,8 @@ export interface AdminOrder {
    * in mock mode, which has no such statuses.
    */
   backend_status?: string
+  /** The order's open hold, or `null`. */
+  hold: AdminOrderHold | null
   partner: AdminOrderPartner | null
   assigned_by: string | null
   /** Where the water is collected, once a source is chosen; `null` before. */

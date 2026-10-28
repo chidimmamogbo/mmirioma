@@ -17,6 +17,11 @@ export const IFEANYI_ID = 'user-ifeanyi'
 export const SUNDAY_ID = 'user-sunday'
 export const DANIEL_ID = 'user-daniel'
 
+/** An ISO time `m` minutes before `now`, for the seeded holds. */
+function minutesAgo(now: Date, m: number): string {
+  return new Date(now.getTime() - m * 60_000).toISOString()
+}
+
 type JobSeed = Partial<StoredJob> & Pick<StoredJob, 'reference' | 'choice' | 'station' | 'customer' | 'earning_minor_units'>
 
 function job(j: JobSeed): StoredJob {
@@ -110,6 +115,43 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
     job({ reference: 'MO-2BQ7TV9HXA', choice: keke(25, 12), station: { ...GRA, distance_km: 3.4, minutes: 8 }, customer: { name: 'GRA', address: '12 Lakeview Street, GRA, Enugu', area: 'GRA', distance_km: 7.8, minutes: 17, contact_name: 'Adaeze Nwosu', phone: '+2348031234567' }, earning_minor_units: 280_000, stage: 'delivered', partner_id: DEMO_RIDER_ID, payment_status: 'paid', delivered_at: lagosToday(13, 5, now, 3) }),
     job({ reference: 'MO-6TPB4WX9LR', choice: tanker('ground', 500), station: { name: 'Independence Station', address: 'Zik Avenue junction', area: 'Independence Layout', distance_km: 1.2, minutes: 5 }, customer: { name: 'Independence Layout', address: '3 Bisala Road, Independence Layout', area: 'Independence Layout', distance_km: 2.6, minutes: 8, contact_name: 'Amaka Eze', phone: '+2348000000211' }, earning_minor_units: 650_000, stage: 'delivered', partner_id: DEMO_DRIVER_ID, payment_status: 'paid', delivered_at: lagosToday(7, 40, now) }),
     job({ reference: 'MO-8ZRX3KTM6D', choice: tanker('ground', 1000), station: { name: 'GRA Station', address: '7 Abakaliki Road, GRA', area: 'GRA', distance_km: 1.9, minutes: 7 }, customer: { name: 'Trans-Ekulu', address: '6 Ekulu Road, Trans-Ekulu', area: 'Trans-Ekulu', distance_km: 4.4, minutes: 14, contact_name: 'Obinna Agu', phone: '+2348000000207' }, earning_minor_units: 950_000, stage: 'delivered', partner_id: DEMO_DRIVER_ID, payment_status: 'paid', delivered_at: lagosToday(16, 10, now, 1) }),
+    // Held jobs, one of each kind (admin hold review, R0): the job stops and waits for a dispatcher.
+    // Their riders have no other live job, so the demo's rider flows are not blocked.
+    job({
+      reference: 'MO-6PRF2KQ7XD',
+      choice: keke(25, 24),
+      station: { ...GRA, distance_km: 2.9, minutes: 7 },
+      customer: { name: '15 Hilltop Close, GRA', address: '15 Hilltop Close, GRA, Enugu', area: 'GRA', landmark: 'Gate with a blue door', distance_km: 4.1, minutes: 10, contact_name: 'Ngozi Eze', phone: '+2348000000301' },
+      earning_minor_units: 250_000,
+      stage: 'collected',
+      partner_id: IFEANYI_ID,
+      accepted_at: minutesAgo(now, 70),
+      collected_at: minutesAgo(now, 45),
+      hold: { id: 'hold-proof-1', kind: 'proof_review', since: minutesAgo(now, 12) },
+    }),
+    job({
+      reference: 'MO-3SRC8WT5NB',
+      choice: keke(50, 12),
+      station: { ...OGUI, distance_km: 1.8, minutes: 6 },
+      customer: { name: '4 Nsukka Lane, Ogui', address: '4 Nsukka Lane, Ogui, Enugu', area: 'Ogui', landmark: null, distance_km: 3.2, minutes: 9, contact_name: 'Adaeze Nwosu', phone: '+2348000000302' },
+      earning_minor_units: 300_000,
+      stage: 'collected',
+      partner_id: SUNDAY_ID,
+      accepted_at: minutesAgo(now, 100),
+      collected_at: minutesAgo(now, 75),
+      hold: { id: 'hold-source-1', kind: 'source_review', since: minutesAgo(now, 60) },
+    }),
+    job({
+      reference: 'MO-9UNS4VH2ZC',
+      choice: keke(25, 30),
+      station: { ...INDEP, distance_km: 2.2, minutes: 7 },
+      customer: { name: '31 Zik Avenue, Independence Layout', address: '31 Zik Avenue, Independence Layout, Enugu', area: 'Independence Layout', landmark: 'Opposite the market', distance_km: 3.7, minutes: 11, contact_name: 'Kelechi Obi', phone: '+2348000000303' },
+      earning_minor_units: 250_000,
+      stage: 'accepted',
+      partner_id: DANIEL_ID,
+      accepted_at: minutesAgo(now, 40),
+      hold: { id: 'hold-unsafe-1', kind: 'unsafe_stop', since: minutesAgo(now, 25) },
+    }),
   ]
 
   // Placed-at times for the admin lists: a while before the job moved on, or a few minutes ago for open orders.

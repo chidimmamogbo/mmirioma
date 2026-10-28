@@ -10,6 +10,7 @@
  *   Tanker driver phone 0800 000 0102   (partnerSeed.ts)
  */
 import type { User } from '../lib/api/auth'
+import type { AdminOrderHold } from '../domain/admin'
 import { describeChoice } from '../domain/orders'
 import type {
   CustomerNotification,
@@ -94,6 +95,12 @@ export interface StoredJob extends PartnerJob {
   mock_code: string | null
   /** Mock only: the code has expired, so `verifyCode` answers `delivery_code_expired` (#138). */
   mock_code_expired?: boolean
+  /**
+   * The job's open hold (docs/api/deliveries.md, "Admin hold review
+   * endpoints"): it stops the job and shows on the admin order. A hold is not
+   * a stage. Admin decisions clear it.
+   */
+  hold?: AdminOrderHold | null
   /** When the order was placed (admin lists). */
   created_at: string
 }

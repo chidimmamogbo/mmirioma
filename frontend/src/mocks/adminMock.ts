@@ -205,6 +205,7 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
     total_minor_units: priced,
     payment: o?.payment ?? { method: 'pay_on_delivery', status: job!.payment_status },
     status: job ? statusFromJob(job) : statusFromOrder(o!),
+    hold: job?.hold ?? null,
     partner: partnerSummary(s, job?.partner_id ?? null),
     assigned_by: job?.assigned_by ?? null,
     station_name: job?.station.name ?? o?.station_name ?? '',
@@ -224,6 +225,7 @@ const IN_PROGRESS: AdminOrderStatus[] = ['assigned', 'loading', 'on_the_way']
 
 function matchesFilter(o: AdminOrder, f: AdminOrderFilter): boolean {
   if (f === 'all') return true
+  if (f === 'on_hold') return o.hold !== null
   if (f === 'in_progress') return IN_PROGRESS.includes(o.status)
   return o.status === f
 }
@@ -340,7 +342,7 @@ export async function listOrders(filter: AdminOrderFilter = 'all', query?: strin
   const s = read()
   requireAdmin(s)
   const found = allOrders(s).filter((o) => matchesQuery(orderSearchText(o), query))
-  const counts = { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 } as Record<AdminOrderFilter, number>
+  const counts = { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, on_hold: 0, delivered: 0, cancelled: 0 } as Record<AdminOrderFilter, number>
   for (const f of Object.keys(counts) as AdminOrderFilter[]) counts[f] = found.filter((o) => matchesFilter(o, f)).length
   return { orders: found.filter((o) => matchesFilter(o, filter)), counts }
 }

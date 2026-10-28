@@ -61,6 +61,16 @@ describe('adminOrderFromRead', () => {
     expect(order.timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
   })
 
+  it('carries the open hold, and no hold as null (admin hold review, R0)', () => {
+    const hold = { id: '9b2c4d6e-8f1a-4b3c-9d5e-6f7a8b9c0d1e', kind: 'proof_review' as const, since: '2026-10-20T08:48:00Z' }
+    expect(adminOrderFromRead({ ...ROW, hold }).hold).toEqual(hold)
+    expect(adminOrderFromRead({ ...ROW, hold: null }).hold).toBeNull()
+    // A server that sends no hold field reads as none.
+    const withoutHold: Partial<AdminOrderRead> = { ...ROW }
+    delete withoutHold.hold
+    expect(adminOrderFromRead(withoutHold as AdminOrderRead).hold).toBeNull()
+  })
+
   it('shows a payment status without a label yet as no chip, never a guessed one', () => {
     expect(adminOrderFromRead({ ...DETAIL, payment: { ...DETAIL.payment!, status: 'partially_refunded' } }).payment.status).toBeNull()
   })
@@ -128,6 +138,29 @@ describe('listOrders (real)', () => {
     expect(listCall).not.toContain('status=confirmed')
   })
 
+  it('lists held orders with on_hold=true, whatever their status, and counts them from the total', async () => {
+    const { fetch, client } = clientByUrl((url) => {
+      if (url.includes('limit=1&')) return { body: page([], url.includes('on_hold=true') ? 4 : 9) }
+      return { body: page([ROW]) }
+    })
+    const result = await listOrders('on_hold', undefined, client)
+    expect(result.counts.on_hold).toBe(4)
+    const calls = fetch.mock.calls.map((c) => String(c[0]))
+    const listCall = calls.find((u) => u.includes('limit=100'))!
+    expect(listCall).toContain('on_hold=true')
+    expect(listCall).not.toContain('status=')
+    // The other pills never send it.
+    expect(calls.filter((u) => u.includes('limit=1&') && !u.includes('on_hold=true')).length).toBe(6)
+  })
+
+  it('keeps an order on the "On hold" pill only while it has a hold (reference lookup)', async () => {
+    const hold = { id: '9b2c4d6e-8f1a-4b3c-9d5e-6f7a8b9c0d1e', kind: 'source_review' as const, since: '2026-10-20T08:48:00Z' }
+    const held = clientByUrl(() => ({ body: { ...DETAIL, hold } }))
+    expect((await listOrders('on_hold', DETAIL.reference, held.client)).orders).toHaveLength(1)
+    const free = clientByUrl(() => ({ body: { ...DETAIL, hold: null } }))
+    expect((await listOrders('on_hold', DETAIL.reference, free.client)).orders).toHaveLength(0)
+  })
+
   it('looks a reference up directly', async () => {
     const { fetch, client } = clientByUrl(() => ({ body: DETAIL }))
     const result = await listOrders('all', ` ${DETAIL.reference.toLowerCase()} `, client)
@@ -139,7 +172,7 @@ describe('listOrders (real)', () => {
     const { client } = clientByUrl(() => ({ body: NOT_FOUND, status: 404 }))
     expect(await listOrders('all', 'MO-0000000000', client)).toEqual({
       orders: [],
-      counts: { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, delivered: 0, cancelled: 0 },
+      counts: { all: 0, awaiting_confirmation: 0, awaiting_rider: 0, in_progress: 0, on_hold: 0, delivered: 0, cancelled: 0 },
     })
   })
 
