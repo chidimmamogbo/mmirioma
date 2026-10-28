@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import expiredSample from '../../../../../docs/api/examples/error-quote-expired.json'
+import historySample from '../../../../../docs/api/examples/order-history.json'
 import orderSample from '../../../../../docs/api/examples/order-with-details.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
 import type { OrderRead } from '../../../lib/api/orders'
 import type { CreateOrderInput } from '../../../mocks/customerMock'
-import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput, submitFeedback } from './order'
+import { createOrder, customerOrderFromRead, getOrder, listOrders, orderCreateFromInput, submitFeedback, timelineFromHistory } from './order'
 
 /** The agreed contract's example order (docs/api/order-details-and-price.md). */
 const SAMPLE = orderSample as unknown as OrderRead
@@ -146,6 +147,64 @@ describe('getOrder (real)', () => {
   it('passes 404 order_not_found through as an ApiError', async () => {
     const { client } = clientReturning({ body: { error: { code: 'order_not_found', message: 'Order not found', details: null } }, status: 404 })
     await expect(getOrder('MO-0000000000', client)).rejects.toMatchObject({ status: 404, code: 'order_not_found' } satisfies Partial<ApiError>)
+  })
+
+  it('builds a delivered order timeline from its history (#155, contract example)', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      const body = String(input).endsWith('/history') ? historySample : { ...SAMPLE, status: 'delivered' }
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    })
+    const order = await getOrder('MO-7KQ2M9XH4T', createApiClient({ baseUrl: 'http://api.test', fetch }))
+    expect(fetch.mock.calls.map((c) => String(c[0]))).toContain('http://api.test/api/v1/orders/MO-7KQ2M9XH4T/history')
+    expect(order.timeline.map((t) => t.label)).toEqual([
+      'Order placed',
+      'Awaiting confirmation',
+      'Waiting for rider',
+      'Rider assigned',
+      'Picked up',
+      'On the way',
+      'Delivered',
+    ])
+    expect(order.timeline.at(-1)?.at).toBe(historySample.items.at(-1)?.at)
+  })
+
+  it('keeps "Order placed" only when the history cannot load, never a guessed step', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+      String(input).endsWith('/history')
+        ? new Response(JSON.stringify({ error: { code: 'service_unavailable', message: 'Try later', details: null } }), { status: 503 })
+        : new Response(JSON.stringify(SAMPLE), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    const order = await getOrder('MO-7KQ2M9XH4T', createApiClient({ baseUrl: 'http://api.test', fetch }))
+    expect(order.timeline).toEqual([{ label: 'Order placed', at: SAMPLE.created_at }])
+  })
+})
+
+describe('timelineFromHistory', () => {
+  it('never shows an assignment the driver has not accepted (FR-032), and adds no step for a status that keeps the stage', () => {
+    const at = (m: number) => `2026-10-28T08:${String(m).padStart(2, '0')}:00Z`
+    const timeline = timelineFromHistory(at(0), [
+      { status: 'quote_requested', at: at(0) },
+      { status: 'awaiting_confirmation', at: at(1) },
+      { status: 'confirmed', at: at(2) },
+      { status: 'assigned', at: at(3) },
+      { status: 'confirmed', at: at(4) }, // declined
+      { status: 'assigned', at: at(5) },
+      { status: 'accepted', at: at(6) },
+    ])
+    expect(timeline.map((t) => [t.label, t.at])).toEqual([
+      ['Order placed', at(0)],
+      ['Awaiting confirmation', at(1)],
+      ['Waiting for rider', at(2)],
+      ['Rider assigned', at(6)],
+    ])
+  })
+
+  it('shows a status this build does not know as "Order update"', () => {
+    const timeline = timelineFromHistory('2026-10-28T08:00:00Z', [
+      { status: 'quote_requested', at: '2026-10-28T08:00:00Z' },
+      { status: 'rescheduling' as never, at: '2026-10-28T08:10:00Z' },
+    ])
+    expect(timeline.at(-1)?.label).toBe('Order update')
   })
 })
 

@@ -1,0 +1,15 @@
+{
+  "items": [
+    { "status": "quote_requested", "at": "2026-10-28T08:00:00Z" },
+    { "status": "awaiting_confirmation", "at": "2026-10-28T08:00:00.000001Z" },
+    { "status": "confirmed", "at": "2026-10-28T08:20:00Z" },
+    { "status": "assigned", "at": "2026-10-28T08:25:00Z" },
+    { "status": "accepted", "at": "2026-10-28T08:27:00Z" },
+    { "status": "departed", "at": "2026-10-28T08:30:00Z" },
+    { "status": "collected", "at": "2026-10-28T08:55:00Z" },
+    { "status": "en_route", "at": "2026-10-28T09:00:00Z" },
+    { "status": "arrived", "at": "2026-10-28T09:20:00Z" },
+    { "status": "unloading", "at": "2026-10-28T09:22:00Z" },
+    { "status": "delivered", "at": "2026-10-28T09:40:00Z" }
+  ]
+}

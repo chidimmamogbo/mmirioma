@@ -297,6 +297,33 @@ def test_t07_customer_cannot_read_another_customers_order(
     run(scenario)
 
 
+def test_history_lists_own_status_changes_oldest_first(created_user_ids: list[uuid.UUID]) -> None:
+    async def scenario(sessions: async_sessionmaker[AsyncSession]) -> None:
+        owner = await add_customer(sessions, created_user_ids)
+        other = await add_customer(sessions, created_user_ids)
+        async with sessions() as session:
+            order, _ = await service.create_order(session, customer_id=owner, request=new_order())
+
+        async with sessions() as session:
+            events = await service.customer_order_history(
+                session, customer_id=owner, reference=order.reference
+            )
+            assert [(e.from_status, e.to_status) for e in events] == [
+                (None, OrderStatus.QUOTE_REQUESTED)
+            ]
+            # T-07: another customer's order is the same 404 as a missing one.
+            with pytest.raises(APIError) as error:
+                await service.customer_order_history(
+                    session, customer_id=other, reference=order.reference
+                )
+            assert (error.value.status_code, error.value.code) == (
+                HTTPStatus.NOT_FOUND,
+                "order_not_found",
+            )
+
+    run(scenario)
+
+
 def test_list_returns_only_own_orders_newest_first(
     created_user_ids: list[uuid.UUID],
 ) -> None:

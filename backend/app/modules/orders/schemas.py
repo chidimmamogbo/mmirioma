@@ -33,6 +33,7 @@ from app.modules.orders.models import (
     LANDMARK_MAX_LENGTH,
     DeliveryType,
     Order,
+    OrderEvent,
     OrderFeedback,
     OrderStatus,
     TankType,
@@ -577,6 +578,27 @@ class AdminOrderRead(OrderBaseRead):
             is_simulated=order.is_simulated,
             hold=hold,
         )
+
+
+class OrderHistoryEntry(BaseModel):
+    """One status change of a customer's order: the new status and when (#155).
+
+    No actor, note or reason: those are staff detail (orders.md, "GET
+    /orders/{reference}/history").
+    """
+
+    status: OrderStatus
+    at: datetime
+
+    @classmethod
+    def from_event(cls, event: OrderEvent) -> OrderHistoryEntry:
+        return cls(status=event.to_status, at=event.created_at)
+
+
+class OrderHistory(BaseModel):
+    """Body of ``GET /orders/{reference}/history``: every status change, oldest first."""
+
+    items: list[OrderHistoryEntry]
 
 
 class OrderPage(BaseModel):
