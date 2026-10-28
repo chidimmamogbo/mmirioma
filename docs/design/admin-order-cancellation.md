@@ -40,7 +40,7 @@ one.
 | C0 Order panel entry | The "Cancel this order" button (outlined, danger colour) at the bottom of the panel, shown for Awaiting confirmation, Awaiting rider, Assigned, Loading, On the way and Delivery failed; **not on the page** for Delivered, Cancelled and Disputed. Pressing it opens the CANCEL dialog (C1), not an inline form. After a successful cancel: toast "Order cancelled. Tell the customer.", the panel reads Cancelled, "Assign a rider" and the button are gone, and the order moves to the "Cancelled" pill with the counts updated | Build now |
 | C1 CANCEL dialog, from the entry | The dialog of #128 with three variants. **a. With a live driver:** "The driver's job ends and leaves their list. Nothing notifies the driver. No cancellation message is sent to the customer yet: tell them yourself." **b. No live driver** (Awaiting confirmation, Awaiting rider, Delivery failed): "No driver is assigned, so no driver's job changes. No cancellation message is sent to the customer yet: tell them yourself." **c. An open hold:** adds "This also closes the <kind> hold." The dialog's own states are #128's, unchanged: loading the sentence, "We couldn't check what this costs the customer." with Try again (Cancel order stays disabled), "This order can no longer be cancelled.", "This order has changed." with Refresh, a 422, no connection | Build now (the dialog itself is built in #166; this adds variants b and c) |
 | Phone (360 px) | The same entry at the bottom of the panel; the dialog full screen with the buttons fixed at the bottom, as in #128 | Build now |
-| Customer-requested cancel | Not designed (open question 1) | Design ahead, after a contract change |
+| Customer-requested cancel | The reason choice in the CANCEL dialog: see [Change: the reason choice (#174)](#change-the-reason-choice-174) | Build now (after G2) |
 
 ## Screen-to-endpoint table
 
@@ -68,7 +68,7 @@ Design choices for the reviewer (G2):
    (row 23) refuses a cancel from `cancelled`, `delivered` and `disputed`, so
    the button is not on the page for those. A button that never works would
    invite a click and an error.
-3. **No free-text reason and no example reason.** The reason is the fixed line
+3. **No free-text reason and no example reason.** *(Replaced by the reason choice, decision 10 in the #174 change below.)* The reason is the fixed line
    "MmiriOma is unable to deliver". The old placeholder "e.g. Customer asked to
    cancel by phone" goes, because it invites a reason the contract does not
    accept (open question 1). The note stays optional (up to 500), as the
@@ -100,7 +100,7 @@ Design choices for the reviewer (G2):
 
 ## Open questions
 
-1. **Cancelling because the customer asked.** The most common real case is a
+1. ~~**Cancelling because the customer asked.**~~ *Resolved: the contract is agreed (#174, PR #203) and the dialog offers the reason, see the change below.* The most common real case is a
    customer phoning to cancel. The agreed cancel accepts only
    `mmirioma_unable`, and the cost outcome for any other reason is a 422 until
    "the cancellation feature" exists. Cancelling at the customer's request has
@@ -116,6 +116,71 @@ Design choices for the reviewer (G2):
    the dialog's text, and #166 builds the dialog. The owner of #166 should
    build them with it; if the dialog has already merged, a small follow-up
    adds them.
+
+## Change: the reason choice (#174)
+
+Status: **draft**, for G2 by one reviewer who is not the author. Drafted
+2026-10-28 by @Cloudcrackamara (+ Claude Code). Resolves open question 1 and
+replaces decision 3. The contract it uses is agreed and built: [Cancel because
+the customer asked (#174)](../api/deliveries.md#cancel-because-the-customer-asked-174)
+(G3, PR #203; backend in PR #208).
+
+The CANCEL dialog (#128, built in #166, used by the order panel's entry in
+#176) no longer states one fixed reason. It asks for the reason, because the
+two the contract accepts are both true cases: the customer phoned to cancel
+(the most common), or MmiriOma cannot deliver. One dialog still serves the
+panel entry and the hold review sheet.
+
+### Screens and states
+
+| Screen | States designed |
+| --- | --- |
+| C1 CANCEL dialog (entry and hold sheet) | **Reason (new):** a "Reason" group of two radio buttons, "The customer asked to cancel" and "MmiriOma is unable to deliver", **neither chosen**. **Before a reason is chosen:** no cost sentence and Cancel order off. **After:** the server's cost sentence for that reason (loading, the failed lookup with Try again, as before), then Cancel order on once it has loaded. **Changing the reason** loads the sentence again. **Note:** optional, up to 500 characters, **required when the order is unloading** (label "Note", hint "Unloading has started: say why."; a missing note shows "Say why: unloading has already started."). Everything else is as designed: the driver or no-driver line, "This also closes the <kind> hold.", "This order can no longer be cancelled.", "This order has changed." with Refresh, a 422, no connection |
+| Order history (panel) | A cancel's line shows its reason: "Customer asked to cancel" or "MmiriOma is unable to deliver"; a reason the app does not know shows none |
+| Phone (360 px) | The radio buttons are 44 px high, as in the FAIL dialog |
+
+### Screen-to-endpoint table
+
+| Screen | Element / action | Endpoint | Fields used |
+| --- | --- | --- | --- |
+| C1 | The cost sentence for the chosen reason | `GET /admin/orders/{reference}/cancellation-outcome?reason_code=customer_request` or `mmirioma_unable` | `message` (as written), `customer_charge_minor_units`; 409 `invalid_order_transition`; 422 `validation_error` |
+| C1 | Cancel order | `POST /admin/orders/{reference}/transition` | `to: cancelled`, `expected_status`, `reason_code: customer_request` or `mmirioma_unable`, `note` (required at `unloading`), `hold_id` (hold sheet only); 422 `validation_error` at `body.note` when the note is missing at `unloading` |
+| History | The reason line | `GET /admin/orders/{reference}/history` | the cancel event's `reason_code` |
+
+### Decisions
+
+10. **The reason is chosen, never preset.** Neither radio button is selected
+    when the dialog opens, and Cancel order stays off until one is. A preset
+    reason would be recorded by whoever presses the button without reading it,
+    and the audit reason (NFR-004) must be the dispatcher's own choice. This is
+    the FAIL dialog's pattern (#128).
+11. **No free-text reason, still.** The reason is one of two fixed choices; the
+    note is where the dispatcher writes detail. `other` is not offered, as the
+    contract refuses it (#174, decision 2). The old placeholder "e.g. Customer
+    asked to cancel by phone" stays gone.
+12. **The cost sentence waits for the reason.** The outcome is asked per
+    reason, so nothing about cost is shown before a choice and the dialog never
+    states a cost the client worked out. Today both reasons give the same
+    sentence (the pilot has no cancellation charge, F5); the dialog does not
+    rely on that.
+13. **A note is required at `unloading`.** FR-044 requires administrator review
+    once unloading has started, and the contract requires the note then (#174,
+    decision 3). The dialog marks it required and shows the sentence before the
+    request is sent; the server's 422 shows on the same field if the dialog is
+    out of step.
+14. **The toast is unchanged for both reasons:** "Order cancelled. Tell the
+    customer." (decision 7; no cancellation message goes to the customer yet,
+    F10).
+15. **The same dialog everywhere.** The hold review sheet's Cancel opens it with
+    the same two choices and no preset, even though a source or unsafe-stop hold
+    usually means MmiriOma is unable to deliver: the dispatcher decides, as for
+    an entry from the panel.
+
+### Open questions
+
+1. The reason labels: "The customer asked to cancel" and "MmiriOma is unable to
+   deliver". Say at review if the first should read differently (for example
+   "Customer requested").
 
 ## Changes to the design system
 
