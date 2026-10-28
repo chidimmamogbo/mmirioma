@@ -19,7 +19,7 @@ import * as priceMock from '../../mocks/priceListMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
-import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
+import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
 import * as dispatch from './real/ordersDispatch'
@@ -52,8 +52,8 @@ export const resumeUnsafe = (reference: string, request: HoldDecisionRequest): P
   USE_MOCKS ? mock.resumeUnsafe(reference, request) : holds.resumeUnsafe(reference, request)
 export const withdrawJob = (reference: string, request: WithdrawRequest): Promise<void> =>
   USE_MOCKS ? mock.withdrawJob(reference, request) : holds.withdrawJob(reference, request)
-export const getCancellationOutcome = (reference: string): Promise<CancellationOutcome> =>
-  USE_MOCKS ? mock.getCancellationOutcome(reference) : holds.getCancellationOutcome(reference)
+export const getCancellationOutcome = (reference: string, reason: CancelReason): Promise<CancellationOutcome> =>
+  USE_MOCKS ? mock.getCancellationOutcome(reference, reason) : holds.getCancellationOutcome(reference, reason)
 export const transitionOrder = (reference: string, request: AdminTransitionRequest): Promise<void> =>
   USE_MOCKS ? mock.transitionOrder(reference, request) : holds.transitionOrder(reference, request)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)

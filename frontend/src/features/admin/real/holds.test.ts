@@ -105,13 +105,20 @@ describe('admin hold review adapters (#166)', () => {
 
   it('getCancellationOutcome reads the server’s sentence for mmirioma_unable, in kobo', async () => {
     const { client, sent } = setup({ reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
-    const outcome = await getCancellationOutcome('MO-7KQ2M9XH4T', client)
+    const outcome = await getCancellationOutcome('MO-7KQ2M9XH4T', 'mmirioma_unable', client)
     expect(sent()).toMatchObject({ url: 'http://api.test/api/v1/admin/orders/MO-7KQ2M9XH4T/cancellation-outcome?reason_code=mmirioma_unable', method: 'GET' })
     expect(outcome).toEqual({ reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
   })
 
+  it('getCancellationOutcome asks for the customer_request reason when the customer asked (#174)', async () => {
+    const { client, sent } = setup({ reason_code: 'customer_request', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' })
+    const outcome = await getCancellationOutcome('MO-7KQ2M9XH4T', 'customer_request', client)
+    expect(sent().url).toBe('http://api.test/api/v1/admin/orders/MO-7KQ2M9XH4T/cancellation-outcome?reason_code=customer_request')
+    expect(outcome.reason_code).toBe('customer_request')
+  })
+
   it('getCancellationOutcome passes "cannot be cancelled" through as a 409', async () => {
-    const error = await rejection(getCancellationOutcome('MO-7KQ2M9XH4T', setup(envelope('invalid_order_transition'), 409).client))
+    const error = await rejection(getCancellationOutcome('MO-7KQ2M9XH4T', 'mmirioma_unable', setup(envelope('invalid_order_transition'), 409).client))
     expect([error.status, error.code]).toEqual([409, 'invalid_order_transition'])
   })
 
@@ -120,6 +127,13 @@ describe('admin hold review adapters (#166)', () => {
     const request = { to: 'failed' as const, expected_status: 'collected' as const, reason_code: 'source_quality_concern' as const, note: 'Source flooded.', hold_id: 'hold-1' }
     await expect(transitionOrder('MO-7KQ2M9XH4T', request, client)).resolves.toBeUndefined()
     expect(sent()).toMatchObject({ url: 'http://api.test/api/v1/admin/orders/MO-7KQ2M9XH4T/transition', method: 'POST', body: request })
+  })
+
+  it('transitionOrder cancels because the customer asked, with the note unloading needs (#174)', async () => {
+    const { client, sent } = setup({ ...adminOrderDetail, hold: null })
+    const request = { to: 'cancelled' as const, expected_status: 'unloading' as const, reason_code: 'customer_request' as const, note: 'The customer phoned to cancel.', hold_id: null }
+    await transitionOrder('MO-7KQ2M9XH4T', request, client)
+    expect(sent().body).toEqual(request)
   })
 
   it('transitionOrder cancels with mmirioma_unable and no hold from the panel', async () => {

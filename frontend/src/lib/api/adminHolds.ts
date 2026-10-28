@@ -147,6 +147,9 @@ export interface HoldDecisionRequest {
 /** Fail reasons agreed for the hold review screens (row 20). */
 export type FailReason = Extract<TransitionReason, 'source_quality_concern' | 'unsafe_access' | 'other'>
 
+/** The two reasons a cancel accepts (deliveries.md, "Cancel because the customer asked"; `other` is refused). */
+export type CancelReason = Extract<TransitionReason, 'mmirioma_unable' | 'customer_request'>
+
 /** Body of `POST .../transition`: only fail (row 20) and the no-charge cancel (row 23). */
 export type AdminTransitionRequest =
   | {
@@ -159,7 +162,8 @@ export type AdminTransitionRequest =
   | {
       to: 'cancelled'
       expected_status: AdminOrderStatus
-      reason_code: 'mmirioma_unable'
+      reason_code: CancelReason
+      /** Required when `expected_status` is `unloading` (FR-044 administrator review). */
       note: string | null
       hold_id: string | null
     }
@@ -248,26 +252,29 @@ export async function resumeUnsafe(
 }
 
 /**
- * What cancelling with `mmirioma_unable` would cost the customer
+ * What cancelling for `reason` would cost the customer
  * (`GET .../cancellation-outcome`, FR-044). The CANCEL dialog shows the
  * server's sentence, never one worked out here.
  *
- * @throws {ApiError} `invalid_order_transition` (409); `order_not_found` (404).
+ * @throws {ApiError} `invalid_order_transition` (409); `order_not_found` (404);
+ *   `validation_error` (422) for any other reason.
  */
 export async function getCancellationOutcome(
   reference: string,
+  reason: CancelReason,
   signal?: AbortSignal,
   client: ApiClient = apiClient,
 ): Promise<CancellationOutcome> {
-  const path = `${orderPath(reference)}/cancellation-outcome?reason_code=mmirioma_unable`
+  const path = `${orderPath(reference)}/cancellation-outcome?reason_code=${reason}`
   return parse(cancellationOutcomeSchema, await client.request<unknown>(path, { signal }))
 }
 
 /**
- * Fail a delivery or cancel with `mmirioma_unable` (`POST .../transition`).
+ * Fail a delivery or cancel an order (`POST .../transition`).
  *
  * @throws {ApiError} `invalid_order_transition` or `hold_not_open` (409);
- *   `validation_error` (422); `csrf_failed`; `network_error`.
+ *   `validation_error` (422, including a missing note at `unloading`);
+ *   `csrf_failed`; `network_error`.
  */
 export async function transitionOrder(
   reference: string,

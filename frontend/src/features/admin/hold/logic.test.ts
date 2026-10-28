@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ProofEvidence } from '../../../lib/api/adminHolds'
 import { ApiError } from '../../../lib/api/client'
+import { endReasonLabel } from '../../../domain/admin'
 import {
+  CANCEL_REASONS,
+  cancelNoteError,
   CHANGED_MESSAGE,
   FAIL_REASONS,
   backendStatusFor,
@@ -256,5 +259,30 @@ describe('the cancel entry on the order panel (#176)', () => {
     ['failed', false],
   ])('says a driver’s job is live for %s: %s', (status, live) => {
     expect(hasLiveDriver({ status })).toBe(live)
+  })
+})
+
+describe('cancelNoteError (CANCEL: a note of up to 500, required once unloading has started)', () => {
+  it('leaves the note optional before unloading', () => {
+    expect(cancelNoteError('', 'accepted')).toBeUndefined()
+    expect(cancelNoteError('The customer phoned.', 'collected')).toBeUndefined()
+  })
+
+  it('requires a note at unloading, with the reason why', () => {
+    expect(cancelNoteError('  ', 'unloading')).toBe('Say why: unloading has already started.')
+    expect(cancelNoteError('The customer phoned.', 'unloading')).toBeUndefined()
+  })
+
+  it('refuses a note over 500 characters', () => {
+    expect(cancelNoteError('x'.repeat(501), 'accepted')).toMatch(/up to 500/)
+  })
+})
+
+describe('the two cancel reasons (#174)', () => {
+  it('are the two the contract accepts, in staff words, and have a history label', () => {
+    expect(CANCEL_REASONS.map((r) => r.code)).toEqual(['customer_request', 'mmirioma_unable'])
+    expect(CANCEL_REASONS.map((r) => r.label)).toEqual(['The customer asked to cancel', 'MmiriOma is unable to deliver'])
+    expect(endReasonLabel('customer_request')).toBe('Customer asked to cancel')
+    expect(endReasonLabel('mmirioma_unable')).toBe('MmiriOma is unable to deliver')
   })
 })

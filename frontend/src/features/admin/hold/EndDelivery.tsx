@@ -11,13 +11,16 @@ import {
   CANCEL_CUSTOMER,
   CANCEL_DRIVER_LIVE,
   CANCEL_DRIVER_NONE,
+  CANCEL_REASONS,
   CANCEL_TOAST,
   FAIL_REASONS,
   FAIL_TOAST,
   NOTE_MAX,
+  cancelNoteError,
   decisionFailure,
   failErrors,
   outcomeFailure,
+  type CancelReasonCode,
   type DecisionFailure,
   type FailForm,
 } from './logic'
@@ -109,10 +112,11 @@ export function FailDialog({ reference, expectedStatus, hold, onClose, onDone, o
 }
 
 /**
- * CANCEL: cancel the order with the one agreed reason, `mmirioma_unable`
- * (row 23). The dialog states the customer's cost as the server's sentence,
- * read first: **Cancel order** stays off until it has loaded, so no cost is
- * ever one the client worked out. It says what happens to the driver only when
+ * CANCEL: cancel the order for one of the two agreed reasons (row 23), neither
+ * preset (design #174). The dialog states the customer's cost as the server's
+ * sentence for the chosen reason, read first: **Cancel order** stays off until a
+ * reason is chosen and the sentence has loaded, so no cost is ever one the
+ * client worked out. The note is required once unloading has started. It says what happens to the driver only when
  * a driver's job is live, and that no message goes to the customer (the
  * dispatcher tells them, fallback F10). Shared by the hold review sheet (#166)
  * and the order panel's entry (#129).
@@ -136,19 +140,25 @@ export function CancelDialog({
    */
   openHold?: EndProps['hold']
 }) {
-  const outcome = useCancellationOutcome(reference, true)
+  const [reason, setReason] = useState<CancelReasonCode | null>(null)
+  const outcome = useCancellationOutcome(reference, reason)
   const transition = useTransitionOrder(reference)
   const [note, setNote] = useState('')
   const [failure, setFailure] = useState<DecisionFailure | null>(null)
-  const noteTooLong = note.trim().length > NOTE_MAX
-  const loaded = outcome.isSuccess
+  const noteError = cancelNoteError(note, expectedStatus)
+  const noteRequired = expectedStatus === 'unloading'
+  // The note's rule shows once it is broken: too long at once, missing once Cancel order was pressed.
+  const [tried, setTried] = useState(false)
+  const loaded = reason !== null && outcome.isSuccess
 
   function send() {
-    if (!loaded || noteTooLong) return
+    if (!loaded || reason === null) return
+    setTried(true)
+    if (noteError) return
     const request: AdminTransitionRequest = {
       to: 'cancelled',
       expected_status: expectedStatus as AdminTransitionRequest['expected_status'],
-      reason_code: 'mmirioma_unable',
+      reason_code: reason,
       note: note.trim() || null,
       hold_id: hold?.id ?? null,
     }
@@ -169,13 +179,28 @@ export function CancelDialog({
       onConfirm={send}
     >
       <span className="flex flex-col gap-3">
-        <span>
-          <b>Reason:</b> MmiriOma is unable to deliver
-        </span>
-        {outcome.isPending && (
+        <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+          <legend className="mb-1.5 p-0 font-bold">Reason</legend>
+          {CANCEL_REASONS.map((r) => (
+            <label key={r.code} className="flex min-h-11 cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="cancel-reason"
+                checked={reason === r.code}
+                onChange={() => {
+                  setReason(r.code)
+                  setFailure(null)
+                }}
+                className="size-5"
+              />
+              {r.label}
+            </label>
+          ))}
+        </fieldset>
+        {reason !== null && outcome.isPending && (
           <span role="status" aria-label="Checking what this costs the customer" className="skeleton block h-12 rounded-card bg-[#F4F8FD]" />
         )}
-        {loaded && (
+        {loaded && outcome.isSuccess && (
           <Notice tone="info">
             {outcome.data.message}
             {USE_MOCKS && <SampleTag className="ml-2">SAMPLE</SampleTag>}
@@ -196,16 +221,16 @@ export function CancelDialog({
         )}
         <TextAreaField
           label="Note"
-          optional
+          optional={!noteRequired}
           rows={2}
           maxLength={NOTE_MAX}
           value={note}
-          error={failure?.fields.note ?? (noteTooLong ? `Write a note (up to ${NOTE_MAX} characters).` : undefined)}
+          error={failure?.fields.note ?? (tried || note.trim().length > NOTE_MAX ? noteError : undefined)}
           onChange={(e) => {
             setNote(e.target.value)
             setFailure(null)
           }}
-          hint={`${note.length} / ${NOTE_MAX}`}
+          hint={noteRequired ? `Unloading has started: say why. ${note.length} / ${NOTE_MAX}` : `${note.length} / ${NOTE_MAX}`}
         />
         <span className="text-sub">
           {liveDriver ? CANCEL_DRIVER_LIVE : CANCEL_DRIVER_NONE} <b>{CANCEL_CUSTOMER}</b>

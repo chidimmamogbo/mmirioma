@@ -237,6 +237,21 @@ export function failErrors(form: FailForm): ProofErrors {
   return errors
 }
 
+/** CANCEL: the two reasons the contract accepts (deliveries.md, "Cancel because the customer asked"), in staff words. Neither is preset (design #174, decision 10). */
+export const CANCEL_REASONS = [
+  { code: 'customer_request', label: 'The customer asked to cancel' },
+  { code: 'mmirioma_unable', label: 'MmiriOma is unable to deliver' },
+] as const
+export type CancelReasonCode = (typeof CANCEL_REASONS)[number]['code']
+
+/** The contract's checks on CANCEL: a note of up to 500 characters, required once unloading has started (FR-044 administrator review). */
+export function cancelNoteError(note: string, expectedStatus: string): string | undefined {
+  const text = note.trim()
+  if (text.length > NOTE_MAX) return `Write a note (up to ${NOTE_MAX} characters).`
+  if (expectedStatus === 'unloading' && text.length < 1) return 'Say why: unloading has already started.'
+  return undefined
+}
+
 /** The sentence the CANCEL dialog says about the driver (design #129, C1): the job ends only if a driver has one. */
 export const CANCEL_DRIVER_LIVE = "The driver's job ends and leaves their list. Nothing notifies the driver."
 export const CANCEL_DRIVER_NONE = "No driver is assigned, so no driver's job changes."

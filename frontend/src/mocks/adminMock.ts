@@ -49,7 +49,7 @@ import { endReasonLabel, HOLD_KIND_LABEL, holdConcernLabel, holdDecisionLabel, R
 import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { choiceLitres, describeChoice } from '../domain/orders'
 import type { WithdrawRequest } from '../lib/api/adminDispatch'
-import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
+import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { formatNaira } from '../lib/format/money'
@@ -681,8 +681,8 @@ export function mockBackendStatus(job: StoredJob): string {
   }
 }
 
-/** What cancelling with `mmirioma_unable` costs the customer (FR-044): the server's sentence, here a SAMPLE. */
-export async function getCancellationOutcome(reference: string): Promise<CancellationOutcome> {
+/** What cancelling for `reason` costs the customer (FR-044): the server's sentence, here a SAMPLE. */
+export async function getCancellationOutcome(reference: string, reason: CancelReason): Promise<CancellationOutcome> {
   await delay(null)
   const s = read()
   requireAdmin(s)
@@ -690,13 +690,14 @@ export async function getCancellationOutcome(reference: string): Promise<Cancell
   const stage = job?.stage ?? findCustomerOrder(s, reference)?.order.stage
   if (!stage) throw mockError(404, 'order_not_found', 'Order not found')
   if (stage === 'delivered' || stage === 'cancelled') throw mockError(409, 'invalid_order_transition', 'This order can no longer be cancelled')
-  return { reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
+  return { reason_code: reason, customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
 }
 
 const FAIL_REASONS: string[] = ['source_quality_concern', 'unsafe_access', 'other']
+const CANCEL_REASON_CODES: string[] = ['mmirioma_unable', 'customer_request']
 
 /**
- * Fail a delivery (row 20) or cancel with `mmirioma_unable` (row 23), with the
+ * Fail a delivery (row 20) or cancel an order (row 23), with the
  * checks and refusals the server makes. Every open hold on the job closes with
  * it, with no decision line; nothing notifies the driver.
  */
@@ -704,10 +705,12 @@ export async function transitionOrder(reference: string, request: AdminTransitio
   await delay(null, 250)
   const details: { loc: string[]; msg: string; type: string }[] = []
   const note = (request.note ?? '').trim()
-  const reasonOk = request.to === 'failed' ? FAIL_REASONS.includes(request.reason_code) : request.reason_code === 'mmirioma_unable'
+  const reasonOk = request.to === 'failed' ? FAIL_REASONS.includes(request.reason_code) : CANCEL_REASON_CODES.includes(request.reason_code)
   if (!reasonOk) details.push({ loc: ['body', 'reason_code'], msg: 'Choose a reason', type: 'value_error' })
   if (request.to === 'failed' && request.reason_code === 'other' && !note) details.push({ loc: ['body', 'note'], msg: 'A note is required for Other', type: 'value_error' })
   if (note.length > 500) details.push({ loc: ['body', 'note'], msg: 'Up to 500 characters', type: 'value_error' })
+  // FR-044: unloading has started, so the administrator's cancel is the review and says why (deliveries.md, #174).
+  if (request.to === 'cancelled' && request.expected_status === 'unloading' && !note) details.push({ loc: ['body', 'note'], msg: 'Say why: unloading has already started', type: 'value_error' })
   if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
   return mutate((s) => {
     requireAdmin(s)
@@ -723,7 +726,7 @@ export async function transitionOrder(reference: string, request: AdminTransitio
     const now = new Date().toISOString()
     const found = findCustomerOrder(s, reference)
     if (request.to === 'cancelled') {
-      cancelJob(s, reference, note || 'MmiriOma is unable to deliver', false)
+      cancelJob(s, reference, note || (request.reason_code === 'customer_request' ? 'The customer asked to cancel' : 'MmiriOma is unable to deliver'), false)
     } else {
       job.stage = 'failed'
       if (found) found.order.timeline.push({ label: 'Delivery failed', at: now })
