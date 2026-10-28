@@ -7,7 +7,7 @@ import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { Toggle } from '../../../components/ui/Controls'
 import { Notice } from '../../../components/ui/Notice'
-import type { PriceList, PriceListInput } from '../../../domain/admin'
+import type { SamplePriceTable, SamplePriceTableInput } from '../../../domain/admin'
 import { TANK_SIZES, WATER_SOURCE_LABEL } from '../../../domain/orders'
 import { litresFromGallons } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -15,7 +15,7 @@ import { formatShortDate } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
 import { MONEY_TABS, editablePrices as editable } from '../adminFormat'
 import { AdminFrame, LinkTabs, NairaInput, PageHead } from '../AdminParts'
-import { useAdminMutation, usePriceLists } from '../queries'
+import { useAdminMutation, useSamplePriceTables } from '../queries'
 
 
 /**
@@ -25,9 +25,9 @@ import { useAdminMutation, usePriceLists } from '../queries'
  * (decision 10a). All values are SAMPLES, not agreed prices.
  */
 export function Pricing() {
-  const lists = usePriceLists()
+  const lists = useSamplePriceTables()
   // Owned here so "Saved" survives the editor restarting on the new version.
-  const save = useAdminMutation((draft: PriceListInput) => api.savePriceList(draft))
+  const save = useAdminMutation((draft: SamplePriceTableInput) => api.saveSamplePriceTable(draft))
   if (lists.isPending) return <Frame><LoadingBlock label="Loading prices" /></Frame>
   if (lists.isError) return <Frame><ErrorBlock error={lists.error} onRetry={() => lists.refetch()} /></Frame>
   // Remount the editor when a new version arrives, so it starts from that version.
@@ -38,7 +38,7 @@ export function Pricing() {
   )
 }
 
-type SaveMutation = ReturnType<typeof useAdminMutation<PriceListInput, PriceList>>
+type SaveMutation = ReturnType<typeof useAdminMutation<SamplePriceTableInput, SamplePriceTable>>
 
 function Frame({ children }: { children: ReactNode }) {
   return (
@@ -50,10 +50,10 @@ function Frame({ children }: { children: ReactNode }) {
   )
 }
 
-function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMutation }) {
+function PriceEditor({ versions, save }: { versions: SamplePriceTable[]; save: SaveMutation }) {
   const current = versions[0]
-  const [draft, setDraft] = useState<PriceListInput>(() => editable(current))
-  const set = (fn: (d: PriceListInput) => void) =>
+  const [draft, setDraft] = useState<SamplePriceTableInput>(() => editable(current))
+  const set = (fn: (d: SamplePriceTableInput) => void) =>
     setDraft((d) => {
       const next = structuredClone(d)
       fn(next)
@@ -204,7 +204,7 @@ export function ChangeLog({
   save,
   onSave,
 }: {
-  versions: PriceList[]
+  versions: SamplePriceTable[]
   saveLabel: string
   changed: boolean
   save: { isPending: boolean; isError: boolean; isSuccess: boolean; error: unknown }

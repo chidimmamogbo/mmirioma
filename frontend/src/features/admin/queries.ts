@@ -25,6 +25,10 @@ export const adminKeys = {
   stations: (query: string) => ['admin', 'stations', query] as const,
   areas: ['admin', 'areas'] as const,
   prices: ['admin', 'prices'] as const,
+  priceList: ['admin', 'price-list', 'current'] as const,
+  priceListHistory: ['admin', 'price-list', 'history'] as const,
+  waterCategories: ['admin', 'water-categories'] as const,
+  priceAreas: ['admin', 'price-areas'] as const,
   payments: (filter: api.PaymentFilter, customerId: string) => ['admin', 'payments', filter, customerId] as const,
   payouts: ['admin', 'payouts'] as const,
   cashDay: (date: string) => ['admin', 'cash', 'day', date] as const,
@@ -59,7 +63,13 @@ export const useRiders = (filter: api.RiderFilter, query: string) =>
 export const useRider = (id: string | null) => useQuery({ queryKey: adminKeys.rider(id ?? ''), queryFn: () => api.getRider(id!), enabled: Boolean(id) })
 export const useStations = (query: string) => useQuery({ queryKey: adminKeys.stations(query), queryFn: () => api.listStations(query), placeholderData: keepPreviousData })
 export const useAreas = () => useQuery({ queryKey: adminKeys.areas, queryFn: api.listAreas })
-export const usePriceLists = () => useQuery({ queryKey: adminKeys.prices, queryFn: api.listPriceLists })
+/** The mock-era flat price table (mock only: Service areas' sample fee, Loyalty points). */
+export const useSamplePriceTables = () => useQuery({ queryKey: adminKeys.prices, queryFn: api.listSamplePriceTables })
+// Pricing (#173): the FR-022 price list. `null` = no price list saved yet.
+export const useCurrentPriceList = () => useQuery({ queryKey: adminKeys.priceList, queryFn: api.getCurrentPriceList })
+export const usePriceListHistory = () => useQuery({ queryKey: adminKeys.priceListHistory, queryFn: api.priceListHistory })
+export const useWaterCategories = () => useQuery({ queryKey: adminKeys.waterCategories, queryFn: api.listWaterCategories, staleTime: 5 * 60_000 })
+export const usePriceAreas = () => useQuery({ queryKey: adminKeys.priceAreas, queryFn: api.listPriceAreas })
 export const usePayments = (filter: api.PaymentFilter, customerId: string) =>
   useQuery({ queryKey: adminKeys.payments(filter, customerId), queryFn: () => api.listPayments(filter, customerId || undefined), placeholderData: keepPreviousData })
 export const usePayouts = () => useQuery({ queryKey: adminKeys.payouts, queryFn: api.listPayouts })

@@ -8,17 +8,19 @@
  * `assignOrder` (#16), `listAreas`, `saveArea` (#74), and the hold review
  * functions (#166).
  */
-import type { AdminOrderFilter, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceListDraft, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
+import * as priceMock from '../../mocks/priceListMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
 import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
+import * as pricing from './real/pricing'
 import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -79,8 +81,17 @@ export const listAreas = (): Promise<ServiceArea[]> => (USE_MOCKS ? mock.listAre
 export const saveArea = (id: string | null, input: Omit<ServiceArea, 'id'>): Promise<ServiceArea> =>
   USE_MOCKS ? mock.saveArea(id, input) : areas.saveArea(id, input)
 
-export const listPriceLists = api('Pricing', mock.listPriceLists)
-export const savePriceList = api('Pricing', mock.savePriceList)
+// The mock-era flat price table: mock-only (sample quotes, Service areas' sample fee, Loyalty points).
+export const listSamplePriceTables = api('Pricing', mock.listPriceLists)
+export const saveSamplePriceTable = api('Pricing', mock.savePriceList)
+
+// Pricing (#173): the FR-022 price list, linked to admin-directory.md "Price lists" (#37) and the water categories (#161).
+export const getCurrentPriceList = () => (USE_MOCKS ? priceMock.getCurrentPriceList() : pricing.getCurrentPriceList())
+export const priceListHistory = () => (USE_MOCKS ? priceMock.listPriceLists({ limit: 20 }).then((p) => p.items) : pricing.priceListHistory())
+export const savePriceList = (draft: PriceListDraft) => (USE_MOCKS ? priceMock.createPriceList(draft) : pricing.savePriceList(draft))
+export const listWaterCategories = () => (USE_MOCKS ? priceMock.listWaterCategories() : pricing.waterCategories())
+export const listPriceAreas = () =>
+  USE_MOCKS ? mock.listAreas().then((areas) => areas.map((a) => ({ id: a.id, name: a.name, is_active: a.enabled }))) : pricing.priceAreas()
 
 export const listPayments = api('Payments', mock.listPayments)
 export const confirmPayment = api('Payments', mock.confirmPayment)
