@@ -241,6 +241,22 @@ describe('getOrder (real)', () => {
     ])
   })
 
+  it('shows the status change that ended the delivery, with who, why in words and the note; a hold it closed has no decision line (H)', () => {
+    const admin = { id: 'a1', role: 'admin' as const, name: 'Sample Dispatcher' }
+    const change = (to: string, reason: string | null, note: string | null, at: string) =>
+      ({ id: to, kind: 'status_change', from_status: 'collected', to_status: to, actor: admin, reason_code: reason, note, created_at: at, assignment: null, hold: null, confirmation: null, cash: null }) as AdminOrderEvent
+    const lines = timelineFromHistory('2026-10-20T07:00:00Z', [
+      change('failed', 'source_quality_concern', 'Source flooded. Driver cannot use it.', '2026-10-20T09:40:00Z'),
+    ])
+    expect(lines.slice(1)).toEqual([
+      { label: 'Delivery failed', at: '2026-10-20T09:40:00Z', detail: 'Sample Dispatcher · Source quality concern · "Source flooded. Driver cannot use it."' },
+    ])
+    const cancelled = timelineFromHistory('2026-10-20T07:00:00Z', [change('cancelled', 'mmirioma_unable', null, '2026-10-20T09:50:00Z')])
+    expect(cancelled.at(-1)).toEqual({ label: 'Cancelled', at: '2026-10-20T09:50:00Z', detail: 'Sample Dispatcher · MmiriOma is unable to deliver' })
+    // A reason the app does not know shows no reason, never a raw code.
+    expect(timelineFromHistory('2026-10-20T07:00:00Z', [change('failed', 'a_new_reason', null, '2026-10-20T09:40:00Z')]).at(-1)).toEqual({ label: 'Delivery failed', at: '2026-10-20T09:40:00Z', detail: 'Sample Dispatcher' })
+  })
+
   it('shows no concern for a category it does not know, and no decision line for a hold closed by a fail', () => {
     const driver = { id: 'd1', role: 'driver' as const, name: 'Ada' }
     const hold = (kind: string, category: string, decision: string | null) =>

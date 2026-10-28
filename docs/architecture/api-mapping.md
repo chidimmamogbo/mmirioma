@@ -252,6 +252,7 @@ decided by @Bonvee120 for #12 (2026-10-27):
 | `collected_at` | `pickup.picked_up_at` |
 | `delivered_at` | `ended_at` when the order is `delivered` |
 | `code_tries_left` | `delivery_code.attempts_left` |
+| `code_sms_status` | `delivery_code.sms_status`: `accepted`, `failed`, or `null` before a code exists. When it is `failed` the code was recorded but not sent, so the code screen never says "Code sent" (FR-050; #138). The mock sets it with `simulateCodeProblem(reference, 'sms_failed')` |
 | `tank_note`, `accepted_at`, `code_resend_at`, `pickup`, `remaining` | `null`: the job does not carry them |
 
 ### Available orders and declining
@@ -347,6 +348,27 @@ order's payment status maps only where the design has an exact equivalent
 and `partially_paid` shown as "Part paid" (the approved cash design,
 docs/design/cash-remittance.md); for the others the order shows no payment chip, and the cash pages show them
 in full (#19).
+
+## Price list (admin Pricing)
+
+The Pricing screen (#173, design `docs/design/admin-pricing.md`) works in
+the contract's own shape (`PriceList`, `PriceRule`, `PriceListDraft` in
+`domain/admin.ts`, mirroring docs/api/admin-directory.md "Price lists"), so
+the adapter (`features/admin/real/pricing.ts`) converts nothing except:
+
+| Backend | Screen |
+| --- | --- |
+| `GET /admin/price-lists/current` 404 `price_list_not_found` | `null`: "No price list yet" |
+| `zone_id` / `water_category_id` `null` | "Every area" / "Every water" |
+| `zone_id` | the zone's name from `GET /admin/service-zones` |
+| `water_category_id` | the label from `GET /admin/water-categories` (#161), active or not |
+| `margin` `{type: "percentage", basis_points}` | percent, two decimals (1 % = 100) |
+| `changes[]` (`path`, `from`, `to`) | worded by the screen: "Handling, every area: ₦400 → ₦500"; `from` `null` = "Rule added: …" |
+
+The mock-era flat price table (can and tank prices, partner pay, delivery
+switches, points) is now `SamplePriceTable`: it stays mock-only, pricing the
+mock's sample quotes and the hidden Loyalty points page, and never reaches
+the real Pricing screen.
 
 ## Open questions
 

@@ -9,13 +9,13 @@
  * All money is integer kobo. The only fractional step is the per-km fee
  * (rate × distance with one decimal place), rounded to the nearest whole naira.
  */
-import type { PriceList } from '../domain/admin'
+import type { SamplePriceTable } from '../domain/admin'
 import type { MockServiceArea } from './adminSeed'
 import type { Quote, QuoteLine, WaterChoice } from '../domain/orders'
 import { formatNaira } from '../lib/format/money'
 
 /** The design's price list (a-pricing v3), the first version in the mock. */
-export const DEFAULT_PRICE_LIST: PriceList = {
+export const DEFAULT_PRICE_LIST: SamplePriceTable = {
   version: 3,
   created_at: '2026-10-10T09:00:00Z',
   created_by: 'Chidimma M.',
@@ -45,7 +45,7 @@ export function areaForAddress(address: string, areas: MockServiceArea[]): MockS
 }
 
 /** Points for a total, by the list's rule (sample: 1 point per ₦200, down to a multiple of 5). */
-export function pointsFor(totalKobo: number, prices: PriceList = DEFAULT_PRICE_LIST): number {
+export function pointsFor(totalKobo: number, prices: SamplePriceTable = DEFAULT_PRICE_LIST): number {
   const { naira_per_point, round_to } = prices.points
   return Math.floor(totalKobo / (naira_per_point * 100) / round_to) * round_to
 }
@@ -57,7 +57,7 @@ export function pointsFor(totalKobo: number, prices: PriceList = DEFAULT_PRICE_L
  *    rounded to whole naira.
  * 3. Otherwise the flat fee for the delivery type and size in the tables.
  */
-export function deliveryFeeFor(choice: WaterChoice, place: DeliveryPlace, prices: PriceList = DEFAULT_PRICE_LIST): number {
+export function deliveryFeeFor(choice: WaterChoice, place: DeliveryPlace, prices: SamplePriceTable = DEFAULT_PRICE_LIST): number {
   const { per_area_enabled, per_km_enabled, per_km_minor_units } = prices.delivery_fee
   const area = place.area
   if (per_area_enabled && area?.fixed_fee_minor_units != null) return area.fixed_fee_minor_units
@@ -70,7 +70,7 @@ export function deliveryFeeFor(choice: WaterChoice, place: DeliveryPlace, prices
  * Price a choice. Without a place (`null`) the quote has no delivery line and
  * the total is the water price only.
  */
-export function quoteFor(choice: WaterChoice, place: DeliveryPlace | null, prices: PriceList = DEFAULT_PRICE_LIST, now = new Date()): Quote {
+export function quoteFor(choice: WaterChoice, place: DeliveryPlace | null, prices: SamplePriceTable = DEFAULT_PRICE_LIST, now = new Date()): Quote {
   let water: QuoteLine
   if (choice.delivery_type === 'keke') {
     const each = prices.keke.can_minor_units[choice.can_size_litres]
@@ -108,7 +108,7 @@ export function quoteFor(choice: WaterChoice, place: DeliveryPlace | null, price
 }
 
 /** Partner pay for a trip, from the price list (sample rider pay, decision 16). Custom tanker sizes: set by admin later. */
-export function riderPayFor(choice: WaterChoice, prices: PriceList = DEFAULT_PRICE_LIST): number {
+export function riderPayFor(choice: WaterChoice, prices: SamplePriceTable = DEFAULT_PRICE_LIST): number {
   if (choice.delivery_type === 'keke') return prices.keke.rider_pay_minor_units
   return choice.tank_size_gallons === null ? 0 : prices.tanker[choice.tank_size_gallons].driver_pay_minor_units
 }

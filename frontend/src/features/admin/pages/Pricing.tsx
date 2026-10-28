@@ -1,237 +1,316 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Illustration } from '../../../components/brand/Illustration'
-import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
+import { LoadingBlock } from '../../../components/layout/StateScreens'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
-import { Toggle } from '../../../components/ui/Controls'
+import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
-import type { PriceList, PriceListInput } from '../../../domain/admin'
-import { TANK_SIZES, WATER_SOURCE_LABEL } from '../../../domain/orders'
-import { litresFromGallons } from '../../../domain/quantity'
+import type { PriceList, PriceListDraft, PriceRule, WaterCategoryOption } from '../../../domain/admin'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { errorMessage } from '../../../lib/api/errorMessage'
-import { formatShortDate } from '../../../lib/format/datetime'
+import { cx } from '../../../lib/cx'
+import { formatDateTime } from '../../../lib/format/datetime'
+import { formatNaira } from '../../../lib/format/money'
 import * as api from '../adminApi'
-import { MONEY_TABS, editablePrices as editable } from '../adminFormat'
-import { AdminFrame, LinkTabs, NairaInput, PageHead } from '../AdminParts'
-import { useAdminMutation, usePriceLists } from '../queries'
-
+import { AdminFrame, PageHead } from '../AdminParts'
+import { areaLabel, bandLabel, changeLines, draftRules, marginLabel, priceNames, saveProblem, waterLabel, type PriceNames } from '../pricing/logic'
+import { RuleSheet } from '../pricing/RuleSheet'
+import { useAdminMutation, useCurrentPriceList, usePriceAreas, usePriceListHistory, useWaterCategories } from '../queries'
 
 /**
- * Pricing (`a-pricing`, Pricing tab). Every save is a new version and orders
- * already placed keep their price (FR-024). Ninth Mile tanker water has its
- * own price (decision 10b); the delivery fee methods are switched here
- * (decision 10a). All values are SAMPLES, not agreed prices.
+ * Pricing (`a-pricing`, redesigned in #44, linked in #173): the FR-022 price
+ * list (docs/design/admin-pricing.md; docs/api/admin-directory.md "Price
+ * lists"). Rules set the handling and margin per area, water and quantity;
+ * saving makes the next version, and quotes and placed orders keep theirs
+ * (FR-024). Pricing stands alone: no Money tabs in the pilot (decision 9).
  */
 export function Pricing() {
-  const lists = usePriceLists()
-  // Owned here so "Saved" survives the editor restarting on the new version.
-  const save = useAdminMutation((draft: PriceListInput) => api.savePriceList(draft))
-  if (lists.isPending) return <Frame><LoadingBlock label="Loading prices" /></Frame>
-  if (lists.isError) return <Frame><ErrorBlock error={lists.error} onRetry={() => lists.refetch()} /></Frame>
-  // Remount the editor when a new version arrives, so it starts from that version.
-  return (
-    <Frame>
-      <PriceEditor key={lists.data[0].version} versions={lists.data} save={save} />
-    </Frame>
-  )
-}
+  const current = useCurrentPriceList()
+  const history = usePriceListHistory()
+  const areas = usePriceAreas()
+  const waters = useWaterCategories()
+  // Owned here so "Saved as version N." survives the editor restarting on the new version.
+  const save = useAdminMutation((draft: PriceListDraft) => api.savePriceList(draft))
+  const failed = current.isError || areas.isError || waters.isError
+  const retry = () => void Promise.all([current.refetch(), history.refetch(), areas.refetch(), waters.refetch()])
 
-type SaveMutation = ReturnType<typeof useAdminMutation<PriceListInput, PriceList>>
-
-function Frame({ children }: { children: ReactNode }) {
   return (
     <AdminFrame searchPlaceholder="Search settings">
-      <PageHead title="Pricing, points and payouts" sub="Every change is versioned. Orders already placed keep their price." actions={<SampleTag>SAMPLE VALUES, NOT AGREED PRICES</SampleTag>} />
-      <LinkTabs className="rise-2" label="Money settings" tabs={MONEY_TABS} />
-      {children}
+      <PageHead
+        title="Pricing"
+        sub="Every save is a new version. Quotes already given and placed orders keep their price."
+        actions={USE_MOCKS ? <SampleTag>SAMPLE DATA</SampleTag> : undefined}
+      />
+      {failed ? (
+        <Card className="rise-2 flex flex-col items-start gap-3 p-6" role="alert">
+          <h2 className="m-0 text-[18px] font-extrabold">We couldn&apos;t load the prices.</h2>
+          <p className="m-0 text-mute">Check your connection and try again. Nothing has changed.</p>
+          <Button block={false} className="px-5" onClick={retry}>
+            Try again
+          </Button>
+        </Card>
+      ) : current.isPending || areas.isPending || waters.isPending ? (
+        <Card className="rise-2 p-6">
+          <LoadingBlock label="Loading prices" />
+        </Card>
+      ) : (
+        <PriceEditor
+          // Restart from the new version whenever one is saved or loaded.
+          key={current.data?.version ?? 0}
+          current={current.data}
+          history={history.data ?? []}
+          names={priceNames(areas.data, waters.data)}
+          areas={areas.data}
+          waters={waters.data}
+          save={save}
+          onLoadLatest={() => {
+            save.reset()
+            void Promise.all([current.refetch(), history.refetch()])
+          }}
+        />
+      )}
     </AdminFrame>
   )
 }
 
-function PriceEditor({ versions, save }: { versions: PriceList[]; save: SaveMutation }) {
-  const current = versions[0]
-  const [draft, setDraft] = useState<PriceListInput>(() => editable(current))
-  const set = (fn: (d: PriceListInput) => void) =>
-    setDraft((d) => {
-      const next = structuredClone(d)
-      fn(next)
-      return next
-    })
-  const changed = JSON.stringify(draft) !== JSON.stringify(editable(current))
+type SaveMutation = ReturnType<typeof useAdminMutation<PriceListDraft, PriceList>>
+
+function PriceEditor({
+  current,
+  history,
+  names,
+  areas,
+  waters,
+  save,
+  onLoadLatest,
+}: {
+  current: PriceList | null
+  history: PriceList[]
+  names: PriceNames
+  areas: { id: string; name: string; is_active: boolean }[]
+  waters: WaterCategoryOption[]
+  save: SaveMutation
+  onLoadLatest: () => void
+}) {
+  const opened = draftRules(current)
+  const [rules, setRules] = useState<PriceRule[]>(opened)
+  const [reason, setReason] = useState('')
+  // The rule in the sheet: an index to edit, 'new' to add, null when closed.
+  const [editing, setEditing] = useState<number | 'new' | null>(null)
+  const dirty = JSON.stringify(rules) !== JSON.stringify(opened)
+  const nextVersion = (current?.version ?? 0) + 1
+  const problem = save.isError ? saveProblem(save.error, current?.version ?? null) : null
+  const marked = new Set(problem?.rows ?? [])
+
+  function change(next: PriceRule[]) {
+    if (save.isError || save.isSuccess) save.reset()
+    setRules(next)
+  }
+
+  const empty = current === null && rules.length === 0
 
   return (
     <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-      <div className="rise-3 flex min-w-0 flex-1 flex-col gap-4">
-        <Card className="p-4">
-          <div className="mb-2 flex items-center gap-3">
-            <Illustration name="keke" className="w-24 shrink-0" />
-            <div>
-              <h2 className="m-0 text-[18px] font-extrabold">Keke prices</h2>
-              <p className="m-0 text-mute">Per jerrycan, plus one delivery fee per order</p>
-            </div>
-          </div>
-          <PriceHead cols={KEKE_COLS} labels={['Item', 'Customer pays (₦)', 'Rider earns (₦)']} />
-          {([25, 50] as const).map((size) => (
-            <PriceRow key={size} cols={KEKE_COLS} title={`${size} L can`}>
-              <Cell label="Customer pays (₦)">
-                <NairaInput label={`${size} L can price`} value={draft.keke.can_minor_units[size]} onChange={(v) => set((d) => (d.keke.can_minor_units[size] = v ?? 0))} />
-              </Cell>
-              <Cell label="Rider earns (₦)">
-                <span className="text-mute">Per trip below</span>
-              </Cell>
-            </PriceRow>
-          ))}
-          <PriceRow cols={KEKE_COLS} title="Delivery and pouring">
-            <Cell label="Customer pays (₦)">
-              <NairaInput label="Keke delivery fee" value={draft.keke.delivery_minor_units} onChange={(v) => set((d) => (d.keke.delivery_minor_units = v ?? 0))} />
-            </Cell>
-            <Cell label="Rider earns (₦)">
-              <NairaInput label="Keke rider pay per trip" value={draft.keke.rider_pay_minor_units} onChange={(v) => set((d) => (d.keke.rider_pay_minor_units = v ?? 0))} />
-            </Cell>
-          </PriceRow>
-        </Card>
-
-        <Card className="p-4">
-          <div className="mb-2 flex items-center gap-3">
-            <Illustration name="tanker" className="w-24 shrink-0" />
-            <div>
-              <h2 className="m-0 text-[18px] font-extrabold">Tanker prices</h2>
-              <p className="m-0 text-mute">Ground and overhead use the same base price. Ninth Mile water costs more.</p>
-            </div>
-          </div>
-          <PriceHead cols={TANKER_COLS} labels={['Capacity', `${WATER_SOURCE_LABEL.borehole} (₦)`, `${WATER_SOURCE_LABEL.ninth_mile} (₦)`, 'Delivery (₦)', 'Driver earns (₦)']} />
-          {TANK_SIZES.map((size) => {
-            const g = size.toLocaleString('en-NG')
-            return (
-              <PriceRow key={size} cols={TANKER_COLS} title={`${g} gal · ${litresFromGallons(size).toLocaleString('en-NG')} L`}>
-                <Cell label={`${WATER_SOURCE_LABEL.borehole} (₦)`}>
-                  <NairaInput label={`${g} gal borehole water`} value={draft.tanker[size].water_minor_units.borehole} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.borehole = v ?? 0))} />
-                </Cell>
-                <Cell label={`${WATER_SOURCE_LABEL.ninth_mile} (₦)`}>
-                  <NairaInput label={`${g} gal Ninth Mile water`} value={draft.tanker[size].water_minor_units.ninth_mile} onChange={(v) => set((d) => (d.tanker[size].water_minor_units.ninth_mile = v ?? 0))} />
-                </Cell>
-                <Cell label="Delivery (₦)">
-                  <NairaInput label={`${g} gal delivery`} value={draft.tanker[size].delivery_minor_units} onChange={(v) => set((d) => (d.tanker[size].delivery_minor_units = v ?? 0))} />
-                </Cell>
-                <Cell label="Driver earns (₦)">
-                  <NairaInput label={`${g} gal driver pay`} value={draft.tanker[size].driver_pay_minor_units} onChange={(v) => set((d) => (d.tanker[size].driver_pay_minor_units = v ?? 0))} />
-                </Cell>
-              </PriceRow>
-            )
-          })}
-          <PriceRow cols={TANKER_COLS} title="Custom size">
-            <Cell label="Price">
-              <Chip tone="amber">Manual quote by admin</Chip>
-            </Cell>
-          </PriceRow>
-        </Card>
-
+      <div className="rise-2 flex min-w-0 flex-1 flex-col gap-4">
         <Card className="flex flex-col gap-3 p-4">
-          <h2 className="m-0 text-[18px] font-extrabold">Delivery fee method</h2>
-          <p className="m-0 text-mute">
-            With both off, each order pays the delivery fee in the tables above. A fixed area fee wins where the area has one; otherwise the rate per km uses the area's distance.
+          <h2 className="m-0 text-[17px] font-extrabold">How a price is made</h2>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <Part title="Water">Cost per litre of the source. Set by the technical lead with the water sources, not here.</Part>
+            <Part title="Delivery">
+              The area&apos;s fee, set on{' '}
+              <Link to="/admin/areas" className="font-bold text-primary no-underline hover:text-primary-dark">
+                Service areas
+              </Link>
+              .
+            </Part>
+            <Part title="Handling" here>
+              Per order. Set here.
+            </Part>
+            <Part title="Margin" here>
+              A percentage or a fixed amount. Set here.
+            </Part>
+          </div>
+          <p className="m-0 text-caption text-mute">
+            The total is rounded up to the next whole naira. Customers see only the total. An order no rule covers goes to your team as a price request.
           </p>
-          <div className="mo-li">
-            <span className="flex-1">
-              <span className="block font-bold">Rate per km</span>
-              <span className="text-chip text-mute">Distance from the refill station to the area, entered on Service areas</span>
-            </span>
-            <NairaInput label="Rate per km" value={draft.delivery_fee.per_km_minor_units} onChange={(v) => set((d) => (d.delivery_fee.per_km_minor_units = v ?? 0))} />
-            <Toggle label="Rate per km" checked={draft.delivery_fee.per_km_enabled} onChange={(v) => set((d) => (d.delivery_fee.per_km_enabled = v))} />
-          </div>
-          <div className="mo-li">
-            <span className="flex-1">
-              <span className="block font-bold">Fixed fee per area</span>
-              <span className="text-chip text-mute">
-                Set each area's fee on{' '}
-                <Link to="/admin/areas" className="font-bold text-primary no-underline hover:text-primary-dark">
-                  Service areas
-                </Link>
-              </span>
-            </span>
-            <Toggle label="Fixed fee per area" checked={draft.delivery_fee.per_area_enabled} onChange={(v) => set((d) => (d.delivery_fee.per_area_enabled = v))} />
-          </div>
         </Card>
+
+        {empty ? (
+          <Card className="flex flex-col items-start gap-3 p-6">
+            <h2 className="m-0 text-[20px] font-extrabold">No price list yet</h2>
+            <p className="m-0 max-w-[640px] text-mute">
+              Until you save one, the app can&apos;t price an order: every order reaches your team as a price request, and you agree the total on the call.
+            </p>
+            <Button block={false} className="px-5" onClick={() => setEditing('new')}>
+              Add the first rule
+            </Button>
+          </Card>
+        ) : (
+          <Card className="flex flex-col gap-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-col gap-0.5">
+                <h2 className="m-0 text-[17px] font-extrabold">{current ? `Rules in version ${current.version}` : 'New price list'}</h2>
+                <span className="text-caption text-mute">
+                  An order uses the one rule that fits its area, water and quantity. A rule for one area beats &quot;Every area&quot;.
+                </span>
+              </div>
+              <Button variant="alt" size="sm" block={false} onClick={() => setEditing('new')}>
+                + Add a rule
+              </Button>
+            </div>
+
+            {problem && problem.rows.length > 0 && (
+              <Notice tone="error">
+                <b>{problem.title}</b> {problem.body}
+              </Notice>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-[14px]">
+                <thead>
+                  <tr className="text-left text-chip text-mute">
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">#</th>
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">Applies to</th>
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">Quantity</th>
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">Handling</th>
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">Margin</th>
+                    <th scope="col" className="border-0 border-b border-solid border-line px-2.5 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((r, i) => {
+                    const n = i + 1
+                    const changed = JSON.stringify(r) !== JSON.stringify(opened[i])
+                    return (
+                      <tr key={i} className={cx(marked.has(n) ? 'bg-red-bg' : changed && 'bg-gold-tint')}>
+                        <td className="border-0 border-b border-solid border-row-line px-2.5 py-3 font-bold">{n}</td>
+                        <td className="border-0 border-b border-solid border-row-line px-2.5 py-3">
+                          <span className="block font-bold">{areaLabel(r.zone_id, names)}</span>
+                          <span className="block text-caption text-mute">{waterLabel(r.water_category_id, names)}</span>
+                        </td>
+                        <td className="border-0 border-b border-solid border-row-line px-2.5 py-3">{bandLabel(r)}</td>
+                        <td className="border-0 border-b border-solid border-row-line px-2.5 py-3 font-bold">{formatNaira(r.handling_minor_units)}</td>
+                        <td className="border-0 border-b border-solid border-row-line px-2.5 py-3 font-bold">{marginLabel(r.margin)}</td>
+                        <td className="border-0 border-b border-solid border-row-line px-1.5 py-1.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            aria-label={`Edit rule ${n}`}
+                            className="hit-44 cursor-pointer border-0 bg-transparent px-2 font-bold text-primary"
+                            onClick={() => setEditing(i)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Remove rule ${n}`}
+                            className="hit-44 cursor-pointer border-0 bg-transparent px-2 font-bold text-red"
+                            onClick={() => change(rules.filter((_, j) => j !== i))}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <details className="rounded-option bg-[#F5F8FC] px-3.5 py-3">
+              <summary className="min-h-6 cursor-pointer font-bold">Delivery rates for road distance: saved, not used yet</summary>
+              <p className="mt-2 mb-0 text-caption text-mute">
+                Each rule can hold a base delivery fee, a rate per km and a charge for a second trip. They take over from the area fees once the app can
+                measure road distance. Until then, delivery is the area&apos;s fee on Service areas, and these rates don&apos;t change any price.
+              </p>
+            </details>
+          </Card>
+        )}
       </div>
 
-      <ChangeLog versions={versions} saveLabel={`Save as version ${current.version + 1}`} changed={changed} save={save} onSave={() => save.mutate(draft)} />
+      <aside className="rise-3 flex w-full shrink-0 flex-col gap-4 xl:w-[360px]">
+        <Card className="flex flex-col gap-3 p-4">
+          <h2 className="m-0 text-[17px] font-extrabold">Save changes</h2>
+          <TextField label="Reason" optional maxLength={500} placeholder="e.g. Diesel price rise" value={reason} onChange={(e) => setReason(e.target.value)} />
+          {save.isSuccess && (
+            <Notice tone="success">
+              <b>Saved as version {save.data.version}.</b> New quotes use it now. Quotes already given and placed orders keep their price.
+            </Notice>
+          )}
+          {problem && problem.rows.length === 0 && (
+            <Notice tone={problem.tone === 'note' ? 'note' : 'error'}>
+              <b className="block">{problem.title}</b>
+              {problem.body}
+              {problem.loadVersion !== undefined && (
+                <span className="mt-2 block">
+                  <Button variant="line" size="sm" block={false} onClick={onLoadLatest}>
+                    Load version {problem.loadVersion}
+                  </Button>
+                </span>
+              )}
+            </Notice>
+          )}
+          {save.isError && !problem && <Notice tone="error">{errorMessage(save.error)}</Notice>}
+          <Button
+            disabled={!dirty || rules.length === 0}
+            loading={save.isPending}
+            onClick={() => save.mutate({ base_version: current?.version ?? null, reason: reason.trim() || null, rules })}
+          >
+            Save as version {nextVersion}
+          </Button>
+          {!dirty && !empty && <p className="m-0 text-center text-caption text-mute">Change a rule to save a new version.</p>}
+        </Card>
+
+        <Card className="flex flex-col gap-1 p-4">
+          <h2 className="m-0 mb-1.5 text-[17px] font-extrabold">Version history</h2>
+          {history.length === 0 && <p className="m-0 text-mute">No versions saved yet.</p>}
+          <ol className="m-0 flex list-none flex-col p-0">
+            {history.map((v) => {
+              const lines = v.changes.length > 0 ? changeLines(v, names) : [`${v.rules.length} ${v.rules.length === 1 ? 'rule' : 'rules'}`]
+              return (
+                <li key={v.version} className="flex items-start gap-2.5 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+                  <Chip tone={v.version === current?.version ? 'blue' : 'gray'}>v{v.version}</Chip>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-[14px] font-bold">{v.reason ?? 'No reason given'}</span>
+                    {lines.slice(0, 3).map((line) => (
+                      <span key={line} className="text-[13px]">
+                        {line}
+                      </span>
+                    ))}
+                    {lines.length > 3 && <span className="text-[13px] text-mute">and {lines.length - 3} more</span>}
+                    <span className="text-chip text-mute">
+                      {v.created_by.name} · {formatDateTime(v.effective_from)}
+                    </span>
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+        </Card>
+      </aside>
+
+      {editing !== null && (
+        <RuleSheet
+          number={editing === 'new' ? null : editing + 1}
+          rule={editing === 'new' ? null : rules[editing]}
+          areas={areas}
+          waters={waters}
+          onClose={() => setEditing(null)}
+          onDone={(rule) => {
+            change(editing === 'new' ? [...rules, rule] : rules.map((r, i) => (i === editing ? rule : r)))
+            setEditing(null)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-/**
- * Price rows: a table-like grid from 768 px; on phones each row is a block
- * with its title on top and labelled fields in two columns.
- */
-const KEKE_COLS = 'md:grid-cols-[minmax(150px,1.2fr)_1fr_1fr]'
-const TANKER_COLS = 'md:grid-cols-[minmax(100px,0.8fr)_repeat(4,1fr)]'
-
-function PriceHead({ cols, labels }: { cols: string; labels: string[] }) {
+function Part({ title, here = false, children }: { title: string; here?: boolean; children: ReactNode }) {
   return (
-    <div aria-hidden="true" className={`hidden gap-3 border-0 border-b border-solid border-line px-3 py-2.5 text-chip font-bold text-mute md:grid ${cols}`}>
-      {labels.map((l) => (
-        <span key={l}>{l}</span>
-      ))}
+    <div className={cx('flex flex-col gap-1 rounded-option p-3', here ? 'bg-sky' : 'bg-[#F5F8FC]')}>
+      <span className={cx('font-extrabold', here && 'text-primary-dark')}>{title}</span>
+      <span className="text-[13px] text-mute">{children}</span>
     </div>
-  )
-}
-
-function PriceRow({ cols, title, children }: { cols: string; title: string; children: ReactNode }) {
-  return (
-    <div className={`grid grid-cols-2 items-center gap-3 border-0 border-b border-solid border-row-line px-3 py-3 last:border-b-0 md:gap-3 ${cols}`}>
-      <div className="col-span-2 font-bold md:col-span-1">{title}</div>
-      {children}
-    </div>
-  )
-}
-
-function Cell({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-chip font-bold text-mute md:hidden">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-/** The change log with the save button, shared by Pricing and Loyalty points. */
-export function ChangeLog({
-  versions,
-  saveLabel,
-  changed,
-  save,
-  onSave,
-}: {
-  versions: PriceList[]
-  saveLabel: string
-  changed: boolean
-  save: { isPending: boolean; isError: boolean; isSuccess: boolean; error: unknown }
-  onSave: () => void
-}) {
-  return (
-    <Card className="rise-4 flex w-full shrink-0 flex-col gap-3 p-4 xl:sticky xl:top-4 xl:w-[340px]">
-      <h2 className="m-0 text-[18px] font-extrabold">Change log</h2>
-      <ol className="m-0 flex list-none flex-col p-0">
-        {versions.slice(0, 6).map((v) => (
-          <li key={v.version} className="flex items-start gap-3 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
-            <Chip tone={v.version === versions[0].version ? 'blue' : 'gray'}>v{v.version}</Chip>
-            <span className="min-w-0">
-              <span className="block text-[14px]">{v.note}</span>
-              <span className="block text-chip text-mute">
-                {v.created_by} · {formatShortDate(v.created_at)}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      {save.isError && <Notice tone="error">{errorMessage(save.error)}</Notice>}
-      {save.isSuccess && <Notice tone="success">Saved. New orders use this version; placed orders keep theirs.</Notice>}
-      <Button disabled={!changed} loading={save.isPending} onClick={onSave}>
-        {saveLabel}
-      </Button>
-      {!changed && <p className="m-0 text-center text-caption text-mute">Change a value to save a new version.</p>}
-    </Card>
   )
 }

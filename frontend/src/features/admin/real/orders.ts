@@ -9,6 +9,7 @@
  * and plate are never sent.
  */
 import {
+  endReasonLabel,
   HOLD_KIND_LABEL,
   holdConcernLabel,
   holdDecisionLabel,
@@ -254,10 +255,24 @@ function holdLine(event: AdminOrderEvent): { label: string; detail: string } | n
 }
 
 /**
+ * The line for the status change that ended the order's delivery: "Delivery
+ * failed" or "Cancelled", with who, why in words and the note. A hold the
+ * change closed has no decision entry, so this is where the timeline shows it
+ * (admin-hold-review.md, H). `null` for every other event.
+ */
+function endLine(event: AdminOrderEvent): { label: string; detail: string } | null {
+  if (event.kind !== 'status_change' || (event.to_status !== 'failed' && event.to_status !== 'cancelled')) return null
+  const reason = event.reason_code ? endReasonLabel(event.reason_code) : null
+  const detail = [event.actor?.name, reason, event.note ? `"${event.note}"` : null].filter(Boolean).join(' · ')
+  return { label: event.to_status === 'failed' ? 'Delivery failed' : 'Cancelled', detail }
+}
+
+/**
  * The order's timeline: "Order placed", then its confirmation (#136, design
- * Q5), hold (admin-hold-review.md, H) and assignment events, oldest first (the
- * history comes newest first). An assignment event's note is its detail; a
- * confirmation or hold line carries its own (who, concern, note, ...).
+ * Q5), hold (admin-hold-review.md, H), ending (failed or cancelled) and
+ * assignment events, oldest first (the history comes newest first). An
+ * assignment event's note is its detail; a confirmation, hold or ending line
+ * carries its own (who, concern, reason, note, ...).
  */
 export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
   const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
@@ -265,6 +280,8 @@ export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[
     if (confirmation) return [{ label: confirmation.label, at: event.created_at, detail: confirmation.detail }]
     const hold = holdLine(event)
     if (hold) return [{ label: hold.label, at: event.created_at, ...(hold.detail ? { detail: hold.detail } : {}) }]
+    const end = endLine(event)
+    if (end) return [{ label: end.label, at: event.created_at, ...(end.detail ? { detail: end.detail } : {}) }]
     const label = assignmentLine(event)
     return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
   })

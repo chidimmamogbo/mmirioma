@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
@@ -12,7 +13,7 @@ import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
-import type { AdminOrder, AdminOrderFilter, EligibleRider } from '../../../domain/admin'
+import { isHoldDecisionLabel, type AdminOrder, type AdminOrderFilter, type EligibleRider } from '../../../domain/admin'
 import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
@@ -23,10 +24,13 @@ import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
 import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
-import { HoldBanner, HoldChip } from '../hold/HoldParts'
+import { FailDialog } from '../hold/EndDelivery'
+import { DecidedCard, HoldBanner, HoldChip } from '../hold/HoldParts'
+import { HoldSheet } from '../hold/HoldSheet'
+import { backendStatusFor, canFail } from '../hold/logic'
 import { holdSummary, METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
-import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
+import { adminKeys, useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
 const FILTERS: { value: AdminOrderFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -182,8 +186,11 @@ function QuantityCell({ choice }: { choice: WaterChoice }) {
 
 function OrderPanel({ reference, onChange }: { reference: string; onChange: () => void }) {
   const order = useAdminOrder(reference)
-  // The toast after confirming (admin-confirm-order.md, Q4).
+  // The toast after confirming (admin-confirm-order.md, Q4) or deciding a hold (admin-hold-review.md, decision 13).
   const [confirmed, setConfirmed] = useState<string | null>(null)
+  const [reviewing, setReviewing] = useState(false)
+  const [failing, setFailing] = useState(false)
+  const qc = useQueryClient()
   const o = order.data
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
   if (order.isError || !o) return <Card className="p-4"><ErrorBlock error={order.error} onRetry={() => order.refetch()} /></Card>
@@ -191,6 +198,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   // No assign or reassign on a held order: the job is stopped and waits for a decision (admin-hold-review.md, R0).
   const canAssign = !notReady && !o.hold && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
   const closed = o.status === 'delivered' || o.status === 'cancelled'
+  // After a decision: who decided, when and the note, from the history line (no open hold any more).
+  const decided = o.hold ? undefined : [...o.timeline].reverse().find((t) => isHoldDecisionLabel(t.label))
   return (
     <>
       {confirmed && <Notice tone="success">{confirmed}</Notice>}
@@ -211,7 +220,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
             <h2 className="m-0 text-[20px] font-extrabold">{notReady ? 'Not ready to assign' : o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
             <StatusChip status={o.status} />
           </div>
-          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} />}
+          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} onReview={() => setReviewing(true)} />}
+          {decided && <DecidedCard entry={decided} />}
           <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
             <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
             <div className="min-w-0">
@@ -275,7 +285,42 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         </ol>
         <p className="mt-1 mb-0 text-chip text-mute">Placed {formatDateTime(o.created_at)}</p>
       </Card>
+      {/* FAIL from an accepted order with no hold: a rejected proof can end in a failed delivery, and nothing else on the page does it (admin-hold-review.md, decision 5). */}
+      {!closed && !o.hold && canFail(o) && (
+        <Button variant="line-danger" size="sm" onClick={() => setFailing(true)}>
+          Fail this delivery
+        </Button>
+      )}
       {!closed && <CancelOrder reference={o.reference} onBefore={onChange} />}
+      {failing && (
+        <FailDialog
+          reference={o.reference}
+          expectedStatus={backendStatusFor(o)}
+          hold={null}
+          onClose={() => setFailing(false)}
+          onDone={(message) => {
+            setFailing(false)
+            onChange()
+            setConfirmed(message)
+          }}
+          onRefresh={() => {
+            setFailing(false)
+            void qc.invalidateQueries({ queryKey: adminKeys.all })
+          }}
+        />
+      )}
+      {reviewing && o.hold && (
+        <HoldSheet
+          reference={o.reference}
+          customer={{ name: o.customer_name, phone: o.customer_phone }}
+          onClose={() => setReviewing(false)}
+          onDecided={(message) => {
+            setReviewing(false)
+            onChange()
+            setConfirmed(message)
+          }}
+        />
+      )}
       {o.payment.status === 'awaiting_verification' && (
         <Notice tone="note">
           This customer's transfer is waiting for a check.{' '}

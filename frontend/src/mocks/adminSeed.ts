@@ -14,6 +14,7 @@ import type {
   AdminStation,
   AuditEntry,
   PriceList,
+  SamplePriceTable,
   ServiceArea,
   StaffMember,
 } from '../domain/admin'
@@ -41,7 +42,7 @@ export interface AdminData {
   stations: AdminStation[]
   areas: MockServiceArea[]
   /** Price list versions, oldest first; the last one is current. */
-  prices: PriceList[]
+  prices: SamplePriceTable[]
   issues: AdminIssue[]
   /** Next support issue number (#CP-0NN), shared by customer, rider and admin reports. */
   next_issue_number: number
@@ -52,6 +53,8 @@ export interface AdminData {
   settings: AdminSettings
   /** Cash records for K3 to K5 (#19); created on first use, so older saved demos have none. */
   cash?: CashMockData
+  /** FR-022 price list versions, oldest first (#173); created on first use by `priceListMock`. */
+  price_lists?: PriceList[]
 }
 
 function minutesAgo(now: Date, m: number): string {
@@ -59,7 +62,7 @@ function minutesAgo(now: Date, m: number): string {
 }
 
 /** The design's three versions: v1 first list, v2 Keke fee ₦500, v3 Tanker 750 gal ₦24,000 → ₦25,000. */
-function priceVersions(): PriceList[] {
+function priceVersions(): SamplePriceTable[] {
   const v3 = structuredClone(DEFAULT_PRICE_LIST)
   const v2 = structuredClone(v3)
   v2.version = 2

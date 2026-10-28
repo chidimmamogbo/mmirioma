@@ -5,17 +5,22 @@
  * the linked ones call an adapter from `./real/`; the rest fail with
  * `not_connected` until their endpoints exist. Linked so far: the cash
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
- * `assignOrder` (#16), and `listAreas`, `saveArea` (#74).
+ * `assignOrder` (#16), `listAreas`, `saveArea` (#74), and the hold review
+ * functions (#166).
  */
-import type { AdminOrderFilter, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceListDraft, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
 import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
+import * as priceMock from '../../mocks/priceListMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
+import * as holds from './real/holds'
+import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
+import * as pricing from './real/pricing'
 import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -36,6 +41,20 @@ export const getOrder = (reference: string) => (USE_MOCKS ? mock.getOrder(refere
 export const listEligibleRiders = (reference: string) => (USE_MOCKS ? mock.listEligibleRiders(reference) : dispatch.listEligibleRiders(reference))
 export const assignOrder = (reference: string, partnerId: string) =>
   USE_MOCKS ? mock.assignOrder(reference, partnerId) : dispatch.assignOrder(reference, partnerId)
+// Hold review (#166): the evidence for an order's open hold, and the decisions on it.
+export const getHoldReview = (reference: string): Promise<HoldReview> => (USE_MOCKS ? mock.getHoldReview(reference) : holds.getHoldReview(reference))
+export const decideProof = (reference: string, request: ProofOverrideRequest): Promise<void> =>
+  USE_MOCKS ? mock.decideProof(reference, request) : holds.decideProof(reference, request)
+export const continueSource = (reference: string, request: HoldDecisionRequest): Promise<void> =>
+  USE_MOCKS ? mock.continueSource(reference, request) : holds.continueSource(reference, request)
+export const resumeUnsafe = (reference: string, request: HoldDecisionRequest): Promise<void> =>
+  USE_MOCKS ? mock.resumeUnsafe(reference, request) : holds.resumeUnsafe(reference, request)
+export const withdrawJob = (reference: string, request: WithdrawRequest): Promise<void> =>
+  USE_MOCKS ? mock.withdrawJob(reference, request) : holds.withdrawJob(reference, request)
+export const getCancellationOutcome = (reference: string): Promise<CancellationOutcome> =>
+  USE_MOCKS ? mock.getCancellationOutcome(reference) : holds.getCancellationOutcome(reference)
+export const transitionOrder = (reference: string, request: AdminTransitionRequest): Promise<void> =>
+  USE_MOCKS ? mock.transitionOrder(reference, request) : holds.transitionOrder(reference, request)
 // Cancelling the whole order is a transition (#17), not the dispatch withdraw.
 export const cancelOrder = api('Orders', mock.cancelOrder)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)
@@ -62,8 +81,17 @@ export const listAreas = (): Promise<ServiceArea[]> => (USE_MOCKS ? mock.listAre
 export const saveArea = (id: string | null, input: Omit<ServiceArea, 'id'>): Promise<ServiceArea> =>
   USE_MOCKS ? mock.saveArea(id, input) : areas.saveArea(id, input)
 
-export const listPriceLists = api('Pricing', mock.listPriceLists)
-export const savePriceList = api('Pricing', mock.savePriceList)
+// The mock-era flat price table: mock-only (sample quotes, Service areas' sample fee, Loyalty points).
+export const listSamplePriceTables = api('Pricing', mock.listPriceLists)
+export const saveSamplePriceTable = api('Pricing', mock.savePriceList)
+
+// Pricing (#173): the FR-022 price list, linked to admin-directory.md "Price lists" (#37) and the water categories (#161).
+export const getCurrentPriceList = () => (USE_MOCKS ? pricing.noneWhenNotFound(priceMock.getCurrentPriceList()) : pricing.getCurrentPriceList())
+export const priceListHistory = () => (USE_MOCKS ? priceMock.listPriceLists({ limit: 20 }).then((p) => p.items) : pricing.priceListHistory())
+export const savePriceList = (draft: PriceListDraft) => (USE_MOCKS ? priceMock.createPriceList(draft) : pricing.savePriceList(draft))
+export const listWaterCategories = () => (USE_MOCKS ? priceMock.listWaterCategories() : pricing.waterCategories())
+export const listPriceAreas = () =>
+  USE_MOCKS ? mock.listAreas().then((areas) => areas.map((a) => ({ id: a.id, name: a.name, is_active: a.enabled }))) : pricing.priceAreas()
 
 export const listPayments = api('Payments', mock.listPayments)
 export const confirmPayment = api('Payments', mock.confirmPayment)

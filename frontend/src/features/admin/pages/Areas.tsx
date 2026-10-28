@@ -10,10 +10,27 @@ import { cx } from '../../../lib/cx'
 import { Notice } from '../../../components/ui/Notice'
 import type { ServiceArea } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { formatNaira, nairaInputToKobo } from '../../../lib/format/money'
 import * as api from '../adminApi'
 import { AdminFrame, PageHead } from '../AdminParts'
-import { useAdminMutation, useAreas, usePriceLists } from '../queries'
+import { useAdminMutation, useAreas, useSamplePriceTables } from '../queries'
+
+/**
+ * The line under the area list. Only the mock list is a sample, so with the
+ * real API the list is the server's and the line is not shown (log
+ * 2026-10-28-areas-screen-says-sample-in-real-mode.md).
+ *
+ * @param isSample - `true` when the list comes from the mock (`USE_MOCKS`).
+ */
+export function SampleListNote({ isSample }: { isSample: boolean }) {
+  if (!isSample) return null
+  return (
+    <p className="m-0 flex items-center gap-2 text-caption text-mute">
+      <SampleTag /> The area list is a sample until the first service zone is confirmed (PRD §13.1).
+    </p>
+  )
+}
 
 type Draft = { name: string; enabled: boolean; latitude: string; longitude: string; fee: string }
 
@@ -61,7 +78,7 @@ function fromDraft(d: Draft): Omit<ServiceArea, 'id'> {
  */
 export function Areas() {
   const areas = useAreas()
-  const prices = usePriceLists()
+  const prices = useSamplePriceTables()
   const fee = prices.data?.[0]?.delivery_fee
   const [adding, setAdding] = useState(false)
 
@@ -115,9 +132,7 @@ export function Areas() {
       <p className="m-0 text-caption text-mute">
         Latitude and longitude: decimal degrees, e.g. 6.4447 and 7.5108. Delivery fee: leave empty for no fee; quotes for this area become manual.
       </p>
-      <p className="m-0 flex items-center gap-2 text-caption text-mute">
-        <SampleTag /> The area list is a sample until the first service zone is confirmed (PRD §13.1).
-      </p>
+      <SampleListNote isSample={USE_MOCKS} />
     </AdminFrame>
   )
 }

@@ -40,12 +40,13 @@ through reports and the audit log.
    water category's entry (#110), written on add and on save; when the server
    names no pilot category, a fee stays "not connected". The boundary is not
    edited here.
-9. **Pricing / Loyalty points / Payouts and payments**: edit the price list
-   (Keke can prices, delivery and rider pay; tanker water by source, delivery
-   and driver pay; delivery fee methods; points rules). Each save is a new
-   version; placed orders keep their price (FR-024). Confirm payments
-   (FR-040) and pay refunds as points (Terms §7). The **Loyalty points**
-   page and tab are hidden in the pilot (`POINTS_ENABLED`, #156).
+9. **Pricing**: the FR-022 price list, linked in #173 (design
+   `docs/design/admin-pricing.md`; details in [pricing.md](pricing.md)):
+   rules setting the handling and margin per area, water and quantity, saved
+   as numbered versions; placed orders keep their price (FR-024). Pricing
+   stands alone, with no Money tabs. **Payouts and payments**: confirm
+   payments (FR-040) and pay refunds as points (Terms §7). The **Loyalty
+   points** page and tab are hidden in the pilot (`POINTS_ENABLED`, #156).
 10. **Rider earnings**: wallets and payout requests; mark a payout sent.
     Hidden in the pilot (`PARTNER_PAY_ENABLED`, #156): not in the menu,
     `/admin/earnings` goes to the dashboard, and Payments has no "Rider

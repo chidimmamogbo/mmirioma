@@ -98,6 +98,25 @@ const HOLD_DECISION_LABEL: Partial<Record<string, string>> = {
  */
 export const holdDecisionLabel = (decision: string): string | null => HOLD_DECISION_LABEL[decision] ?? null
 
+const END_REASON_LABEL: Partial<Record<string, string>> = {
+  source_quality_concern: 'Source quality concern',
+  unsafe_access: 'Unsafe access',
+  customer_unreachable: 'Customer unreachable',
+  vehicle_failure: 'Vehicle failure',
+  other: 'Other',
+  mmirioma_unable: 'MmiriOma is unable to deliver',
+}
+
+/**
+ * Why a delivery failed or an order was cancelled, in staff words
+ * (admin-hold-review.md, FAIL and CANCEL), for the history. A reason the app
+ * does not know has no label and shows no reason, never a raw code.
+ */
+export const endReasonLabel = (code: string): string | null => END_REASON_LABEL[code] ?? null
+
+/** Whether a timeline line is a hold decision, to show the decided card on the panel. */
+export const isHoldDecisionLabel = (label: string): boolean => Object.values(HOLD_DECISION_LABEL).includes(label)
+
 /**
  * The open hold on an order's live job. A hold is not a status: the order keeps
  * its status while it is open. `id` is sent back with a decision.
@@ -270,10 +289,78 @@ export interface TankerPriceRow {
 }
 
 /**
- * One version of the price list (a-pricing). Every save creates a new
- * version; orders keep the quote they were placed with (FR-024).
+ * A price list rule's margin (docs/api/admin-directory.md, "Price lists"):
+ * a percentage of water + delivery + handling in basis points (1 % = 100),
+ * or a fixed amount in kobo.
+ */
+export type PriceMargin = { type: 'percentage'; basis_points: number } | { type: 'fixed'; amount_minor_units: number }
+
+/**
+ * One rule of a price list (FR-022, admin-directory.md "Object"). `zone_id`
+ * and `water_category_id` `null` mean every area / every water. Amounts are
+ * kobo. In the pilot the zone fee replaces the whole delivery cost, so the
+ * three road-distance rates are saved but change no price
+ * (order-details-and-price.md, "Pilot note").
+ */
+export interface PriceRule {
+  zone_id: string | null
+  water_category_id: string | null
+  /** At least 600 (FR-021); inclusive. */
+  min_litres: number
+  /** `null` for no upper limit; inclusive. */
+  max_litres: number | null
+  base_delivery_fee_minor_units: number
+  distance_rate_minor_units_per_km: number
+  additional_trip_minor_units: number
+  handling_minor_units: number
+  margin: PriceMargin
+}
+
+/** One field that changed from the previous version: `rules[i].<field>` or `rules[i]` for an added rule (`from` `null`). */
+export interface PriceListChange {
+  path: string
+  from: unknown
+  to: unknown
+}
+
+/**
+ * One saved version of the FR-022 price list (admin-directory.md, "Price
+ * lists", built in #37). Versions are never edited; saving makes the next
+ * one, and quotes and orders keep the version they used (FR-024).
  */
 export interface PriceList {
+  version: number
+  /** UTC; the time it was saved (no future dating). */
+  effective_from: string
+  created_by: { id: string; name: string }
+  reason: string | null
+  rules: (PriceRule & { id: string })[]
+  /** Empty on version 1. */
+  changes: PriceListChange[]
+}
+
+/** `PriceListCreate`: the whole new set of rules, from the version the admin opened. */
+export interface PriceListDraft {
+  /** The version edited, `null` for the first list. */
+  base_version: number | null
+  reason: string | null
+  rules: PriceRule[]
+}
+
+/** A water category for the Pricing screen's Water picker (`GET /admin/water-categories`, #160). */
+export interface WaterCategoryOption {
+  id: string
+  label: string
+  is_active: boolean
+}
+
+/**
+ * The mock-era flat price table (a-pricing before #173): can and tank
+ * prices, partner pay, delivery switches and points. Used only by the mock
+ * layer (sample quotes, Service areas, Loyalty points); the real Pricing
+ * screen uses `PriceList`, which FR-022 defines.
+ */
+export interface SamplePriceTable {
   version: number
   created_at: string
   created_by: string
@@ -292,7 +379,7 @@ export interface PriceList {
 }
 
 /** What admin edits on the pricing pages; the server adds version, time and author. */
-export type PriceListInput = Omit<PriceList, 'version' | 'created_at' | 'created_by' | 'note'>
+export type SamplePriceTableInput = Omit<SamplePriceTable, 'version' | 'created_at' | 'created_by' | 'note'>
 
 export interface AdminPayment {
   reference: string

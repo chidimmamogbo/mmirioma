@@ -2,7 +2,7 @@
  * Labels and colours for admin statuses. Every status shows a word, never
  * colour alone (handoff README, "Colour").
  */
-import { HOLD_KIND_LABEL, type AdminOrder, type AdminOrderHold, type AdminOrderStatus, type PapersState, type PriceList, type PriceListInput } from '../../domain/admin'
+import { HOLD_KIND_LABEL, type AdminOrder, type AdminOrderHold, type AdminOrderStatus, type PapersState, type SamplePriceTable, type SamplePriceTableInput } from '../../domain/admin'
 import type { ChipTone } from '../../components/ui/Chip'
 import type { AdminPaymentStatus } from '../../domain/admin'
 import type { PaymentMethod } from '../../domain/orders'
@@ -95,7 +95,7 @@ export const MONEY_TABS = [
 ]
 
 /** What the pricing forms edit: a price list without its version fields. */
-export function editablePrices(p: PriceList): PriceListInput {
+export function editablePrices(p: SamplePriceTable): SamplePriceTableInput {
   return { keke: structuredClone(p.keke), tanker: structuredClone(p.tanker), delivery_fee: { ...p.delivery_fee }, points: { ...p.points } }
 }
 
