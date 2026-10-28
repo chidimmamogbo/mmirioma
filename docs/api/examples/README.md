@@ -127,14 +127,18 @@ whose cash is not recorded yet.
 Samples for [../admin-directory.md](../admin-directory.md), **proposed, not
 agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
 
-- Customers: `admin-customers-page.json` (the list, one customer created by
-  staff and not yet verified), `admin-customer.json` (the detail, with an
+- Customers: `admin-customers-page.json` (the list, one customer not yet
+  verified), `admin-customer.json` (the detail, with an
   address in an inactive zone and an order from before #21 with
-  `delivery_type: null`), `admin-customer-create-request.json`,
-  `admin-customer-address-request.json`.
-- Drivers: `admin-drivers-page.json` (an active tanker driver and an inactive
-  driver with no vehicle profile), `admin-driver-create-request.json` (3,000
-  gallons, stored as 12,000 litres), `admin-driver-activation-request.json`.
+  `delivery_type: null`), `admin-customer-address-request.json`. No create
+  example: staff do not create accounts (#43).
+- Drivers: `admin-drivers-page.json` (an approved tanker driver with a
+  verified vehicle, and a pending Keke rider just after sign-up, phone not
+  verified, no verified vehicle), `admin-driver-approval-request.json`
+  (approve with the verified vehicle: 3,000 declared gallons checked as
+  12,000 litres), `admin-driver-suspension-request.json`,
+  `error-partner-phone-not-verified.json`,
+  `admin-driver-activation-request.json`.
 - Service zones: `admin-service-zones.json`, one active zone with a fallback
   fee for one category and one inactive zone with a boundary and no fees;
   `admin-service-zone-write-request.json` (create or replace); and

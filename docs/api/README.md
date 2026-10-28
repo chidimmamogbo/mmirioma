@@ -16,7 +16,7 @@ Shared contracts that backend and frontend build against. Agree changes here
 | [examples/](examples/) | Mock JSON responses for frontend work (S1-05, S1-09) | n/a |
 | [push.md](push.md) | Push subscriptions and message payload: **not in the MVP** (decided in #8; not an SRS channel, needs a new library); kept as a reference | not built |
 | [public-site.md](public-site.md) | Support contact for the website from backend settings (FR-055); newsletter left out of the pilot (**agreed** 2026-10-26, #8) | #56 |
-| [admin-directory.md](admin-directory.md) | Admin customers and saved addresses, drivers (list, add, activate), service zones (FR-010), versioned FR-022 price lists (**proposed** in #18; the service zones and price lists sections are **agreed**; zones amended for #30: one fallback fee per category, `GET /service-zones`) | zones: #30; price lists: #37; rest not yet |
+| [admin-directory.md](admin-directory.md) | Admin customers and saved addresses, drivers (list, approve or suspend with vehicle verification, activate; revised for #43, no staff-created accounts), service zones (FR-010), versioned FR-022 price lists (**proposed** in #18; the service zones and price lists sections are **agreed**; zones amended for #30: one fallback fee per category, `GET /service-zones`) | zones: #30; price lists: #37; rest not yet |
 
 Delivery assignment states (assignment, acceptance, pickup, transit, proof,
 failure, reassignment) are defined in S1-06. [orders.md](orders.md) only fixes
