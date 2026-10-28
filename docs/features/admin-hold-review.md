@@ -194,9 +194,11 @@ Every refusal rolls back before answering, so nothing is half-written.
 ## Screens (frontend, #166)
 
 Built from the approved design ([admin-hold-review.md](../design/admin-hold-review.md),
-#128, G2) on the real API. With `VITE_USE_MOCKS=true` the mock has three
-seeded held jobs, one of each kind, in the shapes the server sends; their
-evidence is sample text, and the mock's CANCEL sentence is tagged SAMPLE.
+#128, G2) on the real API. With `VITE_USE_MOCKS=true` the mock has four
+seeded held jobs: a proof review, two source reviews (one at another source,
+which cannot continue, and one at the assigned source, which can) and an
+unsafe stop, in the shapes the server sends; their evidence is sample text,
+and the mock's CANCEL sentence is tagged SAMPLE.
 
 ```
 Orders page (/admin/orders)     "On hold (n)" pill (GET /admin/orders?on_hold=true; n is the
