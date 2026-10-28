@@ -113,9 +113,20 @@ Six job functions call the driver job endpoints in
 
 Conversion follows [api-mapping.md](../architecture/api-mapping.md#partner-job-fields-the-backend-does-not-send).
 
-The job steps (pickup, unloading done, code, proof: #13), earnings, payouts,
-document upload and problem reports still run on mocks. In real-API mode they
-fail with `not_connected`.
+Five trip functions call the rest of those endpoints (#13). One partner step
+can send several backend steps, each only if the job has not made it yet
+([api-mapping.md](../architecture/api-mapping.md#trip-steps-and-problem-reports)):
+
+| Function | Endpoints |
+| --- | --- |
+| `confirmPickup` | `POST .../transition` (`departed`), `POST .../pickup`, `POST .../transition` (`en_route`) |
+| `completeUnloading` | `POST .../arrive` (no location), `POST .../transition` (`unloading`), `POST .../unloading-complete` |
+| `verifyCode` | `POST .../proof` with the code and the litres recorded at pickup |
+| `resendCode` | `POST .../delivery-code` |
+| `reportIssue` | `POST .../incidents`; a report with no order fails with `not_connected` |
+
+Earnings, payouts and document upload still run on mocks. In real-API mode
+they fail with `not_connected`.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
 `partner_not_approved` (403), `not_assigned_to_you` (409),
 `invalid_job_transition` (409), `transition_requirements_unmet` (409, a code

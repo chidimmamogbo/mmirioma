@@ -19,3 +19,7 @@
   string inside the heredoc, failed with
   ``/usr/bin/bash: -c: line 174: unexpected EOF while looking for matching `'``
   and wrote nothing. The editor's edit tool worked.
+- **Seen again** 2026-10-27 (Bonvee120 + Claude Code, #13): a
+  `cat >> file <<'EOF'` that appended TypeScript tests containing `'` in
+  strings failed with ``line 136: unexpected EOF while looking for matching `'``
+  and appended nothing. The editor's edit tool worked.

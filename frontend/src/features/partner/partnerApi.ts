@@ -3,10 +3,10 @@
  * Mock mode uses `src/mocks/partnerMock.ts`. In real-API mode the account
  * functions (sign-up, profile, going online, notifications) call
  * docs/api/partners.md through `real/account.ts` (#67), and the job lists,
- * one job, accept and decline call docs/api/deliveries.md through
- * `real/jobs.ts` (#12); the rest fail with `not_connected` until they are
- * linked
- * (SRS §6 suggests `/driver/jobs/{id}/accept`, `/transition`, `/proof`).
+ * one job, accept and decline (#12), the trip steps and problem reports
+ * (#13) call docs/api/deliveries.md through `real/jobs.ts`. Earnings,
+ * payouts and document upload fail with `not_connected` until they are
+ * linked.
  */
 import type {
   DeclineReason,
@@ -40,10 +40,10 @@ export const getJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.ge
 export const acceptJob = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.acceptJob(ref) : realJobs.acceptJob(ref))
 export const declineJob = (ref: string, reason: DeclineReason, note: string): Promise<void> =>
   USE_MOCKS ? mock.declineJob(ref, reason, note) : realJobs.declineJob(ref, reason, note)
-export const confirmPickup = (ref: string, p: Pickup): Promise<PartnerJob> => (USE_MOCKS ? mock.confirmPickup(ref, p) : notConnected('Pickup'))
-export const completeUnloading = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.completeUnloading(ref) : notConnected('Delivery code'))
-export const verifyCode =(ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : notConnected('Delivery code'))
-export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.resendCode(ref) : notConnected('Delivery code'))
+export const confirmPickup = (ref: string, p: Pickup): Promise<PartnerJob> => (USE_MOCKS ? mock.confirmPickup(ref, p) : realJobs.confirmPickup(ref, p))
+export const completeUnloading = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.completeUnloading(ref) : realJobs.completeUnloading(ref))
+export const verifyCode =(ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : realJobs.verifyCode(ref, code))
+export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.resendCode(ref) : realJobs.resendCode(ref))
 
 export const getEarnings = (): Promise<PartnerEarnings> => (USE_MOCKS ? mock.getEarnings() : notConnected('Earnings'))
 export const requestPayout = (amount: number): Promise<PartnerEarnings> => (USE_MOCKS ? mock.requestPayout(amount) : notConnected('Payouts'))
@@ -55,4 +55,4 @@ export const listPartnerNotifications = (): Promise<PartnerNotificationList> =>
     : real.listPartnerNotifications()
 export const markPartnerNotificationsRead = (): Promise<void> => (USE_MOCKS ? mock.markPartnerNotificationsRead() : real.markPartnerNotificationsRead())
 export const reportIssue = (i: { type: PartnerIssueType; note: string; reference: string | null }): Promise<{ id: string }> =>
-  USE_MOCKS ? mock.reportIssue(i) : notConnected('Reporting a problem')
+  USE_MOCKS ? mock.reportIssue(i) : realJobs.reportIssue(i)
