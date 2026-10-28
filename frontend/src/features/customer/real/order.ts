@@ -90,6 +90,19 @@ export function priceFromRead(read: Pick<OrderRead, 'quote' | 'price' | 'water_c
   return null
 }
 
+/**
+ * The agreed delivery window, or `null` while there is none: before the order
+ * is confirmed, from an older server that sends no field, or when the end is
+ * not after the start (a wrong window is worse than none).
+ */
+export function windowFromRead(read: Pick<OrderRead, 'delivery_window'>): CustomerOrder['delivery_window'] {
+  const w = read.delivery_window
+  if (!w) return null
+  const start = Date.parse(w.start_at)
+  const end = Date.parse(w.end_at)
+  return end > start ? { start_at: w.start_at, end_at: w.end_at } : null
+}
+
 /** Backend order to the design's order (docs/architecture/api-mapping.md). */
 export function customerOrderFromRead(read: OrderRead): CustomerOrder {
   return {
@@ -110,6 +123,7 @@ export function customerOrderFromRead(read: OrderRead): CustomerOrder {
     // payment status yet (docs/api/orders.md, decided question 3).
     payment: { method: 'pay_on_delivery', status: null },
     quote: priceFromRead(read),
+    delivery_window: windowFromRead(read),
     // Not in OrderRead: the screens leave these out.
     partner: null,
     station_name: null,

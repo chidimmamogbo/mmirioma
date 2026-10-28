@@ -358,3 +358,27 @@ describe('order feedback (#88 part 3)', () => {
     } satisfies Partial<ApiError>)
   })
 })
+
+describe('the delivery window (#188)', () => {
+  it('maps the confirmed window as sent, in UTC', () => {
+    expect(customerOrderFromRead(CONFIRMED).delivery_window).toEqual({ start_at: '2026-10-27T09:00:00Z', end_at: '2026-10-27T11:00:00Z' })
+  })
+
+  it('has no window for an unconfirmed order', () => {
+    expect(customerOrderFromRead({ ...CONFIRMED, delivery_window: null }).delivery_window).toBeNull()
+  })
+
+  it('has no window when an older server sends no field', () => {
+    const older: Partial<OrderRead> = { ...CONFIRMED }
+    delete older.delivery_window
+    expect(customerOrderFromRead(older as OrderRead).delivery_window).toBeNull()
+  })
+
+  it.each([
+    ['ends before it starts', '2026-10-27T11:00:00Z', '2026-10-27T09:00:00Z'],
+    ['has no length', '2026-10-27T09:00:00Z', '2026-10-27T09:00:00Z'],
+    ['is not a date', 'soon', 'later'],
+  ])('shows nothing for a window that %s', (_name, start_at, end_at) => {
+    expect(customerOrderFromRead({ ...CONFIRMED, delivery_window: { start_at, end_at } }).delivery_window).toBeNull()
+  })
+})

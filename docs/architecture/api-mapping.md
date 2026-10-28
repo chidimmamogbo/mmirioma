@@ -211,9 +211,20 @@ stay `null`.
 
 The confirmed `price` replaces the quote once it is set, so a manual price
 that differs from the quote is the one the customer sees. `is_sample` is
-always `false` on the real path. `delivery_window` is typed in
-`frontend/src/lib/api/orders.ts` but not mapped yet: `CustomerOrder` has no
-field for it (#188).
+always `false` on the real path.
+
+### Delivery window
+
+Source: `windowFromRead` in `frontend/src/features/customer/real/order.ts`
+(#188).
+
+| `OrderRead.delivery_window` | `CustomerOrder.delivery_window` |
+| --- | --- |
+| `{ start_at, end_at }`, the end after the start | the same two UTC timestamps |
+| `null` (not confirmed yet), absent (an older server), or an end that is not after the start | `null` |
+
+The screens show the window in Africa/Lagos time, only while the order is open,
+and never as an arrival time (FR-037).
 
 ## Partner job stage
 

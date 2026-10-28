@@ -202,6 +202,8 @@ export interface CustomerOrder {
   eta_minutes: number | null
   /** Six-digit code the customer gives after delivery; only while active. */
   delivery_code: string | null
+  /** The window a dispatcher agreed (UTC, start before end); null until the order is confirmed. Not an ETA (FR-037). */
+  delivery_window: { start_at: string; end_at: string } | null
   timeline: TimelineEvent[]
   delivered_at: string | null
   /** Litres or gallons actually delivered, as recorded by the partner. */
