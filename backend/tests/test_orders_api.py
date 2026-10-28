@@ -5,8 +5,10 @@ these cover roles (FR-001), CSRF, request and query validation, status codes
 and response shapes. Database behavior is in test_orders_integration.py.
 """
 
+import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -20,7 +22,7 @@ from app.modules.auth.dependencies import CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from app.modules.auth.models import User, UserRole, UserSession
 from app.modules.deliveries import holds
 from app.modules.orders import service
-from app.modules.orders.models import Order, OrderStatus
+from app.modules.orders.models import Order, OrderEvent, OrderStatus
 from app.modules.orders.service import NewOrder, StaffOrder
 from app.shared import lagos_time
 
@@ -40,7 +42,14 @@ USERS = {
 
 CUSTOMER_ENDPOINTS = [("POST", "/api/v1/orders"), ("GET", "/api/v1/orders")]
 CUSTOMER_ENDPOINTS.append(("GET", "/api/v1/orders/MO-7KQ2M9XH4T"))
+CUSTOMER_ENDPOINTS.append(("GET", "/api/v1/orders/MO-7KQ2M9XH4T/history"))
 ADMIN_ENDPOINTS = [("GET", "/api/v1/admin/orders"), ("GET", "/api/v1/admin/orders/MO-7KQ2M9XH4T")]
+
+HISTORY: list[dict[str, str]] = json.loads(
+    (
+        Path(__file__).resolve().parents[2] / "docs" / "api" / "examples" / "order-history.json"
+    ).read_text()
+)["items"]
 
 VALID_BODY: dict[str, Any] = {
     "idempotency_key": "5b0e2c3a-7d1f-4e8a-b6c9-0a1b2c3d4e5f",
@@ -100,6 +109,22 @@ class FakeOrders:
             raise self.error
         return make_order()
 
+    async def customer_order_history(self, _: object, **kwargs: Any) -> list[OrderEvent]:
+        self.calls.append(("customer_order_history", kwargs))
+        if self.error:
+            raise self.error
+        return [
+            OrderEvent(
+                order_id=uuid.uuid4(),
+                actor_id=uuid.uuid4(),
+                from_status=None if i == 0 else OrderStatus(HISTORY[i - 1]["status"]),
+                to_status=OrderStatus(entry["status"]),
+                note="Staff note: never shown to the customer",
+                created_at=datetime.fromisoformat(entry["at"]),
+            )
+            for i, entry in enumerate(HISTORY)
+        ]
+
     async def list_orders_for_staff(self, _: object, **kwargs: Any) -> tuple[list[StaffOrder], int]:
         self.calls.append(("list_orders_for_staff", kwargs))
         item = StaffOrder(order=make_order(is_simulated=True), customer=USERS[UserRole.CUSTOMER])
@@ -119,6 +144,7 @@ def fake_orders(monkeypatch: pytest.MonkeyPatch) -> FakeOrders:
         "create_order",
         "list_customer_orders",
         "get_customer_order",
+        "customer_order_history",
         "list_orders_for_staff",
         "get_order_for_staff",
     ):
@@ -445,6 +471,35 @@ def test_order_not_found_passes_through(api: TestClient, fake_orders: FakeOrders
     assert response.status_code == 404
     assert error_code(response) == "order_not_found"
     assert fake_orders.calls[0][1]["customer_id"] == USERS[UserRole.CUSTOMER].id
+
+
+# --- GET /orders/{reference}/history (#155) ------------------------------------------
+
+
+def test_history_matches_the_contract_example(api: TestClient, fake_orders: FakeOrders) -> None:
+    response = api.get(
+        "/api/v1/orders/MO-7KQ2M9XH4T/history", headers=sign_in(api, UserRole.CUSTOMER)
+    )
+    assert response.status_code == 200
+    body = response.json()
+    # Status and time only: no actor, note or reason (staff detail).
+    assert [set(item) for item in body["items"]] == [{"status", "at"}] * len(HISTORY)
+    assert [item["status"] for item in body["items"]] == [entry["status"] for entry in HISTORY]
+    assert fake_orders.calls[0] == (
+        "customer_order_history",
+        {"customer_id": USERS[UserRole.CUSTOMER].id, "reference": "MO-7KQ2M9XH4T"},
+    )
+
+
+def test_history_of_an_unknown_or_other_order_is_not_found(
+    api: TestClient, fake_orders: FakeOrders
+) -> None:
+    fake_orders.error = APIError(404, "order_not_found", "Order not found")
+    response = api.get(
+        "/api/v1/orders/MO-0000000000/history", headers=sign_in(api, UserRole.CUSTOMER)
+    )
+    assert response.status_code == 404
+    assert error_code(response) == "order_not_found"
 
 
 # --- Admin reads ------------------------------------------------------------------

@@ -51,6 +51,18 @@ describe('admin access', () => {
     expect(found.orders.map((o) => o.customer_name)).toContain('Ifeoma Eze')
   })
 
+  it('seeds one held order of each kind, and the "On hold" filter lists only those (admin hold review, R0)', async () => {
+    const held = await listOrders('on_hold')
+    expect(held.counts.on_hold).toBe(3)
+    expect(held.orders.map((o) => o.hold?.kind).sort()).toEqual(['proof_review', 'source_review', 'unsafe_stop'])
+    // A hold is not a status: the orders keep theirs, and show under the other pills too.
+    const all = await listOrders('all')
+    expect(all.orders.filter((o) => o.hold !== null)).toHaveLength(3)
+    expect(all.orders.filter((o) => o.hold === null).every((o) => !held.orders.includes(o))).toBe(true)
+    // Each hold opened before now, so "12 minutes ago" is a past time.
+    expect(held.orders.every((o) => Date.parse(o.hold!.since) < Date.now())).toBe(true)
+  })
+
   it('works out the dashboard from the records', async () => {
     const d = await getDashboard()
     expect(d.orders.awaiting_rider).toBe((await listOrders('awaiting_rider')).orders.length)

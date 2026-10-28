@@ -7,14 +7,24 @@
  * field the backend does not send becomes the screen's empty state, never an
  * invented value.
  */
-import { TANK_SIZES, type CustomerOrder, type TankSizeGallons, type WaterChoice } from '../../../domain/orders'
+import {
+  STAGE_LABEL,
+  TANK_SIZES,
+  type CustomerOrder,
+  type DeliveryStage,
+  type TankSizeGallons,
+  type TimelineEvent,
+  type WaterChoice,
+} from '../../../domain/orders'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
 import {
   createOrder as postOrder,
   getOrder as fetchOrder,
+  getOrderHistory as fetchOrderHistory,
   listOrders as fetchOrders,
   putOrderFeedback,
   type OrderCreate,
+  type OrderHistoryEntry,
   type OrderRead,
 } from '../../../lib/api/orders'
 import type { CreateOrderInput } from '../../../mocks/customerMock'
@@ -178,5 +188,31 @@ export async function submitFeedback(
  * @throws {ApiError} 404 `order_not_found`, also for another customer's order.
  */
 export async function getOrder(reference: string, client: ApiClient = apiClient): Promise<CustomerOrder> {
-  return customerOrderFromRead(await fetchOrder(reference, undefined, client))
+  const [read, history] = await Promise.all([
+    fetchOrder(reference, undefined, client),
+    // A separate read that can fail on its own: the order still shows, with "Order placed" only.
+    fetchOrderHistory(reference, undefined, client).catch(() => null),
+  ])
+  const order = customerOrderFromRead(read)
+  return history ? { ...order, timeline: timelineFromHistory(read.created_at, history.items) } : order
+}
+
+/**
+ * The order's timeline from its status changes (#155): "Order placed", then
+ * each new customer stage with its agreed label (api-mapping.md, "Customer
+ * order stage"), oldest first. A status that keeps the stage adds no step:
+ * `assigned` stays "Waiting for rider" (FR-032), and `arrived` and
+ * `unloading` stay "On the way". So no step shows what the order itself
+ * would not.
+ */
+export function timelineFromHistory(createdAt: string, history: OrderHistoryEntry[]): TimelineEvent[] {
+  const timeline: TimelineEvent[] = [{ label: 'Order placed', at: createdAt }]
+  let previous: DeliveryStage | null = null
+  for (const entry of history) {
+    const stage = customerStageFromStatus(entry.status) ?? 'order_update'
+    // The first entry is the order's creation, already "Order placed".
+    if (previous !== null && stage !== previous) timeline.push({ label: STAGE_LABEL[stage], at: entry.at })
+    previous = stage
+  }
+  return timeline
 }

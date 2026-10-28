@@ -209,6 +209,20 @@ class WaterCategoryRef(BaseModel):
     label: str
 
 
+class AdminWaterCategory(BaseModel):
+    """A water category in the admin list: no ``code``, no description, no price."""
+
+    id: uuid.UUID
+    label: str
+    is_active: bool
+
+
+class AdminWaterCategoryList(BaseModel):
+    """Body of ``GET /admin/water-categories``: every category, by label (#160)."""
+
+    items: list[AdminWaterCategory]
+
+
 class FeeRead(BaseModel):
     """A zone's delivery fee for one category, per order."""
 

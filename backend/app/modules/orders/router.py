@@ -23,6 +23,8 @@ from app.modules.orders.schemas import (
     FeedbackInput,
     FeedbackRead,
     OrderCreate,
+    OrderHistory,
+    OrderHistoryEntry,
     OrderPage,
     OrderRead,
     PageParams,
@@ -106,6 +108,19 @@ async def get_my_order(reference: str, customer: CurrentCustomer, db: DbSession)
     """
     order = await service.get_customer_order(db, customer_id=customer.id, reference=reference)
     return OrderRead.from_order(order, await service.read_lookups(db, [order], with_feedback=True))
+
+
+@router.get("/orders/{reference}/history", responses={**_AUTH_ERRORS, **_NOT_FOUND})
+async def get_my_order_history(
+    reference: str, customer: CurrentCustomer, db: DbSession
+) -> OrderHistory:
+    """Return the status changes of one of the customer's own orders, oldest first (#155).
+
+    Raises:
+        APIError: 404 ``order_not_found``, also for another customer's order (T-07).
+    """
+    events = await service.customer_order_history(db, customer_id=customer.id, reference=reference)
+    return OrderHistory(items=[OrderHistoryEntry.from_event(event) for event in events])
 
 
 @router.put(

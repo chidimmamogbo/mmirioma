@@ -23,7 +23,8 @@ import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
 import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
-import { METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
+import { HoldBanner, HoldChip } from '../hold/HoldParts'
+import { holdSummary, METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
@@ -32,6 +33,7 @@ const FILTERS: { value: AdminOrderFilter; label: string }[] = [
   { value: 'awaiting_confirmation', label: 'Awaiting confirmation' },
   { value: 'awaiting_rider', label: 'Awaiting rider' },
   { value: 'in_progress', label: 'In progress' },
+  { value: 'on_hold', label: 'On hold' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
 ]
@@ -129,7 +131,18 @@ export function Orders() {
                     { header: 'Quantity', cell: (o) => (o.choice ? <QuantityCell choice={o.choice} /> : o.quantity) },
                     // The order list sends no payment status: it shows on the order (payments.md).
                     { header: 'Payment', cell: (o) => (o.payment.status ? <PaymentChip status={o.payment.status} /> : <span className="text-mute">On the order</span>) },
-                    { header: 'Status', cell: (o) => <StatusChip status={o.status} /> },
+                    {
+                      header: 'Status',
+                      cell: (o) => (
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <StatusChip status={o.status} />
+                            {o.hold && <HoldChip />}
+                          </div>
+                          {o.hold && <div className="mt-1 text-chip text-mute">{holdSummary(o.hold)}</div>}
+                        </>
+                      ),
+                    },
                     { header: 'Rider', cell: (o) => o.partner?.code ?? <span className="text-mute">None yet</span> },
                   ]}
                 />
@@ -175,7 +188,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
   if (order.isError || !o) return <Card className="p-4"><ErrorBlock error={order.error} onRetry={() => order.refetch()} /></Card>
   const notReady = notReadyToAssign(o)
-  const canAssign = !notReady && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
+  // No assign or reassign on a held order: the job is stopped and waits for a decision (admin-hold-review.md, R0).
+  const canAssign = !notReady && !o.hold && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
   const closed = o.status === 'delivered' || o.status === 'cancelled'
   return (
     <>
@@ -197,6 +211,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
             <h2 className="m-0 text-[20px] font-extrabold">{notReady ? 'Not ready to assign' : o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
             <StatusChip status={o.status} />
           </div>
+          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} />}
           <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
             <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
             <div className="min-w-0">

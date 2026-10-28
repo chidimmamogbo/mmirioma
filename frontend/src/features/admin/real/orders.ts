@@ -8,7 +8,15 @@
  * in: the list has no payment status or partner, and a partner's fleet code
  * and plate are never sent.
  */
-import type { AdminOrder, AdminOrderFilter, AdminOrderStatus, AdminPaymentStatus } from '../../../domain/admin'
+import {
+  HOLD_KIND_LABEL,
+  holdConcernLabel,
+  holdDecisionLabel,
+  type AdminOrder,
+  type AdminOrderFilter,
+  type AdminOrderStatus,
+  type AdminPaymentStatus,
+} from '../../../domain/admin'
 import { describeChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
@@ -54,17 +62,27 @@ const PAYMENT_BY_BACKEND: Partial<Record<string, AdminPaymentStatus>> = {
   refunded: 'refunded',
 }
 
-/** The backend statuses behind each pill of the order list (`a-orders`). `all` sends none. */
+/**
+ * The backend statuses behind each pill of the order list (`a-orders`). `all`
+ * sends none; `on_hold` sends none either and asks for `on_hold=true` instead
+ * (see `listParams`): a hold is not a status.
+ */
 export const STATUSES_BY_FILTER: Record<AdminOrderFilter, BackendStatus[]> = {
   all: [],
   awaiting_confirmation: ['quote_requested', 'awaiting_confirmation'],
   awaiting_rider: ['confirmed', 'awaiting_payment'],
   in_progress: ['assigned', 'accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading'],
+  on_hold: [],
   delivered: ['delivered'],
   cancelled: ['cancelled'],
 }
 
 const FILTERS = Object.keys(STATUSES_BY_FILTER) as AdminOrderFilter[]
+
+/** The query a pill sends: its statuses, or `on_hold=true` for the "On hold" pill (deliveries.md, "Hold object on admin orders"). */
+function listParams(filter: AdminOrderFilter): { status: BackendStatus[]; on_hold?: boolean } {
+  return filter === 'on_hold' ? { status: [], on_hold: true } : { status: STATUSES_BY_FILTER[filter] }
+}
 
 /** The newest orders a text search looks through: the contract's page maximum. */
 const SEARCH_LIMIT = 100
@@ -80,9 +98,10 @@ export function adminStatusFromBackend(status: string): AdminOrderStatus {
   return Object.hasOwn(STATUS_BY_BACKEND, status) ? STATUS_BY_BACKEND[status as BackendStatus] : 'awaiting_rider'
 }
 
-/** Whether an order matches a pill, by its admin status. */
+/** Whether an order matches a pill, by its admin status (or, for "On hold", its hold). */
 function inFilter(order: AdminOrder, filter: AdminOrderFilter): boolean {
   if (filter === 'all') return true
+  if (filter === 'on_hold') return order.hold !== null
   if (filter === 'in_progress') return order.status === 'assigned' || order.status === 'loading' || order.status === 'on_the_way'
   return order.status === filter
 }
@@ -125,6 +144,8 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
     payment: { method: 'pay_on_delivery', status: (detail?.payment && PAYMENT_BY_BACKEND[detail.payment.status]) ?? null },
     status: adminStatusFromBackend(read.status),
     backend_status: read.status,
+    // Both the list row and the detail carry it (admin hold review, R0); a server without it reads as no hold.
+    hold: read.hold ?? null,
     partner: live
       ? {
           id: live.driver.id,
@@ -146,7 +167,7 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
 /** How many orders each pill holds: one small request per pill, reading `total`. */
 async function serverCounts(client: ApiClient): Promise<Record<AdminOrderFilter, number>> {
   const totals = await Promise.all(
-    FILTERS.map((f) => listAdminOrders({ status: STATUSES_BY_FILTER[f], limit: 1, offset: 0 }, undefined, client).then((p) => p.total)),
+    FILTERS.map((f) => listAdminOrders({ ...listParams(f), limit: 1, offset: 0 }, undefined, client).then((p) => p.total)),
   )
   return Object.fromEntries(FILTERS.map((f, i) => [f, totals[i]])) as Record<AdminOrderFilter, number>
 }
@@ -183,7 +204,7 @@ export async function listOrders(filter: AdminOrderFilter = 'all', query?: strin
     return { orders: found.filter((o) => inFilter(o, filter)), counts: localCounts(found) }
   }
   const [page, counts] = await Promise.all([
-    listAdminOrders({ status: STATUSES_BY_FILTER[filter], limit: SEARCH_LIMIT, offset: 0 }, undefined, client),
+    listAdminOrders({ ...listParams(filter), limit: SEARCH_LIMIT, offset: 0 }, undefined, client),
     serverCounts(client),
   ])
   return { orders: page.items.map(adminOrderFromRead), counts }
@@ -211,15 +232,39 @@ function assignmentLine(event: AdminOrderEvent): string | null {
 }
 
 /**
+ * The line for a hold entry (admin-hold-review.md, H): "Hold opened: <kind>"
+ * with who, the concern in words and the driver's note; or the decision
+ * ("Proof approved", ...) with the administrator and their note. `null` for a
+ * hold closed by a fail, cancel or withdraw (it has no decision entry; its
+ * status change is already in the timeline) and for anything else.
+ */
+function holdLine(event: AdminOrderEvent): { label: string; detail: string } | null {
+  if (!event.hold) return null
+  const by = event.actor?.name
+  const note = event.note ? `"${event.note}"` : null
+  if (event.kind === 'hold_opened') {
+    const detail = [by, holdConcernLabel(event.hold.category), note].filter(Boolean).join(' · ')
+    return { label: `Hold opened: ${HOLD_KIND_LABEL[event.hold.kind]}`, detail }
+  }
+  if (event.kind === 'hold_decided') {
+    const label = event.hold.decision ? holdDecisionLabel(event.hold.decision) : null
+    return label ? { label, detail: [by, note].filter(Boolean).join(' · ') } : null
+  }
+  return null
+}
+
+/**
  * The order's timeline: "Order placed", then its confirmation (#136, design
- * Q5) and assignment events, oldest first (the history comes newest first).
- * An assignment event's note is its detail; a confirmation line carries its
- * own (category, source, window, price, who, note).
+ * Q5), hold (admin-hold-review.md, H) and assignment events, oldest first (the
+ * history comes newest first). An assignment event's note is its detail; a
+ * confirmation or hold line carries its own (who, concern, note, ...).
  */
 export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
   const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
     const confirmation = confirmationLine(event)
     if (confirmation) return [{ label: confirmation.label, at: event.created_at, detail: confirmation.detail }]
+    const hold = holdLine(event)
+    if (hold) return [{ label: hold.label, at: event.created_at, ...(hold.detail ? { detail: hold.detail } : {}) }]
     const label = assignmentLine(event)
     return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
   })
