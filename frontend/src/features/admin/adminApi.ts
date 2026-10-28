@@ -86,7 +86,7 @@ export const listSamplePriceTables = api('Pricing', mock.listPriceLists)
 export const saveSamplePriceTable = api('Pricing', mock.savePriceList)
 
 // Pricing (#173): the FR-022 price list, linked to admin-directory.md "Price lists" (#37) and the water categories (#161).
-export const getCurrentPriceList = () => (USE_MOCKS ? priceMock.getCurrentPriceList() : pricing.getCurrentPriceList())
+export const getCurrentPriceList = () => (USE_MOCKS ? pricing.noneWhenNotFound(priceMock.getCurrentPriceList()) : pricing.getCurrentPriceList())
 export const priceListHistory = () => (USE_MOCKS ? priceMock.listPriceLists({ limit: 20 }).then((p) => p.items) : pricing.priceListHistory())
 export const savePriceList = (draft: PriceListDraft) => (USE_MOCKS ? priceMock.createPriceList(draft) : pricing.savePriceList(draft))
 export const listWaterCategories = () => (USE_MOCKS ? priceMock.listWaterCategories() : pricing.waterCategories())

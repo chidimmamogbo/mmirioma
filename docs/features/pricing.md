@@ -60,6 +60,26 @@ reliable price exists (SRS §6). Customers see the total only.
 | `backend/alembic/versions/20261026_0015_add_price_lists.py` | The two tables |
 | `backend/tests/test_price_lists_api.py` | Endpoint tests, no database |
 | `backend/tests/test_price_lists_integration.py` | Service tests against PostGIS |
+| `frontend/src/lib/api/priceLists.ts` | Typed, Zod-checked calls: current, history, save, water categories (#173) |
+| `frontend/src/features/admin/real/pricing.ts` | The adapter: 404 `price_list_not_found` = "No price list yet" |
+| `frontend/src/features/admin/pages/Pricing.tsx` | The admin Pricing screen (P0, design `docs/design/admin-pricing.md`) |
+| `frontend/src/features/admin/pricing/RuleSheet.tsx` | P1, the rule sheet: add or edit one rule |
+| `frontend/src/features/admin/pricing/logic.ts` | Staff wording, the rule form's checks, the save errors |
+| `frontend/src/mocks/priceListMock.ts` | Sample price lists in `VITE_USE_MOCKS=true`, refusing what the backend refuses |
+
+**The admin screen (#173).** `/admin/pricing` shows "How a price is made"
+(water and delivery are set elsewhere; handling and margin here), the
+current version's rules (area, water, quantity, handling, margin) with Edit,
+Remove and "+ Add a rule", the road-distance rates collapsed as "saved, not
+used yet" (the pilot prices delivery from the zone fee), a Save card
+("Save as version N+1", optional reason) and the version history worded from
+`changes[]`. Rules are edited one at a time in a side sheet and saved
+together as one version. Refusals are shown as the design words them:
+"Prices changed since you opened this page" with "Load version N",
+"Nothing to save", the overlapping rules named and marked, and "This area is
+no longer listed". With no price list saved, the page offers "Add the first
+rule". Pricing stands alone: the Loyalty points and Payouts tabs are not
+shown in the pilot.
 | `backend/tests/test_admin_water_categories_api.py` | The category list: roles, shape against the example, no `code`, no database |
 | `backend/tests/test_admin_water_categories_integration.py` | The category list and the inactive-category rule against PostGIS |
 | `backend/app/modules/pricing/quotes.py` | `create_quote`, `compute_price`, `check_quote_for_order`, `quote_summaries`; the rules below |

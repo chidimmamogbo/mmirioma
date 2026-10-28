@@ -24,8 +24,13 @@ import { listAdminServiceZones } from '../../../lib/api/serviceZones'
  * @throws {ApiError} Other errors unchanged.
  */
 export async function getCurrentPriceList(client: ApiClient = apiClient): Promise<PriceList | null> {
+  return noneWhenNotFound(fetchCurrent(undefined, client))
+}
+
+/** 404 `price_list_not_found` as `null`; the mock (which answers as the server does) uses it too. */
+export async function noneWhenNotFound(request: Promise<PriceList>): Promise<PriceList | null> {
   try {
-    return await fetchCurrent(undefined, client)
+    return await request
   } catch (error) {
     if (error instanceof ApiError && error.code === 'price_list_not_found') return null
     throw error
