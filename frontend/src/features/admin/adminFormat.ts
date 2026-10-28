@@ -7,6 +7,7 @@ import type { ChipTone } from '../../components/ui/Chip'
 import type { AdminPaymentStatus } from '../../domain/admin'
 import type { PaymentMethod } from '../../domain/orders'
 import type { ApprovalStatus } from '../../domain/partner'
+import { POINTS_ENABLED } from '../../lib/features'
 
 export const STATUS_TONE: Record<AdminOrderStatus, ChipTone> = {
   awaiting_confirmation: 'amber',
@@ -81,10 +82,10 @@ export function daysUntil(isoDate: string, now = Date.now()): number {
   return Math.ceil((Date.parse(`${isoDate}T23:59:59+01:00`) - now) / 86_400_000)
 }
 
-/** The three money pages share these tabs (a-pricing). */
+/** The money pages share these tabs (a-pricing). Loyalty points stay hidden while out of the MVP (#156). */
 export const MONEY_TABS = [
   { to: '/admin/pricing', label: 'Pricing' },
-  { to: '/admin/loyalty', label: 'Loyalty points' },
+  ...(POINTS_ENABLED ? [{ to: '/admin/loyalty', label: 'Loyalty points' }] : []),
   { to: '/admin/payments', label: 'Payouts and payments' },
 ]
 

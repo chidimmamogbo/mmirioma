@@ -16,3 +16,15 @@
  * redirects to `/home`.
  */
 export const POINTS_ENABLED = false
+
+/**
+ * Partner pay: rider and driver earnings, wallets and payouts. Out of the MVP:
+ * no SRS requirement covers partner pay (docs/api/partners.md, decision 7).
+ * Hidden rather than deleted, as points are (#156).
+ *
+ * While `false`: the admin menu offers no "Rider earnings" page,
+ * `/admin/earnings` redirects to the dashboard, and the Payments page has no
+ * "Rider payouts" link. `POINTS_ENABLED` does the same for the admin
+ * "Loyalty points" page and its tab.
+ */
+export const PARTNER_PAY_ENABLED = false

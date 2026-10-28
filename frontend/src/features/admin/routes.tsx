@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
-import { Outlet, type RouteObject } from 'react-router-dom'
+import { Navigate, Outlet, type RouteObject } from 'react-router-dom'
+import { PARTNER_PAY_ENABLED, POINTS_ENABLED } from '../../lib/features'
 import { RequireRole } from '../auth/RequireRole'
 import { SignedOutOnly } from '../auth/SessionRedirects'
 import { AdminArea } from './AdminParts'
@@ -42,11 +43,16 @@ export const adminRoutes: RouteObject[] = [
       { path: 'stations', ...page(() => import('./pages/Stations').then((m) => ({ Component: m.Stations }))) }, // a-stations
       { path: 'areas', ...page(() => import('./pages/Areas').then((m) => ({ Component: m.Areas }))) }, // added
       { path: 'pricing', ...page(() => import('./pages/Pricing').then((m) => ({ Component: m.Pricing }))) }, // a-pricing
-      { path: 'loyalty', ...page(() => import('./pages/Loyalty').then((m) => ({ Component: m.Loyalty }))) }, // added (a-pricing tab)
+      // Loyalty points and rider earnings are out of the MVP (lib/features.ts, #156): old links go to the dashboard.
+      POINTS_ENABLED
+        ? { path: 'loyalty', ...page(() => import('./pages/Loyalty').then((m) => ({ Component: m.Loyalty }))) } // added (a-pricing tab)
+        : { path: 'loyalty', element: <Navigate to="/admin" replace /> },
       { path: 'payments', ...page(() => import('./pages/Payments').then((m) => ({ Component: m.Payments }))) }, // added (a-pricing tab)
       { path: 'cash', ...page(() => import('./pages/Cash').then((m) => ({ Component: m.Cash }))) }, // K3, K5 (docs/design/admin-cash.md)
       { path: 'cash/drivers/:driverId', ...page(() => import('./pages/CashDriver').then((m) => ({ Component: m.CashDriver }))) }, // K4
-      { path: 'earnings', ...page(() => import('./pages/Earnings').then((m) => ({ Component: m.Earnings }))) }, // added
+      PARTNER_PAY_ENABLED
+        ? { path: 'earnings', ...page(() => import('./pages/Earnings').then((m) => ({ Component: m.Earnings }))) } // added
+        : { path: 'earnings', element: <Navigate to="/admin" replace /> },
       { path: 'reports', ...page(() => import('./pages/Reports').then((m) => ({ Component: m.Reports }))) }, // added
       { path: 'support', ...page(() => import('./pages/Support').then((m) => ({ Component: m.Support }))) }, // a-support
       { path: 'settings', ...page(() => import('./pages/AccountPages').then((m) => ({ Component: m.Settings }))) }, // added
