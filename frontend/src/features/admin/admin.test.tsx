@@ -385,6 +385,17 @@ describe('admin pages', () => {
     }, SLOW)
   })
 
+  it('names the driver in the Rider column, and says "None yet" only where there is none (#204)', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders')
+    const table = await screen.findByRole('table', { name: 'Orders' }, { timeout: WAIT })
+    const assignedRow = (await within(table).findByRole('button', { name: 'MO-3HT8WQ2KZP' })).closest('tr')!
+    const poolRow = within(table).getByRole('button', { name: 'MO-6RTA2KXP9B' }).closest('tr')!
+    expect(within(assignedRow).getByText('Chinedu Okafor')).toBeInTheDocument()
+    expect(within(assignedRow).queryByText('None yet')).toBeNull()
+    expect(within(poolRow).getByText('None yet')).toBeInTheDocument()
+  }, SLOW)
+
   it('offers no "Fail this delivery" on a held order (its sheet has it) or on an order the driver has not accepted', async () => {
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     renderAt('/admin/orders?ref=MO-3HT8WQ2KZP')

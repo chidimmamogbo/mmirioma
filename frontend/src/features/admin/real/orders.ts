@@ -5,8 +5,9 @@
  * Statuses follow docs/architecture/api-mapping.md ("Admin order status"),
  * with `failed` and `disputed` as their own admin statuses (open question 5,
  * decided in #15). What the backend does not send is left out, never filled
- * in: the list has no payment status or partner, and a partner's fleet code
- * and plate are never sent.
+ * in: the list has no payment status, and a partner's fleet code and plate
+ * are never sent. The list names an order's live driver (`driver`, #204) but
+ * not their vehicle; the detail has the vehicle.
  */
 import {
   endReasonLabel,
@@ -116,6 +117,13 @@ function matchesText(order: AdminOrder, query: string): boolean {
   return text.toLowerCase().includes(q) || (digits.length >= 4 && text.replace(/\D/g, '').includes(digits))
 }
 
+/** The partner a list row names (`driver`, #204), or `null`: no live driver, or a server that does not send the field. */
+function listedDriver(read: AdminOrderRead | AdminOrderDetail): AdminOrder['partner'] {
+  const driver = read.driver
+  if (!driver || typeof driver.id !== 'string' || typeof driver.name !== 'string') return null
+  return { id: driver.id, name: driver.name, code: null, vehicle: null, plate: null }
+}
+
 /**
  * Backend order (list row or detail) to the design's admin order.
  *
@@ -155,7 +163,8 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
           vehicle: vehicleType === 'keke' || vehicleType === 'tanker' ? vehicleType : null,
           plate: null,
         }
-      : null,
+      : // A list row names its live driver only; the detail names them through the assignment (#204).
+        listedDriver(read),
     assigned_by: live?.offered_by.name ?? null,
     station_name: detail?.source?.name ?? null,
     // The history is a separate endpoint; `getOrder` adds its assignment events (#16).

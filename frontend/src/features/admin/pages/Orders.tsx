@@ -146,7 +146,7 @@ export function Orders() {
                         </>
                       ),
                     },
-                    { header: 'Rider', cell: (o) => o.partner?.code ?? <span className="text-mute">None yet</span> },
+                    { header: 'Rider', cell: (o) => o.partner?.name ?? <span className="text-mute">None yet</span> },
                   ]}
                 />
               </Card>
@@ -244,7 +244,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
               label={o.status === 'assigned' ? 'Assigned to' : 'Rider'}
               value={
                 <span>
-                  {o.partner.name} · {o.partner.code}
+                  {o.partner.code ? `${o.partner.name} · ${o.partner.code}` : o.partner.name}
                   {o.status === 'assigned' && <span className="block text-right text-chip text-mute">Waiting for them to start</span>}
                 </span>
               }

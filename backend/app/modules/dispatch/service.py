@@ -223,6 +223,41 @@ async def live_assignment_of_driver(
     )
 
 
+async def live_drivers_by_order(
+    session: AsyncSession, order_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, User]:
+    """Return the driver of each order's live assignment, keyed by order id.
+
+    Used by the admin order list (#204), which names the driver in its Rider
+    column. "Live" is ``offered`` or ``accepted`` (the same rule as the
+    detail's "Assigned to" line), so an order whose offer was declined,
+    withdrawn or completed has no entry. One query reads the assignments of
+    every order on the page and one reads the drivers' accounts, however many
+    orders there are.
+
+    Args:
+        session: Database session; the caller enforces the admin role.
+        order_ids: Ids of the orders on the page.
+
+    Returns:
+        The driver's account for each order that has a live assignment; orders
+        without one are absent. An order holds at most one live assignment
+        (the unique live-order index), so no order has two entries.
+    """
+    if not order_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(Assignment.order_id, Assignment.driver_user_id).where(
+                Assignment.order_id.in_(order_ids),
+                Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES),
+            )
+        )
+    ).all()
+    drivers = await auth_service.get_users_by_ids(session, {driver_id for _, driver_id in rows})
+    return {order_id: drivers[driver_id] for order_id, driver_id in rows}
+
+
 @dataclass(frozen=True)
 class DriverJobCounts:
     """A driver's job counts for the admin driver directory.

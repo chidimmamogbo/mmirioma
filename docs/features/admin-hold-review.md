@@ -106,7 +106,7 @@ All under `/api/v1`; shapes as in the
 
 | Method | Path | Success | Errors |
 | --- | --- | --- | --- |
-| GET | `/admin/orders` (`on_hold`) | 200 page; items carry `hold` | 422 |
+| GET | `/admin/orders` (`on_hold`) | 200 page; items carry `hold` and `driver` (the live assignment's driver, or `null`; #204) | 422 |
 | GET | `/admin/orders/{reference}` | 200 `AdminOrderDetail` with `hold` | 404 `order_not_found` |
 | GET | `/admin/orders/{reference}/hold` | 200 `HoldReview` | 404 `order_not_found`, `hold_not_found` |
 | POST | `/admin/orders/{reference}/proof-overrides` | 200 `AdminOrderDetail` | 403 `own_delivery_override`; 409 `hold_not_open`, `invalid_order_transition`; 422 |
@@ -356,9 +356,12 @@ failure and the hold age; `src/features/admin/admin.test.tsx` and
   sideways scroll). The R3 line ", while the order was <status>" did not
   show, because the setup inserted those orders without order events; it shows
   when the history has one. Results: the comment on #190.
-- The order list's Rider column says "None yet" on every row, including held
-  and in-progress orders that have a driver: the list response carries no
-  driver. The order panel names the driver.
+- The order list's Rider column named nobody in real-API mode: the list
+  response carried no driver, and the column read the partner's fleet code,
+  which the backend does not have. Fixed in #204: each list item has `driver`
+  (the live assignment's driver, offered or accepted, or `null`; one query for
+  the page) and the column shows the driver's name, with "None yet" only when
+  there is none. The vehicle still comes with the order detail.
 - The admin timeline shows an approval as "Proof approved" and does not add a
   "Delivered" line, although the history carries the `delivered` status change;
   the order's status chip shows Delivered.

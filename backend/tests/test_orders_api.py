@@ -21,6 +21,7 @@ from app.modules.auth import service as auth_service
 from app.modules.auth.dependencies import CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from app.modules.auth.models import User, UserRole, UserSession
 from app.modules.deliveries import holds
+from app.modules.dispatch import service as dispatch_service
 from app.modules.orders import service
 from app.modules.orders.models import Order, OrderEvent, OrderStatus
 from app.modules.orders.service import NewOrder, StaffOrder
@@ -156,6 +157,12 @@ def fake_orders(monkeypatch: pytest.MonkeyPatch) -> FakeOrders:
         return {}
 
     monkeypatch.setattr(holds, "current_holds", no_holds)
+
+    # The admin list also names each order's live driver (#204); no order here has one.
+    async def no_drivers(_: object, order_ids: object) -> dict[object, object]:
+        return {}
+
+    monkeypatch.setattr(dispatch_service, "live_drivers_by_order", no_drivers)
 
     # Customer views add the order's feedback (#82); no order here has any.
     async def no_feedback(_: object, order_ids: object) -> dict[object, object]:
