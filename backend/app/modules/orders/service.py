@@ -45,6 +45,7 @@ from app.modules.orders.models import (
     OrderEvent,
     OrderFeedback,
     OrderStatus,
+    PaymentStatus,
     TankType,
     TransitionReason,
     WaterSourcePreference,
@@ -52,6 +53,7 @@ from app.modules.orders.models import (
 from app.modules.orders.transitions import Actor, Requirement, check_transition
 from app.modules.pricing import quotes
 from app.modules.pricing import service as pricing
+from app.modules.pricing.models import OrderPriceSnapshot
 from app.shared.lagos_time import lagos_day_start_utc
 
 # Crockford base32: digits and upper-case letters without I, L, O and U, so a
@@ -585,6 +587,93 @@ async def count_customer_orders(session: AsyncSession, *, customer_id: uuid.UUID
         select(func.count()).select_from(Order).where(Order.customer_id == customer_id)
     )
     return total or 0
+
+
+async def count_orders_by_customer(
+    session: AsyncSession, customer_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Count each customer's orders, every status (admin customer list).
+
+    Args:
+        session: Database session.
+        customer_ids: The customers to count for.
+
+    Returns:
+        The count per customer; a customer with no order is absent.
+    """
+    if not customer_ids:
+        return {}
+    rows = await session.execute(
+        select(Order.customer_id, func.count())
+        .where(Order.customer_id.in_(set(customer_ids)))
+        .group_by(Order.customer_id)
+    )
+    return {customer_id: count for customer_id, count in rows}
+
+
+async def count_customers_ordered_since(session: AsyncSession, since: datetime) -> int:
+    """Count the customers with at least one real order created since ``since``.
+
+    Simulated orders are left out (BR-09), as they are on every staff count.
+
+    Args:
+        session: Database session.
+        since: The start of the window (timezone-aware).
+
+    Returns:
+        The number of distinct customers.
+    """
+    total = await session.scalar(
+        select(func.count(func.distinct(Order.customer_id))).where(
+            Order.created_at >= since, Order.is_simulated.is_(False)
+        )
+    )
+    return total or 0
+
+
+async def recent_orders_of_customer(
+    session: AsyncSession, *, customer_id: uuid.UUID, limit: int
+) -> list[Order]:
+    """Return the customer's newest orders, any status (admin customer detail).
+
+    Args:
+        session: Database session.
+        customer_id: The customer.
+        limit: How many to return.
+
+    Returns:
+        The orders, newest first.
+    """
+    rows = await session.scalars(
+        select(Order)
+        .where(Order.customer_id == customer_id)
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .limit(limit)
+    )
+    return list(rows)
+
+
+async def paid_total_of_customer(session: AsyncSession, *, customer_id: uuid.UUID) -> int:
+    """Sum the price snapshot totals of the customer's paid orders, in kobo.
+
+    Only orders whose ``payment_status`` is ``paid`` count: payment is
+    recorded by staff or a provider, never by the customer's word (BR-07).
+    The total is the price frozen at confirmation (FR-024), so a later price
+    change never alters it.
+
+    Args:
+        session: Database session.
+        customer_id: The customer.
+
+    Returns:
+        Integer kobo (BR-01); 0 when nothing is paid.
+    """
+    total = await session.scalar(
+        select(func.coalesce(func.sum(OrderPriceSnapshot.total_minor_units), 0))
+        .join(Order, Order.id == OrderPriceSnapshot.order_id)
+        .where(Order.customer_id == customer_id, Order.payment_status == PaymentStatus.PAID)
+    )
+    return int(total or 0)
 
 
 @dataclass(frozen=True)
