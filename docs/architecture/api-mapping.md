@@ -196,6 +196,25 @@ The order timeline (`GET /orders/{reference}/history`, #155) uses this table:
 "Order placed", then one step each time the stage changes, so `assigned`
 adds nothing before the driver accepts.
 
+## Customer order price and category
+
+Source: `priceFromRead` in `frontend/src/features/customer/real/order.ts`
+(#165), and "Customer pilot changes (#99)" in [orders.md](../api/orders.md).
+The customer sees a total only, never a breakdown, so `water` and `delivery`
+stay `null`.
+
+| `OrderRead` has | `CustomerOrder.quote` | Category label |
+| --- | --- | --- |
+| `price` (the order is confirmed) | `total_minor_units` and `currency` from `price` | `water_category.label`, the label frozen with the confirmed price (FR-014, FR-024); if it is missing, the quote's label, else `null` |
+| no `price`, but `quote` | `total_minor_units` and `currency` from `quote` | `quote.water_category.label` |
+| neither | `null` ("We're preparing your price.") | none |
+
+The confirmed `price` replaces the quote once it is set, so a manual price
+that differs from the quote is the one the customer sees. `is_sample` is
+always `false` on the real path. `delivery_window` is typed in
+`frontend/src/lib/api/orders.ts` but not mapped yet: `CustomerOrder` has no
+field for it (#188).
+
 ## Partner job stage
 
 Backend driver job (`lib/api/driverJobs.ts`: `status` plus the order
