@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
@@ -23,11 +24,13 @@ import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
 import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
+import { FailDialog } from '../hold/EndDelivery'
 import { DecidedCard, HoldBanner, HoldChip } from '../hold/HoldParts'
 import { HoldSheet } from '../hold/HoldSheet'
+import { backendStatusFor, canFail } from '../hold/logic'
 import { holdSummary, METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
-import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
+import { adminKeys, useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
 
 const FILTERS: { value: AdminOrderFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -186,6 +189,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   // The toast after confirming (admin-confirm-order.md, Q4) or deciding a hold (admin-hold-review.md, decision 13).
   const [confirmed, setConfirmed] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
+  const [failing, setFailing] = useState(false)
+  const qc = useQueryClient()
   const o = order.data
   if (order.isPending) return <Card className="p-4"><LoadingBlock lines={3} label="Loading the order" /></Card>
   if (order.isError || !o) return <Card className="p-4"><ErrorBlock error={order.error} onRetry={() => order.refetch()} /></Card>
@@ -280,7 +285,30 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         </ol>
         <p className="mt-1 mb-0 text-chip text-mute">Placed {formatDateTime(o.created_at)}</p>
       </Card>
+      {/* FAIL from an accepted order with no hold: a rejected proof can end in a failed delivery, and nothing else on the page does it (admin-hold-review.md, decision 5). */}
+      {!closed && !o.hold && canFail(o) && (
+        <Button variant="line-danger" size="sm" onClick={() => setFailing(true)}>
+          Fail this delivery
+        </Button>
+      )}
       {!closed && <CancelOrder reference={o.reference} onBefore={onChange} />}
+      {failing && (
+        <FailDialog
+          reference={o.reference}
+          expectedStatus={backendStatusFor(o)}
+          hold={null}
+          onClose={() => setFailing(false)}
+          onDone={(message) => {
+            setFailing(false)
+            onChange()
+            setConfirmed(message)
+          }}
+          onRefresh={() => {
+            setFailing(false)
+            void qc.invalidateQueries({ queryKey: adminKeys.all })
+          }}
+        />
+      )}
       {reviewing && o.hold && (
         <HoldSheet
           reference={o.reference}

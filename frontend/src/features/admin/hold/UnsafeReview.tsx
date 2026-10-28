@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
+import { EndDialogs } from './EndDialogs'
 import { OtherReports, ReportEvidenceView } from './Evidence'
 import { FailureNotice, HoldFrame } from './HoldFrame'
 import { RESUME_TOAST, WITHDRAW_TOAST, decisionFailure, type DecisionFailure } from './logic'
@@ -17,6 +18,7 @@ export function UnsafeReview({ reference, customer, hold, onClose, onDecided, on
   const resume = useResumeUnsafe(reference)
   const withdraw = useWithdrawJob(reference)
   const [dialog, setDialog] = useState<'resume' | 'withdraw' | null>(null)
+  const [ending, setEnding] = useState<'fail' | 'cancel' | null>(null)
   const [failure, setFailure] = useState<DecisionFailure | null>(null)
   const busy = resume.isPending || withdraw.isPending
 
@@ -32,10 +34,16 @@ export function UnsafeReview({ reference, customer, hold, onClose, onDecided, on
       reference={reference}
       customer={customer}
       hold={hold}
-      locked={busy || dialog !== null}
+      locked={busy || dialog !== null || ending !== null}
       onClose={onClose}
       footer={
         <>
+          <Button variant="line-danger" size="sm" block={false} onClick={() => setEnding('cancel')}>
+            Cancel order
+          </Button>
+          <Button variant="line-danger" size="sm" block={false} onClick={() => setEnding('fail')}>
+            Fail delivery
+          </Button>
           {hold.withdraw_allowed && (
             <Button variant="line" size="sm" block={false} onClick={() => setDialog('withdraw')}>
               Withdraw job
@@ -82,6 +90,8 @@ export function UnsafeReview({ reference, customer, hold, onClose, onDecided, on
         Take the job back from <b>{hold.driver.name}</b>? The order goes back to <b>Confirmed</b> and the job leaves the driver&apos;s list. This also closes the unsafe
         stop. Nothing notifies the driver.
       </NoteDialog>
+
+      <EndDialogs ending={ending} reference={reference} hold={hold} onClose={() => setEnding(null)} onDone={onDecided} onRefresh={onRefresh} />
     </HoldFrame>
   )
 }

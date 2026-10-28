@@ -98,6 +98,22 @@ const HOLD_DECISION_LABEL: Partial<Record<string, string>> = {
  */
 export const holdDecisionLabel = (decision: string): string | null => HOLD_DECISION_LABEL[decision] ?? null
 
+const END_REASON_LABEL: Partial<Record<string, string>> = {
+  source_quality_concern: 'Source quality concern',
+  unsafe_access: 'Unsafe access',
+  customer_unreachable: 'Customer unreachable',
+  vehicle_failure: 'Vehicle failure',
+  other: 'Other',
+  mmirioma_unable: 'MmiriOma is unable to deliver',
+}
+
+/**
+ * Why a delivery failed or an order was cancelled, in staff words
+ * (admin-hold-review.md, FAIL and CANCEL), for the history. A reason the app
+ * does not know has no label and shows no reason, never a raw code.
+ */
+export const endReasonLabel = (code: string): string | null => END_REASON_LABEL[code] ?? null
+
 /** Whether a timeline line is a hold decision, to show the decided card on the panel. */
 export const isHoldDecisionLabel = (label: string): boolean => Object.values(HOLD_DECISION_LABEL).includes(label)
 

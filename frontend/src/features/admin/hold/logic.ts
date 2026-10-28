@@ -85,6 +85,8 @@ export interface ProofErrors {
   when?: string
   details?: string
   note?: string
+  /** FAIL only: no reason chosen (or one the server refused). */
+  reason?: string
 }
 
 /** The clock tolerance the contract gives the confirmation time (2 minutes). */
@@ -159,6 +161,7 @@ export const CONTINUE_OFF = 'Continue is only possible when the source can be us
 /** Which form field a 422 `loc` points at. */
 function fieldOf(loc: unknown): keyof ProofErrors | null {
   if (!Array.isArray(loc)) return null
+  if (loc.includes('reason_code')) return 'reason'
   if (loc.includes('confirmed_at')) return 'when'
   if (loc.includes('customer_acknowledgment') && loc.includes('note')) return 'details'
   if (loc.at(-1) === 'note') return 'note'
@@ -210,6 +213,65 @@ export const PROOF_TOAST = {
   approve: 'Proof approved. The order is now Delivered.',
   reject: 'Proof rejected. The driver can send a new code.',
 } as const
+
+/** FAIL: the three reasons agreed for these screens (deliveries.md, row 20), in staff words. `customer_unreachable` and `vehicle_failure` are not offered here (design decision 6). */
+export const FAIL_REASONS = [
+  { code: 'source_quality_concern', label: 'Source quality concern' },
+  { code: 'unsafe_access', label: 'Unsafe access' },
+  { code: 'other', label: 'Other (a note is required)' },
+] as const
+export type FailReasonCode = (typeof FAIL_REASONS)[number]['code']
+
+export interface FailForm {
+  reason: FailReasonCode | null
+  note: string
+}
+
+/** The contract's checks on FAIL: a reason, and a note of up to 500 characters that `other` requires. */
+export function failErrors(form: FailForm): ProofErrors {
+  const errors: ProofErrors = {}
+  if (!form.reason) errors.reason = 'Choose a reason.'
+  const note = form.note.trim()
+  if (form.reason === 'other' && note.length < 1) errors.note = 'Write a note: Other needs one.'
+  else if (note.length > NOTE_MAX) errors.note = `Write a note (up to ${NOTE_MAX} characters).`
+  return errors
+}
+
+/** The sentence the CANCEL dialog says about the driver (design #129, C1): the job ends only if a driver has one. */
+export const CANCEL_DRIVER_LIVE = "The driver's job ends and leaves their list. Nothing notifies the driver."
+export const CANCEL_DRIVER_NONE = "No driver is assigned, so no driver's job changes."
+export const CANCEL_CUSTOMER = 'No cancellation message is sent to the customer yet: tell them yourself.'
+
+/** Why the cost sentence could not be shown: the order cannot be cancelled (409), or the lookup failed. */
+export function outcomeFailure(error: unknown): { message: string; retry: boolean } {
+  if (error instanceof ApiError && error.code === 'invalid_order_transition') return { message: 'This order can no longer be cancelled.', retry: false }
+  return { message: "We couldn't check what this costs the customer.", retry: true }
+}
+
+/**
+ * The status the dispatcher saw, as the server names it, for `expected_status`
+ * when the order is opened from the panel. The real list carries it; a mock
+ * order does not, so it is worked out from the admin status.
+ */
+export function backendStatusFor(order: { status: string; backend_status?: string }): string {
+  if (order.backend_status) return order.backend_status
+  const byAdminStatus: Record<string, string> = {
+    awaiting_confirmation: 'awaiting_confirmation',
+    awaiting_rider: 'confirmed',
+    assigned: 'assigned',
+    loading: 'accepted',
+    on_the_way: 'collected',
+  }
+  return byAdminStatus[order.status] ?? order.status
+}
+
+/** Whether a delivery can be failed from the panel: the driver has accepted it, and it has not ended (row 20; design: "Driver accepted or later"). */
+export function canFail(order: { status: string; backend_status?: string }): boolean {
+  return ['accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading'].includes(backendStatusFor(order))
+}
+
+export const FAIL_TOAST = 'Delivery marked as failed.'
+export const CANCEL_TOAST = 'Order cancelled. Tell the customer.'
 
 export const CONTINUE_TOAST = 'Continued. The driver can go on to the customer.'
 export const RESUME_TOAST = 'Resumed. The driver can continue.'

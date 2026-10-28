@@ -221,6 +221,71 @@ describe('admin pages', () => {
     expect(screen.getByText('Job withdrawn from Daniel Nnadi')).toBeInTheDocument()
   }, SLOW)
 
+  it('fails a delivery from a source review: a reason is required, Other needs a note, then the order reads Delivery failed (FAIL)', async () => {
+    const { user, sheet } = await openSheet('MO-8SRC5LV3QE', 'Pickup')
+    await user.click(within(sheet).getByRole('button', { name: 'Fail delivery' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('No redelivery fee is recorded.')
+    expect(dialog).toHaveTextContent('Rescheduling is not part of this screen.')
+    expect(dialog).toHaveTextContent('This also closes the source review hold.')
+    // No reason yet: nothing is sent.
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await within(dialog).findByText('Choose a reason.')).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-8SRC5LV3QE')!.stage).toBe('collected')
+    // Other needs a note.
+    await user.click(within(dialog).getByLabelText('Other (a note is required)'))
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await within(dialog).findByText('Write a note: Other needs one.')).toBeInTheDocument()
+    await user.click(within(dialog).getByLabelText('Source quality concern'))
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await screen.findByText('Delivery marked as failed.', {}, { timeout: WAIT })).toBeInTheDocument()
+    const job = read().jobs.find((j) => j.reference === 'MO-8SRC5LV3QE')!
+    expect([job.stage, job.hold]).toEqual(['failed', null])
+    expect(screen.queryByRole('group', { name: 'Order on hold' })).toBeNull()
+    expect(screen.getAllByText('Delivery failed').length).toBeGreaterThan(0)
+  }, SLOW)
+
+  it('cancels from an unsafe stop: the server’s sentence, what happens to the driver, and that nobody tells the customer (CANCEL)', async () => {
+    const { user, sheet } = await openSheet('MO-9UNS4VH2ZC', 'Reported')
+    const notifications = read().partners['user-daniel'].notifications.length
+    await user.click(within(sheet).getByRole('button', { name: 'Cancel order' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(await within(dialog).findByText('The customer is not charged for this cancellation.')).toBeInTheDocument()
+    expect(within(dialog).getByText('SAMPLE')).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('Reason: MmiriOma is unable to deliver')
+    expect(dialog).toHaveTextContent("The driver's job ends and leaves their list. Nothing notifies the driver.")
+    expect(dialog).toHaveTextContent('No cancellation message is sent to the customer yet: tell them yourself.')
+    expect(dialog).toHaveTextContent('This also closes the unsafe stop hold.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+    expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+    const job = read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!
+    expect([job.stage, job.hold]).toEqual(['cancelled', null])
+    expect(read().partners['user-daniel'].notifications).toHaveLength(notifications)
+  }, SLOW)
+
+  it('fails an accepted order that has no hold, from the panel, with no hold line in the dialog (FAIL)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // The seeded Chinedu job is only assigned: let the driver have accepted it.
+    read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
+    renderAt('/admin/orders?ref=MO-3HT8WQ2KZP')
+    await user.click(await screen.findByRole('button', { name: 'Fail this delivery' }, { timeout: WAIT }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).not.toHaveTextContent('This also closes')
+    await user.click(within(dialog).getByLabelText('Unsafe access'))
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await screen.findByText('Delivery marked as failed.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('failed')
+  }, SLOW)
+
+  it('offers no "Fail this delivery" on a held order (its sheet has it) or on an order the driver has not accepted', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders?ref=MO-3HT8WQ2KZP')
+    // Assigned, not accepted yet.
+    await screen.findByRole('heading', { name: 'Reassign the rider' }, { timeout: WAIT })
+    expect(screen.queryByRole('button', { name: 'Fail this delivery' })).toBeNull()
+  }, SLOW)
+
   it('offers Withdraw job only while the driver has not left, and says so when nobody is assigned (R3)', async () => {
     const { user, sheet } = await openSheet('MO-9UNS4VH2ZC', 'Reported')
     // The driver has left meanwhile: no Withdraw job on a fresh load, and a withdraw sent from the open sheet is refused.

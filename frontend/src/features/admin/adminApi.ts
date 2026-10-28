@@ -17,7 +17,7 @@ import * as mock from '../../mocks/adminMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
-import type { HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
+import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as dispatch from './real/ordersDispatch'
 
@@ -49,6 +49,10 @@ export const resumeUnsafe = (reference: string, request: HoldDecisionRequest): P
   USE_MOCKS ? mock.resumeUnsafe(reference, request) : holds.resumeUnsafe(reference, request)
 export const withdrawJob = (reference: string, request: WithdrawRequest): Promise<void> =>
   USE_MOCKS ? mock.withdrawJob(reference, request) : holds.withdrawJob(reference, request)
+export const getCancellationOutcome = (reference: string): Promise<CancellationOutcome> =>
+  USE_MOCKS ? mock.getCancellationOutcome(reference) : holds.getCancellationOutcome(reference)
+export const transitionOrder = (reference: string, request: AdminTransitionRequest): Promise<void> =>
+  USE_MOCKS ? mock.transitionOrder(reference, request) : holds.transitionOrder(reference, request)
 // Cancelling the whole order is a transition (#17), not the dispatch withdraw.
 export const cancelOrder = api('Orders', mock.cancelOrder)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)

@@ -17,6 +17,8 @@ interface ConfirmDialogProps {
   tone?: 'danger' | 'primary'
   /** The action is running: the confirm button shows a spinner and the dialog cannot be dismissed. */
   loading?: boolean
+  /** The action cannot be confirmed yet (a value it states is still loading): the confirm button is off. */
+  confirmDisabled?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -41,6 +43,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   tone = 'danger',
   loading = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -120,7 +123,7 @@ export function ConfirmDialog({
           <Button ref={cancelButton} variant="line" disabled={loading} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={tone === 'danger' ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>
+          <Button variant={tone === 'danger' ? 'danger' : 'primary'} loading={loading} disabled={confirmDisabled} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

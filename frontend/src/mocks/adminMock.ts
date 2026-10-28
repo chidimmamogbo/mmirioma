@@ -45,11 +45,11 @@ import type {
   StaffMember,
   StationInput,
 } from '../domain/admin'
-import { HOLD_KIND_LABEL, holdConcernLabel, holdDecisionLabel, RESOLUTION_LABEL } from '../domain/admin'
+import { endReasonLabel, HOLD_KIND_LABEL, holdConcernLabel, holdDecisionLabel, RESOLUTION_LABEL } from '../domain/admin'
 import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { choiceLitres, describeChoice } from '../domain/orders'
 import type { WithdrawRequest } from '../lib/api/adminDispatch'
-import type { HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
+import type { AdminTransitionRequest, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest } from '../lib/api/adminHolds'
 import type { PartnerNotification } from '../domain/partner'
 import { tankCapacityError } from '../domain/tankCapacity'
 import { formatNaira } from '../lib/format/money'
@@ -207,6 +207,13 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
   // A withdrawn job has no decision line: the withdraw closed the hold, and shows as its own status change.
   const withdrawn = job?.withdrawn ?? null
   if (withdrawn) timeline.push({ label: `Job withdrawn from ${withdrawn.driver}`, at: withdrawn.at, ...(withdrawn.note ? { detail: withdrawn.note } : {}) })
+  // A failed or cancelled job shows its status change, with who, why and the note (a hold it closed has no decision line).
+  // An order with a customer order already has its "Cancelled" line from `cancelJob`.
+  const ended = job?.ended ?? null
+  if (ended && !(ended.kind === 'cancelled' && o)) {
+    const detail = [ended.by, endReasonLabel(ended.reason_code), ended.note ? `"${ended.note}"` : null].filter(Boolean).join(' · ')
+    timeline.push({ label: ended.kind === 'failed' ? 'Delivery failed' : 'Cancelled', at: ended.at, detail })
+  }
   return {
     reference,
     created_at: o?.created_at ?? job!.created_at,
@@ -445,8 +452,12 @@ export async function assignOrder(reference: string, partnerId: string): Promise
   })
 }
 
-/** Cancel inside `mutate`: job, customer order, partner told, paid orders become refund due. */
-function cancelJob(s: MockState, reference: string, reason: string): void {
+/**
+ * Cancel inside `mutate`: job, customer order, paid orders become refund due,
+ * and the partner told. The agreed cancel notifies nobody (deliveries.md,
+ * "POST .../transition (fail and cancel)"), so it passes `notifyDriver` false.
+ */
+function cancelJob(s: MockState, reference: string, reason: string, notifyDriver = true): void {
   const job = s.jobs.find((j) => j.reference === reference)
   const found = findCustomerOrder(s, reference)
   if (!job && !found) throw mockError(404, 'order_not_found', 'Order not found')
@@ -454,7 +465,7 @@ function cancelJob(s: MockState, reference: string, reason: string): void {
   if (job?.stage === 'cancelled' || found?.order.stage === 'cancelled') throw mockError(409, 'order_closed', 'This order is already cancelled')
   const now = new Date().toISOString()
   if (job) {
-    if (job.partner_id) notifyPartner(s.partners[job.partner_id], 'reassigned', 'Order cancelled', `${short(reference)} was cancelled by admin.`, reference)
+    if (notifyDriver && job.partner_id) notifyPartner(s.partners[job.partner_id], 'reassigned', 'Order cancelled', `${short(reference)} was cancelled by admin.`, reference)
     job.stage = 'cancelled'
     job.delivered_at = now
   }
@@ -652,6 +663,75 @@ export async function withdrawJob(reference: string, request: WithdrawRequest): 
     job.past_hold = job.hold ?? null
     job.hold = null
     addAudit(s, actorName(s), `Withdrew the job for ${short(reference)} from ${driver}`, note || null)
+  })
+}
+
+/**
+ * The server's own status for a mock job, for `expected_status`. A job's stage
+ * covers several (a collected job is `collected`, or `unloading` while its
+ * proof is under review).
+ */
+export function mockBackendStatus(job: StoredJob): string {
+  if (job.hold?.kind === 'proof_review') return 'unloading'
+  switch (job.stage) {
+    case 'available':
+      return 'confirmed'
+    default:
+      return job.stage
+  }
+}
+
+/** What cancelling with `mmirioma_unable` costs the customer (FR-044): the server's sentence, here a SAMPLE. */
+export async function getCancellationOutcome(reference: string): Promise<CancellationOutcome> {
+  await delay(null)
+  const s = read()
+  requireAdmin(s)
+  const job = s.jobs.find((j) => j.reference === reference)
+  const stage = job?.stage ?? findCustomerOrder(s, reference)?.order.stage
+  if (!stage) throw mockError(404, 'order_not_found', 'Order not found')
+  if (stage === 'delivered' || stage === 'cancelled') throw mockError(409, 'invalid_order_transition', 'This order can no longer be cancelled')
+  return { reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
+}
+
+const FAIL_REASONS: string[] = ['source_quality_concern', 'unsafe_access', 'other']
+
+/**
+ * Fail a delivery (row 20) or cancel with `mmirioma_unable` (row 23), with the
+ * checks and refusals the server makes. Every open hold on the job closes with
+ * it, with no decision line; nothing notifies the driver.
+ */
+export async function transitionOrder(reference: string, request: AdminTransitionRequest): Promise<void> {
+  await delay(null, 250)
+  const details: { loc: string[]; msg: string; type: string }[] = []
+  const note = (request.note ?? '').trim()
+  const reasonOk = request.to === 'failed' ? FAIL_REASONS.includes(request.reason_code) : request.reason_code === 'mmirioma_unable'
+  if (!reasonOk) details.push({ loc: ['body', 'reason_code'], msg: 'Choose a reason', type: 'value_error' })
+  if (request.to === 'failed' && request.reason_code === 'other' && !note) details.push({ loc: ['body', 'note'], msg: 'A note is required for Other', type: 'value_error' })
+  if (note.length > 500) details.push({ loc: ['body', 'note'], msg: 'Up to 500 characters', type: 'value_error' })
+  if (details.length) throw mockError(422, 'validation_error', 'Request validation failed', details)
+  return mutate((s) => {
+    requireAdmin(s)
+    const job = s.jobs.find((j) => j.reference === reference)
+    if (!job) throw mockError(404, 'order_not_found', 'Order not found')
+    // The status the dispatcher saw, and the order's rows (20: assigned to unloading; 23: anything not ended).
+    const failable = job.stage === 'assigned' || job.stage === 'accepted' || job.stage === 'collected'
+    const cancellable = job.stage !== 'delivered' && job.stage !== 'cancelled'
+    if (request.expected_status !== mockBackendStatus(job) || !(request.to === 'failed' ? failable : cancellable)) {
+      throw mockError(409, 'invalid_order_transition', 'This order has changed')
+    }
+    if (request.hold_id !== null && (!job.hold || job.hold.id !== request.hold_id)) throw mockError(409, 'hold_not_open', 'This hold has already been decided or has changed')
+    const now = new Date().toISOString()
+    const found = findCustomerOrder(s, reference)
+    if (request.to === 'cancelled') {
+      cancelJob(s, reference, note || 'MmiriOma is unable to deliver', false)
+    } else {
+      job.stage = 'failed'
+      if (found) found.order.timeline.push({ label: 'Delivery failed', at: now })
+    }
+    job.past_hold = job.hold ?? job.past_hold ?? null
+    job.hold = null
+    job.ended = { kind: request.to, reason_code: request.reason_code, note: note || null, by: actorName(s), at: now }
+    addAudit(s, actorName(s), `${request.to === 'failed' ? 'Failed the delivery of' : 'Cancelled'} ${short(reference)}`, note || null)
   })
 }
 

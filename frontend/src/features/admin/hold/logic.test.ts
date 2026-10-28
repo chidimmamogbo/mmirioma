@@ -3,11 +3,16 @@ import type { ProofEvidence } from '../../../lib/api/adminHolds'
 import { ApiError } from '../../../lib/api/client'
 import {
   CHANGED_MESSAGE,
+  FAIL_REASONS,
+  backendStatusFor,
   buildProofRequest,
+  canFail,
   decisionFailure,
   deliveryCodeLine,
+  failErrors,
   initialProofForm,
   noteError,
+  outcomeFailure,
   proofErrors,
   type ProofForm,
 } from './logic'
@@ -126,6 +131,51 @@ describe('noteError (continue and resume need 1 to 500 characters)', () => {
   })
 })
 
+describe('failErrors (FAIL: a reason, and a note that Other requires)', () => {
+  it('needs a reason', () => {
+    expect(failErrors({ reason: null, note: '' })).toEqual({ reason: 'Choose a reason.' })
+  })
+  it('needs a note for Other, and only for Other', () => {
+    expect(failErrors({ reason: 'other', note: '  ' }).note).toBe('Write a note: Other needs one.')
+    expect(failErrors({ reason: 'other', note: 'Customer sent the driver away.' })).toEqual({})
+    expect(failErrors({ reason: 'unsafe_access', note: '' })).toEqual({})
+    expect(failErrors({ reason: 'source_quality_concern', note: '' })).toEqual({})
+  })
+  it('allows a note of up to 500 characters', () => {
+    expect(failErrors({ reason: 'unsafe_access', note: 'x'.repeat(500) })).toEqual({})
+    expect(failErrors({ reason: 'unsafe_access', note: 'x'.repeat(501) }).note).toBe('Write a note (up to 500 characters).')
+  })
+  it('offers only the three reasons agreed for these screens', () => {
+    expect(FAIL_REASONS.map((r) => r.code)).toEqual(['source_quality_concern', 'unsafe_access', 'other'])
+  })
+})
+
+describe('the status the dispatcher saw, for expected_status', () => {
+  it('uses the server’s own status when the list carries it', () => {
+    expect(backendStatusFor({ status: 'on_the_way', backend_status: 'unloading' })).toBe('unloading')
+  })
+  it('works it out from the admin status for a mock order, which carries none', () => {
+    expect(backendStatusFor({ status: 'loading' })).toBe('accepted')
+    expect(backendStatusFor({ status: 'on_the_way' })).toBe('collected')
+    expect(backendStatusFor({ status: 'awaiting_rider' })).toBe('confirmed')
+  })
+  it('offers FAIL only once the driver has accepted, and not before or after', () => {
+    for (const s of ['accepted', 'departed', 'collected', 'en_route', 'arrived', 'unloading']) expect(canFail({ status: 'x', backend_status: s })).toBe(true)
+    for (const s of ['confirmed', 'assigned', 'delivered', 'cancelled', 'failed']) expect(canFail({ status: 'x', backend_status: s })).toBe(false)
+    expect(canFail({ status: 'loading' })).toBe(true)
+    expect(canFail({ status: 'assigned' })).toBe(false)
+  })
+})
+
+describe('outcomeFailure (why the cost sentence is missing)', () => {
+  it('says the order can no longer be cancelled for a 409, without a retry', () => {
+    expect(outcomeFailure(new ApiError({ kind: 'http', status: 409, code: 'invalid_order_transition', message: 'x' }))).toEqual({ message: 'This order can no longer be cancelled.', retry: false })
+  })
+  it('says it could not check the cost for anything else, with a retry', () => {
+    expect(outcomeFailure(new ApiError({ kind: 'network', status: null, code: 'network_error', message: 'x' }))).toEqual({ message: "We couldn't check what this costs the customer.", retry: true })
+  })
+})
+
 describe('decisionFailure', () => {
   const refusal = (status: number, code: string, details: unknown = null, kind: 'http' | 'network' = 'http') =>
     new ApiError({ kind, status, code, message: `Sample ${code}`, details })
@@ -169,6 +219,11 @@ describe('decisionFailure', () => {
     expect(decisionFailure(refusal(409, 'source_not_eligible', { answer: 'cannot_check' })).eligibility).toBe('cannot_check')
     expect(decisionFailure(refusal(409, 'source_not_eligible', { answer: 'eligible' })).eligibility).toBeUndefined()
     expect(decisionFailure(refusal(409, 'source_not_eligible')).eligibility).toBeUndefined()
+  })
+
+  it('maps a refused reason to the reason field (FAIL)', () => {
+    const failure = decisionFailure(refusal(422, 'validation_error', [{ loc: ['body', 'reason_code'], msg: 'Choose a reason', type: 'value_error' }]))
+    expect(failure.fields).toEqual({ reason: 'Choose a reason' })
   })
 
   it('says there is nobody to take the job back from (R3), without offering Refresh', () => {
