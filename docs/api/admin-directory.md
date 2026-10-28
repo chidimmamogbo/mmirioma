@@ -588,6 +588,69 @@ Built in #109 and read by the Service areas link (#110). When the field is
 `null`, the link shows the fee as empty and refuses to write one ("not
 connected"), rather than guess.
 
+#### Amendment (#160): the list of water categories
+
+**Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead),
+on PR #163. Proposed by @DevBoanvee (+ Claude Code) for #160, whose owner is
+@Cloudcrackamara; the technical lead decided in the G3 call of 2026-10-28
+(PR #158, [admin-pricing.md](../design/admin-pricing.md), decision 8) that
+the endpoint is wanted. Building it is #161. The rest of
+[Service zones](#service-zones) and [Price lists](#price-lists) stays agreed
+as it is.
+
+**Gap.** The Pricing screen's Water picker on each price rule offers "Every
+water" or one category. The admin API has no list of categories to fill it:
+`GET /admin/service-zones` names only the categories that already have a
+zone fee, plus `pilot_water_category` ([above](#amendment-74-the-pilot-category-in-the-admin-zone-list)),
+and the confirm sheet reads categories from one order's
+`confirmation-options`.
+
+**Proposal.** One additive, read-only endpoint:
+
+| Method | Path | Request | Success | Errors |
+| --- | --- | --- | --- | --- |
+| GET | `/admin/water-categories` | none | 200 `{ "items": [AdminWaterCategory] }` | none beyond the shared 401 and 403 ([README](README.md#errors)) |
+
+Admin only, like the other `/admin` endpoints ([Access rules](#access-rules)).
+No query parameters and no pagination: the pilot has a handful of categories.
+Every category, by label, so the order is the same on every call
+([admin-water-categories.json](examples/admin-water-categories.json)):
+
+```json
+{
+  "items": [
+    { "id": "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d", "label": "Potable Water", "is_active": false },
+    { "id": "5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a", "label": "Utility Water", "is_active": true }
+  ]
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `id` | The id a price rule sends as `water_category_id` |
+| `label` | The admin-configured label (FR-014), shown as the picker's name. Never a description of the water itself |
+| `is_active` | Whether the category is offered at all (FR-014) |
+
+- **`code` is left out.** The Pricing screen needs `id` and `label`. `code`
+  (`potable`, `utility`) is for the command-line tool and for the server's
+  pilot setting (`PILOT_WATER_CATEGORY`); leaving it out means no client keys
+  off it. A client that needs to know which category is the pilot one reads
+  `pilot_water_category` from [`GET /admin/service-zones`](#amendment-74-the-pilot-category-in-the-admin-zone-list).
+- **Inactive categories are listed**, with `is_active: false`, so a rule that
+  already names one still shows its label. The server does not refuse a price
+  rule (or a zone fee) that names an inactive category: only an unknown id is
+  404 `water_category_not_found` ([POST /admin/price-lists](#post-adminprice-lists)).
+  Whether a category is offered is checked when a quote is made (FR-014), not
+  when a rule is saved. Whether the picker offers inactive categories for
+  new rules is the design's call, not this contract's.
+- **Not carried:** no `supported_uses` text and no price. Prices are in
+  [Price lists](#price-lists).
+- "Error codes" and "Data needed" do not change: no new error code, table or
+  column. The endpoint reads the existing `water_categories` table.
+
+Built in #161. Until it is built, the Water picker offers "Every water" and the
+categories the zone list names (admin-pricing.md, decision 8).
+
 #### GET /service-zones
 
 The zones a customer can pick for an address (FR-020,
@@ -832,6 +895,7 @@ migration):
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-28 | Amended for #160: `GET /admin/water-categories` (`id`, `label`, `is_active`; `code` left out; inactive categories listed) for the Pricing screen's Water picker ([amendment](#amendment-160-the-list-of-water-categories)); building is #161 | @nnamdi-security (technical lead, G3), PR #163 |
 | 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | @nnamdi-security (technical lead, G3), PR #146 |
 | 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |

@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "id": "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d", "label": "Potable Water", "is_active": false },
+    { "id": "5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a", "label": "Utility Water", "is_active": true }
+  ]
+}

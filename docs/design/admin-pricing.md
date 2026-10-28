@@ -95,7 +95,9 @@ Design choices for the reviewer (G2):
    read-only `GET /admin/water-categories` (`id`, `code`, `label`,
    `is_active`). It still has to be written into
    [admin-directory.md](../api/admin-directory.md) and agreed (G3) before the
-   link issue builds the picker. Until it is built, the Water picker offers
+   link issue builds the picker. **Written and agreed (G3) in #160, PR #163**
+   ([amendment](../api/admin-directory.md#amendment-160-the-list-of-water-categories)):
+   `id`, `label` and `is_active`; `code` is left out. Build: #161. Until it is built, the Water picker offers
    "Every water" and the categories the zone list names.
 9. **The Money tabs (answered 2026-10-28, @nnamdi-security).** The page sits
    under tabs "Pricing", "Loyalty points" and "Payouts and payments"

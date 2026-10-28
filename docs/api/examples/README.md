@@ -144,6 +144,9 @@ agreed**. Every amount is a SAMPLE in integer kobo, not a real price.
   `admin-service-zone-write-request.json` (create or replace); and
   `service-zones.json`, the customer's list of active zones (names only, no
   fees).
+- Water categories: `admin-water-categories.json`, the admin list for the
+  Pricing screen's Water picker (#160): one active and one inactive category,
+  by label. Sample ids and labels.
 - Price lists: `admin-price-list.json` (version 3: two bands for every zone
   and a zone's own rule), `admin-price-list-create-request.json`.
 - Refusals: `error-price-list-changed.json`, `error-price-rules-overlap.json`,
