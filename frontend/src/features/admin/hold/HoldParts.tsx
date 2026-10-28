@@ -21,7 +21,7 @@ export function HoldChip() {
 /**
  * The banner on a held order's panel (R0): the kind, when it opened (Lagos
  * time) and the driver whose job is waiting. **Review** opens the sheet where
- * the hold is decided; it is left out for a kind the sheet cannot decide yet.
+ * the hold is decided.
  */
 export function HoldBanner({ hold, driverName, onReview }: { hold: AdminOrderHold; driverName: string | null; onReview?: () => void }) {
   return (

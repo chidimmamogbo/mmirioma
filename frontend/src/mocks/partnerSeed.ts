@@ -139,7 +139,21 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       partner_id: SUNDAY_ID,
       accepted_at: minutesAgo(now, 100),
       collected_at: minutesAgo(now, 75),
-      hold: { id: 'hold-source-1', kind: 'source_review', since: minutesAgo(now, 60), category: 'pickup_safety_concern', driver_note: 'The pump area was flooded and the attendant was not there.' },
+      // The driver used another source than the assigned one: it is not in the source records, so Continue is not possible.
+      hold: { id: 'hold-source-1', kind: 'source_review', since: minutesAgo(now, 60), category: 'source_mismatch', driver_note: 'The assigned source was closed, so I used the borehole near the market.' },
+    }),
+    job({
+      reference: 'MO-8SRC5LV3QE',
+      choice: keke(25, 24),
+      station: { ...GRA, distance_km: 2.4, minutes: 7 },
+      customer: { name: '9 Obiagu Road, GRA', address: '9 Obiagu Road, GRA, Enugu', area: 'GRA', landmark: 'Next to the pharmacy', distance_km: 3.9, minutes: 10, contact_name: 'Obinna Agu', phone: '+2348000000304' },
+      earning_minor_units: 250_000,
+      stage: 'collected',
+      partner_id: SUNDAY_ID,
+      accepted_at: minutesAgo(now, 55),
+      collected_at: minutesAgo(now, 35),
+      // The assigned source, with a safety concern flagged: the source can be used, so Continue is possible.
+      hold: { id: 'hold-source-2', kind: 'source_review', since: minutesAgo(now, 30), category: 'pickup_safety_concern', driver_note: 'The pump area was flooded and the attendant was not there.' },
     }),
     job({
       reference: 'MO-9UNS4VH2ZC',

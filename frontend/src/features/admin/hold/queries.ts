@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import * as api from '../adminApi'
 import { adminKeys, useAdminMutation } from '../queries'
-import type { ProofOverrideRequest } from '../real/holds'
+import type { HoldDecisionRequest, ProofOverrideRequest, WithdrawRequest } from '../real/holds'
 
 const holdKeys = {
   review: (reference: string) => [...adminKeys.all, 'hold', reference] as const,
@@ -22,3 +22,12 @@ export const useHoldReview = (reference: string) =>
 
 /** Approve or reject the alternative proof: one request, never repeated on its own. Every admin query refreshes after it. */
 export const useDecideProof = (reference: string) => useAdminMutation((request: ProofOverrideRequest) => api.decideProof(reference, request))
+
+/** Let the driver continue after a source review (R2). */
+export const useContinueSource = (reference: string) => useAdminMutation((request: HoldDecisionRequest) => api.continueSource(reference, request))
+
+/** Resume after an unsafe stop, with the safe alternative as the note (R3). */
+export const useResumeUnsafe = (reference: string) => useAdminMutation((request: HoldDecisionRequest) => api.resumeUnsafe(reference, request))
+
+/** Take the job back from the driver before they leave (R3). */
+export const useWithdrawJob = (reference: string) => useAdminMutation((request: WithdrawRequest) => api.withdrawJob(reference, request))

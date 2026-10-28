@@ -7,6 +7,7 @@ import {
   decisionFailure,
   deliveryCodeLine,
   initialProofForm,
+  noteError,
   proofErrors,
   type ProofForm,
 } from './logic'
@@ -115,6 +116,16 @@ describe('deliveryCodeLine: never the code, only whether it was issued, the SMS,
   })
 })
 
+describe('noteError (continue and resume need 1 to 500 characters)', () => {
+  it('accepts a trimmed note of 1 to 500 characters only', () => {
+    expect(noteError('')).toBeDefined()
+    expect(noteError('   ')).toBeDefined()
+    expect(noteError(' x ')).toBeUndefined()
+    expect(noteError('x'.repeat(500))).toBeUndefined()
+    expect(noteError('x'.repeat(501))).toBe('Write a note (up to 500 characters).')
+  })
+})
+
 describe('decisionFailure', () => {
   const refusal = (status: number, code: string, details: unknown = null, kind: 'http' | 'network' = 'http') =>
     new ApiError({ kind, status, code, message: `Sample ${code}`, details })
@@ -147,6 +158,21 @@ describe('decisionFailure', () => {
     )
     expect(failure.fields).toEqual({ when: "The time can't be in the future", note: 'Write a note', details: 'Add details for Other' })
     expect(failure.changed).toBe(false)
+  })
+
+  it('shows the server’s own sentence when the source can no longer be used, with its new answer for the card (R2)', () => {
+    const failure = decisionFailure(
+      new ApiError({ kind: 'http', status: 409, code: 'source_not_eligible', message: "This source's laboratory approval for this water category has expired.", details: { answer: 'not_eligible' } }),
+    )
+    expect(failure).toMatchObject({ message: "This source's laboratory approval for this water category has expired.", changed: false, eligibility: 'not_eligible' })
+    // "Cannot check" is an answer too; anything else leaves the card as it was.
+    expect(decisionFailure(refusal(409, 'source_not_eligible', { answer: 'cannot_check' })).eligibility).toBe('cannot_check')
+    expect(decisionFailure(refusal(409, 'source_not_eligible', { answer: 'eligible' })).eligibility).toBeUndefined()
+    expect(decisionFailure(refusal(409, 'source_not_eligible')).eligibility).toBeUndefined()
+  })
+
+  it('says there is nobody to take the job back from (R3), without offering Refresh', () => {
+    expect(decisionFailure(refusal(404, 'assignment_not_found'))).toMatchObject({ message: 'This order has no driver assigned', changed: false })
   })
 
   it('falls back to the server’s message for anything else', () => {
