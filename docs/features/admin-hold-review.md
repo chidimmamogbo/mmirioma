@@ -308,12 +308,32 @@ failure and the hold age; `src/features/admin/admin.test.tsx` and
   outcome shows no charge); and the history with hold entries for each. The
   responses were then read by the frontend's own adapters, schemas and
   timeline code, and the sheet's failure wording matched each refusal.
-- **Not yet clicked through on screen:** only the proof approve and the panel's
-  "Fail this delivery" were clicked in a browser (#166). The sheet for a
-  source review and for an unsafe stop, Reject, Withdraw job, the decided card
-  and the history lines are covered by the run above and by tests, but no one
-  has looked at them on a screen with a held order of each kind (tracked in
-  #190).
+- **Clicked through on screen (2026-10-28, #190).** In a browser against a
+  local backend on a throwaway database (`VITE_USE_MOCKS=false`, demo seed),
+  signed in as the demo dispatcher, with eight held orders (three proof
+  reviews, two source reviews, three unsafe stops) made through the services
+  the partner endpoints call. Every step of #190 matched: the "On hold (8)"
+  pill, the amber chip and "kind · age" on each row, no "Assign a rider" on a
+  held order; Reject ("Proof rejected. The driver can send a new code.", the
+  decided card and "Proof rejected" in the history); Approve ("Proof approved.
+  The order is now Delivered."); approving again from a second tab ("This
+  order has changed." with Refresh, the note kept) and a proof the dispatcher
+  recorded ("You can't approve proof for a delivery you made."); the source
+  review at another source ("This source is not in the source records.",
+  Continue off) failed with "Delivery marked as failed." and both holds
+  closed; Continue at the assigned, eligible source ("Continued. The driver
+  can go on to the customer."); Resume ("Resumed. The driver can continue.");
+  Withdraw job (back to Confirmed, the hold gone, "Job withdrawn from <driver>"
+  in the history); CANCEL from an unsafe stop (Cancel order off until "The
+  customer is not charged for this cancellation." loaded, then "Order
+  cancelled. Tell the customer."); and the sheet at a 358 px viewport (full
+  screen, the buttons fixed at the bottom while the evidence scrolls, no
+  sideways scroll). The R3 line ", while the order was <status>" did not
+  show, because the setup inserted those orders without order events; it shows
+  when the history has one. Results: the comment on #190.
+- The order list's Rider column says "None yet" on every row, including held
+  and in-progress orders that have a driver: the list response carries no
+  driver. The order panel names the driver.
 - The admin timeline shows an approval as "Proof approved" and does not add a
   "Delivered" line, although the history carries the `delivered` status change;
   the order's status chip shows Delivered.
