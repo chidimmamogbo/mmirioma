@@ -12,7 +12,7 @@ Contracts (agreed):
 [order-details-and-price.md](../api/order-details-and-price.md) ("Pilot
 note", "How the total is computed")
 Designer: @chidimmamogbo + Claude Code (for #44, owner @Cloudcrackamara) ·
-Reviewed by: pending · Status: ready for review (G2)
+Reviewed by: @nnamdi-security on 2026-10-28 · Status: approved
 
 The Pricing screen edits the server's **price list**: rules that set the
 handling and margin per area, water category and quantity band (FR-022).
@@ -48,7 +48,7 @@ All paths are under `/api/v1`.
 | --- | --- | --- | --- |
 | P0 | Rules of the current version | `GET /admin/price-lists/current` ([Price lists](../api/admin-directory.md#price-lists)) | `version`, `rules[]` (`zone_id`, `water_category_id`, `min_litres`, `max_litres`, `handling_minor_units`, `margin`, `base_delivery_fee_minor_units`, `distance_rate_minor_units_per_km`, `additional_trip_minor_units`); 404 `price_list_not_found` = no price list yet |
 | P0, P1 | Area names, and the Area picker | `GET /admin/service-zones` ([Service zones](../api/admin-directory.md#service-zones)) | `items[].id`, `name`, `is_active` |
-| P0, P1 | Water names, and the Water picker | **Needs contract change** (open question 1) | category `id`, `label` |
+| P0, P1 | Water names, and the Water picker | **Needs contract change** ([decision 8](#decisions)) | category `id`, `label` |
 | P0 | Version history | `GET /admin/price-lists` (newest first, `limit`, `offset`) | `version`, `effective_from`, `created_by.name`, `reason`, `changes[]` (`path`, `from`, `to`) |
 | P0 | Save as version N+1 | `POST /admin/price-lists` ([POST](../api/admin-directory.md#post-adminprice-lists)) | `base_version` (the version opened; `null` for the first), `reason`, `rules[]` (the whole set) → 201 `PriceList` |
 | P0 | Changed meanwhile | same | 409 `price_list_changed`, `details.current_version` → "Load version N" re-reads `current` |
@@ -57,7 +57,7 @@ All paths are under `/api/v1`.
 | P1 | Field errors | same, and client checks first | 422 `validation_error` `loc` per field; 404 `service_zone_not_found`, `water_category_not_found` (area or water removed meanwhile: "This area is no longer listed. Choose it again.") |
 
 Every row points to an agreed endpoint except the Water picker, marked
-"needs contract change" (open question 1).
+"needs contract change" (decision 8).
 
 ## Decisions
 
@@ -87,21 +87,26 @@ Design choices for the reviewer (G2):
    points and payouts" title and SAMPLE price banner go.
 7. **Margin as a percentage** is typed in percent (up to two decimals) and
    sent as basis points; a fixed margin in whole naira, sent as kobo.
+8. **Water picker (answered 2026-10-28, @nnamdi-security, G3 call).** The
+   admin API has no list of water categories (checked 2026-10-28): the
+   confirm sheet gets categories from one order's `confirmation-options`, and
+   `GET /admin/service-zones` names only the categories that have a zone fee
+   plus `pilot_water_category` (#145). **Decided: yes**, an additive,
+   read-only `GET /admin/water-categories` (`id`, `code`, `label`,
+   `is_active`). It still has to be written into
+   [admin-directory.md](../api/admin-directory.md) and agreed (G3) before the
+   link issue builds the picker. Until it is built, the Water picker offers
+   "Every water" and the categories the zone list names.
+9. **The Money tabs (answered 2026-10-28, @nnamdi-security).** The page sits
+   under tabs "Pricing", "Loyalty points" and "Payouts and payments"
+   (`MONEY_TABS`); points and partner pay are out of the MVP. **Decided:**
+   show **Pricing alone** in the pilot, without the other two tabs (as #107
+   hid points for customers). The design already shows the page this way.
 
 ## Open questions
 
-1. **A list of water categories for the Water picker.** The admin API has
-   none (checked 2026-10-28): the confirm sheet gets categories from one
-   order's `confirmation-options`, and `GET /admin/service-zones` names only
-   the categories that have a zone fee plus `pilot_water_category` (#145).
-   Proposal: an additive `GET /admin/water-categories` (`id`, `code`,
-   `label`, `is_active`), read-only. It needs agreement (G3) before the link
-   issue; until then the Water picker can offer "Every water" and the
-   categories the zone list names.
-2. **The Money tabs.** The page sits under tabs "Pricing", "Loyalty points"
-   and "Payouts and payments" (`MONEY_TABS`); points and partner pay are out
-   of the MVP. Keep the tabs, or show Pricing alone in the pilot (as #107 hid
-   points for customers)? The design shows the page without tabs.
+None. Both questions raised for the G2 review were answered on 2026-10-28
+(decisions 8 and 9).
 
 ## Changes to the design system
 
