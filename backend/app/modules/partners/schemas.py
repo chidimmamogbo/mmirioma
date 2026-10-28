@@ -21,6 +21,8 @@ from app.modules.dispatch.models import (
     PLATE_MAX_LENGTH,
     ApprovalStatus,
     DeliveryType,
+    DriverProfile,
+    VehicleProfile,
 )
 from app.modules.dispatch.plates import normalize_plate
 
@@ -121,6 +123,33 @@ class PartnerVehicleRead(BaseModel):
     declared_capacity_litres: int | None
     safe_payload_litres: int | None
     transfer_methods: list[str]
+
+
+def partner_vehicle_read(
+    profile: DriverProfile, vehicle: VehicleProfile | None
+) -> PartnerVehicleRead:
+    """Build the vehicle object from a driver profile and its verified vehicle.
+
+    The partner's own profile and the admin driver directory both use it, so
+    both sides read one record (admin-directory.md, "Drivers").
+
+    Args:
+        profile: The driver profile (declared vehicle, transfer methods).
+        vehicle: The verified vehicle profile, or None until an admin links one.
+
+    Returns:
+        The vehicle object; the declared litres are the gallons times 4.
+    """
+    gallons = profile.declared_capacity_gallons
+    return PartnerVehicleRead(
+        delivery_type=profile.delivery_type,
+        plate=profile.plate,
+        description=vehicle.vehicle_type if vehicle is not None else None,
+        declared_capacity_gallons=gallons,
+        declared_capacity_litres=None if gallons is None else gallons * LITRES_PER_LOCAL_GALLON,
+        safe_payload_litres=vehicle.safe_payload_litres if vehicle is not None else None,
+        transfer_methods=list(profile.transfer_methods),
+    )
 
 
 class PartnerProfileRead(BaseModel):

@@ -258,6 +258,29 @@ Paths use `drivers`.
 **Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
 #43).
 
+Built in #45 ([admin-drivers.md](../features/admin-drivers.md)).
+
+**Decided in #45** (@nnamdi-security, technical lead, 2026-10-28), where the
+text above leaves an edge open. None changes a path, field or error code:
+
+1. **A repeat comes first.** Asking for the state the partner is already in,
+   with no `vehicle`, is 200 and unchanged before the `driver_inactive` and
+   `partner_phone_not_verified` checks. A real change to a deactivated account
+   is still 409 `driver_inactive`.
+2. **`counts.available`** counts active, approved drivers whose availability is
+   on, the same as the dashboard's drivers available. `counts.pending` counts
+   active accounts only.
+3. **`q` matches the vehicle type** as both the verified `description` and the
+   declared `delivery_type` (`keke`, `tanker`), so a pending partner with no
+   verified vehicle is found.
+4. **A driver account with no dispatch profile** is not listed and is 404
+   `driver_not_found`: it cannot work (dispatch answers `no_driver_profile`)
+   and has no approval status to show.
+5. **The partner's `account` message** says the status changed in one plain
+   sentence ("Your account was approved" or "Your account was suspended"). It
+   does not copy the staff reason, which is an internal note, and it names no
+   support number: FR-055's number is the customer support number.
+
 ### Objects
 
 `AdminDriver`:
@@ -860,8 +883,9 @@ migration):
   `transfer_methods` and a nullable `vehicle_profile_id`: on
   `driver_profiles`, already built with partner sign-up (#14), since every
   driver has a profile and a pending partner has no vehicle profile. No new
-  column for approval. Whether `delivery_type` should also move to
-  `vehicle_profiles` is for @nnamdi-security to decide with #45.
+  column for approval. **Decided** (@nnamdi-security, 2026-10-28, #45):
+  `delivery_type` stays on `driver_profiles` and does not move to
+  `vehicle_profiles`.
 - `price_list_versions` (`version` unique, `effective_from`, `created_by`,
   `reason`) and `price_rules` (one row per rule, foreign key to its version;
   zone and category foreign keys nullable; amounts `BigInteger` kobo; margin
@@ -899,6 +923,7 @@ migration):
 | Date | Change | Agreed by |
 | --- | --- | --- |
 | 2026-10-28 | Amended for #160: `GET /admin/water-categories` (`id`, `label`, `is_active`; `code` left out; inactive categories listed) for the Pricing screen's Water picker ([amendment](#amendment-160-the-list-of-water-categories)); building is #161 | @nnamdi-security (technical lead, G3), PR #163 |
+| 2026-10-28 | Built the Drivers section (#45) and settled five edges it left open: a repeat request first, what `counts.available` and `q` count, drivers with no profile, and the partner's `account` message ([decisions](#drivers)); `delivery_type` stays on `driver_profiles` | @nnamdi-security (technical lead), #45 |
 | 2026-10-28 | Revised for #43 (customers and drivers): partner approval `POST /admin/drivers/{id}/approval` with vehicle verification (FR-013) and the `phone_verified` rule; `approval_status`, `phone_verified` and the partners.md vehicle object on `AdminDriver`; `approval_status` filter and `pending` count; `POST /admin/customers` and `POST /admin/drivers` removed; address `label` 1-50; suspension refused while a job is accepted; open questions 1, 2, 4, 7, 8, 10, 11 and 12 decided, 3 and 9 partly; order-details-and-price.md linked as a file | @nnamdi-security (technical lead, G3), PR #146 |
 | 2026-10-27 | Amended for #74: `GET /admin/service-zones` also returns `pilot_water_category` ([amendment](#amendment-74-the-pilot-category-in-the-admin-zone-list)); built in #109 | @chidimmamogbo and @nnamdi-security (technical lead), PR #108 |
 | 2026-10-26 | Price lists section agreed: open questions 16 (takes effect when saved) and 18 (handling per order) decided; 17 open until OSRM | @nnamdi-security (technical lead, #36) |
