@@ -196,6 +196,26 @@ The order timeline (`GET /orders/{reference}/history`, #155) uses this table:
 "Order placed", then one step each time the stage changes, so `assigned`
 adds nothing before the driver accepts.
 
+## Customer order price
+
+The price a customer sees on an order (`CustomerOrder.quote`), from
+`OrderRead` (docs/api/orders.md, "Customer pilot changes (#99)", built in
+#165). Total only, never a breakdown (order-details-and-price.md, decision 6);
+integer kobo (see "Money"). The adapter is `priceFromRead`
+(`features/customer/real/order.ts`).
+
+| Backend `OrderRead` | Design field | Rule |
+| --- | --- | --- |
+| `price` (confirmed) | `quote`: `currency`, `total_minor_units`, `category_label` from `water_category.label` | Used whenever it is present, over the quote. The label is the one frozen at confirmation (FR-014, FR-024) |
+| `quote` (before confirmation) | `quote`: `currency`, `total_minor_units`, `category_label` from `quote.water_category.label` | Used while there is no `price`; the price the order was placed with |
+| neither | `quote: null` | A quote request still waiting for its price: "Preparing your price" (FR-022 manual fallback) |
+| `price.manual` | not mapped | No screen shows how the price was set |
+| `delivery_window` | not mapped yet | Returned and typed, but `CustomerOrder` has no field for it (#192) |
+| `water_category.supported_uses` | not mapped | No customer screen shows it yet |
+
+A server that does not send the three fields reads as missing: the price falls
+back to the quote.
+
 ## Partner job stage
 
 Backend driver job (`lib/api/driverJobs.ts`: `status` plus the order

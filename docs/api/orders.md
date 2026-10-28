@@ -254,7 +254,11 @@ contract owner), without the cancellation SMS (see below). Proposed by
 is approved (G2, 2026-10-24,
 [customer-pilot-status.md](../design/customer-pilot-status.md)). The backend
 review by @chidimmamogbo and the customer UI review by @Cloudcrackamara are
-recorded on the build PR. Nothing here is built yet.
+recorded on the build PR. **Built in #165** (PR #187): `GET /orders`,
+`GET /orders/{reference}` and `POST /orders` return the three fields, and the
+customer app shows the confirmed price. The confirmed window is returned but not
+yet shown in the app (#192). The design and prompt linked above are not in this
+fork; #192 records where the window will show.
 
 What a pilot customer must see once a dispatcher confirms their order
 (FR-023, FR-037): the confirmed window, the agreed total and the water
@@ -345,6 +349,7 @@ happened.
 
 | Date | Change | Agreed by |
 | --- | --- | --- |
+| 2026-10-28 | **Built:** `OrderRead`'s `delivery_window`, `price` and `water_category` (#165, PR #187), as agreed; no change to the agreement. The window is not shown in the app yet (#192) | Not a contract change |
 | 2026-10-28 | **Agreed:** [`GET /orders/{reference}/history`](#get-ordersreferencehistory-155), the customer's order timeline (additive) | @nnamdi-security, technical lead (G3, PR #164) |
 | 2026-10-24 | **Agreed:** `OrderRead` gains `delivery_window`, `price` and `water_category` (additive; `null` until confirmed). The proposed customer cancellation SMS is dropped (F10). See [Customer pilot changes](#customer-pilot-changes-99) | Technical lead (G3); backend and customer UI reviews on the build PR |
 | 2026-10-22 | Proposed: the fields above and a customer cancellation SMS | Superseded by 2026-10-24 |
