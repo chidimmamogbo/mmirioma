@@ -26,13 +26,12 @@ from app.modules.notifications.schemas import (
 from app.modules.orders.schemas import PageParams
 from app.modules.partners import service
 from app.modules.partners.schemas import (
-    LITRES_PER_LOCAL_GALLON,
     AvailabilityUpdate,
     PartnerProfileRead,
     PartnerProfileUpdate,
-    PartnerVehicleRead,
     PreferencesRead,
     ZoneRead,
+    partner_vehicle_read,
 )
 from app.shared.lagos_time import LAGOS_TZ
 
@@ -59,8 +58,7 @@ def profile_read(partner: service.PartnerProfile) -> PartnerProfileRead:
     Returns:
         The response body.
     """
-    profile, vehicle = partner.profile, partner.vehicle
-    gallons = profile.declared_capacity_gallons
+    profile = partner.profile
     return PartnerProfileRead(
         id=partner.user.id,
         name=partner.user.name,
@@ -70,15 +68,7 @@ def profile_read(partner: service.PartnerProfile) -> PartnerProfileRead:
         is_available=profile.is_available,
         # The day the account was created, in Lagos (SRS §2.1).
         partner_since=partner.user.created_at.astimezone(LAGOS_TZ).date(),
-        vehicle=PartnerVehicleRead(
-            delivery_type=profile.delivery_type,
-            plate=profile.plate,
-            description=vehicle.vehicle_type if vehicle is not None else None,
-            declared_capacity_gallons=gallons,
-            declared_capacity_litres=None if gallons is None else gallons * LITRES_PER_LOCAL_GALLON,
-            safe_payload_litres=vehicle.safe_payload_litres if vehicle is not None else None,
-            transfer_methods=list(profile.transfer_methods),
-        ),
+        vehicle=partner_vehicle_read(profile, partner.vehicle),
         service_zones=[ZoneRead(id=zone.id, name=zone.name) for zone in partner.zones],
         preferences=PreferencesRead(
             new_order_alerts=profile.new_order_alerts, sms_updates=profile.sms_updates

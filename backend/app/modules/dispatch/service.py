@@ -199,6 +199,67 @@ async def _driver_has_live_job(session: AsyncSession, driver_user_id: uuid.UUID)
     return found is not None
 
 
+async def live_assignment_of_driver(
+    session: AsyncSession, driver_user_id: uuid.UUID
+) -> Assignment | None:
+    """Return the driver's live assignment (``offered`` or ``accepted``), if any.
+
+    A driver holds at most one live job (the unique live-driver index), so
+    this is one row or none. Used by the admin driver directory, which takes
+    an offered job back when it suspends or deactivates a partner.
+
+    Args:
+        session: Database session.
+        driver_user_id: The driver's account id.
+
+    Returns:
+        The live assignment, or None.
+    """
+    return await session.scalar(
+        select(Assignment).where(
+            Assignment.driver_user_id == driver_user_id,
+            Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES),
+        )
+    )
+
+
+@dataclass(frozen=True)
+class DriverJobCounts:
+    """A driver's job counts for the admin driver directory.
+
+    Attributes:
+        live: Assignments in status ``offered`` or ``accepted``.
+        completed: Assignments in status ``completed``.
+    """
+
+    live: int
+    completed: int
+
+
+async def job_counts_by_driver(
+    session: AsyncSession, driver_user_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, DriverJobCounts]:
+    """Count each driver's live and completed assignments.
+
+    Args:
+        session: Database session.
+        driver_user_ids: The drivers' account ids.
+
+    Returns:
+        The counts per driver; a driver with no assignment is absent.
+    """
+    if not driver_user_ids:
+        return {}
+    live = func.count().filter(Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES))
+    completed = func.count().filter(Assignment.status == AssignmentStatus.COMPLETED)
+    rows = await session.execute(
+        select(Assignment.driver_user_id, live, completed)
+        .where(Assignment.driver_user_id.in_(set(driver_user_ids)))
+        .group_by(Assignment.driver_user_id)
+    )
+    return {driver_id: DriverJobCounts(live, done) for driver_id, live, done in rows}
+
+
 async def assign_driver(
     session: AsyncSession, *, order_id: uuid.UUID, driver_user_id: uuid.UUID, admin: User
 ) -> Assignment:

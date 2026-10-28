@@ -16,6 +16,7 @@ from app.modules.dispatch import router as dispatch
 from app.modules.notifications import admin_router as admin_notifications
 from app.modules.notifications import router as notifications
 from app.modules.orders import router as orders
+from app.modules.partners import admin_directory_router as admin_drivers
 from app.modules.partners import router as partners
 from app.modules.payments import router as payments
 from app.modules.pricing import router as pricing
@@ -32,6 +33,7 @@ api_router.include_router(admin_orders.router)
 api_router.include_router(payments.router)
 api_router.include_router(pricing.router)
 api_router.include_router(partners.router)
+api_router.include_router(admin_drivers.router)
 api_router.include_router(notifications.router)
 api_router.include_router(public.router)
 api_router.include_router(customers.router)

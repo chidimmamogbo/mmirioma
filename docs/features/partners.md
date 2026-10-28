@@ -16,7 +16,8 @@ messages the server leaves them.
 
 A partner who signs up is **pending**: they can sign in, but they cannot go
 online and no job is offered to them until an admin approves them. The admin
-approval endpoint is not part of this feature; it is built in #45.
+approval endpoint is not part of this feature; it is in the admin driver
+directory ([admin-drivers.md](admin-drivers.md), #45).
 
 ## 2. Feature workflow
 
@@ -27,10 +28,12 @@ approval endpoint is not part of this feature; it is built in #45.
    them in.
 2. The partner verifies their phone with the existing SMS code endpoints
    (`/auth/phone-verification`, `/verify`), which now accept drivers. An
-   admin can approve a partner only with a verified phone (#45).
+   admin can approve a partner only with a verified phone
+   ([admin-drivers.md](admin-drivers.md)).
 3. An admin checks the vehicle and papers in person and approves the partner
-   (#45), linking a vehicle profile with the verified safe payload and
-   setting the transfer methods.
+   (`POST /admin/drivers/{id}/approval`, [admin-drivers.md](admin-drivers.md)),
+   linking a vehicle profile with the verified safe payload and setting the
+   transfer methods.
 4. The approved partner goes online (`PUT /driver/availability`). Dispatch
    can now offer them jobs.
 5. Each offer, withdraw or cancellation of a job the partner held leaves an
@@ -121,8 +124,9 @@ the verified vehicle profile and are `null` until an admin links one.
   when an admin withdraws or cancels a job the partner held. They are written
   in the same transaction as the change and never change an order's status.
   The text never contains a delivery code or the customer's details. The
-  contract's `account` kind belongs to the approval endpoint (#45); the
-  others are not created yet (see the contract).
+  contract's `account` kind is written by the admin approval endpoint when a
+  partner's status changes ([admin-drivers.md](admin-drivers.md)); the others
+  are not created yet (see the contract).
 - **Audit** (NFR-004): `partner_registered` at sign-up;
   `driver_went_online` and `driver_went_offline` when availability changes.
 
@@ -182,13 +186,15 @@ TEST_DATABASE_URL=... pytest tests/test_partners_integration.py tests/test_dispa
 
 ## 10. Known limitations
 
-- No admin approval, suspension or transfer-method endpoint yet: #45. Until
-  it exists, a partner who signs up stays pending.
+- Approval, suspension and the verified vehicle are set by an administrator
+  in the admin driver directory ([admin-drivers.md](admin-drivers.md), #45),
+  not by the partner.
 - No admin notice that a partner is waiting: there is no admin notification
   store. Only the `partner_registered` audit row records it.
-- The `account`, `new_orders`, `station_closed`, `papers_due` and `payout`
-  message kinds are not created (#45, no job pool, stations on the
-  command-line tool, documents and payouts out of the MVP).
+- The `new_orders`, `station_closed`, `papers_due` and `payout` message kinds
+  are not created (no job pool, stations on the command-line tool, documents
+  and payouts out of the MVP). `account` is created by the admin approval
+  endpoint.
 - The demo seed gives the demo driver an approved tanker profile in "Demo
   zone" (#63, [demo-data.md](demo-data.md)). A demo database seeded before
   #63 gets it on the next seed run.
