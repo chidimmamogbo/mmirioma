@@ -16,6 +16,7 @@ import { useOrderDraft } from '../order/orderDraftContext'
 import { draftFromOrder } from '../order/reorder'
 import { PAYMENT_LABEL, PRICE_PENDING, orderIllustration, orderQuantityText } from '../orderHelpers'
 import { useAddresses, useOrder } from '../queries'
+import { POINTS_ENABLED } from '../../../lib/features'
 
 function paymentText(o: CustomerOrder): string {
   const method = o.payment.method === 'bank_transfer' ? 'Bank transfer' : o.payment.method === 'cash' ? 'Cash' : 'Pay on delivery'
@@ -132,7 +133,7 @@ export function OrderDetail() {
               </div>
               <div className="mt-1.5 flex items-center justify-between">
                 {o.quote?.is_sample ? <SampleTag>SAMPLE PRICES</SampleTag> : <span />}
-                {o.points_earned !== null && <span className="text-caption font-bold text-gold-ink">+{o.points_earned} points earned</span>}
+                {POINTS_ENABLED && o.points_earned !== null && <span className="text-caption font-bold text-gold-ink">+{o.points_earned} points earned</span>}
               </div>
             </Card>
           </>

@@ -4,6 +4,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProblemType } from '../../domain/orders'
+import { POINTS_ENABLED } from '../../lib/features'
 import * as api from './customerApi'
 import type { PriceRequest } from './order/livePrice'
 
@@ -22,8 +23,24 @@ export const customerKeys = {
 export const useProfile = () => useQuery({ queryKey: customerKeys.profile, queryFn: api.getProfile })
 export const useAddresses = () => useQuery({ queryKey: customerKeys.addresses, queryFn: api.listAddresses })
 export const useOrders = () => useQuery({ queryKey: customerKeys.orders, queryFn: api.listOrders })
-export const useNotifications = () => useQuery({ queryKey: customerKeys.notifications, queryFn: api.listNotifications })
-export const usePoints = () => useQuery({ queryKey: customerKeys.points, queryFn: api.getPoints })
+export const useNotifications = () =>
+  useQuery({
+    queryKey: customerKeys.notifications,
+    queryFn: api.listNotifications,
+    // Points are hidden for the pilot (POINTS_ENABLED), so are their messages,
+    // and the unread count leaves out the hidden ones so the bell matches what
+    // is shown. The server never sends `points`; only the mock does.
+    select: (list) => {
+      if (POINTS_ENABLED) return list
+      const hiddenUnread = list.items.filter((n) => n.kind === 'points' && !n.read).length
+      return {
+        items: list.items.filter((n) => n.kind !== 'points'),
+        unread_count: Math.max(0, list.unread_count - hiddenUnread),
+      }
+    },
+  })
+/** Never runs while points are hidden (POINTS_ENABLED), so `data` stays undefined. */
+export const usePoints = () => useQuery({ queryKey: customerKeys.points, queryFn: api.getPoints, enabled: POINTS_ENABLED })
 export const useTickets = () => useQuery({ queryKey: customerKeys.tickets, queryFn: api.listTickets })
 
 /**

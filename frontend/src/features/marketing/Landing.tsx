@@ -433,7 +433,7 @@ function InstallSection() {
             h={402}
             alt="Phone showing the MmiriOma customer app"
             title="For customers"
-            text="Order water, follow each step of your delivery and earn points."
+            text="Order water and follow each step of your delivery."
             button={
               <InstallAppButton app="customer" className={INSTALL_BUTTON}>
                 Install the customer app

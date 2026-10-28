@@ -8,12 +8,14 @@ import { FloatingActions } from './SiteExtras'
 import { useMarketingPage } from './useMarketingPage'
 
 /*
- * Terms of Service (/terms) and Privacy Notice (/privacy). The Terms come from
- * design/MmiriOma-landing-handoff/content/*.md; the Privacy Notice mirrors
- * PRIVACY_NOTICE.md (#93). Two lines in the Terms are
- * reworded to match the honesty rules (no "sealed cans" or "clean and sealed
- * for every trip"); the legal text still needs review before launch
- * (docs/design/landing-v1.md, "Open items").
+ * Terms of Service (/terms) and Privacy Notice (/privacy). The Terms started
+ * from design/MmiriOma-landing-handoff/content/*.md and were corrected to
+ * describe the pilot as it works (#107): cash on delivery only (F4), the
+ * window agreed on the confirmation call (F3), no cancellation or redelivery
+ * charge (F5), refunds decided and paid outside the app (F7), no points
+ * (customer-account.md decision 12) and no partner pay in the app
+ * (partners.md decision 7). The Privacy Notice mirrors PRIVACY_NOTICE.md
+ * (#93). Both are reviewed by the legal operator before launch.
  */
 
 interface Section {
@@ -26,8 +28,10 @@ interface Section {
   headingId?: string
 }
 
-const Email = () => <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
 const Phone = () => <a href={CONTACT.phoneHref}>{CONTACT.phoneLabel}</a>
+/** Privacy and legal contact from PRIVACY_NOTICE.md (sections 1, 9 and 16). */
+const PRIVACY_EMAIL = 'olivetgrail@gmail.com'
+const PrivacyEmail = () => <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>
 const ADDRESS = 'Hackathon Innovation Lab, ECCIMA Building, opposite All Saints Church, Garden Avenue, GRA, Enugu, Enugu State, Nigeria.'
 
 function List({ items }: { items: ReactNode[] }) {
@@ -40,13 +44,15 @@ function List({ items }: { items: ReactNode[] }) {
   )
 }
 
+const TERMS_VERSION = 'Last updated 27 October 2026.'
+
 const TERMS: Section[] = [
   {
     id: 't1',
     title: '1. About these terms',
     body: (
       <p>
-        These Terms of Service ("Terms") apply to the MmiriOma website, customer app and driver app (together, the "Service"), operated by
+        {TERMS_VERSION} These Terms of Service ("Terms") apply to the MmiriOma website, customer app and driver app (together, the "Service"), operated by
         MmiriOma ("we", "us") in Enugu State, Nigeria. By creating an account or placing an order, you agree to these Terms and to our{' '}
         <Link to="/privacy">Privacy Notice</Link>. If you don't agree, please don't use the Service.
       </p>
@@ -69,13 +75,15 @@ const TERMS: Section[] = [
     body: (
       <>
         <p>
-          You can order by keke (our cans poured into your containers) or by tanker (pumped into your ground or overhead tank). The app shows the
-          total price before you confirm. Prices can depend on volume, delivery type and distance, and may change from time to time, but the
-          price you confirm is the price you pay for that order.
+          You can order by keke (our cans poured into your containers) or by tanker (pumped into your ground or overhead tank). When the app can
+          work out a price for your address, it shows the total before you send your order; otherwise our team works out the price and tells
+          you on the confirmation call. Prices can depend on volume, delivery type and distance, and may change from time to time, but the
+          price you agree is the price you pay for that order.
         </p>
         <p>
-          An order is accepted once a rider or driver is assigned. We may decline or cancel an order if your address is outside our service
-          areas, the details are incomplete, or delivery is not safely possible.
+          After you send an order, our team calls you to agree the delivery window, and the price if the app did not show one, and then
+          confirms the order. Until then your order is a request, not a booked delivery. We may decline or cancel an order if your address is
+          outside our service areas, the details are incomplete, or delivery is not safely possible.
         </p>
       </>
     ),
@@ -86,15 +94,17 @@ const TERMS: Section[] = [
     body: (
       <>
         <p>
-          Delivery times shown in the app are estimates. Traffic, weather and road conditions can cause delays, and we'll keep you updated in the
-          app.
+          We agree a delivery window with you on the confirmation call. Traffic, weather and road conditions can still cause delays; if the
+          window has to change, we contact you to agree a new one. The app shows each confirmed step of your order, but it does not track the
+          rider or driver live on a map.
         </p>
         <List
           items={[
             'Make sure someone can receive the water and that the rider can safely reach your gate, drums or tank.',
-            'For keke orders, provide clean containers. The rider pours the water and takes our empty cans back. The cans remain our property.',
+            'For keke orders, provide clean containers. The rider pours the water and takes our empty cans back.',
             'For tanker orders, tell us whether your tank is ground or overhead and make sure there is room for the hose to reach it.',
-            "If the rider can't complete delivery because of access problems on your side, a return or waiting fee may apply. The app will show it before it is charged.",
+            "If no one can be reached when the rider or driver arrives, they try to contact you twice and wait 10 minutes before recording a failed delivery. You can then arrange another delivery with us.",
+            'During the pilot there is no charge for cancelling an order or for a new delivery after a failed one.',
           ]}
         />
       </>
@@ -106,9 +116,10 @@ const TERMS: Section[] = [
     body: (
       <>
         <p>
-          Each order comes with a one-time delivery code. Share it with the rider only after the full quantity has been poured. Giving the code
-          confirms that you received the order as described. If anything is wrong, don't share the code. Report it in the app instead so we can
-          sort it out.
+          When the rider or driver records that unloading is complete, we send a one-time delivery code by SMS to the order's contact number.
+          It works for 10 minutes. Give it to them only after the full quantity has been poured or pumped. Giving the code confirms that you
+          received the water as described; it is separate from paying for it. If anything is wrong, don't give the code. Call us or report it
+          in the app instead so we can sort it out.
         </p>
         <p>If you share the code with someone else to receive the water for you, their confirmation counts as yours.</p>
       </>
@@ -119,8 +130,8 @@ const TERMS: Section[] = [
     title: '6. Payment',
     body: (
       <p>
-        All payments are processed securely by Paystack, using the payment options Paystack shows at checkout. We do not store your full card
-        details. All prices are in Nigerian Naira (₦).
+        During the pilot you pay in cash on delivery, to the rider or driver, after the water has been unloaded. The app does not take card,
+        online or bank-transfer payments. All prices are in Nigerian Naira (₦).
       </p>
     ),
   },
@@ -129,11 +140,12 @@ const TERMS: Section[] = [
     title: '7. Cancellations and refund requests',
     body: (
       <>
-        <p>You can cancel for free before a rider or driver is assigned. After that, a cancellation fee may apply to cover the trip.</p>
         <p>
-          We do not give cash refunds. If you request a refund, for example because an order was cancelled or a delivery was short or not made,
-          our team will review your request. If it is approved, the amount is converted to MmiriOma points in your account, which you can use
-          toward your next order.
+          To cancel an order, call us on <Phone />. During the pilot there is no cancellation charge.
+        </p>
+        <p>
+          If you think you are owed money back, for example because a delivery was short, contact us. Our team reviews each request, and any
+          refund we approve is paid to you outside the app, for example by bank transfer. The app does not hold credit or points.
         </p>
       </>
     ),
@@ -143,9 +155,10 @@ const TERMS: Section[] = [
     title: '8. Water quality',
     body: (
       <p>
-        We supply borehole water. Once water is poured into your containers or tank, its condition also depends on how clean they are, so please
-        clean and cover them regularly. If you have a concern about the water you received, report it in the app before sharing your delivery
-        code, or within 24 hours of delivery.
+        Each order states its water category, Potable Water or Utility Water, and what it is suitable for. Only Potable Water is described as
+        drinking water. Once water is poured into your containers or tank, its condition also depends on how clean they are, so please clean
+        and cover them regularly. If something is wrong with a delivery, tell us before giving your delivery code, or within 48 hours of
+        delivery. A safety concern or suspected contamination can be reported at any time.
       </p>
     ),
   },
@@ -154,9 +167,10 @@ const TERMS: Section[] = [
     title: '9. Riders and drivers',
     body: (
       <p>
-        Riders and drivers must apply through the driver app, submit valid identification, a driver's licence and vehicle papers, and be approved
-        by our team before taking orders. They must handle water hygienically, treat customers with respect and follow traffic laws. Additional
-        rider and driver terms, including how earnings are paid, are shown in the driver app at sign-up.
+        Riders and drivers sign up in the driver app with their name, phone number, vehicle type, plate number and the tank capacity they
+        declare, and must be approved by our team, which checks the vehicle, before taking jobs. They must handle water hygienically, treat
+        customers with respect and follow traffic laws. During the pilot the driver app does not show earnings or make payments; how riders
+        and drivers are paid is agreed with our team outside the app.
       </p>
     ),
   },
@@ -186,7 +200,7 @@ const TERMS: Section[] = [
     title: '12. Changes and governing law',
     body: (
       <p>
-        We may update these Terms as the Service grows. When we make important changes, we'll tell you in the app before they take effect. These
+        We may update these Terms as the Service grows. When we make important changes, we'll tell you before they take effect and update the date at the top of these Terms. These
         Terms are governed by the laws of the Federal Republic of Nigeria, and disputes will be handled by the courts in Enugu State.
       </p>
     ),
@@ -197,15 +211,11 @@ const TERMS: Section[] = [
     boxed: true,
     body: (
       <p>
-        Questions about these Terms? Email <Email /> or call <Phone />. Our address is {ADDRESS}
+        Questions about these Terms? Call <Phone /> or email <PrivacyEmail />. Our address is {ADDRESS}
       </p>
     ),
   },
 ]
-
-/** Privacy contact from PRIVACY_NOTICE.md (sections 1, 9 and 16). */
-const PRIVACY_EMAIL = 'olivetgrail@gmail.com'
-const PrivacyEmail = () => <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>
 
 /** One "what / why" or "what / how long" pair, as the notice's tables have. */
 function Rows({ rows }: { rows: [ReactNode, ReactNode][] }) {

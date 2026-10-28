@@ -1,4 +1,5 @@
-import type { RouteObject } from 'react-router-dom'
+import { Navigate, type RouteObject } from 'react-router-dom'
+import { POINTS_ENABLED } from '../../lib/features'
 import { SignedOutOnly } from '../auth/SessionRedirects'
 import { CustomerArea } from './CustomerArea'
 
@@ -31,7 +32,10 @@ export const customerRoutes: RouteObject[] = [
       { path: '/orders/:reference/track', lazy: () => import('./pages/order/Track').then((m) => ({ Component: m.Track })) }, // c-track
       { path: '/orders/:reference/delivered', lazy: () => import('./pages/order/Delivered').then((m) => ({ Component: m.Delivered })) }, // c-delivered
       { path: '/orders/:reference/receipt', lazy: () => import('./pages/Receipt').then((m) => ({ Component: m.Receipt })) }, // added
-      { path: '/points', lazy: () => import('./pages/Points').then((m) => ({ Component: m.Points })) }, // c-points
+      // c-points; hidden for the pilot (POINTS_ENABLED), so old links go home.
+      POINTS_ENABLED
+        ? { path: '/points', lazy: () => import('./pages/Points').then((m) => ({ Component: m.Points })) }
+        : { path: '/points', element: <Navigate to="/home" replace /> },
       { path: '/addresses', lazy: () => import('./pages/SavedAddresses').then((m) => ({ Component: m.SavedAddresses })) }, // c-saved
       { path: '/addresses/new', lazy: () => import('./pages/AddressForm').then((m) => ({ Component: m.AddressForm })) }, // added
       { path: '/addresses/:id/edit', lazy: () => import('./pages/AddressForm').then((m) => ({ Component: m.AddressForm })) }, // added

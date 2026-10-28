@@ -22,6 +22,7 @@ import { isActiveStage } from '../../../domain/orders'
 import { formatPhone } from '../../../lib/format/phone'
 import { useLogout, useSession } from '../../auth/useSession'
 import { InstallMenuItem } from '../../pwa/InstallParts'
+import { POINTS_ENABLED } from '../../../lib/features'
 import { useNotifications, useOrders, usePoints, useProfile } from '../queries'
 
 /** Customer account menu (`c-menu`). */
@@ -103,9 +104,11 @@ export function Menu() {
       <MenuItem to="/addresses" icon={<MapPinIcon size={20} />}>
         Saved addresses
       </MenuItem>
-      <MenuItem to="/points" icon={<StarIcon size={20} />}>
-        My points
-      </MenuItem>
+      {POINTS_ENABLED && (
+        <MenuItem to="/points" icon={<StarIcon size={20} />}>
+          My points
+        </MenuItem>
+      )}
       <MenuItem
         to="/notifications"
         icon={<BellIcon size={20} />}

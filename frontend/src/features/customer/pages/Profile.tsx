@@ -30,6 +30,7 @@ import { formatPhone } from '../../../lib/format/phone'
 import { useLogout, useSession } from '../../auth/useSession'
 import { PushSettingRows } from '../../pwa/PushParts'
 import { useProfile, useUpdateProfile } from '../queries'
+import { POINTS_ENABLED } from '../../../lib/features'
 
 /** Largest photo accepted, before it is stored (keeps uploads small on mobile data). */
 const MAX_PHOTO_BYTES = 500_000
@@ -37,7 +38,7 @@ const MAX_PHOTO_BYTES = 500_000
 const PREFS: { key: keyof NonNullable<CustomerProfile['preferences']>; title: string; sub: string }[] = [
   { key: 'sms_updates', title: 'SMS updates', sub: 'Order status and delivery codes' },
   { key: 'whatsapp_updates', title: 'WhatsApp updates', sub: 'Rider arrival and receipts' },
-  { key: 'offers_and_news', title: 'Offers and news', sub: 'Points promos, now and then' },
+  { key: 'offers_and_news', title: 'Offers and news', sub: 'Promos, now and then' },
 ]
 
 /** My profile (`c-profile`): name, stats and phone. Settings are on Account settings. */
@@ -121,9 +122,9 @@ export function Profile() {
           {photoError && <Notice tone="error">{photoError}</Notice>}
           {update.isError && <Notice tone="error">{errorMessage(update.error)}</Notice>}
           {p && (
-            <Card className={`rise-2 grid py-3 text-center ${p.stats.points !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <Card className={`rise-2 grid py-3 text-center ${POINTS_ENABLED && p.stats.points !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <Stat value={p.stats.orders} label="Orders" />
-              {p.stats.points !== null && (
+              {POINTS_ENABLED && p.stats.points !== null && (
                 <div className="border-x border-solid border-hairline">
                   <Stat value={p.stats.points} label="Points" valueClass="text-gold-ink" />
                 </div>
