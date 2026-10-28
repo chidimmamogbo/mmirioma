@@ -184,6 +184,11 @@ function QuantityCell({ choice }: { choice: WaterChoice }) {
   )
 }
 
+/** The dispatcher picks the water source in the confirm sheet, so before confirmation there is none to show. */
+function stationFallback(status: AdminOrder['status']): string {
+  return status === 'awaiting_confirmation' ? 'Chosen when you confirm the order' : 'Not recorded'
+}
+
 function OrderPanel({ reference, onChange }: { reference: string; onChange: () => void }) {
   const order = useAdminOrder(reference)
   // The toast after confirming (admin-confirm-order.md, Q4) or deciding a hold (admin-hold-review.md, decision 13).
@@ -257,7 +262,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         <KeyValue label="Customer" value={`${o.customer_name} · ${formatPhone(o.customer_phone)}`} />
         <KeyValue label="Deliver to" value={o.address} />
         {o.landmark && <KeyValue label="Landmark" value={o.landmark} />}
-        <KeyValue label="Station" value={o.station_name || 'Chosen when a rider accepts'} />
+        <KeyValue label="Station" value={o.station_name || stationFallback(o.status)} />
         {/* Only mock amounts are samples; a real price comes from the server (FR-022). */}
         <KeyValue label="Amount" value={o.total_minor_units === null ? 'Quote needed' : `${formatNaira(o.total_minor_units)}${USE_MOCKS ? ' (SAMPLE)' : ''}`} />
         <KeyValue

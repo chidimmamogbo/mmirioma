@@ -43,6 +43,18 @@ describe('admin pages', () => {
     expect(screen.getAllByRole('link', { name: /Service areas/ }).length).toBeGreaterThan(0)
   }, SLOW)
 
+  it('does not say a rider chooses the station before the order is confirmed (#152)', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // No seeded order is unconfirmed: step back one that only the customer app knows (no rider job).
+    const jobs = new Set(read().jobs.map((j) => j.reference))
+    const placed = Object.values(read().customers).flatMap((c) => c.orders).find((o) => !jobs.has(o.reference))!
+    placed.stage = 'awaiting_confirmation'
+    placed.station_name = null
+    renderAt(`/admin/orders?ref=${placed.reference}`)
+    expect(await screen.findByText('Chosen when you confirm the order', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.queryByText(/Chosen when a rider accepts/)).not.toBeInTheDocument()
+  }, SLOW)
+
   it('assign a rider from the orders panel', async () => {
     const user = userEvent.setup()
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
