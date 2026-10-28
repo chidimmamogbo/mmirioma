@@ -203,6 +203,11 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   // No assign or reassign on a held order: the job is stopped and waits for a decision (admin-hold-review.md, R0).
   const canAssign = !notReady && !o.hold && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
   const closed = o.status === 'delivered' || o.status === 'cancelled'
+  // Pin the order in the address before an action that ends or changes it opens: the list refreshes when the action lands, and with no ?ref= the panel would move to another waiting order and lose its toast (#176, #209).
+  const pinThen = (open: () => void) => () => {
+    onChange()
+    open()
+  }
   // After a decision: who decided, when and the note, from the history line (no open hold any more).
   const decided = o.hold ? undefined : [...o.timeline].reverse().find((t) => isHoldDecisionLabel(t.label))
   return (
@@ -225,7 +230,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
             <h2 className="m-0 text-[20px] font-extrabold">{notReady ? 'Not ready to assign' : o.status === 'awaiting_rider' ? 'Assign a rider' : canAssign ? 'Reassign the rider' : 'Order details'}</h2>
             <StatusChip status={o.status} />
           </div>
-          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} onReview={() => setReviewing(true)} />}
+          {o.hold && <HoldBanner hold={o.hold} driverName={o.partner?.name ?? null} onReview={pinThen(() => setReviewing(true))} />}
           {decided && <DecidedCard entry={decided} />}
           <div className="flex items-center gap-3 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] px-3.5 py-3">
             <Illustration name={o.choice?.delivery_type ?? 'drop-hero'} className="w-24 shrink-0" />
@@ -292,20 +297,12 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
       </Card>
       {/* FAIL from an accepted order with no hold: a rejected proof can end in a failed delivery, and nothing else on the page does it (admin-hold-review.md, decision 5). */}
       {!closed && !o.hold && canFail(o) && (
-        <Button variant="line-danger" size="sm" onClick={() => setFailing(true)}>
+        <Button variant="line-danger" size="sm" onClick={pinThen(() => setFailing(true))}>
           Fail this delivery
         </Button>
       )}
       {canCancel(o) && (
-        <Button
-          variant="line-danger"
-          size="sm"
-          onClick={() => {
-            // Pin the order in the address first: the list refreshes when the cancel lands, and the panel would otherwise move to the next waiting order and lose the toast.
-            onChange()
-            setCancelling(true)
-          }}
-        >
+        <Button variant="line-danger" size="sm" onClick={pinThen(() => setCancelling(true))}>
           Cancel this order
         </Button>
       )}

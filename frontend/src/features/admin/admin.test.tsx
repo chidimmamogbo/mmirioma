@@ -262,9 +262,10 @@ describe('admin pages', () => {
     const notifications = read().partners['user-daniel'].notifications.length
     await user.click(within(sheet).getByRole('button', { name: 'Cancel order' }))
     const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
     expect(await within(dialog).findByText('The customer is not charged for this cancellation.')).toBeInTheDocument()
     expect(within(dialog).getByText('SAMPLE')).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('Reason: MmiriOma is unable to deliver')
+    expect(within(dialog).getByLabelText('MmiriOma is unable to deliver')).toBeChecked()
     expect(dialog).toHaveTextContent("The driver's job ends and leaves their list. Nothing notifies the driver.")
     expect(dialog).toHaveTextContent('No cancellation message is sent to the customer yet: tell them yourself.')
     expect(dialog).toHaveTextContent('This also closes the unsafe stop hold.')
@@ -290,6 +291,23 @@ describe('admin pages', () => {
     expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('failed')
   }, SLOW)
 
+  it('asks for the cancel reason with neither chosen, and cancels because the customer asked (#174)', async () => {
+    const { user, sheet } = await openSheet('MO-9UNS4VH2ZC', 'Reported')
+    await user.click(within(sheet).getByRole('button', { name: 'Cancel order' }))
+    const dialog = await screen.findByRole('alertdialog')
+    // Neither reason is preset: no cost sentence and Cancel order off until one is chosen.
+    expect(within(dialog).getByLabelText('The customer asked to cancel')).not.toBeChecked()
+    expect(within(dialog).getByLabelText('MmiriOma is unable to deliver')).not.toBeChecked()
+    expect(within(dialog).queryByText('The customer is not charged for this cancellation.')).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Cancel order' })).toBeDisabled()
+    await user.click(within(dialog).getByLabelText('The customer asked to cancel'))
+    expect(await within(dialog).findByText('The customer is not charged for this cancellation.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
+    expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
+    const job = read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!
+    expect([job.stage, job.ended?.reason_code]).toEqual(['cancelled', 'customer_request'])
+  }, SLOW)
+
   describe('the "Cancel this order" entry on the order panel (#176)', () => {
     async function openOrder(reference: string, heading: string) {
       const user = userEvent.setup()
@@ -305,9 +323,10 @@ describe('admin pages', () => {
       expect(screen.queryByLabelText(/Reason \(saved in the audit log\)/)).toBeNull()
       await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
       const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
       expect(await within(dialog).findByText('The customer is not charged for this cancellation.')).toBeInTheDocument()
       expect(within(dialog).getByText('SAMPLE')).toBeInTheDocument()
-      expect(dialog).toHaveTextContent('Reason: MmiriOma is unable to deliver')
+      expect(within(dialog).getByLabelText('MmiriOma is unable to deliver')).toBeChecked()
       expect(dialog).toHaveTextContent("The driver's job ends and leaves their list. Nothing notifies the driver.")
       expect(dialog).toHaveTextContent('No cancellation message is sent to the customer yet: tell them yourself.')
       expect(dialog).not.toHaveTextContent('This also closes')
@@ -329,6 +348,7 @@ describe('admin pages', () => {
       await screen.findByRole('heading', { name: 'Assign a rider' }, { timeout: WAIT })
       await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
       const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
       await within(dialog).findByText('The customer is not charged for this cancellation.')
       await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
       expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
@@ -342,6 +362,7 @@ describe('admin pages', () => {
       const dialog = await screen.findByRole('alertdialog')
       expect(dialog).toHaveTextContent("No driver is assigned, so no driver's job changes.")
       expect(dialog).not.toHaveTextContent('leaves their list')
+      await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
       await within(dialog).findByText('The customer is not charged for this cancellation.')
       await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
       expect(await screen.findByText('Order cancelled. Tell the customer.', {}, { timeout: WAIT })).toBeInTheDocument()
@@ -352,6 +373,7 @@ describe('admin pages', () => {
       const user = await openOrder('MO-9UNS4VH2ZC', 'Order details')
       await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
       const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
       expect(dialog).toHaveTextContent('This also closes the unsafe stop hold.')
       await within(dialog).findByText('The customer is not charged for this cancellation.')
       await user.click(within(dialog).getByRole('button', { name: 'Cancel order' }))
@@ -365,6 +387,7 @@ describe('admin pages', () => {
       const user = await openOrder('MO-3HT8WQ2KZP', 'Reassign the rider')
       await user.click(screen.getByRole('button', { name: 'Cancel this order' }))
       const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByLabelText('MmiriOma is unable to deliver'))
       await within(dialog).findByText('The customer is not charged for this cancellation.')
       // The driver accepts while the dialog is open: the status the panel loaded is stale.
       read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
@@ -394,6 +417,52 @@ describe('admin pages', () => {
     expect(within(assignedRow).getByText('Chinedu Okafor')).toBeInTheDocument()
     expect(within(assignedRow).queryByText('None yet')).toBeNull()
     expect(within(poolRow).getByText('None yet')).toBeInTheDocument()
+  }, SLOW)
+
+  it('keeps the panel on the failed order when the address names none (#209)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // No ?ref= and nothing waiting: the panel shows the first order of the list. Let that be the Chinedu job, accepted by the driver.
+    for (const job of read().jobs) job.stage = 'delivered'
+    for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
+    read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
+    renderAt('/admin/orders')
+    await user.click(await screen.findByRole('button', { name: 'Fail this delivery' }, { timeout: WAIT }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByLabelText('Unsafe access'))
+    // While the dialog is open another order starts waiting for a rider (a new order, a withdrawn job): the list's first slot now belongs to it.
+    read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage = 'available'
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await screen.findByText('Delivery marked as failed.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('failed')
+    expect(await screen.findByRole('heading', { name: 'Order details' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getAllByText('MO-3HT8WQ2KZP').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Fail this delivery' })).toBeNull()
+  }, SLOW)
+
+  it('keeps the panel on the held order after a hold decision when the address names none (#209)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // No ?ref= and nothing waiting: the panel shows the first order of the list. Let that be the unsafe-stop job.
+    const held = read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!
+    const heldStage = held.stage
+    for (const job of read().jobs) job.stage = 'delivered'
+    for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
+    held.stage = heldStage
+    held.created_at = new Date().toISOString()
+    renderAt('/admin/orders')
+    await user.click(await screen.findByRole('button', { name: 'Review' }, { timeout: WAIT }))
+    await screen.findByText('Reported', {}, { timeout: WAIT })
+    const sheet = await screen.findByRole('dialog')
+    await user.click(within(sheet).getByRole('button', { name: 'Resume delivery' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.type(within(dialog).getByLabelText(/^Safe alternative/), 'Use the side gate on Zik Avenue.')
+    // While the dialog is open another order starts waiting for a rider: the list's first slot now belongs to it.
+    read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage = 'available'
+    await user.click(within(dialog).getByRole('button', { name: 'Resume delivery' }))
+    expect(await screen.findByText('Resumed. The driver can continue.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!.hold).toBeNull()
+    expect(screen.getAllByText(/Use the side gate on Zik Avenue\./).length).toBeGreaterThan(0)
   }, SLOW)
 
   it('offers no "Fail this delivery" on a held order (its sheet has it) or on an order the driver has not accepted', async () => {
