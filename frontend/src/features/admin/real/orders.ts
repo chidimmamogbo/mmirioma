@@ -8,7 +8,15 @@
  * in: the list has no payment status or partner, and a partner's fleet code
  * and plate are never sent.
  */
-import type { AdminOrder, AdminOrderFilter, AdminOrderStatus, AdminPaymentStatus } from '../../../domain/admin'
+import {
+  HOLD_KIND_LABEL,
+  holdConcernLabel,
+  holdDecisionLabel,
+  type AdminOrder,
+  type AdminOrderFilter,
+  type AdminOrderStatus,
+  type AdminPaymentStatus,
+} from '../../../domain/admin'
 import { describeChoice } from '../../../domain/orders'
 import { describeQuantity } from '../../../domain/quantity'
 import { ApiError, apiClient, type ApiClient } from '../../../lib/api/client'
@@ -224,15 +232,39 @@ function assignmentLine(event: AdminOrderEvent): string | null {
 }
 
 /**
+ * The line for a hold entry (admin-hold-review.md, H): "Hold opened: <kind>"
+ * with who, the concern in words and the driver's note; or the decision
+ * ("Proof approved", ...) with the administrator and their note. `null` for a
+ * hold closed by a fail, cancel or withdraw (it has no decision entry; its
+ * status change is already in the timeline) and for anything else.
+ */
+function holdLine(event: AdminOrderEvent): { label: string; detail: string } | null {
+  if (!event.hold) return null
+  const by = event.actor?.name
+  const note = event.note ? `"${event.note}"` : null
+  if (event.kind === 'hold_opened') {
+    const detail = [by, holdConcernLabel(event.hold.category), note].filter(Boolean).join(' · ')
+    return { label: `Hold opened: ${HOLD_KIND_LABEL[event.hold.kind]}`, detail }
+  }
+  if (event.kind === 'hold_decided') {
+    const label = event.hold.decision ? holdDecisionLabel(event.hold.decision) : null
+    return label ? { label, detail: [by, note].filter(Boolean).join(' · ') } : null
+  }
+  return null
+}
+
+/**
  * The order's timeline: "Order placed", then its confirmation (#136, design
- * Q5) and assignment events, oldest first (the history comes newest first).
- * An assignment event's note is its detail; a confirmation line carries its
- * own (category, source, window, price, who, note).
+ * Q5), hold (admin-hold-review.md, H) and assignment events, oldest first (the
+ * history comes newest first). An assignment event's note is its detail; a
+ * confirmation or hold line carries its own (who, concern, note, ...).
  */
 export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
   const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
     const confirmation = confirmationLine(event)
     if (confirmation) return [{ label: confirmation.label, at: event.created_at, detail: confirmation.detail }]
+    const hold = holdLine(event)
+    if (hold) return [{ label: hold.label, at: event.created_at, ...(hold.detail ? { detail: hold.detail } : {}) }]
     const label = assignmentLine(event)
     return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
   })

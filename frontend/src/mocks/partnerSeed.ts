@@ -127,7 +127,7 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       partner_id: IFEANYI_ID,
       accepted_at: minutesAgo(now, 70),
       collected_at: minutesAgo(now, 45),
-      hold: { id: 'hold-proof-1', kind: 'proof_review', since: minutesAgo(now, 12) },
+      hold: { id: 'hold-proof-1', kind: 'proof_review', since: minutesAgo(now, 12), category: 'alternative_proof', driver_note: "Customer's phone is off. The gateman signed." },
     }),
     job({
       reference: 'MO-3SRC8WT5NB',
@@ -139,7 +139,7 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       partner_id: SUNDAY_ID,
       accepted_at: minutesAgo(now, 100),
       collected_at: minutesAgo(now, 75),
-      hold: { id: 'hold-source-1', kind: 'source_review', since: minutesAgo(now, 60) },
+      hold: { id: 'hold-source-1', kind: 'source_review', since: minutesAgo(now, 60), category: 'pickup_safety_concern', driver_note: 'The pump area was flooded and the attendant was not there.' },
     }),
     job({
       reference: 'MO-9UNS4VH2ZC',
@@ -150,7 +150,7 @@ export function seedPartners(now = new Date(), password: string): { users: MockU
       stage: 'accepted',
       partner_id: DANIEL_ID,
       accepted_at: minutesAgo(now, 40),
-      hold: { id: 'hold-unsafe-1', kind: 'unsafe_stop', since: minutesAgo(now, 25) },
+      hold: { id: 'hold-unsafe-1', kind: 'unsafe_stop', since: minutesAgo(now, 25), category: 'unsafe_access', driver_note: 'The road is blocked by a crowd. I cannot reach the house safely.' },
     }),
   ]
 

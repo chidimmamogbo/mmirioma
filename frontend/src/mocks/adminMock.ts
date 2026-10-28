@@ -45,7 +45,7 @@ import type {
   StaffMember,
   StationInput,
 } from '../domain/admin'
-import { RESOLUTION_LABEL } from '../domain/admin'
+import { HOLD_KIND_LABEL, holdConcernLabel, RESOLUTION_LABEL } from '../domain/admin'
 import type { DeliveryType, PaymentMethod, PaymentStatus, Quote, SavedAddress, WaterChoice } from '../domain/orders'
 import { describeChoice } from '../domain/orders'
 import type { PartnerNotification } from '../domain/partner'
@@ -191,6 +191,13 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
     ...(job!.collected_at ? [{ label: 'Water collected', at: job!.collected_at }] : []),
     ...(job!.delivered_at && job!.stage === 'delivered' ? [{ label: 'Delivered, code verified', at: job!.delivered_at }] : []),
   ]
+  const held = job?.hold ?? null
+  // The history's "Hold opened" line (admin-hold-review.md, H): who, the concern in words, the driver's note.
+  if (held) {
+    const by = partnerSummary(s, job!.partner_id)?.name
+    const detail = [by, holdConcernLabel(held.category), `"${held.driver_note}"`].filter(Boolean).join(' · ')
+    timeline.push({ label: `Hold opened: ${HOLD_KIND_LABEL[held.kind]}`, at: held.since, detail })
+  }
   return {
     reference,
     created_at: o?.created_at ?? job!.created_at,
@@ -205,7 +212,7 @@ function orderRow(s: MockState, reference: string): MockAdminOrder | null {
     total_minor_units: priced,
     payment: o?.payment ?? { method: 'pay_on_delivery', status: job!.payment_status },
     status: job ? statusFromJob(job) : statusFromOrder(o!),
-    hold: job?.hold ?? null,
+    hold: held ? { id: held.id, kind: held.kind, since: held.since } : null,
     partner: partnerSummary(s, job?.partner_id ?? null),
     assigned_by: job?.assigned_by ?? null,
     station_name: job?.station.name ?? o?.station_name ?? '',

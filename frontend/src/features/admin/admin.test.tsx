@@ -52,6 +52,24 @@ describe('admin pages', () => {
     expect(read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage).toBe('assigned')
   }, SLOW)
 
+  it('shows a held order with the "On hold" chip, its kind and age, and a banner on the panel with no assign panel (#166, R0)', async () => {
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    renderAt('/admin/orders?ref=MO-6PRF2KQ7XD')
+    const banner = await screen.findByRole('group', { name: 'Order on hold' }, { timeout: WAIT })
+    expect(within(banner).getByText('On hold: Proof review')).toBeInTheDocument()
+    expect(within(banner).getByText(/Driver: Ifeanyi James/)).toBeInTheDocument()
+    expect(within(banner).getByText(/12 min ago/)).toBeInTheDocument()
+    // The held order keeps its status, in its row with the chip and "kind · age".
+    const row = screen.getAllByRole('row').find((r) => within(r).queryByText('MO-6PRF2KQ7XD'))!
+    expect(within(row).getByText('On hold')).toBeInTheDocument()
+    expect(within(row).getByText(/Proof review · 12 min ago/)).toBeInTheDocument()
+    // Nothing to assign while the job waits for a decision, and the history shows how it opened.
+    expect(screen.queryByRole('button', { name: /^Assign / })).toBeNull()
+    expect(screen.queryByText(/^Eligible /)).toBeNull()
+    expect(screen.getByText('Hold opened: Proof review')).toBeInTheDocument()
+    expect(screen.getByText(/Alternative proof · "Customer's phone is off\. The gateman signed\."/)).toBeInTheDocument()
+  }, SLOW)
+
   it('names the assigned rider after the eligible list refreshes without them (#143)', async () => {
     const user = userEvent.setup()
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
