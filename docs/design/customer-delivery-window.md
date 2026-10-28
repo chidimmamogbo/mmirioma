@@ -8,7 +8,7 @@ Requirements: FR-023, FR-037, NFR-012 · Prompt: none (a one-row change on an
 existing screen, written from the screens as they are) · Contract (agreed):
 [orders.md](../api/orders.md#customer-pilot-changes-99), `OrderRead.delivery_window`
 (built in #165, PR #187)
-Designer: @Cloudcrackamara + Claude Code · Reviewed by: pending · Status: draft
+Designer: @Cloudcrackamara + Claude Code · Reviewed by: @nnamdi-security on 2026-10-28 · Status: approved
 
 A customer whose order a dispatcher has confirmed sees the delivery window
 that was agreed with them, in the app and not only in the confirmation SMS.
@@ -99,17 +99,20 @@ No contract change. The window is read; nothing is written.
 8. **Mock mode** keeps working. Mock orders have no window except the seeded
    active order, which gets a window so the row can be seen in the demo. It is
    labelled by the screen's existing sample-data tags, with no new tag.
+9. **Closed orders hide the window** (answers the open question on closed
+   orders, 2026-10-28). A cancelled order's old window could read as a
+   promise, and the timeline already says what happened.
+10. **No window on the home screen's active-order card for now** (2026-10-28).
+    One place to start; it can be added if customers ask.
+11. **The in-app line is the design's own, not the SMS wording** (2026-10-28).
+    The line needs the extra "Not a live arrival time" sentence that the SMS
+    does not carry. Only the day and time format is shared, and it already
+    matches the SMS ("confirmed for Tue 27 Oct 2026, 10:00 am to 12:00 pm").
 
 ## Open questions
 
-1. Is hiding the window once an order is delivered, cancelled or failed
-   (decision 3) what you want, or should a cancelled or failed order keep
-   showing the window it had?
-2. Does the home screen's "active order" card also need the window? This
-   record says no (decision 4); say so at review if not.
-3. The SMS that confirms the order already carries the window. Is the SMS
-   wording the one to copy for the in-app line? It is not in this fork, so this
-   record uses the wording above.
+None. Answered at review (@nnamdi-security, 2026-10-28), and moved into
+"Decisions" above (9 to 11).
 
 ## Changes to the design system
 
