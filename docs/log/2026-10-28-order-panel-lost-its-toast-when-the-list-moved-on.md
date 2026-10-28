@@ -16,8 +16,17 @@
 - **Fix / workaround:** The "Cancel this order" button calls `onChange()`
   (pins `?ref=`) before it opens the dialog. Regression test: "keeps the panel
   on the cancelled order when the address names none" in
-  `features/admin/admin.test.tsx`; it fails without the fix. The same pattern
-  is in the "Fail this delivery" button (`setFailing(true)` without
-  `onChange()`); not changed here, left for its own issue.
-- **Status:** resolved (cancel); open for "Fail this delivery"
-- **Refs:** #176, `frontend/src/features/admin/pages/Orders.tsx`
+  `features/admin/admin.test.tsx`; it fails without the fix.
+- **Follow-up (#209):** the same gap was in "Fail this delivery" and in the
+  hold review sheet's decisions (resume, continue, withdraw, fail, cancel from
+  the sheet). A failed order stays first in the list, so the toast is lost only
+  when another order starts waiting while the dialog is open (a new order, a
+  withdrawn job); the tests simulate that. `OrderPanel` now has one helper,
+  `pinThen`, that pins `?ref=` before the Cancel, Fail and Review-hold
+  actions open. Regression tests: "keeps the panel on the failed order…" and
+  "keeps the panel on the held order after a hold decision…"; both fail
+  without the pin. Checked and left alone: Assign pins before it sends
+  (`onBefore`), and the confirm sheet's `useConfirmOrder` does not await the
+  refresh, so its toast and pin run first.
+- **Status:** resolved
+- **Refs:** #176, #209, `frontend/src/features/admin/pages/Orders.tsx`

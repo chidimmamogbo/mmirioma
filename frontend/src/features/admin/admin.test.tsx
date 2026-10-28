@@ -385,6 +385,52 @@ describe('admin pages', () => {
     }, SLOW)
   })
 
+  it('keeps the panel on the failed order when the address names none (#209)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // No ?ref= and nothing waiting: the panel shows the first order of the list. Let that be the Chinedu job, accepted by the driver.
+    for (const job of read().jobs) job.stage = 'delivered'
+    for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
+    read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage = 'accepted'
+    renderAt('/admin/orders')
+    await user.click(await screen.findByRole('button', { name: 'Fail this delivery' }, { timeout: WAIT }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByLabelText('Unsafe access'))
+    // While the dialog is open another order starts waiting for a rider (a new order, a withdrawn job): the list's first slot now belongs to it.
+    read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage = 'available'
+    await user.click(within(dialog).getByRole('button', { name: 'Fail delivery' }))
+    expect(await screen.findByText('Delivery marked as failed.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-3HT8WQ2KZP')!.stage).toBe('failed')
+    expect(await screen.findByRole('heading', { name: 'Order details' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getAllByText('MO-3HT8WQ2KZP').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Fail this delivery' })).toBeNull()
+  }, SLOW)
+
+  it('keeps the panel on the held order after a hold decision when the address names none (#209)', async () => {
+    const user = userEvent.setup()
+    await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
+    // No ?ref= and nothing waiting: the panel shows the first order of the list. Let that be the unsafe-stop job.
+    const held = read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!
+    const heldStage = held.stage
+    for (const job of read().jobs) job.stage = 'delivered'
+    for (const customer of Object.values(read().customers)) for (const order of customer.orders) order.stage = 'delivered'
+    held.stage = heldStage
+    held.created_at = new Date().toISOString()
+    renderAt('/admin/orders')
+    await user.click(await screen.findByRole('button', { name: 'Review' }, { timeout: WAIT }))
+    await screen.findByText('Reported', {}, { timeout: WAIT })
+    const sheet = await screen.findByRole('dialog')
+    await user.click(within(sheet).getByRole('button', { name: 'Resume delivery' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.type(within(dialog).getByLabelText(/^Safe alternative/), 'Use the side gate on Zik Avenue.')
+    // While the dialog is open another order starts waiting for a rider: the list's first slot now belongs to it.
+    read().jobs.find((j) => j.reference === 'MO-6RTA2KXP9B')!.stage = 'available'
+    await user.click(within(dialog).getByRole('button', { name: 'Resume delivery' }))
+    expect(await screen.findByText('Resumed. The driver can continue.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(read().jobs.find((j) => j.reference === 'MO-9UNS4VH2ZC')!.hold).toBeNull()
+    expect(screen.getAllByText(/Use the side gate on Zik Avenue\./).length).toBeGreaterThan(0)
+  }, SLOW)
+
   it('offers no "Fail this delivery" on a held order (its sheet has it) or on an order the driver has not accepted', async () => {
     await mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD })
     renderAt('/admin/orders?ref=MO-3HT8WQ2KZP')
