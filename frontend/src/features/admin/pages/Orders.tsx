@@ -10,7 +10,6 @@ import { RadioRow } from '../../../components/ui/Choice'
 import { Chip } from '../../../components/ui/Chip'
 import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
-import { TextAreaField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { isHoldDecisionLabel, type AdminOrder, type AdminOrderFilter, type EligibleRider } from '../../../domain/admin'
 import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/orders'
@@ -25,6 +24,8 @@ import { ConfirmCard } from '../confirm/ConfirmOrder'
 import { ConfirmedSummary } from '../confirm/ConfirmedSummary'
 import { DecidedCard, HoldBanner, HoldChip } from '../hold/HoldParts'
 import { HoldSheet } from '../hold/HoldSheet'
+import { CancelDialog } from '../hold/CancelDialog'
+import { canCancel } from '../hold/cancel'
 import { holdSummary, METHOD_LABEL, notReadyToAssign, revealDetail } from '../adminFormat'
 import { AdminFrame, PageHead, PaymentChip, SplitLayout, StatusChip } from '../AdminParts'
 import { useAdminMutation, useAdminOrder, useAdminOrders, useEligibleRiders } from '../queries'
@@ -192,7 +193,6 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
   const notReady = notReadyToAssign(o)
   // No assign or reassign on a held order: the job is stopped and waits for a decision (admin-hold-review.md, R0).
   const canAssign = !notReady && !o.hold && (o.status === 'awaiting_rider' || o.status === 'assigned' || o.status === 'loading')
-  const closed = o.status === 'delivered' || o.status === 'cancelled'
   // After a decision: who decided, when and the note, from the history line (no open hold any more).
   const decided = o.hold ? undefined : [...o.timeline].reverse().find((t) => isHoldDecisionLabel(t.label))
   return (
@@ -280,7 +280,8 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
         </ol>
         <p className="mt-1 mb-0 text-chip text-mute">Placed {formatDateTime(o.created_at)}</p>
       </Card>
-      {!closed && <CancelOrder reference={o.reference} onBefore={onChange} />}
+      {/* Not on the page for Delivered, Cancelled and Disputed: the cancel refuses them (decision 2). */}
+      {canCancel(o) && <CancelOrder order={o} onBefore={onChange} onCancelled={setConfirmed} />}
       {reviewing && o.hold && (
         <HoldSheet
           reference={o.reference}
@@ -362,35 +363,28 @@ function AssignRiders({ order, onBefore }: { order: AdminOrder; onBefore: () => 
   )
 }
 
-function CancelOrder({ reference, onBefore }: { reference: string; onBefore: () => void }) {
+/**
+ * "Cancel this order" (admin-order-cancellation.md, C0): opens the CANCEL
+ * dialog. The panel shows it only for orders the cancel accepts.
+ */
+function CancelOrder({ order, onBefore, onCancelled }: { order: AdminOrder; onBefore: () => void; onCancelled: (toast: string) => void }) {
   const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState('')
-  const cancel = useAdminMutation(() => api.cancelOrder(reference, reason))
-  if (!open) {
-    return (
+  return (
+    <>
       <Button variant="line-danger" size="sm" onClick={() => setOpen(true)}>
         Cancel this order
       </Button>
-    )
-  }
-  return (
-    <Card className="flex flex-col gap-2.5 p-4">
-      <h3 className="m-0 text-[15px] font-extrabold">Cancel {reference.slice(0, 7)}</h3>
-      <p className="m-0 text-caption text-mute">The rider and the customer are told. A paid order becomes a refund to pay as points.</p>
-      <TextAreaField label="Reason (saved in the audit log)" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Customer asked to cancel by phone" />
-      {cancel.isError && <Notice tone="error">{errorMessage(cancel.error)}</Notice>}
-      <div className="flex gap-2">
-        <Button variant="danger" size="sm" block={false} className="px-4" loading={cancel.isPending} onClick={() => {
+      {open && (
+        <CancelDialog
+          order={order}
+          onClose={() => setOpen(false)}
+          onCancelled={(toast) => {
             onBefore()
-            cancel.mutate(undefined)
-          }}>
-          Cancel order
-        </Button>
-        <Button variant="line" size="sm" block={false} className="px-4" onClick={() => setOpen(false)}>
-          Keep it
-        </Button>
-      </div>
-    </Card>
+            onCancelled(toast)
+          }}
+        />
+      )}
+    </>
   )
 }
 

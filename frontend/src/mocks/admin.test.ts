@@ -104,10 +104,10 @@ describe('assigning riders', () => {
 })
 
 describe('cancelling', () => {
-  it('needs a reason, and a paid order becomes a refund due', async () => {
-    await expect(cancelOrder('MO-6RTA2KXP9B', '')).rejects.toMatchObject({ code: 'validation_error' })
+  it('cancels with the one agreed reason, the note optional, and a paid order becomes a refund due', async () => {
+    expect((await cancelOrder('MO-6RTA2KXP9B', null)).status).toBe('cancelled')
     await confirmPayment('MO-3HT8WQ2KZP')
-    const o = await cancelOrder('MO-3HT8WQ2KZP', 'Customer asked by phone')
+    const o = await cancelOrder('MO-3HT8WQ2KZP', 'Driver could not reach the area')
     expect(o.status).toBe('cancelled')
     expect(o.payment.status).toBe('refund_due')
     expect(read().partners[DEMO_RIDER_ID].notifications[0]).toMatchObject({ kind: 'reassigned', title: 'Order cancelled' })

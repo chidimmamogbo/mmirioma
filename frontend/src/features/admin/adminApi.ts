@@ -15,6 +15,8 @@ import { notConnected } from '../../lib/api/notConnected'
 import * as cashMock from '../../mocks/adminCashMock'
 import * as mock from '../../mocks/adminMock'
 import * as areas from './real/areas'
+import * as cancel from './real/cancel'
+import type { CancellationOutcome, CancelRequest } from './real/cancel'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
 import type { HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
@@ -50,7 +52,11 @@ export const resumeUnsafe = (reference: string, request: HoldDecisionRequest): P
 export const withdrawJob = (reference: string, request: WithdrawRequest): Promise<void> =>
   USE_MOCKS ? mock.withdrawJob(reference, request) : holds.withdrawJob(reference, request)
 // Cancelling the whole order is a transition (#17), not the dispatch withdraw.
-export const cancelOrder = api('Orders', mock.cancelOrder)
+// Cancel (#176): the agreed cancel, `mmirioma_unable` only (admin-order-cancellation.md).
+export const getCancellationOutcome = (reference: string): Promise<CancellationOutcome> =>
+  USE_MOCKS ? mock.getCancellationOutcome(reference) : cancel.getCancellationOutcome(reference)
+export const cancelOrder = (reference: string, request: CancelRequest): Promise<void> =>
+  USE_MOCKS ? mock.cancelOrder(reference, request.note).then(() => undefined) : cancel.cancelOrder(reference, request)
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)
 export const quoteForAdmin = api('Prices', mock.quoteForAdmin)
 

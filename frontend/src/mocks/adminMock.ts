@@ -655,11 +655,21 @@ export async function withdrawJob(reference: string, request: WithdrawRequest): 
   })
 }
 
-export async function cancelOrder(reference: string, reason: string): Promise<AdminOrder> {
+/** The server's sentence for `mmirioma_unable` (deliveries.md; FR-044: no charge). The screen labels it SAMPLE. */
+export async function getCancellationOutcome(reference: string): Promise<{ reason_code: 'mmirioma_unable'; customer_charge_minor_units: number; message: string }> {
+  await delay(null, 150)
+  const s = read()
+  requireAdmin(s)
+  if (!orderRow(s, reference)) throw mockError(404, 'order_not_found', 'Order not found')
+  return { reason_code: 'mmirioma_unable', customer_charge_minor_units: 0, message: 'The customer is not charged for this cancellation.' }
+}
+
+/** Cancel with the one agreed reason (#176); the optional note goes to the audit line. */
+export async function cancelOrder(reference: string, note: string | null): Promise<AdminOrder> {
   await delay(null, 300)
   return mutate((s) => {
     requireAdmin(s)
-    cancelJob(s, reference, requireReason(reason))
+    cancelJob(s, reference, requireReason(['MmiriOma is unable to deliver', note].filter(Boolean).join(' · ')))
     return orderRow(s, reference)!
   })
 }
