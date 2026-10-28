@@ -111,6 +111,8 @@ Agreed with the lane owner (@Cloudcrackamara, 2026-10-26) before writing:
 **Status: agreed** (2026-10-28, @nnamdi-security, technical lead; PR #146,
 #43).
 
+Built in #45 ([admin-customers.md](../features/admin-customers.md)).
+
 ### Objects
 
 `AdminCustomerSummary`, one row of the customer list:

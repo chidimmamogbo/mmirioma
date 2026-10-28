@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from app.api.v1 import health
 from app.modules.audit import router as audit_log
 from app.modules.auth import router as auth
+from app.modules.customers import admin_directory_router as admin_customers
 from app.modules.customers import admin_router as admin_support
 from app.modules.customers import router as customers
 from app.modules.deliveries import admin_router as admin_orders
@@ -38,5 +39,6 @@ api_router.include_router(customers.router)
 # Admin operations (docs/api/admin-operations.md, #102).
 api_router.include_router(reporting.router)
 api_router.include_router(admin_support.router)
+api_router.include_router(admin_customers.router)
 api_router.include_router(audit_log.router)
 api_router.include_router(admin_notifications.router)
