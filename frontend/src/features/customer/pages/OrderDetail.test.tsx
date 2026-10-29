@@ -73,3 +73,35 @@ describe('the delivery window on the order detail (#188)', () => {
     expect(await screen.findByText('Delivery window', {}, { timeout: WAIT })).toBeInTheDocument()
   })
 })
+
+describe('the rating card on the order detail (#249)', () => {
+  it('asks a delivered, unrated order for a rating and links to the rating screen', async () => {
+    const order = orderOf('MO-7KQ2M9XH4T')
+    order.stage = 'delivered'
+    order.feedback = null
+    renderOrder('MO-7KQ2M9XH4T')
+    expect(await screen.findByText('How did we do?', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByText('Tell us how the delivery went.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Rate this delivery' })).toHaveAttribute('href', '/orders/MO-7KQ2M9XH4T/delivered')
+    expect(screen.queryByText('Your rating')).not.toBeInTheDocument()
+  })
+
+  it('shows the saved stars and a way to change them for a rated order', async () => {
+    const order = orderOf('MO-7KQ2M9XH4T')
+    order.stage = 'delivered'
+    order.feedback = { rating: 4, poured_by_partner: true }
+    renderOrder('MO-7KQ2M9XH4T')
+    expect(await screen.findByText('Your rating', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Rated 4 out of 5' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change your rating' })).toHaveAttribute('href', '/orders/MO-7KQ2M9XH4T/delivered')
+    expect(screen.queryByRole('link', { name: 'Rate this delivery' })).not.toBeInTheDocument()
+  })
+
+  it.each(['request_received', 'awaiting_confirmation', 'waiting_rider', 'rider_assigned', 'picked_up', 'on_the_way', 'cancelled', 'failed', 'under_review'] as const)('shows no card while the order is %s', async (stage) => {
+    orderOf('MO-7KQ2M9XH4T').stage = stage
+    renderOrder('MO-7KQ2M9XH4T')
+    expect(await screen.findByText('Deliver to', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.queryByText('How did we do?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Your rating')).not.toBeInTheDocument()
+  })
+})

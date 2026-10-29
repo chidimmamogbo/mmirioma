@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
-import { DownloadIcon, RefreshIcon } from '../../../components/icons/icons'
+import { DownloadIcon, RefreshIcon, StarIcon } from '../../../components/icons/icons'
 import { BackLink, Footer, MobileShell, ScrollArea, TopBar } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Button, ButtonLink } from '../../../components/ui/Button'
@@ -24,6 +24,43 @@ function paymentText(o: CustomerOrder): string {
   if (o.payment.status === null) return method
   if (o.payment.status === 'paid') return `${method}, confirmed`
   return `${method}, ${PAYMENT_LABEL[o.payment.status].toLowerCase()}`
+}
+
+/**
+ * The rating card of a delivered order (#249, G2 approved by the technical lead): "Rate this delivery" when the
+ * customer has not rated, else the saved stars (read-only) and "Change your rating". Both go to the rating screen,
+ * which a customer who left the app after delivery cannot otherwise reach.
+ */
+function RatingCard({ order }: { order: CustomerOrder }) {
+  const to = `/orders/${order.reference}/delivered`
+  const rating = order.feedback?.rating ?? null
+  return (
+    <Card pad className="rise-2 flex flex-col gap-2.5">
+      {rating === null ? (
+        <>
+          <h2 className="m-0 text-section font-extrabold">How did we do?</h2>
+          <p className="m-0 text-sub text-slate">Tell us how the delivery went.</p>
+          <ButtonLink to={to} variant="line" size="sm" block>
+            Rate this delivery
+          </ButtonLink>
+        </>
+      ) : (
+        <>
+          <h2 className="m-0 text-section font-extrabold">Your rating</h2>
+          <div role="img" aria-label={`Rated ${rating} out of 5`} className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <span key={n} aria-hidden="true" style={{ color: n <= rating ? '#F2B33D' : '#C9D4E1' }}>
+                <StarIcon size={24} filled />
+              </span>
+            ))}
+          </div>
+          <ButtonLink to={to} variant="line" size="sm" block>
+            Change your rating
+          </ButtonLink>
+        </>
+      )}
+    </Card>
+  )
 }
 
 /** Order details with timeline and reorder (`c-order-detail`). */
@@ -118,6 +155,8 @@ export function OrderDetail() {
                 })}
               </ol>
             </Card>
+
+            {o.stage === 'delivered' && <RatingCard order={o} />}
 
             <Card pad className="rise-3">
               {/* The dispatcher's agreed window, not an arrival time; no row and no placeholder without one (customer-delivery-window.md). */}
