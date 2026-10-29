@@ -251,9 +251,35 @@ describe('getOrder (real)', () => {
       event('accepted', 'confirmed', 'reassigned'),
       event('assigned', 'confirmed', 'reassigned'),
       event('assigned', 'accepted', null),
-      event('departed', 'collected', null, false),
+      event('awaiting_confirmation', 'confirmed', null, false),
     ]).map((t) => t.label)
     expect(lines).toEqual(['Order placed', 'Accepted by Ada', 'Offer to Ada withdrawn', 'Job withdrawn from Ada'])
+  })
+
+  it('shows a delivered order’s driver steps after Accepted, in order, with their times (#242)', () => {
+    const driver = { id: 'd1', role: 'driver' as const, name: 'Ada' }
+    const step = (from: string, to: string, at: string) =>
+      ({ id: to, kind: 'status_change', from_status: from, to_status: to, actor: driver, reason_code: null, note: null, created_at: at, assignment: null, hold: null, confirmation: null, cash: null }) as AdminOrderEvent
+    // Newest first, as the server sends them.
+    const lines = timelineFromHistory('2026-10-20T07:00:00Z', [
+      step('unloading', 'delivered', '2026-10-20T11:30:00Z'),
+      step('arrived', 'unloading', '2026-10-20T11:10:00Z'),
+      step('en_route', 'arrived', '2026-10-20T11:00:00Z'),
+      step('collected', 'en_route', '2026-10-20T10:20:00Z'),
+      step('departed', 'collected', '2026-10-20T10:00:00Z'),
+      step('accepted', 'departed', '2026-10-20T09:30:00Z'),
+      { ...step('assigned', 'accepted', '2026-10-20T09:00:00Z'), assignment: { id: 'a', driver, decline_reason: null } },
+    ])
+    expect(lines.map((t) => [t.label, t.at])).toEqual([
+      ['Order placed', '2026-10-20T07:00:00Z'],
+      ['Accepted by Ada', '2026-10-20T09:00:00Z'],
+      ['Departed', '2026-10-20T09:30:00Z'],
+      ['Collected', '2026-10-20T10:00:00Z'],
+      ['En route', '2026-10-20T10:20:00Z'],
+      ['Arrived', '2026-10-20T11:00:00Z'],
+      ['Unloading', '2026-10-20T11:10:00Z'],
+      ['Delivered', '2026-10-20T11:30:00Z'],
+    ])
   })
 
   it('words the hold entries: "Hold opened" with who, the concern and the driver’s note, and the decision with who and the note (H)', () => {

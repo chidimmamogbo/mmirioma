@@ -380,6 +380,28 @@ and `partially_paid` shown as "Part paid" (the approved cash design,
 docs/design/cash-remittance.md); for the others the order shows no payment chip, and the cash pages show them
 in full (#19).
 
+### Admin order timeline
+
+Source: `timelineFromHistory` in `frontend/src/features/admin/real/orders.ts`
+(#242). The admin order panel's timeline is "Order placed" plus one line per
+event of `GET /admin/orders/{reference}/history`, oldest first (the history
+comes newest first), each with the event's `created_at`. The driver's
+steps are the status changes into these statuses:
+
+| `to_status` | Timeline line |
+| --- | --- |
+| `departed` | Departed |
+| `collected` | Collected |
+| `en_route` | En route |
+| `arrived` | Arrived |
+| `unloading` | Unloading |
+| `delivered` | Delivered |
+
+They follow "Accepted by <driver>" (assignment events, deliveries.md
+"AdminOrderEvent"). Other status changes (`confirmed`, `assigned`) add
+nothing of their own; a failed or cancelled order ends with "Delivery failed"
+or "Cancelled".
+
 ## Price list (admin Pricing)
 
 The Pricing screen (#173, design `docs/design/admin-pricing.md`) works in
