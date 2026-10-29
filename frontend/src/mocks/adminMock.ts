@@ -329,8 +329,13 @@ export async function getDashboard(): Promise<AdminDashboard> {
 
 /** Active deliveries for the illustrative map (decision 14: positions are drawn by area, not GPS). */
 export interface LiveMapData {
-  deliveries: { reference: string; code: string; vehicle: 'keke' | 'tanker'; status: AdminOrderStatus; station_area: string; customer_area: string; partner: string }[]
-  stations: { id: string; name: string; area: string; open: boolean }[]
+  /**
+   * `code` (the driver's plate), `vehicle` (the order's delivery type), `station_area` and
+   * `customer_area` are `null` when the server has none: the map draws a neutral marker and
+   * no label rather than inventing one (admin-operations.md, live map).
+   */
+  deliveries: { reference: string; code: string | null; vehicle: 'keke' | 'tanker' | null; status: AdminOrderStatus; station_area: string | null; customer_area: string | null; partner: string }[]
+  stations: { id: string; name: string; area: string | null; open: boolean }[]
 }
 
 export async function getLiveMap(): Promise<LiveMapData> {

@@ -39,7 +39,8 @@ export function Settings() {
       {settings.isError && <ErrorBlock error={settings.error} onRetry={() => settings.refetch()} />}
       {settings.data && (
         <div className="rise-2 grid gap-4 xl:grid-cols-2">
-          <OperationsForm key={JSON.stringify(settings.data.settings)} initial={settings.data.settings} />
+          {/* The real API has no save endpoint (admin-operations.md, decision 4): read only, with nothing the backend does not send. */}
+          {USE_MOCKS ? <OperationsForm key={JSON.stringify(settings.data.settings)} initial={settings.data.settings} /> : <OperationsReadOnly settings={settings.data.settings} />}
           <Panel title="Staff">
             <DataTable<StaffMember>
               caption="Staff accounts"
@@ -56,7 +57,7 @@ export function Settings() {
                 },
                 { header: 'Role', cell: (m) => m.role },
                 { header: 'Phone', cell: (m) => formatPhone(m.phone) },
-                { header: 'Last active', cell: (m) => timeAgo(m.last_active) },
+                { header: USE_MOCKS ? 'Last active' : 'Last sign-in', cell: (m) => (m.last_active ? timeAgo(m.last_active) : 'Never signed in') },
               ]}
             />
             <p className="m-0 text-caption text-mute">Staff accounts are created by the team's command-line tool (auth.md), not from this page.</p>
@@ -112,6 +113,22 @@ export function Settings() {
         </div>
       </Panel>
     </AdminFrame>
+  )
+}
+
+/**
+ * The operations settings as the real API sends them (`GET /admin/settings`):
+ * the support number and the delivery code limit, read only. Support hours and
+ * safe load have no source, so they are not shown (no bracket placeholders);
+ * changing a value is a configuration change by the team.
+ */
+function OperationsReadOnly({ settings }: { settings: AdminSettings }) {
+  return (
+    <Panel title="Operations">
+      <KeyValue label="Support phone" value={settings.support_phone ? formatPhone(settings.support_phone) : 'Not set'} />
+      <KeyValue label="Delivery code time limit" value={settings.code_time_limit ?? 'Not set'} />
+      <p className="m-0 text-caption text-mute">These come from the server's settings (FR-055) and are changed by the team, not from this page.</p>
+    </Panel>
   )
 }
 
@@ -262,7 +279,7 @@ export function LiveMapPage() {
             empty="Nothing in progress."
             columns={[
               { header: 'Order', cell: (o) => <Link to={`/admin/orders?ref=${o.reference}`} className="font-extrabold text-primary-dark no-underline hover:underline">{o.reference}</Link> },
-              { header: 'Rider', cell: (o) => (o.partner ? `${o.partner.name} · ${o.partner.code}` : 'None') },
+              { header: 'Rider', cell: (o) => (o.partner ? (o.partner.code ? `${o.partner.name} · ${o.partner.code}` : o.partner.name) : 'None') },
               { header: 'From', cell: (o) => o.station_name },
               { header: 'To', cell: (o) => o.area },
               { header: 'Status', cell: (o) => <StatusChip status={o.status} /> },

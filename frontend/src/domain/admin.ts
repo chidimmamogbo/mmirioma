@@ -491,8 +491,10 @@ export interface AdminDashboard {
   riders_online: { total: number; keke: number; tanker: number }
   stations: { open: number; closed: number }
   revenue_today_minor_units: number
-  payouts_due: { amount_minor_units: number; riders: number }
-  payments_to_verify: number
+  /** Not sent by the backend (payouts are out of the MVP): the card is hidden when absent, never shown as zero. */
+  payouts_due?: { amount_minor_units: number; riders: number }
+  /** Not sent by the backend (transfers are not verified in the pilot): the card is hidden when absent. */
+  payments_to_verify?: number
   by_type: { keke: number; tanker: number }
   /** True when the numbers come from simulated records (`is_simulated`), so the screen shows its SAMPLE tag. */
   is_sample: boolean
@@ -520,7 +522,8 @@ export interface StaffMember {
   /** The backend has one staff role, `Admin`; the mock keeps its three. */
   role: 'Admin' | 'Super admin' | 'Dispatcher' | 'Support'
   phone: string
-  last_active: string
+  /** The newest sign-in; `null` if the staff member never signed in. The backend has no "last active". */
+  last_active: string | null
 }
 
 export interface AdminSettings {

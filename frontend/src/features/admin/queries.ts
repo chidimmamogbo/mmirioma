@@ -61,7 +61,9 @@ export const useCustomer = (id: string | null) => useQuery({ queryKey: adminKeys
 export const useRiders = (filter: api.RiderFilter, query: string) =>
   useQuery({ queryKey: adminKeys.riders(filter, query), queryFn: () => api.listRiders(filter, query), placeholderData: keepPreviousData })
 export const useRider = (id: string | null) => useQuery({ queryKey: adminKeys.rider(id ?? ''), queryFn: () => api.getRider(id!), enabled: Boolean(id) })
-export const useStations = (query: string) => useQuery({ queryKey: adminKeys.stations(query), queryFn: () => api.listStations(query), placeholderData: keepPreviousData })
+/** `enabled` is false in real-API mode, where there is no stations endpoint (the Dashboard reads the live map's sources instead, #217). */
+export const useStations = (query: string, enabled = true) =>
+  useQuery({ queryKey: adminKeys.stations(query), queryFn: () => api.listStations(query), placeholderData: keepPreviousData, enabled })
 export const useAreas = () => useQuery({ queryKey: adminKeys.areas, queryFn: api.listAreas })
 /** The mock-era flat price table (mock only: Service areas' sample fee, Loyalty points). */
 export const useSamplePriceTables = () => useQuery({ queryKey: adminKeys.prices, queryFn: api.listSamplePriceTables })

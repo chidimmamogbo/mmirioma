@@ -19,11 +19,15 @@ const AREA_AT: Record<string, { x: number; y: number }> = {
   Uwani: { x: 8, y: 40 },
 }
 
-function at(area: string, i: number) {
-  return AREA_AT[area] ?? { x: 20 + ((i * 17) % 60), y: 30 + ((i * 23) % 40) }
+/** A map position for an area; an unknown or missing area gets a spread-out spot, never a guessed name. */
+function at(area: string | null, i: number) {
+  return (area ? AREA_AT[area] : undefined) ?? { x: 20 + ((i * 17) % 60), y: 30 + ((i * 23) % 40) }
 }
 
 const VEHICLE_COLOR = { keke: '#1570D8', tanker: '#7C3AED' } as const
+/** A delivery whose order has no delivery type gets a neutral marker (admin-operations.md, live map). */
+const NEUTRAL_COLOR = '#64748B'
+const vehicleColor = (vehicle: 'keke' | 'tanker' | null) => (vehicle ? VEHICLE_COLOR[vehicle] : NEUTRAL_COLOR)
 const STATUS_WORD: Record<string, { text: string; color: string }> = {
   assigned: { text: 'Assigned', color: '#1570D8' },
   loading: { text: 'Loading', color: '#6D28D9' },
@@ -80,7 +84,7 @@ export function AdminMap({ data, height = 330, fullMapLink = true }: { data: Liv
               key={d.reference}
               d={`M${a.x} ${a.y} L ${b.x} ${a.y} L ${b.x} ${b.y}`}
               fill="none"
-              stroke={VEHICLE_COLOR[d.vehicle]}
+              stroke={vehicleColor(d.vehicle)}
               strokeWidth={4}
               strokeLinecap="round"
               strokeDasharray="2 1"
@@ -123,17 +127,17 @@ export function AdminMap({ data, height = 330, fullMapLink = true }: { data: Liv
             </svg>
             <div className="absolute flex -translate-y-1/2 items-center gap-1.5" style={{ left: `calc(${rider.x}% - 16px)`, top: `${rider.y}%` }}>
               <span className="relative size-8">
-                {d.status !== 'assigned' && <span className="animate-ping absolute inset-0 rounded-full" style={{ background: d.vehicle === 'keke' ? 'rgba(21,112,216,.4)' : 'rgba(124,58,237,.4)' }} />}
+                {d.status !== 'assigned' && <span className="animate-ping absolute inset-0 rounded-full" style={{ background: d.vehicle === 'keke' ? 'rgba(21,112,216,.4)' : d.vehicle === 'tanker' ? 'rgba(124,58,237,.4)' : 'rgba(100,116,139,.4)' }} />}
                 <span
                   className="relative box-border flex size-8 items-center justify-center rounded-full border-[3px] border-solid border-white text-[10px] font-extrabold text-white"
-                  style={{ background: VEHICLE_COLOR[d.vehicle] }}
+                  style={{ background: vehicleColor(d.vehicle) }}
                   aria-hidden="true"
                 >
-                  {d.vehicle === 'keke' ? 'K' : 'T'}
+                  {d.vehicle === 'keke' ? 'K' : d.vehicle === 'tanker' ? 'T' : ''}
                 </span>
               </span>
               <span className="rounded-[9px] bg-white px-2 py-1 text-[11.5px] leading-[1.25] font-extrabold shadow-[0_4px_10px_rgba(10,37,64,.15)]">
-                {d.code}
+                {d.code ?? d.partner}
                 <br />
                 <span className="font-bold" style={{ color: word.color }}>
                   {word.text}
