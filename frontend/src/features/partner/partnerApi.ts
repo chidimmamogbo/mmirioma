@@ -20,12 +20,15 @@ import type {
 } from '../../domain/partner'
 import type { Session } from '../../lib/api/auth'
 import { USE_MOCKS } from '../../lib/api/mode'
+import { lazyMock } from '../../lib/api/lazyMock'
 import { notConnected } from '../../lib/api/notConnected'
-import * as cashMock from '../../mocks/partnerCashMock'
-import * as mock from '../../mocks/partnerMock'
 import * as real from './real/account'
 import * as realCash from './real/cash'
 import * as realJobs from './real/jobs'
+
+/** The mock modules load on first use, and not at all in a build without mocks (#236). */
+const cashMock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/partnerCashMock')))
+const mock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/partnerMock')))
 
 type Pickup = { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null }
 

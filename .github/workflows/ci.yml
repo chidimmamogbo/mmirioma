@@ -99,3 +99,7 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE_URL: http://localhost:8000
+
+      # The build above has no VITE_USE_MOCKS, so it must hold no demo password or demo phone numbers (#236).
+      - name: Check the build has no demo values
+        run: npm run check:demo-values

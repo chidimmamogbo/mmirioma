@@ -1,11 +1,22 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/  ·  test options: https://vitest.dev/config/
-export default defineConfig({
+/**
+ * Whether this build serves mocks (`src/lib/api/mode.ts`): `VITE_USE_MOCKS=true` forces them, `false` forces the API, and
+ * unset means mocks in the dev server and tests, the real API in a production build.
+ */
+function serveMocks(command: 'build' | 'serve', mode: string): boolean {
+  const flag = loadEnv(mode, process.cwd(), 'VITE_').VITE_USE_MOCKS
+  return flag === 'true' || (command === 'serve' && flag !== 'false')
+}
+
+export default defineConfig(({ command, mode }) => ({
+  // A literal in every module, so a build without mocks drops the mock layer and its demo values (#236, `lazyMock.ts`).
+  define: { __USE_MOCKS__: JSON.stringify(serveMocks(command, mode)) },
   plugins: [
     react(),
     tailwindcss(),
@@ -37,4 +48,4 @@ export default defineConfig({
     testTimeout: 15_000,
     setupFiles: ['./src/test/setup.ts'],
   },
-})
+}))

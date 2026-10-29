@@ -11,3 +11,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** Build-time: true when the build serves mocks (`vite.config.ts`). A literal, so a build without mocks drops `src/mocks/`. */
+declare const __USE_MOCKS__: boolean

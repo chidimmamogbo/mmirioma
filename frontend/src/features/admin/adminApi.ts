@@ -13,10 +13,8 @@
 import type { AdminOrderFilter, ApprovalVehicleInput, NewAddressInput, PriceListDraft, ReportRange, ResolutionAction, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
+import { lazyMock } from '../../lib/api/lazyMock'
 import { notConnected } from '../../lib/api/notConnected'
-import * as cashMock from '../../mocks/adminCashMock'
-import * as mock from '../../mocks/adminMock'
-import * as priceMock from '../../mocks/priceListMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
@@ -29,7 +27,12 @@ import * as directory from './real/directory'
 import * as reports from './real/reports'
 import * as dispatch from './real/ordersDispatch'
 
-import type { ApprovalAction, RiderFilter } from '../../mocks/adminMock'
+import type { ApprovalAction, OrderList, RiderFilter } from '../../mocks/adminMock'
+
+/** The mock modules load on first use, and not at all in a build without mocks (#236). */
+const cashMock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/adminCashMock')))
+const mock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/adminMock')))
+const priceMock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/priceListMock')))
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter, RiderList } from '../../mocks/adminMock'
 
@@ -44,7 +47,7 @@ export const getDashboard = () => (USE_MOCKS ? mock.getDashboard() : operations.
 export const getLiveMap = () => (USE_MOCKS ? mock.getLiveMap() : operations.getLiveMap())
 export const listActivity = (limit?: number) => (USE_MOCKS ? mock.listActivity(limit) : operations.listActivity(limit))
 
-export const listOrders = (filter?: AdminOrderFilter, query?: string): Promise<mock.OrderList> =>
+export const listOrders = (filter?: AdminOrderFilter, query?: string): Promise<OrderList> =>
   USE_MOCKS ? mock.listOrders(filter, query) : orders.listOrders(filter, query)
 export const getOrder = (reference: string) => (USE_MOCKS ? mock.getOrder(reference) : orders.getOrder(reference))
 export const listEligibleRiders = (reference: string) => (USE_MOCKS ? mock.listEligibleRiders(reference) : dispatch.listEligibleRiders(reference))

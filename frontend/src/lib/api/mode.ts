@@ -7,9 +7,10 @@
  *   yet), the real API in a production build, so a deployed build never shows
  *   sample data by accident.
  *
+ * The rule itself lives in `vite.config.ts`, which sets the build-time constant `__USE_MOCKS__`. A literal there lets a build
+ * without mocks drop `src/mocks/` and its demo values (#236, `lazyMock.ts`).
+ *
  * Every typed API function checks this once, so switching a feature to the
  * real API is a change in that one function, not in the screens.
  */
-export const USE_MOCKS: boolean =
-  import.meta.env.VITE_USE_MOCKS === 'true' ||
-  (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS !== 'false')
+export const USE_MOCKS: boolean = __USE_MOCKS__
