@@ -138,7 +138,9 @@ arrived or is unloading, and "going to the station" for the rest. With the
 arrival step (U1, U2) the app can tell the steps apart, so the line names the
 real one, and the "Back" arrow returns to the screen of that step.
 
-The line and the Back target follow the job's `order_status`:
+The line and the Back target follow the step of the job (the first column is
+the backend `order_status`; the client tells the steps apart as described below
+the table):
 
 | `order_status` | Job line on the report card | Back goes to |
 | --- | --- | --- |
@@ -149,9 +151,13 @@ The line and the Back target follow the job's `order_status`:
 
 - **Wording to approve (new):** "arrived at the customer" and "unloading". The
   other two phrases are the app's current ones and do not change.
-- No new endpoint or field: `order_status` is on the job already. The client
-  now keeps it apart from the coarse job stage, which maps `collected`,
-  `en_route`, `arrived` and `unloading` all to `collected`.
+- No new endpoint or field. The app's `PartnerJob` has no `order_status` (only
+  the backend's `DriverJobSummary` does), and its stage `collected` covers
+  `collected`, `en_route`, `arrived` and `unloading`. The steps are told apart
+  with the fields added in #263: stage `accepted` is before loading; for stage
+  `collected`, no `arrived_at` means on the way to the customer,
+  `arrived_at` with `can_start_unloading` means arrived (U2), and `arrived_at`
+  without it means unloading.
 - The report card shows for an active job only; a finished job has no card (the
   screen then reads "Support", as today).
 - "Customer not reachable" on this screen after arrival opens U3 (decision 2);
