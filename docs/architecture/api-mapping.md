@@ -426,6 +426,61 @@ BR-09), so a database that holds only demo accounts shows zeros. The screens
 send no `simulated` parameter and have no toggle (a toggle is new UI). With
 `VITE_USE_MOCKS=true` they keep their SAMPLE tags (**#217**).
 
+## Admin support, audit log and notifications
+
+Backend support requests, audit log and admin notifications
+([admin-operations.md](../api/admin-operations.md), agreed, built in #102) to
+the admin design types. The link issue is #219; the rows follow the
+contract's "Mapping to the design types" table. The two screen decisions and
+the audit wording marked **#219** are proposed in this PR and are agreed when a
+reviewer who is not the author approves it (the Support screen changes are
+also a G2 request on #219).
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `GET /admin/support-requests` (`q`, `limit`) | `listIssues(query)` | `q` = the search text; no `status` filter (open first, newest first, as the server sends). The adapter reads the first 100. `id` and `number` = `reference`; `type`: `late` and `wrong_quantity` as they are, any other type `other`; `title` from the type (**#219**): `late` "Delivery was late", `wrong_quantity` "Wrong quantity", the rest "Problem reported"; `message`; `reference` = `order_reference`; `reported_by` "customer" and `reporter_name` = `customer.name`; `at` = `created_at`; `urgent` is always `false` (no source); `status` as it is |
+| `resolution` | `AdminIssue.resolution` | `reason` = `note`, `by` = `resolved_by.name`, `at` = `resolved_at`. There is no `action` and no `points` in the backend: `action` is absent and the screen shows the note only |
+| `GET /admin/support-requests/{reference}` `contacts` | `getIssuePeople(id)` | `id` is the `reference`. `role`: `customer` "Customer"; `driver` "Driver" (the contract says "Rider" or "Driver" by delivery type, which the contacts do not carry). `phone` as it is |
+| `POST /admin/support-requests/{reference}/resolve` | `resolveIssue` | Body `{ note }` from the screen's note; the screen sends no action or points. 200 returns the resolved request, mapped as above. 409 `support_request_already_resolved` and 422 `validation_error` (note 5 to 500 characters) show through the error text |
+| `GET /admin/audit-logs` (`limit`) | `listAudit(limit)` | `actor` = `actor.name`; `action` = the words below, an unknown code shown as it is; `reason` is `null` (reasons stay on the business record). Newest first, as the server sends |
+| `GET /admin/notifications` | `listAdminNotifications` | `at` = `created_at`; `title` and `body` as sent; `read` = `read_at !== null`; `link`: a notification with an order `reference` opens `/admin/orders?ref=<reference>`; `partner_pending` opens `/admin/riders`; `support_request` without a reference opens `/admin/support`; any other opens `/admin/notifications` |
+| `POST /admin/notifications/read` | `markAdminNotificationsRead` | No body: every unread message of this admin; 204 |
+
+The Support screen shows what the contract has (**#219**, G2 on the issue):
+one required note, no resolution picker, no points, and no "urgent" count in
+the subtitle in real mode. Confirming without the code, withdrawing and
+cancelling are done from the order's page and the hold review, which are
+already linked.
+
+**Audit log wording (#219).** The action codes the backend writes, in words
+for the Settings page (the actor and the time are in their own columns):
+
+| Code | Words |
+| --- | --- |
+| `account_name_corrected` | Corrected an account name |
+| `cash_remittance_recorded` | Recorded a cash handover |
+| `customer_address_added` | Added a customer address |
+| `customer_anonymized` | Anonymized a customer account |
+| `deletion_requested` | Deletion requested |
+| `driver_approved`, `driver_suspended` | Approved a driver, Suspended a driver |
+| `driver_activated`, `driver_deactivated` | Activated a driver, Deactivated a driver |
+| `driver_went_online`, `driver_went_offline` | A driver went online, A driver went offline |
+| `order_confirmed` | Confirmed an order |
+| `partner_registered`, `partner_anonymized` | A partner signed up, Anonymized a partner account |
+| `password_changed` | Changed a password |
+| `price_list_saved` | Saved a price list |
+| `proof_override_approved`, `proof_override_rejected` | Approved alternative proof, Rejected alternative proof |
+| `retention_review_applied` | Applied a retention review |
+| `service_zone_created`, `service_zone_updated` | Added a service area, Changed a service area |
+| `source_review_continued` | Let a pickup continue after a source review |
+| `support_request_resolved` | Resolved a support request |
+| `unsafe_stop_resumed` | Resumed a job after an unsafe stop |
+| `water_source_added`, `water_source_kind_set`, `water_source_activated` | Added a water source, Set a water source's kind, Activated a water source |
+
+Codes built from a status (`deletion_request_<status>`,
+`water_source_<status>`) and any code added later show as the code itself,
+until a row is added here.
+
 ## Open questions
 
 | # | Question | Settled in |
