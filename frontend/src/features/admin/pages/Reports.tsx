@@ -16,24 +16,27 @@ const RANGES: { value: ReportRange; label: string }[] = [
   { value: '30d', label: 'Last 30 days' },
 ]
 
+/** True when the backend sends what riders earned; the real API does not (partner pay is out of the MVP), so the column is hidden. */
+const hasEarnings = (r: AdminReport) => r.by_rider.some((x) => x.earned_minor_units !== undefined)
+
 /** CSV of the report's tables (opened in a spreadsheet; amounts in naira). */
 function toCsv(r: AdminReport): string {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
   const rows: (string | number)[][] = [
-    ['MmiriOma report', RANGES.find((x) => x.value === r.range)?.label ?? r.range, 'SAMPLE DATA'],
+    ['MmiriOma report', RANGES.find((x) => x.value === r.range)?.label ?? r.range, ...(r.is_sample ? ['SAMPLE DATA'] : [])],
     [],
     ['Orders', r.orders],
     ['Delivered', r.delivered],
     ['Cancelled', r.cancelled],
-    ['Revenue (NGN, delivered)', r.revenue_minor_units / 100],
+    [r.is_sample ? 'Revenue (NGN, delivered)' : 'Cash collected (NGN)', r.revenue_minor_units / 100],
     ['Keke orders', r.by_type.keke],
     ['Tanker orders', r.by_type.tanker],
     [],
     ['Area', 'Orders', 'Delivered'],
     ...r.by_area.map((a) => [a.area, a.orders, a.delivered]),
     [],
-    ['Rider', 'Code', 'Trips', 'Earned (NGN)'],
-    ...r.by_rider.map((x) => [x.name, x.code, x.trips, x.earned_minor_units / 100]),
+    ['Rider', 'Code', 'Trips', ...(hasEarnings(r) ? ['Earned (NGN)'] : [])],
+    ...r.by_rider.map((x) => [x.name, x.code ?? '', x.trips, ...(hasEarnings(r) ? [(x.earned_minor_units ?? 0) / 100] : [])]),
     [],
     ['Station', 'Loads'],
     ...r.by_station.map((s) => [s.name, s.loads]),
@@ -50,7 +53,7 @@ function download(r: AdminReport) {
   URL.revokeObjectURL(url)
 }
 
-/** Reports (added): orders, deliveries and sample revenue by area, rider and station for a date range. */
+/** Reports (added): orders, deliveries and revenue by area, rider and station for a date range. Tagged SAMPLE only when the numbers are simulated. */
 export function Reports() {
   const [range, setRange] = useState<ReportRange>('7d')
   const report = useReport(range)
@@ -59,10 +62,10 @@ export function Reports() {
     <AdminFrame searchPlaceholder="Search orders, customers, riders">
       <PageHead
         title="Reports"
-        sub="Orders and deliveries over time. Revenue counts delivered orders only."
+        sub="Orders and deliveries over time."
         actions={
           <>
-            <SampleTag>SAMPLE DATA</SampleTag>
+            {r?.is_sample && <SampleTag>SAMPLE DATA</SampleTag>}
             <Button size="sm" block={false} variant="alt" disabled={!r} onClick={() => r && download(r)}>
               Download CSV
             </Button>
@@ -78,7 +81,7 @@ export function Reports() {
             <StatCard tone="blue" icon={<DocumentLinesIcon size={24} />} value={r.orders} label="Orders" note={`${r.by_type.keke} Keke · ${r.by_type.tanker} Tanker`} />
             <StatCard tone="green" icon={<CheckIcon size={24} />} value={r.delivered} label="Delivered" note={r.orders ? `${Math.round((r.delivered / r.orders) * 100)}% of orders` : 'No orders'} noteTone="green" />
             <StatCard tone="red" icon={<CloseIcon size={24} />} value={r.cancelled} label="Cancelled" />
-            <StatCard tone="green" icon={<TrendUpIcon size={24} strokeWidth={2.2} roundJoin={false} />} value={formatNaira(r.revenue_minor_units)} label="Revenue" note="SAMPLE prices" />
+            <StatCard tone="green" icon={<TrendUpIcon size={24} strokeWidth={2.2} roundJoin={false} />} value={formatNaira(r.revenue_minor_units)} label="Revenue" note={r.is_sample ? 'SAMPLE prices' : 'Cash collected'} />
           </div>
           <div className="rise-4 grid gap-3.5 xl:grid-cols-3">
             <Panel title="By area">
@@ -88,9 +91,13 @@ export function Reports() {
               <DataTable
                 caption="Deliveries by rider"
                 rows={r.by_rider}
-                rowKey={(x) => x.code}
+                rowKey={(x) => `${x.name}-${x.code ?? ''}`}
                 empty="No deliveries."
-                columns={[{ header: 'Rider', cell: (x) => `${x.name} · ${x.code}` }, { header: 'Trips', cell: (x) => x.trips }, { header: 'Earned', cell: (x) => formatNaira(x.earned_minor_units) }]}
+                columns={[
+                  { header: 'Rider', cell: (x) => (x.code ? `${x.name} · ${x.code}` : x.name) },
+                  { header: 'Trips', cell: (x) => x.trips },
+                  ...(hasEarnings(r) ? [{ header: 'Earned', cell: (x: AdminReport['by_rider'][number]) => formatNaira(x.earned_minor_units ?? 0) }] : []),
+                ]}
               />
             </Panel>
             <Panel title="By station">

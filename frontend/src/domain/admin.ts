@@ -511,7 +511,11 @@ export interface AdminReport {
   revenue_minor_units: number
   by_type: { keke: number; tanker: number }
   by_area: { area: string; orders: number; delivered: number }[]
-  by_rider: { name: string; code: string; trips: number; earned_minor_units: number }[]
+  /**
+   * `code` is the plate, `null` when the driver has none. `earned_minor_units` is not sent by the backend (partner pay is out of the MVP):
+   * the "Earned" column is hidden when absent, never shown as zero.
+   */
+  by_rider: { name: string; code: string | null; trips: number; earned_minor_units?: number }[]
   by_station: { name: string; loads: number }[]
   /** True when the numbers come from simulated records (`is_simulated`), so the screen shows its SAMPLE tag. */
   is_sample: boolean

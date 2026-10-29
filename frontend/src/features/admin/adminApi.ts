@@ -10,7 +10,7 @@
  * reads (#217), and support requests, the audit log and admin notifications (#219), and cancelling an order, which is `transitionOrder` with
  * `to: cancelled` (#176).
  */
-import type { AdminOrderFilter, PriceListDraft, ResolutionAction, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceListDraft, ReportRange, ResolutionAction, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
@@ -25,6 +25,7 @@ import * as support from './real/support'
 import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
+import * as reports from './real/reports'
 import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -129,7 +130,7 @@ export const reconcileCash = (request: ReconcileRequest) =>
 export const listPayouts = api('Rider earnings', mock.listPayouts)
 export const markPayoutPaid = api('Rider earnings', mock.markPayoutPaid)
 
-export const getReport = api('Reports', mock.getReport)
+export const getReport = (range: ReportRange) => (USE_MOCKS ? mock.getReport(range) : reports.getReport(range))
 
 // Support requests (#219): the real API resolves with one note; the mock keeps its five resolutions.
 export const listIssues = (query?: string) => (USE_MOCKS ? mock.listIssues(query) : support.listIssues(query))

@@ -6,6 +6,7 @@ import activitySample from '../../../../docs/api/examples/admin-activity.json'
 import dashboardSample from '../../../../docs/api/examples/admin-dashboard.json'
 import liveMapSample from '../../../../docs/api/examples/admin-live-map.json'
 import ordersPageSample from '../../../../docs/api/examples/admin-orders-page.json'
+import reportSample from '../../../../docs/api/examples/admin-report.json'
 import settingsSample from '../../../../docs/api/examples/admin-settings.json'
 import shellSample from '../../../../docs/api/examples/admin-shell.json'
 
@@ -41,6 +42,7 @@ function serve(overrides: Record<string, unknown> = {}) {
     '/admin/activity': activitySample,
     '/admin/settings': settingsSample,
     '/admin/orders': ordersPageSample,
+    '/admin/reports': reportSample,
     ...overrides,
   }
 }
@@ -126,5 +128,23 @@ describe('admin screens against the real API (#217)', () => {
     expect((await screen.findAllByText('Sample Driver One', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
     expect(screen.queryByText('K')).toBeNull()
     expect(screen.queryByText('T')).toBeNull()
+  }, SLOW)
+
+  it('shows Reports from the backend: no Earned column, the zone rows, loads by source, and the SAMPLE tag only for simulated numbers', async () => {
+    renderAt('/admin/reports')
+    expect((await screen.findAllByText('Area not listed', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Sample Zone Independence Layout').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Sample Borehole A').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Sample Driver One · ENU-123-KK').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('columnheader', { name: 'Earned' })).toBeNull()
+    expect(screen.getByText('SAMPLE DATA')).toBeInTheDocument()
+  }, SLOW)
+
+  it('shows no SAMPLE tag on Reports when the numbers are real orders (is_simulated false)', async () => {
+    serve({ '/admin/reports': { ...reportSample, is_simulated: false } })
+    renderAt('/admin/reports')
+    expect((await screen.findAllByText('Area not listed', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/SAMPLE/)).toBeNull()
+    expect(screen.getAllByText('Cash collected').length).toBeGreaterThan(0)
   }, SLOW)
 })
