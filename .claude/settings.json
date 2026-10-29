@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(.venv/bin/alembic current)",
+      "Bash(.venv/bin/alembic check)",
+      "Bash(.venv/bin/ruff check .)",
+      "Bash(.venv/bin/ruff format --check .)",
+      "Bash(ruff check .)",
+      "Bash(ruff format --check .)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck)",
+      "Bash(npm test)"
+    ]
+  }
+}
