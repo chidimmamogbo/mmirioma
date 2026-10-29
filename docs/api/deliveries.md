@@ -1147,7 +1147,7 @@ checks it against the built schema.
 
 ### Amendment (#243): the driver on the admin order list after the order ends
 
-**Status: proposed** by @Daveoski (+ Claude Code) for
+**Status: proposed** by @Cloudcrackamara (+ Claude Code) for
 [#243](https://github.com/chidimmamogbo/mmirioma/issues/243). Needs one
 reviewer who is not the author to agree it (G3) before any code.
 
