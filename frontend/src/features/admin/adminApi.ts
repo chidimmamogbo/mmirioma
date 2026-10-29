@@ -5,8 +5,9 @@
  * the linked ones call an adapter from `./real/`; the rest fail with
  * `not_connected` until their endpoints exist. Linked so far: the cash
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
- * `assignOrder` (#16), `listAreas`, `saveArea` (#74), and the hold review
- * functions (#166), and cancelling an order, which is `transitionOrder` with
+ * `assignOrder` (#16), `listAreas`, `saveArea` (#74), the hold review
+ * functions (#166), and the shell, dashboard, live map, activity and settings
+ * reads (#217), and cancelling an order, which is `transitionOrder` with
  * `to: cancelled` (#176).
  */
 import type { AdminOrderFilter, PriceListDraft, ServiceArea } from '../../domain/admin'
@@ -19,6 +20,7 @@ import * as priceMock from '../../mocks/priceListMock'
 import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
+import * as operations from './real/operations'
 import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
@@ -31,10 +33,11 @@ function api<A extends unknown[], R>(feature: string, fn: (...args: A) => Promis
   return (...args: A) => (USE_MOCKS ? fn(...args) : notConnected(feature))
 }
 
-export const getShellData = api('Admin', mock.getShellData)
-export const getDashboard = api('Dashboard', mock.getDashboard)
-export const getLiveMap = api('Live map', mock.getLiveMap)
-export const listActivity = api('Activity', mock.listActivity)
+// Admin overview (#217): the shell counts, dashboard, live map, recent activity and settings.
+export const getShellData = () => (USE_MOCKS ? mock.getShellData() : operations.getShellData())
+export const getDashboard = () => (USE_MOCKS ? mock.getDashboard() : operations.getDashboard())
+export const getLiveMap = () => (USE_MOCKS ? mock.getLiveMap() : operations.getLiveMap())
+export const listActivity = (limit?: number) => (USE_MOCKS ? mock.listActivity(limit) : operations.listActivity(limit))
 
 export const listOrders = (filter?: AdminOrderFilter, query?: string): Promise<mock.OrderList> =>
   USE_MOCKS ? mock.listOrders(filter, query) : orders.listOrders(filter, query)
@@ -134,6 +137,7 @@ export const resolveIssue = api('Support', mock.resolveIssue)
 export const listAudit = api('Audit log', mock.listAudit)
 export const listAdminNotifications = api('Notifications', mock.listAdminNotifications)
 export const markAdminNotificationsRead = api('Notifications', mock.markAdminNotificationsRead)
-export const getSettings = api('Settings', mock.getSettings)
+// Settings are read only: there is no save endpoint (admin-operations.md, decision 4), so `saveSettings` stays not connected.
+export const getSettings = () => (USE_MOCKS ? mock.getSettings() : operations.getSettings())
 export const saveSettings = api('Settings', mock.saveSettings)
 export const getAdminAccount = api('Account', mock.getAdminAccount)

@@ -20,6 +20,7 @@ import { ButtonLink } from '../../../components/ui/Button'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { IconBadge, type IconBadgeTone } from '../../../components/ui/Content'
 import type { ActivityKind, AdminOrder } from '../../../domain/admin'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { formatDayDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { greeting } from '../../partner/greeting'
@@ -45,7 +46,8 @@ export function Dashboard() {
   const map = useLiveMap()
   const activity = useActivity(5)
   const recent = useAdminOrders('all', '')
-  const stations = useStations('')
+  // Mock mode lists the sample stations; the real API has no stations endpoint, so the panel reads the live map's water sources (#217).
+  const stations = useStations('', USE_MOCKS)
   const d = dash.data
   const first = shell.data?.user.name.split(' ')[0] ?? ''
 
@@ -70,7 +72,8 @@ export function Dashboard() {
           <p className="mt-1 mb-0 text-mute">Here is what is happening on MmiriOma today.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <SampleTag>SAMPLE DATA</SampleTag>
+          {/* Only when the numbers come from simulated records (`is_sample`); real orders are not sample data. */}
+          {d?.is_sample && <SampleTag>SAMPLE DATA</SampleTag>}
           <span className="flex h-[42px] items-center gap-2 rounded-input bg-white px-3.5 font-bold shadow-stat">
             <CalendarIcon size={18} />
             {formatDayDate(new Date())}
@@ -99,9 +102,10 @@ export function Dashboard() {
           <StatCard tone="red" icon={<CloseIcon size={24} />} value={d.orders.cancelled} label="Cancelled" note={`${d.disputes_open} issues open`} noteTone="red" />
           <StatCard tone="blue" icon={<VehicleIcon size={24} />} value={d.riders_online.total} label="Riders online" note={`${d.riders_online.keke} Keke · ${d.riders_online.tanker} Tanker`} />
           <StatCard tone="teal" icon={<StationDoorIcon size={24} />} value={d.stations.open} label="Refill stations open" note={`${d.stations.closed} closed`} />
-          <StatCard tone="green" icon={<TrendUpIcon size={24} strokeWidth={2.2} roundJoin={false} />} value={formatNaira(d.revenue_today_minor_units)} label="Revenue today" note="Delivered orders, SAMPLE" />
-          <StatCard tone="violet" icon={<WalletOutlineIcon size={24} />} value={formatNaira(d.payouts_due.amount_minor_units)} label="Rider payouts due" note={`${d.payouts_due.riders} riders`} />
-          <StatCard tone="gold" icon={<CreditCardIcon size={24} />} value={d.payments_to_verify} label="Payments to verify" note="Transfers awaiting check" noteTone="amber" />
+          <StatCard tone="green" icon={<TrendUpIcon size={24} strokeWidth={2.2} roundJoin={false} />} value={formatNaira(d.revenue_today_minor_units)} label="Revenue today" note={d.is_sample ? 'Delivered orders, SAMPLE' : undefined} />
+          {/* The backend sends neither (payouts are out of the MVP, transfers are not verified in the pilot): hidden, never shown as zero. */}
+          {d.payouts_due && <StatCard tone="violet" icon={<WalletOutlineIcon size={24} />} value={formatNaira(d.payouts_due.amount_minor_units)} label="Rider payouts due" note={`${d.payouts_due.riders} riders`} />}
+          {d.payments_to_verify !== undefined && <StatCard tone="gold" icon={<CreditCardIcon size={24} />} value={d.payments_to_verify} label="Payments to verify" note="Transfers awaiting check" noteTone="amber" />}
         </div>
       )}
 
@@ -207,7 +211,7 @@ export function Dashboard() {
                 { header: 'Quantity', cell: (o) => o.quantity },
                 { header: 'Amount', cell: (o) => (o.total_minor_units === null ? 'Quote' : formatNaira(o.total_minor_units)) },
                 { header: 'Status', cell: (o) => <StatusChip status={o.status} /> },
-                { header: 'Rider', cell: (o) => o.partner?.code ?? <span className="text-mute">None yet</span> },
+                { header: 'Rider', cell: (o) => o.partner?.name ?? <span className="text-mute">None yet</span> },
                 {
                   header: 'Action',
                   cell: (o) => (
@@ -229,15 +233,23 @@ export function Dashboard() {
             </Link>
           }
         >
-          {stations.isError && <ErrorBlock error={stations.error} onRetry={() => stations.refetch()} />}
+          {USE_MOCKS && stations.isError && <ErrorBlock error={stations.error} onRetry={() => stations.refetch()} />}
+          {!USE_MOCKS && map.isError && <ErrorBlock error={map.error} onRetry={() => map.refetch()} />}
           <ul className="m-0 flex list-none flex-col p-0">
-            {stations.data?.map((st) => (
-              <li key={st.id} className="flex items-center justify-between gap-2 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
-                <span className="font-bold">{st.name}</span>
-                <span className="text-[13px] whitespace-nowrap text-mute">{st.loading_now} active</span>
-                <Chip tone={st.open ? 'green' : 'red'}>{st.open ? 'Open' : 'Closed'}</Chip>
-              </li>
-            ))}
+            {USE_MOCKS
+              ? stations.data?.map((st) => (
+                  <li key={st.id} className="flex items-center justify-between gap-2 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+                    <span className="font-bold">{st.name}</span>
+                    <span className="text-[13px] whitespace-nowrap text-mute">{st.loading_now} active</span>
+                    <Chip tone={st.open ? 'green' : 'red'}>{st.open ? 'Open' : 'Closed'}</Chip>
+                  </li>
+                ))
+              : map.data?.stations.map((st) => (
+                  <li key={st.id} className="flex items-center justify-between gap-2 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
+                    <span className="font-bold">{st.name}</span>
+                    <Chip tone={st.open ? 'green' : 'red'}>{st.open ? 'Open' : 'Closed'}</Chip>
+                  </li>
+                ))}
           </ul>
         </Panel>
       </div>
