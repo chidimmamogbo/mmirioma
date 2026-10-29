@@ -14,8 +14,17 @@ import { USE_MOCKS } from '../../../lib/api/mode'
 import { phoneField, retryAfterSeconds } from '../../../lib/forms'
 import { HOME_PATH } from '../../auth/authPaths'
 import { useLogin } from '../../auth/useSession'
-import { DEMO_ADMIN_PHONE, DEMO_PASSWORD } from '../../../mocks/seed'
 
+
+/**
+ * The demo staff account's phone and password, read on click and only in mock mode: they must not be in a build
+ * without mocks, where anyone can read the JavaScript (#236).
+ */
+const loadDemoAccount = async () => {
+  if (!__USE_MOCKS__) throw new Error('The demo account is not part of this build.')
+  const { DEMO_ADMIN_PHONE, DEMO_PASSWORD } = await import('../../../mocks/seed')
+  return { DEMO_ADMIN_PHONE, DEMO_PASSWORD }
+}
 const schema = z.object({ phone: phoneField, password: z.string().min(1, 'Enter your password.') })
 type Values = z.infer<typeof schema>
 
@@ -105,7 +114,8 @@ export function AdminLogin() {
               <Button
                 variant="alt"
                 size="sm"
-                onClick={() => {
+                onClick={async () => {
+                  const { DEMO_ADMIN_PHONE, DEMO_PASSWORD } = await loadDemoAccount()
                   setValue('phone', DEMO_ADMIN_PHONE, { shouldValidate: true })
                   setValue('password', DEMO_PASSWORD, { shouldValidate: true })
                 }}

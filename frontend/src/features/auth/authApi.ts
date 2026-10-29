@@ -6,10 +6,13 @@
 import * as real from '../../lib/api/auth'
 import type { LoginInput, RegisterInput, Session, User } from '../../lib/api/auth'
 import { USE_MOCKS } from '../../lib/api/mode'
+import { lazyMock } from '../../lib/api/lazyMock'
 import * as realPhone from '../../lib/api/phoneVerification'
 import type { PhoneChangeInput, PhoneCodeSent } from '../../lib/api/phoneVerification'
-import * as mock from '../../mocks/authMock'
-import * as mockPhone from '../../mocks/phoneVerificationMock'
+
+/** The mock modules load on first use, and not at all in a build without mocks (#236). */
+const mock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/authMock')))
+const mockPhone = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/phoneVerificationMock')))
 
 export function login(input: LoginInput): Promise<Session> {
   return USE_MOCKS ? mock.mockLogin(input) : real.login(input)

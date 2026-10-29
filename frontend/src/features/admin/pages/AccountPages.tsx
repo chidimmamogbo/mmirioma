@@ -11,8 +11,8 @@ import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminSettings, StaffMember } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { lazyMock } from '../../../lib/api/lazyMock'
 import { USE_MOCKS } from '../../../lib/api/mode'
-import { resetMockDb } from '../../../mocks/db'
 import { cx } from '../../../lib/cx'
 import { formatDateTime } from '../../../lib/format/datetime'
 import { formatPhone } from '../../../lib/format/phone'
@@ -23,6 +23,9 @@ import { AdminMap, MapLegend } from '../AdminMap'
 import { AdminFrame, PageHead, Panel, StatusChip } from '../AdminParts'
 import { useAdminAccount, useAdminMutation, useAdminNotifications, useAdminOrders, useAudit, useLiveMap, useSettings } from '../queries'
 
+
+/** The sample database loads only in mock mode, and is not part of a build without mocks (#236). */
+const mockDb = lazyMock(__USE_MOCKS__ && (() => import('../../../mocks/db')))
 /**
  * Settings (added): the operations values the designs leave as placeholders
  * (`[SUPPORT HOURS]`, `[CODE TIME LIMIT]`, `[SAFE LOAD]`), the staff list and
@@ -84,8 +87,7 @@ export function Settings() {
             confirmLabel="Reset data"
             onCancel={() => setResetting(false)}
             onConfirm={() => {
-              resetMockDb()
-              window.location.assign('/admin/login')
+              void mockDb.resetMockDb().then(() => window.location.assign('/admin/login'))
             }}
           >
             Everything you added or changed in the three apps in this browser goes back to the starting samples, and you are signed out. You cannot undo this.

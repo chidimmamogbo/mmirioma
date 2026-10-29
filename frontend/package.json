@@ -10,6 +10,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:demo-values": "node scripts/check-no-demo-values.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

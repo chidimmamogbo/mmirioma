@@ -21,25 +21,30 @@ import type {
 import type { AreaOption, PriceQuote, PriceRequest } from './order/livePrice'
 import * as realQuote from './real/quote'
 import { USE_MOCKS } from '../../lib/api/mode'
+import { lazyMock } from '../../lib/api/lazyMock'
 import { notConnected } from '../../lib/api/notConnected'
 // Linked in #88 part 4: listTickets, createTicket, requestAccountDeletion.
 import * as realSupport from './real/support'
-import * as mock from '../../mocks/customerMock'
 import * as realAccount from './real/account'
 import * as realOrder from './real/order'
 // Linked in #88 part 2: listNotifications, markNotificationsRead.
 import * as realNotifications from './real/notifications'
 
+import type { AddressInput, CreateOrderInput, ProfileUpdate } from '../../mocks/customerMock'
+
+/** The mock module loads on first use, and not at all in a build without mocks (#236). */
+const mock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/customerMock')))
+
 export type { AddressInput, CreateOrderInput, ProfileUpdate } from '../../mocks/customerMock'
 
 export const getProfile = (): Promise<CustomerProfile> => (USE_MOCKS ? mock.getProfile() : realAccount.getProfile())
-export const updateProfile = (u: mock.ProfileUpdate): Promise<CustomerProfile> =>
+export const updateProfile = (u: ProfileUpdate): Promise<CustomerProfile> =>
   USE_MOCKS ? mock.updateProfile(u) : notConnected('Your profile')
 
 export const listAddresses = (): Promise<SavedAddress[]> => (USE_MOCKS ? mock.listAddresses() : realAccount.listAddresses())
 // Linked in #121, with the area picker: an address is saved only with an area.
-export const addAddress = (i: mock.AddressInput): Promise<SavedAddress> => (USE_MOCKS ? mock.addAddress(i) : realAccount.addAddress(i))
-export const updateAddress = (id: string, i: mock.AddressInput): Promise<SavedAddress> =>
+export const addAddress = (i: AddressInput): Promise<SavedAddress> => (USE_MOCKS ? mock.addAddress(i) : realAccount.addAddress(i))
+export const updateAddress = (id: string, i: AddressInput): Promise<SavedAddress> =>
   USE_MOCKS ? mock.updateAddress(id, i) : realAccount.updateAddress(id, i)
 export const setDefaultAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.setDefaultAddress(id) : realAccount.setDefaultAddress(id))
 export const removeAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.removeAddress(id) : realAccount.removeAddress(id))
@@ -47,7 +52,7 @@ export const removeAddress = (id: string): Promise<void> => (USE_MOCKS ? mock.re
 // Live prices, linked in #121 (docs/design/customer-live-prices.md).
 export const listServiceZones = (): Promise<AreaOption[]> => (USE_MOCKS ? mock.listServiceZones() : realQuote.listServiceZones())
 export const getQuote = (request: PriceRequest): Promise<PriceQuote> => (USE_MOCKS ? mock.getPrice(request) : realQuote.getQuote(request))
-export const createOrder = (i: mock.CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : realOrder.createOrder(i))
+export const createOrder = (i: CreateOrderInput): Promise<CustomerOrder> => (USE_MOCKS ? mock.createOrder(i) : realOrder.createOrder(i))
 export const listOrders = (): Promise<CustomerOrder[]> => (USE_MOCKS ? mock.listOrders() : realOrder.listOrders())
 export const getOrder = (reference: string): Promise<CustomerOrder> => (USE_MOCKS ? mock.getOrder(reference) : realOrder.getOrder(reference))
 // Linked in #88 part 3.

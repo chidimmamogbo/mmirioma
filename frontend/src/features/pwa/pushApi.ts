@@ -5,8 +5,11 @@
  */
 import type { PushSettings } from '../../domain/push'
 import { USE_MOCKS } from '../../lib/api/mode'
+import { lazyMock } from '../../lib/api/lazyMock'
 import { notConnected } from '../../lib/api/notConnected'
-import * as mock from '../../mocks/pushMock'
+
+/** The mock modules load on first use, and not at all in a build without mocks (#236). */
+const mock = lazyMock(__USE_MOCKS__ && (() => import('../../mocks/pushMock')))
 
 /** The browser's subscription as `PushSubscription.toJSON()` gives it. */
 export interface BrowserSubscription {
