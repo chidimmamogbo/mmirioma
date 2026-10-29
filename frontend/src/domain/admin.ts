@@ -494,7 +494,8 @@ export interface AdminDashboard {
   payouts_due: { amount_minor_units: number; riders: number }
   payments_to_verify: number
   by_type: { keke: number; tanker: number }
-  is_sample: true
+  /** True when the numbers come from simulated records (`is_simulated`), so the screen shows its SAMPLE tag. */
+  is_sample: boolean
 }
 
 export type ReportRange = 'today' | '7d' | '30d'
@@ -509,13 +510,15 @@ export interface AdminReport {
   by_area: { area: string; orders: number; delivered: number }[]
   by_rider: { name: string; code: string; trips: number; earned_minor_units: number }[]
   by_station: { name: string; loads: number }[]
-  is_sample: true
+  /** True when the numbers come from simulated records (`is_simulated`), so the screen shows its SAMPLE tag. */
+  is_sample: boolean
 }
 
 export interface StaffMember {
   id: string
   name: string
-  role: 'Super admin' | 'Dispatcher' | 'Support'
+  /** The backend has one staff role, `Admin`; the mock keeps its three. */
+  role: 'Admin' | 'Super admin' | 'Dispatcher' | 'Support'
   phone: string
   last_active: string
 }
