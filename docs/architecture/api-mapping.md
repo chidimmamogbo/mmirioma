@@ -532,6 +532,25 @@ reviewer who is not the author approves it (they are also a G2 request on #220).
 | `GET /admin/drivers/{id}` | `getRider(id)` | A deactivated account (`is_active: false`) is shown as the error state "This account is deactivated.", with the code `driver_inactive` (a client-side error, never "suspended") (**#220**) |
 | `POST /admin/drivers/{id}/approval` | `setRiderApproval(id, action, reason, vehicle?)` | `approve` and `reactivate` send `approved`, with the reason when given; `suspend` sends `suspended` with a reason of 5 to 500 characters. Approving a partner with no verified vehicle also sends `vehicle` (`description`, `safe_payload_litres`, `transfer_methods`), which the approve form collects (**#220**, G2); approving a suspended partner who already has one sends none. 409 `driver_inactive`, `partner_phone_not_verified` and `driver_has_accepted_job`, and 422 `validation_error` (under the field it names), show in the server's words |
 
+## Admin account and refill stations
+
+The admin "My account" page and the admin menu's "Refill stations" entry
+(#235). Decided by the technical lead (@nnamdi-security) on #235, 2026-10-29.
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `GET /auth/me` | `getAdminAccount` result | `name` and `phone` as they are; `role` is "Admin" (the backend has one staff role); `last_active` is `null`. The page shows only the name, role and phone, so the settings staff list (`last_sign_in_at`) is not read for it. No wording changes on the page |
+
+Refill stations has **no admin endpoint**: stations stay on the command-line
+tool ([linking-plan.md](../process/linking-plan.md), "Not in the backend yet").
+`listStations`, `setStationOpen`, `saveStation` and `uploadStationPapers` are not
+mapped. In real mode the page is switched off with a flag
+(`STATIONS_PAGE_ENABLED` in `lib/features.ts`): no menu entry, and
+`/admin/stations` goes to the dashboard. The Dashboard's "Refill stations" panel
+stays, reading the live map's water sources (see "Admin operations" above), and
+its "Manage" link is hidden. Hiding adds no wording. Mock mode keeps the full
+page.
+
 ## Open questions
 
 | # | Question | Settled in |
