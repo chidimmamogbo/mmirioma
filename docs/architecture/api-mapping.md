@@ -388,13 +388,13 @@ Source: `adminOrderFromRead` in `frontend/src/features/admin/real/orders.ts`
 | Order | `AdminOrder.partner` |
 | --- | --- |
 | Live assignment on the detail (`offered`, `accepted`) | The assignment's driver |
-| List row with a live `driver` | That driver |
+| List row with a `driver` (live, or the one who held a delivered, failed or cancelled order) | That driver |
 | Detail of a `delivered`, `failed` or `cancelled` order whose assignment is `completed`, or `withdrawn` after the driver accepted (`responded_at` set, no `decline_reason`) | The assignment's driver; the panel says "Delivered by <name>" for a delivered order, "Rider" for the others |
 | Any other | `null` ("None yet") |
 
 An offer that was never accepted, or was declined, names nobody. The list
-(`GET /admin/orders`) still sends `driver: null` for an ended order, so its
-Rider column reads "None yet" until the contract changes (#243, second part).
+(`GET /admin/orders`) sends the same driver in `driver` for an ended order
+(deliveries.md, "Amendment (#243)"), so its Rider column and the panel agree.
 
 ### Admin order timeline
 

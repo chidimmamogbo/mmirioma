@@ -220,10 +220,11 @@ def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> N
         declined = await confirmed_order(sessions, created)
         unassigned = await confirmed_order(sessions, created)
         ids = [offered.id, declined.id, unassigned.id]
+        statuses = dict.fromkeys(ids, S.CONFIRMED)
 
         async with sessions() as session:
-            assert await service.live_drivers_by_order(session, []) == {}
-            assert await service.live_drivers_by_order(session, ids) == {}
+            assert await service.listed_drivers_by_order(session, {}) == {}
+            assert await service.listed_drivers_by_order(session, statuses) == {}
 
         async with sessions() as session:
             await service.assign_driver(
@@ -233,7 +234,7 @@ def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> N
                 session, order_id=declined.id, driver_user_id=second_driver.id, admin=admin
             )
         async with sessions() as session:
-            live = await service.live_drivers_by_order(session, ids)
+            live = await service.listed_drivers_by_order(session, statuses)
         # Offered counts as live (decision 2 of the amendment); the unassigned order is absent.
         assert {order_id: user.id for order_id, user in live.items()} == {
             offered.id: first_driver.id,
@@ -246,7 +247,7 @@ def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> N
                 session, order_id=declined.id, driver=second_driver, note="Sample: tyre puncture"
             )
         async with sessions() as session:
-            live = await service.live_drivers_by_order(session, ids)
+            live = await service.listed_drivers_by_order(session, statuses)
         assert {order_id: user.id for order_id, user in live.items()} == {
             offered.id: first_driver.id
         }
@@ -268,6 +269,124 @@ def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> N
         assert by_id[offered.id].id == first_driver.id
         assert by_id[declined.id] is None
         assert by_id[unassigned.id] is None
+
+    run(scenario)
+
+
+def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> None:
+    """#243: delivered/failed name the completed driver; cancelled only one who had accepted."""
+
+    async def end(
+        sessions: async_sessionmaker[AsyncSession],
+        order_id: uuid.UUID,
+        order_status: OrderStatus,
+        assignment_status: AssignmentStatus | None = None,
+    ) -> None:
+        async with sessions() as session:
+            order = await session.get(Order, order_id)
+            assert order is not None
+            order.status = order_status
+            if assignment_status is not None:
+                assignment = (
+                    await session.scalars(select(Assignment).where(Assignment.order_id == order_id))
+                ).one()
+                assignment.status = assignment_status
+            await session.commit()
+
+    async def scenario(sessions: async_sessionmaker[AsyncSession]) -> None:
+        admin = await add_user(sessions, created, UserRole.ADMIN)
+        driver = await add_driver(sessions, created)
+        other = await add_driver(sessions, created)
+        delivered = await confirmed_order(sessions, created)
+        failed = await confirmed_order(sessions, created)
+        held = await confirmed_order(sessions, created)
+        never_accepted = await confirmed_order(sessions, created)
+        declined = await confirmed_order(sessions, created)
+        back_in_pool = await confirmed_order(sessions, created)
+        reassigned = await confirmed_order(sessions, created)
+
+        async with sessions() as session:
+            for order, who in ((delivered, driver), (failed, other)):
+                await service.assign_driver(
+                    session, order_id=order.id, driver_user_id=who.id, admin=admin
+                )
+                await service.accept_assignment(session, order_id=order.id, driver=who)
+        # The first two jobs end; then the driver is free for the next ones.
+        await end(sessions, delivered.id, S.DELIVERED, AssignmentStatus.COMPLETED)
+        await end(sessions, failed.id, S.FAILED, AssignmentStatus.COMPLETED)
+        async with sessions() as session:
+            await service.assign_driver(
+                session, order_id=held.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.accept_assignment(session, order_id=held.id, driver=driver)
+            await service.withdraw_assignment(
+                session, order_id=held.id, admin=admin, expected_status=AssignmentStatus.ACCEPTED
+            )
+            await service.assign_driver(
+                session, order_id=never_accepted.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.withdraw_assignment(
+                session,
+                order_id=never_accepted.id,
+                admin=admin,
+                expected_status=AssignmentStatus.OFFERED,
+            )
+            await service.assign_driver(
+                session, order_id=declined.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.decline_assignment(
+                session, order_id=declined.id, driver=driver, note="Sample: tyre puncture"
+            )
+            await service.assign_driver(
+                session, order_id=back_in_pool.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.accept_assignment(session, order_id=back_in_pool.id, driver=driver)
+            await service.withdraw_assignment(
+                session,
+                order_id=back_in_pool.id,
+                admin=admin,
+                expected_status=AssignmentStatus.ACCEPTED,
+            )
+        # A accepted and was withdrawn, then B was offered and never answered: the latest counts.
+        async with sessions() as session:
+            await service.assign_driver(
+                session, order_id=reassigned.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.accept_assignment(session, order_id=reassigned.id, driver=driver)
+            await service.withdraw_assignment(
+                session,
+                order_id=reassigned.id,
+                admin=admin,
+                expected_status=AssignmentStatus.ACCEPTED,
+            )
+            await service.assign_driver(
+                session, order_id=reassigned.id, driver_user_id=other.id, admin=admin
+            )
+            await service.withdraw_assignment(
+                session,
+                order_id=reassigned.id,
+                admin=admin,
+                expected_status=AssignmentStatus.OFFERED,
+            )
+        for order in (held, never_accepted, declined, reassigned):
+            await end(sessions, order.id, S.CANCELLED)
+
+        statuses = {
+            delivered.id: S.DELIVERED,
+            failed.id: S.FAILED,
+            held.id: S.CANCELLED,
+            never_accepted.id: S.CANCELLED,
+            declined.id: S.CANCELLED,
+            back_in_pool.id: S.CONFIRMED,
+            reassigned.id: S.CANCELLED,
+        }
+        async with sessions() as session:
+            named = await service.listed_drivers_by_order(session, statuses)
+        assert {order_id: user.id for order_id, user in named.items()} == {
+            delivered.id: driver.id,
+            failed.id: other.id,
+            held.id: driver.id,
+        }
 
     run(scenario)
 

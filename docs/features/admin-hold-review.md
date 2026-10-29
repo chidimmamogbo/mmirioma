@@ -365,6 +365,9 @@ failure and the hold age; `src/features/admin/admin.test.tsx` and
   (the live assignment's driver, offered or accepted, or `null`; one query for
   the page) and the column shows the driver's name, with "None yet" only when
   there is none. The vehicle still comes with the order detail.
+  Extended in #243: an ended order keeps its driver on the list (the completed
+  assignment's driver for delivered and failed; for cancelled, the driver who
+  had accepted the job), the same as the panel.
 - The admin timeline shows an approval as "Proof approved" and does not add a
   "Delivered" line, although the history carries the `delivered` status change;
   the order's status chip shows Delivered.

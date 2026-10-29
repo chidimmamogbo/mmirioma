@@ -158,11 +158,11 @@ def fake_orders(monkeypatch: pytest.MonkeyPatch) -> FakeOrders:
 
     monkeypatch.setattr(holds, "current_holds", no_holds)
 
-    # The admin list also names each order's live driver (#204); no order here has one.
+    # The admin list also names each order's driver (#204, #243); no order here has one.
     async def no_drivers(_: object, order_ids: object) -> dict[object, object]:
         return {}
 
-    monkeypatch.setattr(dispatch_service, "live_drivers_by_order", no_drivers)
+    monkeypatch.setattr(dispatch_service, "listed_drivers_by_order", no_drivers)
 
     # Customer views add the order's feedback (#82); no order here has any.
     async def no_feedback(_: object, order_ids: object) -> dict[object, object]:

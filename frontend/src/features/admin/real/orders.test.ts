@@ -143,6 +143,12 @@ describe('the driver on a list row (#204)', () => {
     expect(adminOrderFromRead(assigned).partner).toEqual({ id: assigned.driver!.id, name: 'Sample Driver One', code: null, vehicle: null, plate: null })
   })
 
+  it('names the driver of a delivered order on the list row too (#243)', () => {
+    const delivered = PAGE.items.find((i) => i.status === 'delivered')!
+    expect(adminOrderFromRead(delivered).status).toBe('delivered')
+    expect(adminOrderFromRead(delivered).partner).toMatchObject({ id: delivered.driver!.id, name: 'Sample Driver One' })
+  })
+
   it('shows no partner for an order without a live driver (driver: null)', () => {
     expect(unassigned.driver).toBeNull()
     expect(adminOrderFromRead(unassigned).partner).toBeNull()
@@ -163,7 +169,7 @@ describe('the driver on a list row (#204)', () => {
   it('carries the driver through listOrders, one row each', async () => {
     const { client } = clientByUrl((url) => ({ body: url.includes('limit=1&') ? page([], 3) : PAGE }))
     const list = await listOrders('all', undefined, client)
-    expect(list.orders.map((o) => o.partner?.name ?? null)).toEqual([null, null, 'Sample Driver One'])
+    expect(list.orders.map((o) => o.partner?.name ?? null)).toEqual([null, null, 'Sample Driver One', 'Sample Driver One'])
   })
 })
 

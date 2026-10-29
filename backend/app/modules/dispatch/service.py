@@ -41,7 +41,7 @@ machine, one audit trail), never by writing the orders table here.
 """
 
 import uuid
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -71,6 +71,9 @@ from app.modules.orders import service as orders_service
 from app.modules.orders.models import Order, OrderEvent, OrderStatus, TransitionReason
 from app.modules.orders.service import StaffOrder
 from app.modules.orders.transitions import Requirement
+
+_ENDED_WITH_DRIVER = (OrderStatus.DELIVERED, OrderStatus.FAILED)
+"""Order statuses whose driver the admin list names from the ``completed`` assignment (#243)."""
 
 
 class Ineligibility(StrEnum):
@@ -223,39 +226,74 @@ async def live_assignment_of_driver(
     )
 
 
-async def live_drivers_by_order(
-    session: AsyncSession, order_ids: Collection[uuid.UUID]
+async def listed_drivers_by_order(
+    session: AsyncSession, order_statuses: Mapping[uuid.UUID, OrderStatus]
 ) -> dict[uuid.UUID, User]:
-    """Return the driver of each order's live assignment, keyed by order id.
+    """Return the driver the admin order list names for each order, keyed by order id.
 
-    Used by the admin order list (#204), which names the driver in its Rider
-    column. "Live" is ``offered`` or ``accepted`` (the same rule as the
-    detail's "Assigned to" line), so an order whose offer was declined,
-    withdrawn or completed has no entry. One query reads the assignments of
-    every order on the page and one reads the drivers' accounts, however many
-    orders there are.
+    Used by the admin order list (#204, #243), which names the driver in its
+    Rider column (docs/api/deliveries.md, "Amendment (#243)"). The rule, by the
+    order's status:
+
+    * An order with a live assignment (``offered`` or ``accepted``) names that
+      driver, the same rule as the detail's "Assigned to" line.
+    * ``delivered`` and ``failed`` name the driver of the order's
+      ``completed`` assignment.
+    * ``cancelled`` names the driver of its ``withdrawn`` assignment only if
+      that driver had accepted it (``responded_at`` set, no ``decline_reason``):
+      a driver who never accepted never held the job, and the SRS has no rule
+      for who "held" a cancelled job (FR-036), so an unanswered offer names
+      nobody.
+    * Every other order, including one back in the pool after a decline or a
+      withdrawal, has no entry.
+
+    One query reads the assignments of every order on the page and one reads
+    the drivers' accounts, however many orders there are.
 
     Args:
         session: Database session; the caller enforces the admin role.
-        order_ids: Ids of the orders on the page.
+        order_statuses: The status of each order on the page, keyed by order id.
 
     Returns:
-        The driver's account for each order that has a live assignment; orders
-        without one are absent. An order holds at most one live assignment
-        (the unique live-order index), so no order has two entries.
+        The driver's account for each order that names one; orders without
+        one are absent. Only the order's most recent assignment counts (the
+        same one the detail reads), so an earlier driver who accepted is not
+        named when a later offer was never answered.
     """
-    if not order_ids:
+    if not order_statuses:
         return {}
     rows = (
         await session.execute(
-            select(Assignment.order_id, Assignment.driver_user_id).where(
-                Assignment.order_id.in_(order_ids),
-                Assignment.status.in_(LIVE_ASSIGNMENT_STATUSES),
+            select(
+                Assignment.order_id,
+                Assignment.driver_user_id,
+                Assignment.status,
+                Assignment.responded_at,
+                Assignment.decline_reason,
             )
+            .where(Assignment.order_id.in_(order_statuses))
+            .order_by(Assignment.created_at, Assignment.id)
         )
     ).all()
-    drivers = await auth_service.get_users_by_ids(session, {driver_id for _, driver_id in rows})
-    return {order_id: drivers[driver_id] for order_id, driver_id in rows}
+    # Only an order's most recent assignment counts, as in the detail
+    # (`_latest_assignment`), so the list and the panel name the same driver.
+    latest = {row.order_id: row for row in rows}
+    named: dict[uuid.UUID, uuid.UUID] = {}
+    for order_id, row in latest.items():
+        order_status = order_statuses[order_id]
+        if row.status in LIVE_ASSIGNMENT_STATUSES:
+            named[order_id] = row.driver_user_id
+        elif row.status is AssignmentStatus.COMPLETED and order_status in _ENDED_WITH_DRIVER:
+            named[order_id] = row.driver_user_id
+        elif (
+            row.status is AssignmentStatus.WITHDRAWN
+            and order_status is OrderStatus.CANCELLED
+            and row.responded_at is not None
+            and row.decline_reason is None
+        ):
+            named[order_id] = row.driver_user_id
+    drivers = await auth_service.get_users_by_ids(session, set(named.values()))
+    return {order_id: drivers[driver_id] for order_id, driver_id in named.items()}
 
 
 @dataclass(frozen=True)
