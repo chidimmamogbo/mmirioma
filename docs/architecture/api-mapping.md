@@ -400,6 +400,31 @@ switches, points) is now `SamplePriceTable`: it stays mock-only, pricing the
 mock's sample quotes and the hidden Loyalty points page, and never reaches
 the real Pricing screen.
 
+## Admin operations (shell, dashboard, live map, activity, settings)
+
+Backend `GET /admin/shell`, `/admin/dashboard`, `/admin/live-map`,
+`/admin/activity` and `/admin/settings`
+([admin-operations.md](../api/admin-operations.md), agreed, built in #102) to
+the admin design types. The link issue is #217; it follows the contract's own
+"Mapping to the design types" table, and adds the three screen decisions
+marked **#217** below. Those three are proposed in this PR and are agreed when
+a reviewer who is not the author approves it.
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `GET /auth/me` + `GET /admin/shell` | `AdminShellData` | `user.name` from `/auth/me`; `user.role` is "Admin" (one staff role); `counts.orders` = `orders_needing_action`; `counts.support` = `support_requests_open`; `unread` = `notifications_unread` |
+| `AdminDashboardRead` | `AdminDashboard` | `orders.awaiting_rider`, `in_progress`, `delivered`, `cancelled` are grouped from `by_status` with the [admin order status](#admin-order-status) table; `failed` and `disputed` are their own statuses and are not in those four. `disputes_open` = `support_requests_open`; `riders_online` = `drivers_available`; `stations.open` / `closed` = `sources.usable` / `not_usable`; `revenue_today_minor_units` = `cash.collected_minor_units` (integer kobo); `by_type` = `by_delivery_type` without `not_recorded`; `is_sample` = `is_simulated` |
+| the same, fields with no source | `payouts_due`, `payments_to_verify` | The backend does not send them (payouts are out of the MVP; transfers are not verified in the pilot). The two types become optional and the two cards are hidden when absent, never shown as zero. **#217** (screen change, G2) |
+| `LiveMapRead` | `LiveMapData` | `code` = driver `plate`, `null` shows no code; `vehicle` = `delivery_type`, `null` draws a neutral marker; `partner` = driver `name`; `station_area` = source `approximate_location`; `customer_area` = zone name, `null` shows no area. `stations` come from `sources`: `area` = `approximate_location`, `open` = `usable` (the same rule as the dashboard's open and closed counts) |
+| `LiveMapRead.sources` | the Dashboard's "Refill stations" panel | The panel reads the live map's `sources` instead of `listStations`, which has no endpoint (stations stay on the command-line tool). No new request. **#217** |
+| `ActivityItem` | `ActivityEntry` | `kind`: `order_status` with `to_status` `quote_requested` → `new_order`, `accepted` → `accepted`, `delivered` → `delivered`, any other status → `admin`; `support_request` → `complaint`; an unknown kind shows as a plain `admin` line, never an error. `reference` = `order_reference`. `text` is built by the adapter from `actor.name` (staff or driver only; customers are never named) and the status, for example "Sample Driver One accepted MO-7KQ2M9" |
+| `AdminSettingsRead` | `AdminSettings`, `StaffMember` | Read only. `support_phone` = `support.phone`; `code_time_limit` = "<n> minutes" from `delivery_code_validity_minutes`; `support_hours` and `safe_load` have no source and are not shown (no `[SUPPORT HOURS]` or `[SAFE LOAD]` placeholders); staff `role` is "Admin", `last_active` = `last_sign_in_at` (`null` reads "Never signed in"). The form loses its save button and editable fields. **#217** (screen change, G2) |
+
+Dashboard and reports count **real** orders by default (`simulated=exclude`,
+BR-09), so a database that holds only demo accounts shows zeros. The screens
+send no `simulated` parameter and have no toggle (a toggle is new UI). With
+`VITE_USE_MOCKS=true` they keep their SAMPLE tags (**#217**).
+
 ## Open questions
 
 | # | Question | Settled in |
