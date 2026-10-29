@@ -1,19 +1,24 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockLogin, mockLogout } from './authMock'
 import { createOrder, getOrder } from './customerMock'
 import { resetMockDb } from './db'
 import {
   acceptJob,
+  arriveAtCustomer,
   completeUnloading,
   confirmPickup,
   declineJob,
+  failUnreachable,
   getEarnings,
   listAvailableJobs,
   listMyActiveJobs,
+  MOCK_UNREACHABLE_WAIT_MS,
   partnerSignup,
+  recordContactAttempt,
   resendCode,
   setOnline,
+  startUnloading,
   verifyCode,
 } from './partnerMock'
 import { DEMO_PASSWORD } from './seed'
@@ -23,6 +28,7 @@ const DRIVER = { phone: '0800 000 0102', password: DEMO_PASSWORD }
 const loaded = { loaded: true, receipt: true, photo_url: null, gallons_loaded: null }
 
 beforeEach(() => resetMockDb())
+afterEach(() => vi.restoreAllMocks())
 
 describe('partner pool', () => {
   it('shows riders only Keke orders and tanker drivers only tanker orders that fit their tank', async () => {
@@ -159,5 +165,71 @@ describe('accept, decline, pickup, code', () => {
     const seen = await getOrder(order.reference)
     expect(seen.stage).toBe('rider_assigned')
     expect(seen.partner?.name).toBe('Chinedu Okafor')
+  })
+})
+
+describe('arrival and the unreachable customer (#250, FR-038)', () => {
+  /** A rider's job, picked up and on its way to the customer. */
+  async function onTheWay() {
+    await mockLogin(RIDER)
+    const [job] = await listAvailableJobs()
+    await acceptJob(job.reference)
+    await confirmPickup(job.reference, loaded)
+    return job.reference
+  }
+
+  /** Move the clock past the mock's wait since arrival. */
+  function afterTheWait() {
+    const real = Date.now
+    vi.spyOn(Date, 'now').mockImplementation(() => real() + MOCK_UNREACHABLE_WAIT_MS + 1000)
+  }
+
+  it('refuses attempts, unloading and failing before arrival', async () => {
+    const ref = await onTheWay()
+    await expect(recordContactAttempt(ref)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+    await expect(startUnloading(ref)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+    await expect(failUnreachable(ref)).rejects.toMatchObject({ status: 409, code: 'invalid_order_transition' })
+  })
+
+  it('stamps the arrival once, with the earliest time to end the job, and offers the actions as the server would', async () => {
+    const ref = await onTheWay()
+    const arrived = await arriveAtCustomer(ref)
+    expect(Date.parse(arrived.unreachable_allowed_at!) - Date.parse(arrived.arrived_at!)).toBe(MOCK_UNREACHABLE_WAIT_MS)
+    expect([arrived.contact_attempts, arrived.can_start_unloading, arrived.can_fail_unreachable]).toEqual([[], true, false])
+    expect((await arriveAtCustomer(ref)).arrived_at).toBe(arrived.arrived_at)
+  })
+
+  it('records every attempt and keeps the end action off until two attempts and the wait', async () => {
+    const ref = await onTheWay()
+    await arriveAtCustomer(ref)
+    expect((await recordContactAttempt(ref)).contact_attempts).toHaveLength(1)
+    await expect(failUnreachable(ref)).rejects.toMatchObject({
+      code: 'transition_requirements_unmet',
+      details: { missing: ['contact_attempts_recorded', 'unreachable_wait_elapsed'] },
+    })
+    const two = await recordContactAttempt(ref)
+    expect([two.contact_attempts?.length, two.can_fail_unreachable]).toEqual([2, false])
+    await expect(failUnreachable(ref)).rejects.toMatchObject({ code: 'transition_requirements_unmet', details: { missing: ['unreachable_wait_elapsed'] } })
+    afterTheWait()
+    const third = await recordContactAttempt(ref)
+    expect([third.contact_attempts?.length, third.can_fail_unreachable]).toEqual([3, true])
+  })
+
+  it('ends the job as failed once both conditions are met', async () => {
+    const ref = await onTheWay()
+    await arriveAtCustomer(ref)
+    await recordContactAttempt(ref)
+    await recordContactAttempt(ref)
+    afterTheWait()
+    expect((await failUnreachable(ref)).stage).toBe('failed')
+    await expect(recordContactAttempt(ref)).rejects.toMatchObject({ code: 'invalid_order_transition' })
+  })
+
+  it('turns "Start unloading" off once unloading has started, and then refuses more attempts', async () => {
+    const ref = await onTheWay()
+    await arriveAtCustomer(ref)
+    const started = await startUnloading(ref)
+    expect([started.can_start_unloading, started.can_fail_unreachable]).toEqual([false, false])
+    await expect(recordContactAttempt(ref)).rejects.toMatchObject({ code: 'invalid_order_transition' })
   })
 })

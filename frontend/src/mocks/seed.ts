@@ -106,6 +106,8 @@ export interface StoredJob extends PartnerJob {
   mock_code: string | null
   /** Mock only: the code has expired, so `verifyCode` answers `delivery_code_expired` (#138). */
   mock_code_expired?: boolean
+  /** Mock only: the partner pressed "Start unloading" (#250). The backend has the order status `unloading` for this. */
+  mock_unloading_started?: boolean
   /**
    * The job's open hold (docs/api/deliveries.md, "Admin hold review
    * endpoints"): it stops the job and shows on the admin order. A hold is not

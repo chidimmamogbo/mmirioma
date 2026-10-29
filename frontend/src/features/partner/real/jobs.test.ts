@@ -4,6 +4,7 @@ import driverJobDetail from '../../../../../docs/api/examples/driver-job-detail.
 import driverJobOffer from '../../../../../docs/api/examples/driver-job-offer.json'
 import unloadingComplete from '../../../../../docs/api/examples/driver-job-unloading-complete.json'
 import driverJobs from '../../../../../docs/api/examples/driver-jobs.json'
+import driverJobUnreachable from '../../../../../docs/api/examples/driver-job-unreachable.json'
 import codeExpired from '../../../../../docs/api/examples/error-delivery-code-expired.json'
 import codeInvalid from '../../../../../docs/api/examples/error-delivery-code-invalid.json'
 import orderNotFound from '../../../../../docs/api/examples/error-order-not-found.json'
@@ -12,12 +13,14 @@ import { ApiError, createApiClient } from '../../../lib/api/client'
 import { DECLINE_NOTE_MAX_LENGTH, type DriverJobDetail, type DriverJobSummary } from '../../../lib/api/driverJobs'
 import {
   acceptJob,
+  arriveAtCustomer,
   codeError,
   collectedLitres,
   completeUnloading,
   confirmPickup,
   declineJob,
   declineRequest,
+  failUnreachable,
   getJob,
   INCIDENT_NOTE_MAX_LENGTH,
   incidentRequest,
@@ -26,8 +29,10 @@ import {
   listHistory,
   listMyActiveJobs,
   partnerJobFromRead,
+  recordContactAttempt,
   reportIssue,
   resendCode,
+  startUnloading,
   STATION_NOT_SET,
   verifyCode,
 } from './jobs'
@@ -329,6 +334,94 @@ describe('completeUnloading (#13)', () => {
   it('passes job_on_hold through', async () => {
     const { client } = setup({ body: enRoute }, { body: envelope('job_on_hold'), status: 409 })
     expect((await rejection(completeUnloading(REF, client))).code).toBe('job_on_hold')
+  })
+})
+
+describe('arrival and the unreachable customer (#250)', () => {
+  const unreachable = driverJobUnreachable as unknown as DriverJobDetail
+  const arrivedJob: DriverJobDetail = { ...unreachable, contact_attempts: [], allowed_actions: ['start_unloading', 'record_contact_attempt', 'report_incident'] }
+  const failedSummary: DriverJobSummary = { ...doneJob, order_reference: REF, order_status: 'failed', end_reason: 'customer_unreachable' }
+
+  it('maps the arrival fields and the two flags from the job', () => {
+    expect(partnerJobFromRead(unreachable)).toMatchObject({
+      arrived_at: '2026-10-19T09:42:00Z',
+      contact_attempts: ['2026-10-19T09:44:00Z', '2026-10-19T09:49:00Z'],
+      unreachable_allowed_at: '2026-10-19T09:52:00Z',
+      can_start_unloading: true,
+      can_fail_unreachable: true,
+    })
+  })
+
+  it('reads the flags from the server list, not from the attempts or the clock', () => {
+    const job = partnerJobFromRead({ ...unreachable, allowed_actions: ['record_contact_attempt', 'report_incident'] })
+    expect([job.can_start_unloading, job.can_fail_unreachable]).toEqual([false, false])
+    expect(job.contact_attempts).toHaveLength(2)
+  })
+
+  it('leaves the fields out for a list row, which carries no detail', () => {
+    const job = partnerJobFromRead(doneJob)
+    for (const field of ['arrived_at', 'contact_attempts', 'unreachable_allowed_at', 'can_start_unloading', 'can_fail_unreachable']) {
+      expect(field in job).toBe(false)
+    }
+  })
+
+  it('arriveAtCustomer records the arrival with no location', async () => {
+    const { client, sent } = setup({ body: arrivedJob })
+    const job = await arriveAtCustomer(REF, client)
+    expect(sent()).toEqual({ url: `${STEP}/arrive`, method: 'POST', body: { location_consent: false } })
+    expect([job.arrived_at, job.contact_attempts, job.can_start_unloading]).toEqual(['2026-10-19T09:42:00Z', [], true])
+  })
+
+  it.each(['job_on_hold', 'invalid_order_transition', 'order_not_found'])('arriveAtCustomer passes %s through', async (code) => {
+    const { client } = setup({ body: envelope(code), status: code === 'order_not_found' ? 404 : 409 })
+    expect((await rejection(arriveAtCustomer(REF, client))).code).toBe(code)
+  })
+
+  it('startUnloading sends only the unloading step', async () => {
+    const { client, sent, fetchMock } = setup({ body: unloading })
+    const job = await startUnloading(REF, client)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sent()).toEqual({ url: `${STEP}/transition`, method: 'POST', body: { to: 'unloading' } })
+    expect(job.stage).toBe('collected')
+  })
+
+  it('startUnloading passes invalid_order_transition through', async () => {
+    const { client } = setup({ body: envelope('invalid_order_transition'), status: 409 })
+    expect((await rejection(startUnloading(REF, client))).code).toBe('invalid_order_transition')
+  })
+
+  it('recordContactAttempt posts no body and returns every attempt, oldest first', async () => {
+    const { client, sent } = setup({ body: unreachable, status: 201 })
+    const job = await recordContactAttempt(REF, client)
+    expect(sent()).toEqual({ url: `${STEP}/contact-attempts`, method: 'POST', body: null })
+    expect(job.contact_attempts).toEqual(['2026-10-19T09:44:00Z', '2026-10-19T09:49:00Z'])
+  })
+
+  it('recordContactAttempt passes invalid_order_transition through', async () => {
+    const { client } = setup({ body: envelope('invalid_order_transition'), status: 409 })
+    expect((await rejection(recordContactAttempt(REF, client))).code).toBe('invalid_order_transition')
+  })
+
+  it('failUnreachable sends the failed step and returns the finished job', async () => {
+    const { client, sent, fetchMock } = setup({ body: failedSummary })
+    const job = await failUnreachable(REF, client)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sent()).toEqual({ url: `${STEP}/transition`, method: 'POST', body: { to: 'failed' } })
+    expect(job.stage).toBe('failed')
+  })
+
+  it.each([[['contact_attempts_recorded', 'unreachable_wait_elapsed']], [['unreachable_wait_elapsed']]])(
+    'failUnreachable keeps what the server says is missing: %j',
+    async (missing) => {
+      const { client } = setup({ body: envelope('transition_requirements_unmet', { missing }), status: 409 })
+      const error = await rejection(failUnreachable(REF, client))
+      expect([error.status, error.code, error.details]).toEqual([409, 'transition_requirements_unmet', { missing }])
+    },
+  )
+
+  it.each(['job_on_hold', 'invalid_order_transition'])('failUnreachable passes %s through', async (code) => {
+    const { client } = setup({ body: envelope(code), status: 409 })
+    expect((await rejection(failUnreachable(REF, client))).code).toBe(code)
   })
 })
 
