@@ -176,5 +176,17 @@ TEST_DATABASE_URL=postgresql+asyncpg://... .venv/bin/pytest tests/test_admin_dri
   ([partners.md](../api/partners.md#notifications)).
 - Changing a partner's zones, name or phone is not in the contract.
 - The staff reason is stored in the audit log only; the partner is not shown it.
+- **Frontend (#220):** the Riders page reads these endpoints in real-API mode
+  (`frontend/src/lib/api/adminDirectory.ts`, `features/admin/real/directory.ts`,
+  mapping in `docs/architecture/api-mapping.md`, "Admin customers and drivers"). It
+  lists active accounts only, so a deactivated account is never shown as
+  "suspended": opened by its link it is an error ("This account is deactivated.").
+  It has no fleet code, "Today", rating, payout due, documents or reported issues
+  (no source). Approving a partner with no verified vehicle collects it (vehicle,
+  safe payload in litres, transfer method) with what the partner declared shown as
+  a claim; a suspended partner who already has one is approved with nothing extra.
+  Suspending asks for a reason, and a refused field shows the server's words under
+  it. The "Suspended" pill has no count (the server has none). Tests:
+  `features/admin/directory.screens.test.tsx`.
 - The phone and vehicle-type search is a substring match without an index, which
   is fine for the pilot's number of partners.

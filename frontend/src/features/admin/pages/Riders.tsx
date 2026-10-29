@@ -12,12 +12,14 @@ import { KeyValue } from '../../../components/ui/Content'
 import { Pills } from '../../../components/ui/Controls'
 import { TextAreaField, TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
-import type { AdminRider } from '../../../domain/admin'
+import type { AdminRider, ApprovalVehicleInput } from '../../../domain/admin'
 import type { DeliveryType } from '../../../domain/orders'
 import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { parseGallons } from '../../../domain/tankCapacity'
+import { cx } from '../../../lib/cx'
 import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { DIRECTORY_EDITS_ENABLED } from '../../../lib/features'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
@@ -51,7 +53,7 @@ export function Riders() {
           <>
             <PageHead
               title="Riders and drivers"
-              sub={list.data ? `${list.data.counts.all} riders · ${list.data.online} online now · ${list.data.pending} waiting for approval` : 'Approve, suspend and reactivate partners.'}
+              sub={list.data ? `${list.data.counts.all ?? list.data.riders.length} riders · ${list.data.online} online now · ${list.data.pending} waiting for approval` : 'Approve, suspend and reactivate partners.'}
               actions={
                 DIRECTORY_EDITS_ENABLED && (
                   <ButtonLink to="/admin/riders/new" size="sm" block={false}>
@@ -65,7 +67,7 @@ export function Riders() {
               label="Filter riders"
               value={filter}
               onChange={setFilter}
-              options={FILTERS.map((f) => ({ value: f.value, label: f.value === 'all' && list.data ? `All (${list.data.counts.all})` : f.label }))}
+              options={FILTERS.map((f) => ({ value: f.value, label: f.value === 'all' && list.data && list.data.counts.all !== null ? `All (${list.data.counts.all})` : f.label }))}
             />
             {list.isPending && <LoadingBlock label="Loading riders" />}
             {list.isError && <ErrorBlock error={list.error} onRetry={() => list.refetch()} />}
@@ -88,21 +90,21 @@ export function Riders() {
                           <Avatar name={r.name} size={36} />
                           <span>
                             <span className="block font-extrabold">{r.name}</span>
-                            <span className="block text-chip text-mute">{r.code}</span>
+                            {r.code && <span className="block text-chip text-mute">{r.code}</span>}
                           </span>
                         </button>
                       ),
                     },
-                    { header: 'Vehicle', cell: (r) => `${r.vehicle.type === 'keke' ? 'Keke' : 'Tanker'} · ${r.vehicle.plate}` },
+                    { header: 'Vehicle', cell: (r) => vehicleLine(r.vehicle) },
                     { header: 'Area', cell: (r) => r.service_areas.join(', ') },
                     { header: 'Status', cell: (r) => <OnlineChip online={r.online} /> },
                     { header: 'Approval', cell: (r) => <ApprovalChip status={r.approval} /> },
-                    { header: 'Today', cell: (r) => formatNaira(r.today_minor_units) },
+                    ...(USE_MOCKS ? [{ header: 'Today', cell: (r: AdminRider) => formatNaira(r.today_minor_units ?? 0) }] : []),
                   ]}
                 />
               </Card>
             )}
-            <p className="m-0 text-caption text-mute">Pay amounts are SAMPLE (decision 16).</p>
+            {USE_MOCKS && <p className="m-0 text-caption text-mute">Pay amounts are SAMPLE (decision 16).</p>}
           </>
         }
         side={selected ? <RiderPanel key={selected} id={selected} /> : null}
@@ -115,7 +117,10 @@ function RiderPanel({ id }: { id: string }) {
   const rider = useRider(id)
   const [reason, setReason] = useState('')
   const [asking, setAsking] = useState(false)
-  const change = useAdminMutation((action: api.ApprovalAction) => api.setRiderApproval(id, action, reason))
+  const [vehicle, setVehicle] = useState<VehicleForm>({ description: '', payload: '', ground: false, overhead: false })
+  const change = useAdminMutation((action: api.ApprovalAction) =>
+    api.setRiderApproval(id, action, reason, action !== 'suspend' && !USE_MOCKS && rider.data?.vehicle_verified === false ? vehicleInput(vehicle) : undefined),
+  )
   const r = rider.data
   if (rider.isPending) return <Card className="p-4"><LoadingBlock label="Loading the rider" /></Card>
   if (rider.isError || !r) return <Card className="p-4"><ErrorBlock error={rider.error} onRetry={() => rider.refetch()} /></Card>
@@ -131,33 +136,38 @@ function RiderPanel({ id }: { id: string }) {
         <ApprovalChip status={r.approval} />
       </div>
       <div className="flex flex-col items-center gap-1 rounded-card bg-[linear-gradient(160deg,#EEF6FF,#DCEBFD)] py-3">
-        <Illustration name={r.vehicle.type} className="w-40" />
+        <Illustration name={r.vehicle.type ?? 'drop-hero'} className="w-40" />
         <div className="font-extrabold">
-          {r.vehicle.type === 'keke' ? 'Keke' : 'Tanker'} · {r.vehicle.plate}
+          {vehicleLine(r.vehicle)}
           {r.vehicle.tank_gallons && ` · ${describeQuantity(litresFromGallons(r.vehicle.tank_gallons), 'gallons', 'short')}`}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 text-center">
+      {/* The backend has no rating, pay, documents note or issue count (partner pay is out of the MVP): absent in real mode, so hidden. */}
+      <div className={cx('grid gap-2 text-center', USE_MOCKS ? 'grid-cols-3' : 'grid-cols-1')}>
         <Mini value={r.trips} label="Trips" />
-        <Mini value={r.rating ?? 'New'} label="Rating" />
-        <Mini value={formatNaira(r.payout_due_minor_units)} label="Payout due" />
+        {USE_MOCKS && <Mini value={r.rating ?? 'New'} label="Rating" />}
+        {r.payout_due_minor_units !== undefined && <Mini value={formatNaira(r.payout_due_minor_units)} label="Payout due" />}
       </div>
       <div className="text-[14px]">
-        <KeyValue label="Documents" value={r.documents_note} />
+        {r.documents_note !== undefined && <KeyValue label="Documents" value={r.documents_note} />}
         <KeyValue label="Active orders" value={r.active_orders} />
-        <KeyValue label="Reported issues" value={r.reported_issues} />
+        {r.reported_issues !== undefined && <KeyValue label="Reported issues" value={r.reported_issues} />}
         <KeyValue label="Works in" value={r.service_areas.join(', ') || 'Not set'} />
       </div>
+      {action !== 'suspend' && !USE_MOCKS && r.vehicle_verified === false && <VehicleFields rider={r} form={vehicle} onChange={setVehicle} errors={fieldErrors(change.error)} />}
       {action !== 'approve' && (
         <TextAreaField
           label={`Reason to ${action} (saved in the audit log)`}
           rows={2}
           value={reason}
+          error={fieldErrors(change.error).reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder={action === 'suspend' ? 'e.g. Papers expired; two missed deliveries' : 'e.g. New papers checked'}
         />
       )}
-      {change.isError && <Notice tone="error">{errorMessage(change.error)}</Notice>}
+      {change.isError && !fieldErrors(change.error).reason && !fieldErrors(change.error).description && !fieldErrors(change.error).payload && !fieldErrors(change.error).methods && (
+        <Notice tone="error">{fieldErrors(change.error).other ?? errorMessage(change.error)}</Notice>
+      )}
       {change.isSuccess && <Notice tone="success">Saved. The rider sees the change in their app.</Notice>}
       <Button variant={action === 'suspend' ? 'line-danger' : 'primary'} loading={change.isPending} onClick={() => setAsking(true)}>
         {action === 'approve' ? 'Approve rider' : action === 'suspend' ? 'Suspend rider' : 'Reactivate rider'}
@@ -185,6 +195,105 @@ function RiderPanel({ id }: { id: string }) {
             : 'Reactivated riders can go online again. Every change is saved in the audit log.'}
       </p>
     </Card>
+  )
+}
+
+/** "Keke · ENU 482 KK": the type and plate the partner declared, with nothing invented when the backend has none. */
+function vehicleLine(vehicle: AdminRider['vehicle']): string {
+  const type = vehicle.type === 'keke' ? 'Keke' : vehicle.type === 'tanker' ? 'Tanker' : null
+  return [type, vehicle.plate || null].filter(Boolean).join(' · ') || 'Not recorded'
+}
+
+/** What the admin typed in the approve form. */
+interface VehicleForm {
+  description: string
+  payload: string
+  ground: boolean
+  overhead: boolean
+}
+
+/** The vehicle to send with an approval (FR-013); the server checks every field and answers 422 under the one it refuses. */
+function vehicleInput(form: VehicleForm): ApprovalVehicleInput {
+  const litres = Number(form.payload.replace(/[^\d]/g, ''))
+  return {
+    description: form.description.trim(),
+    safe_payload_litres: Number.isFinite(litres) ? litres : 0,
+    transfer_methods: [form.ground && 'ground', form.overhead && 'overhead'].filter((m): m is 'ground' | 'overhead' => Boolean(m)),
+  }
+}
+
+interface FieldErrors {
+  description?: string
+  payload?: string
+  methods?: string
+  reason?: string
+  /** A refusal that names no field, in the server's words. */
+  other?: string
+}
+
+/**
+ * The server's words for each field it refused (422), keyed by the form field, for display under it.
+ *
+ * The reason rule is a check on the whole body, so the server reports it at `["body"]` and not at `reason`: a
+ * body-level message about the reason belongs under the reason field. pydantic's "Value error, " prefix is dropped.
+ */
+function fieldErrors(error: unknown): FieldErrors {
+  const out: FieldErrors = {}
+  if (!(error instanceof ApiError) || error.code !== 'validation_error' || !Array.isArray(error.details)) return out
+  for (const item of error.details as { loc?: unknown; msg?: unknown }[]) {
+    if (typeof item.msg !== 'string') continue
+    const msg = item.msg.replace(/^Value error, /, '')
+    const last = Array.isArray(item.loc) ? item.loc.at(-1) : null
+    const key =
+      last === 'description' ? 'description' : last === 'safe_payload_litres' ? 'payload' : last === 'transfer_methods' ? 'methods' : last === 'reason' || /\breason\b/i.test(msg) ? 'reason' : 'other'
+    if (!out[key]) out[key] = msg
+  }
+  return out
+}
+
+/**
+ * The vehicle an admin verifies when approving a partner who has none yet (FR-013): its description, the safe
+ * payload per trip and the transfer methods. What the partner declared at sign-up is shown as a claim only.
+ */
+function VehicleFields({
+  rider,
+  form,
+  onChange,
+  errors,
+}: {
+  rider: AdminRider
+  form: VehicleForm
+  onChange: (form: VehicleForm) => void
+  errors: FieldErrors
+}) {
+  const declared = rider.declared_vehicle
+  const claim = [declared?.plate, declared?.capacity_litres ? `${describeQuantity(declared.capacity_litres, 'gallons', 'short')}` : null].filter(Boolean).join(' · ')
+  return (
+    <fieldset className="m-0 flex flex-col gap-2.5 rounded-card bg-[#F4F7FB] p-3.5">
+      <legend className="p-0 text-[14px] font-extrabold">Vehicle you checked</legend>
+      {claim && <p className="m-0 text-caption text-mute">Declared by the partner, not checked: {claim}.</p>}
+      <TextField label="Vehicle" value={form.description} error={errors.description} onChange={(e) => onChange({ ...form, description: e.target.value })} placeholder="e.g. Tanker truck" />
+      <TextField
+        label="Safe payload per trip (litres)"
+        inputMode="numeric"
+        value={form.payload}
+        error={errors.payload}
+        onChange={(e) => onChange({ ...form, payload: e.target.value.replace(/[^\d]/g, '') })}
+        placeholder="e.g. 12000"
+      />
+      <div className="flex flex-col gap-1">
+        <span className="text-[14px] font-bold">Transfer method</span>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={form.ground} onChange={(e) => onChange({ ...form, ground: e.target.checked })} className="size-5" />
+          Ground
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={form.overhead} onChange={(e) => onChange({ ...form, overhead: e.target.checked })} className="size-5" />
+          Overhead
+        </label>
+        {errors.methods && <span className="text-caption font-bold text-red">{errors.methods}</span>}
+      </div>
+    </fieldset>
   )
 }
 

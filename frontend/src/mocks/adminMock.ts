@@ -965,7 +965,15 @@ function riderRow(s: MockState, id: string): AdminRider {
   }
 }
 
-export async function listRiders(filter: RiderFilter = 'all', query?: string): Promise<{ riders: AdminRider[]; counts: Record<RiderFilter, number>; online: number; pending: number }> {
+/** The riders page data. `counts.suspended` is `null` when the server has no such count (the real API). */
+export interface RiderList {
+  riders: AdminRider[]
+  counts: Record<RiderFilter, number | null>
+  online: number
+  pending: number
+}
+
+export async function listRiders(filter: RiderFilter = 'all', query?: string): Promise<RiderList> {
   await delay(null)
   const s = read()
   requireAdmin(s)

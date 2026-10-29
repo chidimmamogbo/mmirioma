@@ -10,6 +10,7 @@ import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import type { AdminCustomer } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { cx } from '../../../lib/cx'
 import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED } from '../../../lib/features'
 import { formatShortDate } from '../../../lib/format/datetime'
@@ -32,7 +33,7 @@ export function Customers() {
     <AdminFrame searchPlaceholder="Search customers by name or phone" onSearch={setQuery}>
       <PageHead
         title="Customers"
-        sub={list.data ? `${list.data.total} customers · ${list.data.ordered_this_week} ordered this week${query ? ` · results for “${query}”` : ''}` : 'Customer accounts and manual phone checks.'}
+        sub={list.data ? `${list.data.total} customers · ${list.data.ordered_this_week} ordered ${USE_MOCKS ? 'this week' : 'in the last 7 days'}${query ? ` · results for “${query}”` : ''}` : 'Customer accounts and manual phone checks.'}
       />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <Card className="rise-2 flex w-full shrink-0 flex-col gap-1.5 p-2.5 lg:w-[340px]">
@@ -87,7 +88,7 @@ function CustomerDetail({ id }: { id: string }) {
         <div className="min-w-0 flex-1">
           <h2 className="m-0 text-[24px] font-extrabold">{c.name}</h2>
           <div className="text-mute">
-            {formatPhone(c.phone)} · {c.email ?? 'no email'} · since {new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' }).format(new Date(c.customer_since))}
+            {formatPhone(c.phone)}{USE_MOCKS && ` · ${c.email ?? 'no email'}`} · since {new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' }).format(new Date(c.customer_since))}
           </div>
         </div>
         {ORDER_FOR_CUSTOMER_ENABLED && (
@@ -98,9 +99,10 @@ function CustomerDetail({ id }: { id: string }) {
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Fact label="Orders" value={c.orders} />
-        <Fact label="Total paid" value={`${formatNaira(c.total_paid_minor_units)}`} note="SAMPLE" />
-        <Fact label="Points" value={c.points} gold />
-        <Fact label="Complaints" value={c.complaints} />
+        <Fact label="Total paid" value={`${formatNaira(c.total_paid_minor_units)}`} note={USE_MOCKS ? 'SAMPLE' : undefined} />
+        {/* The backend has no points or complaints per customer: absent, so hidden, never shown as zero. */}
+        {c.points !== undefined && <Fact label="Points" value={c.points} gold />}
+        {c.complaints !== undefined && <Fact label="Complaints" value={c.complaints} />}
       </div>
       {!c.phone_verified && (
         <div className="flex flex-wrap items-center gap-3 rounded-card bg-[#FFF7E2] px-4 py-3">
@@ -139,7 +141,8 @@ function CustomerDetail({ id }: { id: string }) {
               <li key={o.reference} className="flex items-center justify-between gap-2 border-0 border-b border-solid border-row-line py-2.5 last:border-b-0">
                 <span>
                   <b>
-                    {o.quantity} {o.delivery_type === 'keke' ? 'Keke' : 'Tanker'}
+                    {/* An order with no delivery type (created before #21) shows no Keke or Tanker word. */}
+                    {[o.quantity, o.delivery_type === 'keke' ? 'Keke' : o.delivery_type === 'tanker' ? 'Tanker' : null].filter(Boolean).join(' ')}
                   </b>
                   <span className="block text-caption text-mute">
                     {o.reference} · {formatShortDate(o.created_at)}
