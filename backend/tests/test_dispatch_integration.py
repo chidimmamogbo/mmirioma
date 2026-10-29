@@ -303,6 +303,7 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
         never_accepted = await confirmed_order(sessions, created)
         declined = await confirmed_order(sessions, created)
         back_in_pool = await confirmed_order(sessions, created)
+        reassigned = await confirmed_order(sessions, created)
 
         async with sessions() as session:
             for order, who in ((delivered, driver), (failed, other)):
@@ -346,7 +347,28 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
                 admin=admin,
                 expected_status=AssignmentStatus.ACCEPTED,
             )
-        for order in (held, never_accepted, declined):
+        # A accepted and was withdrawn, then B was offered and never answered: the latest counts.
+        async with sessions() as session:
+            await service.assign_driver(
+                session, order_id=reassigned.id, driver_user_id=driver.id, admin=admin
+            )
+            await service.accept_assignment(session, order_id=reassigned.id, driver=driver)
+            await service.withdraw_assignment(
+                session,
+                order_id=reassigned.id,
+                admin=admin,
+                expected_status=AssignmentStatus.ACCEPTED,
+            )
+            await service.assign_driver(
+                session, order_id=reassigned.id, driver_user_id=other.id, admin=admin
+            )
+            await service.withdraw_assignment(
+                session,
+                order_id=reassigned.id,
+                admin=admin,
+                expected_status=AssignmentStatus.OFFERED,
+            )
+        for order in (held, never_accepted, declined, reassigned):
             await end(sessions, order.id, S.CANCELLED)
 
         statuses = {
@@ -356,6 +378,7 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
             never_accepted.id: S.CANCELLED,
             declined.id: S.CANCELLED,
             back_in_pool.id: S.CONFIRMED,
+            reassigned.id: S.CANCELLED,
         }
         async with sessions() as session:
             named = await service.listed_drivers_by_order(session, statuses)

@@ -256,8 +256,9 @@ async def listed_drivers_by_order(
 
     Returns:
         The driver's account for each order that names one; orders without
-        one are absent. An order holds at most one live assignment (the unique
-        live-order index); when it has several ended ones the latest wins.
+        one are absent. Only the order's most recent assignment counts (the
+        same one the detail reads), so an earlier driver who accepted is not
+        named when a later offer was never answered.
     """
     if not order_statuses:
         return {}
@@ -270,33 +271,27 @@ async def listed_drivers_by_order(
                 Assignment.responded_at,
                 Assignment.decline_reason,
             )
-            .where(
-                Assignment.order_id.in_(order_statuses),
-                Assignment.status.in_(
-                    (
-                        *LIVE_ASSIGNMENT_STATUSES,
-                        AssignmentStatus.COMPLETED,
-                        AssignmentStatus.WITHDRAWN,
-                    )
-                ),
-            )
-            .order_by(Assignment.created_at)
+            .where(Assignment.order_id.in_(order_statuses))
+            .order_by(Assignment.created_at, Assignment.id)
         )
     ).all()
+    # Only an order's most recent assignment counts, as in the detail
+    # (`_latest_assignment`), so the list and the panel name the same driver.
+    latest = {row.order_id: row for row in rows}
     named: dict[uuid.UUID, uuid.UUID] = {}
-    for order_id, driver_id, status, responded_at, decline_reason in rows:
+    for order_id, row in latest.items():
         order_status = order_statuses[order_id]
-        if status in LIVE_ASSIGNMENT_STATUSES:
-            named[order_id] = driver_id
-        elif status is AssignmentStatus.COMPLETED and order_status in _ENDED_WITH_DRIVER:
-            named[order_id] = driver_id
+        if row.status in LIVE_ASSIGNMENT_STATUSES:
+            named[order_id] = row.driver_user_id
+        elif row.status is AssignmentStatus.COMPLETED and order_status in _ENDED_WITH_DRIVER:
+            named[order_id] = row.driver_user_id
         elif (
-            status is AssignmentStatus.WITHDRAWN
+            row.status is AssignmentStatus.WITHDRAWN
             and order_status is OrderStatus.CANCELLED
-            and responded_at is not None
-            and decline_reason is None
+            and row.responded_at is not None
+            and row.decline_reason is None
         ):
-            named[order_id] = driver_id
+            named[order_id] = row.driver_user_id
     drivers = await auth_service.get_users_by_ids(session, set(named.values()))
     return {order_id: drivers[driver_id] for order_id, driver_id in named.items()}
 
