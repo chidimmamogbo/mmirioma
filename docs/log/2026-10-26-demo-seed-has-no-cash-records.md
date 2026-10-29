@@ -12,5 +12,5 @@
   test receiving in mock mode. Receiving against the backend needs the
   driver steps (#13) and driver cash (#20) linked, or the API driven by
   hand.
-- **Status:** open
+- **Status:** resolved. The seed still has no cash records, by design, but the driver steps (#13) and driver cash (#20) are linked. On 2026-10-29 the end-to-end run delivered an order, recorded the driver's cash, received it and reconciled it against the real backend.
 - **Refs:** #19, #13, #20, `backend/app/modules/demo/seed.py`

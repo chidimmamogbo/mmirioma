@@ -51,18 +51,17 @@ when those issues close.
 
 ## Not in the backend yet
 
-These screens keep their mocks and show "not connected yet" against the
-real API until a contract is agreed and the endpoint is built in this fork.
+Everything the contracts cover is linked (see
+[linking-handoff.md](linking-handoff.md)). These have no endpoint, and each
+has a flag in `frontend/src/lib/features.ts`. With the real API the menu entry,
+button or route is hidden, or the screen says "not connected yet"; mock mode
+shows them all.
 
 | Area | Proposal issue |
 | --- | --- |
-| Change password, push notifications, public site | #8 |
-| Order price | #10 (built in #21) |
-| Customer profile, addresses, notifications, support, feedback, account deletion | #11 (backend in #82, PRs #87, #91, #96, #100; screens to be linked in #103) |
-| Customer points | #11 (out of the MVP: no endpoint, the screen stays "not connected yet") |
-| Partner profile, going online, documents, sign-up, earnings, payouts | #14 |
-| Admin customers, riders, stations | #18 (customers and drivers to be built in #45; stations stay on the command-line tool) |
-| Admin service areas | #18 (built in #30; screen linked in #74) |
-| Admin price lists | #18 (built in #37; screen redesigned in #44, [admin-pricing.md](../design/admin-pricing.md), then a link issue) |
-| Dashboard, live map, reports, support, audit log, notifications, settings | #22 (contract agreed; backend to be built in #102) |
+| Push notifications | #8 (not in the MVP) |
+| Customer points, profile photo | #11 (out of the MVP: no endpoint, no rule in the SRS, privacy notice) |
+| Partner documents upload, earnings, payouts | #14 (out of the MVP) |
+| Admin stations | #18 (stations stay on the command-line tool) |
+| Admin: order for a customer, mark phone verified, adjust points, add rider, payments page | #221 (no admin endpoint; the Cash page replaces payments) |
 | Rider payouts, saving settings | #22 (not proposed: payouts are out of the MVP, settings come from backend configuration) |
