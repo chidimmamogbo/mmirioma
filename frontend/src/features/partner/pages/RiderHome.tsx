@@ -18,6 +18,7 @@ import { greeting } from '../greeting'
 import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { deliveredToday, jobQuantity, placeAddress, tripMinutes } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
+import { HomeCashCard } from '../cash/CashParts'
 import { useActiveJobs, useAvailableJobs, useEarnings, useHistory, usePartnerProfile, useSetOnline } from '../queries'
 
 /** Rider dashboard with the online switch (`r-home`), plus the assigned-order sheet (`r-assigned`). */
@@ -101,6 +102,8 @@ export function RiderHome() {
               </button>
             )}
             {setOnline.isError && <Notice tone="error">{errorMessage(setOnline.error)}</Notice>}
+            {/* K2 home card: only while cash is on hand (driver-cash.md). */}
+            <HomeCashCard base={base} />
 
             <div className="rise-3 grid grid-cols-2 gap-2.5">
               {PARTNER_PAY_ENABLED && (

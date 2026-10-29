@@ -11,6 +11,7 @@ import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { jobQuantity } from '../jobHelpers'
+import { ArrivalToast, CashCard } from '../cash/CashParts'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, usePartnerProfile } from '../queries'
 
@@ -23,8 +24,8 @@ const CONFETTI = [
 ]
 
 /**
- * Tanker delivery done (`t-done`). As on the rider screen, payment is its own
- * status: "Awaiting check" until staff confirm it (BR-07).
+ * Tanker delivery done (`t-done`). As on the rider screen, no payment status
+ * (FR-040, BR-13): the K1 Cash card takes its place (driver-cash.md, #20).
  */
 export function DriverDone() {
   const { reference = '' } = useParams()
@@ -38,6 +39,7 @@ export function DriverDone() {
     <MobileShell className="bg-[linear-gradient(180deg,#E7F9EE_0%,#F4F7FB_45%)]">
       <Confetti pieces={CONFETTI} height={240} />
       <ScrollArea className="items-center gap-3 pt-[30px] text-center">
+        <ArrivalToast />
         {job.isPending && <LoadingBlock />}
         {job.isError && <ErrorBlock error={job.error} onRetry={() => job.refetch()} />}
         {j && (
@@ -66,8 +68,9 @@ export function DriverDone() {
               <KeyValue label="Loaded at" value={`${j.station.name}${j.collected_at ? ` · ${formatTime(j.collected_at)}` : ''}`} />
               {/* The receiver is not sent once the job ends (real API): leave the row out. */}
               {j.customer.contact_name && <KeyValue label="Delivered to" value={j.customer.contact_name} />}
-              {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>
+            {/* No payment row: partners never see an order's payment status (FR-040, BR-13). The K1 Cash card takes its place (#20). */}
+            <CashCard job={j} base={base} vehicle="tanker" />
             <div className="rise-5 flex w-full flex-col gap-2">
               <ButtonLink to={base}>Back to dashboard</ButtonLink>
               {PARTNER_PAY_ENABLED && (

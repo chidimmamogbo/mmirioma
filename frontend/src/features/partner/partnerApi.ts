@@ -4,7 +4,8 @@
  * functions (sign-up, profile, going online, notifications) call
  * docs/api/partners.md through `real/account.ts` (#67), and the job lists,
  * one job, accept and decline (#12), the trip steps and problem reports
- * (#13) call docs/api/deliveries.md through `real/jobs.ts`. Earnings,
+ * (#13) call docs/api/deliveries.md through `real/jobs.ts`, and the
+ * driver's cash (#20) calls docs/api/payments.md through `real/cash.ts`. Earnings,
  * payouts and document upload fail with `not_connected` until they are
  * linked.
  */
@@ -20,8 +21,10 @@ import type {
 import type { Session } from '../../lib/api/auth'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
+import * as cashMock from '../../mocks/partnerCashMock'
 import * as mock from '../../mocks/partnerMock'
 import * as real from './real/account'
+import * as realCash from './real/cash'
 import * as realJobs from './real/jobs'
 
 type Pickup = { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null }
@@ -56,3 +59,11 @@ export const listPartnerNotifications = (): Promise<PartnerNotificationList> =>
 export const markPartnerNotificationsRead = (): Promise<void> => (USE_MOCKS ? mock.markPartnerNotificationsRead() : real.markPartnerNotificationsRead())
 export const reportIssue = (i: { type: PartnerIssueType; note: string; reference: string | null }): Promise<{ id: string }> =>
   USE_MOCKS ? mock.reportIssue(i) : realJobs.reportIssue(i)
+
+/* Driver cash (K1, K2; docs/design/driver-cash.md, #20). The screens use the contract's shapes. */
+export type { CashCollection, DriverCash, JobCash, RecordCashRequest } from './real/cash'
+export const getMyCash = (): Promise<realCash.DriverCash> => (USE_MOCKS ? cashMock.getMyCash() : realCash.getMyCash())
+export const recordCash = (ref: string, request: realCash.RecordCashRequest): Promise<realCash.CashCollection> =>
+  USE_MOCKS ? cashMock.recordCash(ref, request) : realCash.recordCash(ref, request)
+export const handOverCash = (collectionIds: string[]): Promise<realCash.DriverCash> =>
+  USE_MOCKS ? cashMock.handOverCash(collectionIds) : realCash.handOverCash(collectionIds)

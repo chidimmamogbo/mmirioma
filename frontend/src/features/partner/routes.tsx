@@ -34,6 +34,10 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/customer', lazy: () => import('./pages/RiderTrip').then((m) => ({ Component: m.CustomerStep })) }, // r-customer
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // r-otp, r-otp-error
       { path: 'jobs/:reference/done', lazy: () => import('./pages/RiderDone').then((m) => ({ Component: m.RiderDone })) }, // r-done
+      // Driver cash (K1, K2; docs/design/driver-cash.md, #20).
+      { path: 'jobs/:reference/cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.RecordCash })) }, // K1 Record cash
+      { path: 'cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.MyCash })) }, // K2 My cash
+      { path: 'cash/handover', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.HandOverCash })) }, // K2 Hand over cash
       { path: 'jobs/:reference/decline', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.DeclineJob })) }, // added
       // r-earnings; partner pay is out of the MVP (#157), so old links go home.
       ...(PARTNER_PAY_ENABLED
@@ -68,6 +72,10 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/customer', lazy: () => import('./pages/DriverTrip').then((m) => ({ Component: m.DriverCustomer })) }, // t-customer
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // t-otp
       { path: 'jobs/:reference/done', lazy: () => import('./pages/DriverDone').then((m) => ({ Component: m.DriverDone })) }, // t-done
+      // Driver cash (K1, K2; docs/design/driver-cash.md, #20).
+      { path: 'jobs/:reference/cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.RecordCash })) }, // K1 Record cash
+      { path: 'cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.MyCash })) }, // K2 My cash
+      { path: 'cash/handover', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.HandOverCash })) }, // K2 Hand over cash
       { path: 'jobs/:reference/decline', lazy: () => import('./pages/PartnerShared').then((m) => ({ Component: m.DeclineJob })) }, // added
       // t-earnings; hidden while partner pay is out of the MVP (#157).
       ...(PARTNER_PAY_ENABLED

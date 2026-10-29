@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
 import {
+  BanknoteIcon,
   BellIcon,
   ChevronRightIcon,
   DocumentFoldIcon,
@@ -151,6 +152,10 @@ export function PartnerMenu() {
           </MenuItem>
         </>
       )}
+      {/* The customer's cash the partner holds for the office, apart from Earnings (driver-cash.md, decision 4). */}
+      <MenuItem to={`${base}/cash`} icon={<BanknoteIcon size={20} />}>
+        My cash
+      </MenuItem>
       <MenuItem to={`${base}/profile`} icon={<PersonIcon size={20} roundJoin={false} />}>
         My profile
       </MenuItem>

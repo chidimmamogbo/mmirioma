@@ -124,6 +124,7 @@ export function partnerJobFromRead(job: DriverJobSummary | DriverJobDetail): Par
     delivered_at: job.order_status === 'delivered' ? job.ended_at : null,
     pickup: null,
     remaining: null,
+    cash: job.cash,
   }
 }
 

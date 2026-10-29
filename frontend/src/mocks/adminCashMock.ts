@@ -61,7 +61,7 @@ export function lagosDateOf(iso: string): string {
   return new Date(Date.parse(iso) + LAGOS_OFFSET_MS).toISOString().slice(0, 10)
 }
 
-function collection(
+export function collection(
   partial: Pick<AdminCashCollection, 'id' | 'order_reference' | 'amount_minor_units' | 'amount_due_minor_units' | 'status' | 'collected_at' | 'remittance_due_at' | 'driver' | 'customer'> &
     Partial<AdminCashCollection>,
 ): AdminCashCollection {
@@ -163,13 +163,13 @@ function requireAdmin(s: MockState): { id: string; name: string } {
 }
 
 /** The cash records, created on first use (states saved before #19 have none). */
-function cashOf(s: MockState): CashMockData {
+export function cashOf(s: MockState): CashMockData {
   s.admin.cash ??= seedCash()
   return s.admin.cash
 }
 
 /** Read without saving: the seed is used as-is until something changes. */
-function peekCash(s: MockState): CashMockData {
+export function peekCash(s: MockState): CashMockData {
   return s.admin.cash ?? seedCash()
 }
 
