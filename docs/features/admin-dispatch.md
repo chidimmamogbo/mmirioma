@@ -223,6 +223,9 @@ Screen rules (design and #62):
   the event ("Offered to", "Accepted by", "Declined by", "Offer to … withdrawn",
   "Job withdrawn from", "Recorded for"); a decline shows the reason "Driver
   declined" and the driver's note. Short histories show "N entries".
+  The order panel's timeline also shows the driver's steps after "Accepted by":
+  "Departed", "Collected", "En route", "Arrived", "Unloading" and "Delivered",
+  each with its time (#242).
 - The Simulated tag stays on demo orders (BR-09), also in the D1 order strip.
 - Every dialog has a title, Cancel and a Close button, moves focus inside,
   keeps Tab inside, closes on Escape, and returns focus to the button that

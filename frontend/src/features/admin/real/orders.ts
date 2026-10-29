@@ -224,8 +224,8 @@ type TimelineEntry = AdminOrder['timeline'][number]
 
 /**
  * The line for an assignment event, in the contract's words (deliveries.md,
- * "AdminOrderEvent"), or `null` for every other event: their wording is not
- * decided yet (#16), so they are left out rather than guessed.
+ * "AdminOrderEvent"), or `null` for every other event (the driver's steps have
+ * their own lines, see `progressLine`).
  */
 function assignmentLine(event: AdminOrderEvent): string | null {
   if (!event.assignment) return null
@@ -276,12 +276,33 @@ function endLine(event: AdminOrderEvent): { label: string; detail: string } | nu
   return { label: event.to_status === 'failed' ? 'Delivery failed' : 'Cancelled', detail }
 }
 
+/** The driver's delivery steps after accepting, in order, and the line each one makes (#242). */
+const PROGRESS_LABEL: Record<string, string> = {
+  departed: 'Departed',
+  collected: 'Collected',
+  en_route: 'En route',
+  arrived: 'Arrived',
+  unloading: 'Unloading',
+  delivered: 'Delivered',
+}
+
+/**
+ * The line for a driver's step: the status change into `departed`,
+ * `collected`, `en_route`, `arrived`, `unloading` or `delivered`. `null` for
+ * every other event.
+ */
+function progressLine(event: AdminOrderEvent): string | null {
+  if (event.kind !== 'status_change' || !event.to_status) return null
+  return PROGRESS_LABEL[event.to_status] ?? null
+}
+
 /**
  * The order's timeline: "Order placed", then its confirmation (#136, design
- * Q5), hold (admin-hold-review.md, H), ending (failed or cancelled) and
- * assignment events, oldest first (the history comes newest first). An
- * assignment event's note is its detail; a confirmation, hold or ending line
- * carries its own (who, concern, reason, note, ...).
+ * Q5), hold (admin-hold-review.md, H), ending (failed or cancelled),
+ * assignment and delivery-step (departed to delivered, #242) events, oldest
+ * first (the history comes newest first). An assignment event's note is its
+ * detail; a confirmation, hold or ending line carries its own (who, concern,
+ * reason, note, ...).
  */
 export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[]): TimelineEntry[] {
   const lines = [...history].reverse().flatMap((event): TimelineEntry[] => {
@@ -291,6 +312,8 @@ export function timelineFromHistory(createdAt: string, history: AdminOrderEvent[
     if (hold) return [{ label: hold.label, at: event.created_at, ...(hold.detail ? { detail: hold.detail } : {}) }]
     const end = endLine(event)
     if (end) return [{ label: end.label, at: event.created_at, ...(end.detail ? { detail: end.detail } : {}) }]
+    const step = progressLine(event)
+    if (step) return [{ label: step, at: event.created_at }]
     const label = assignmentLine(event)
     return label ? [{ label, at: event.created_at, ...(event.note ? { detail: event.note } : {}) }] : []
   })
