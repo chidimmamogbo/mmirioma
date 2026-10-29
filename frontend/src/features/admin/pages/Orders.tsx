@@ -17,6 +17,7 @@ import { choiceLitres, describeChoice, type WaterChoice } from '../../../domain/
 import { describeQuantity } from '../../../domain/quantity'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { USE_MOCKS } from '../../../lib/api/mode'
+import { ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED } from '../../../lib/features'
 import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
@@ -92,9 +93,11 @@ export function Orders() {
               title="Orders"
               sub={query ? `Results for “${query}”. Confirm new orders, then assign a rider.` : 'Confirm new orders, then assign a rider.'}
               actions={
-                <ButtonLink to="/admin/orders/new" size="sm" block={false}>
-                  + Create order for a customer
-                </ButtonLink>
+                ORDER_FOR_CUSTOMER_ENABLED && (
+                  <ButtonLink to="/admin/orders/new" size="sm" block={false}>
+                    + Create order for a customer
+                  </ButtonLink>
+                )
               }
             />
             {created && (
@@ -357,10 +360,15 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
       )}
       {o.payment.status === 'awaiting_verification' && (
         <Notice tone="note">
-          This customer's transfer is waiting for a check.{' '}
-          <Link to="/admin/payments" className="font-bold text-primary no-underline hover:text-primary-dark">
-            Go to payments
-          </Link>
+          This customer's transfer is waiting for a check.
+          {PAYMENTS_PAGE_ENABLED && (
+            <>
+              {' '}
+              <Link to="/admin/payments" className="font-bold text-primary no-underline hover:text-primary-dark">
+                Go to payments
+              </Link>
+            </>
+          )}
         </Notice>
       )}
     </>

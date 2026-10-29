@@ -25,10 +25,18 @@ through reports and the audit log.
 4. **Create order** (`/admin/orders/new`): pick or add a customer, delivery
    type, details, address (or add one), payment method; the price comes from
    the current price list. Then leave it in the pool or assign a rider.
+   Mock mode only (`ORDER_FOR_CUSTOMER_ENABLED`, #221): with the real API no
+   "+ Create order" or "Place order for ..." button shows, and the address
+   goes to the dashboard (no admin endpoint; answer 3 on #221).
 5. **Customers**: profile, manual phone verification (FR-003), point
-   adjustments, links to their support history and payment records.
+   adjustments, links to their support history and payment records. With the
+   real API, "Mark phone verified" and "Adjust points" are hidden
+   (`DIRECTORY_EDITS_ENABLED`, #221; admin-directory.md decides against both),
+   and so is "Payment records" (see Payments below).
 6. **Riders**: approve (pending), suspend (reason; goes offline, assigned
-   orders back to the pool), reactivate; add a rider from the office.
+   orders back to the pool), reactivate; add a rider from the office (mock
+   mode only: partners sign themselves up, so with the real API "+ Add rider"
+   is hidden and `/admin/riders/new` goes to the dashboard, #221).
 7. **Refill stations**: open or close (partners are told), edit, add (starts
    closed), upload water-source papers with an expiry date, loading log.
    Closed stations and expired or missing papers are never used for new
@@ -45,7 +53,10 @@ through reports and the audit log.
    rules setting the handling and margin per area, water and quantity, saved
    as numbered versions; placed orders keep their price (FR-024). Pricing
    stands alone, with no Money tabs. **Payouts and payments**: confirm
-   payments (FR-040) and pay refunds as points (Terms §7). The **Loyalty
+   payments (FR-040) and pay refunds as points (Terms §7); mock mode only
+   (`PAYMENTS_PAGE_ENABLED`, #221): with the real API the Cash page replaces
+   it, so it is not in the menu, the order panel's "Go to payments" link is
+   gone, and `/admin/payments` goes to the dashboard. The **Loyalty
    points** page and tab are hidden in the pilot (`POINTS_ENABLED`, #156).
 10. **Rider earnings**: wallets and payout requests; mark a payout sent.
     Hidden in the pilot (`PARTNER_PAY_ENABLED`, #156): not in the menu,

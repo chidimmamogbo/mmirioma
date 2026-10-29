@@ -15,7 +15,7 @@ import {
   VehicleIcon,
   WalletIcon,
 } from '../icons/icons'
-import { PARTNER_PAY_ENABLED, POINTS_ENABLED } from '../../lib/features'
+import { PARTNER_PAY_ENABLED, PAYMENTS_PAGE_ENABLED, POINTS_ENABLED } from '../../lib/features'
 
 /** Sidebar entry. Icons follow the dashboard page of the handoff (the canonical nav). */
 export interface NavEntry {
@@ -37,7 +37,7 @@ const ALL_NAV: NavEntry[] = [
   { to: '/admin/areas', label: 'Service areas', icon: () => <MapIcon /> },
   { to: '/admin/pricing', label: 'Pricing and delivery', icon: () => <TagDotIcon /> },
   { to: '/admin/loyalty', label: 'Loyalty points', icon: () => <StarIcon />, enabled: POINTS_ENABLED },
-  { to: '/admin/payments', label: 'Payments', icon: () => <CreditCardIcon /> },
+  { to: '/admin/payments', label: 'Payments', icon: () => <CreditCardIcon />, enabled: PAYMENTS_PAGE_ENABLED },
   { to: '/admin/cash', label: 'Cash', icon: () => <BanknoteIcon /> },
   { to: '/admin/earnings', label: 'Rider earnings', icon: () => <WalletIcon />, enabled: PARTNER_PAY_ENABLED },
   { to: '/admin/reports', label: 'Reports', icon: () => <BarChartIcon roundJoin={false} /> },
@@ -45,7 +45,7 @@ const ALL_NAV: NavEntry[] = [
   { to: '/admin/settings', label: 'Settings', icon: () => <SunIcon roundJoin={false} /> },
 ]
 
-/** The sidebar: every section the pilot offers. Loyalty points and rider earnings stay hidden while out of the MVP. */
+/** The sidebar: every section the pilot offers. Loyalty points and rider earnings stay hidden while out of the MVP; Payments with the real API (#221). */
 export const ADMIN_NAV: NavEntry[] = ALL_NAV.filter((n) => n.enabled !== false)
 
 /** The nav entry a path belongs to: exact for the dashboard, prefix for the rest. */

@@ -21,6 +21,7 @@ import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { IconBadge, type IconBadgeTone } from '../../../components/ui/Content'
 import type { ActivityKind, AdminOrder } from '../../../domain/admin'
 import { USE_MOCKS } from '../../../lib/api/mode'
+import { ORDER_FOR_CUSTOMER_ENABLED } from '../../../lib/features'
 import { formatDayDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { greeting } from '../../partner/greeting'
@@ -78,9 +79,11 @@ export function Dashboard() {
             <CalendarIcon size={18} />
             {formatDayDate(new Date())}
           </span>
-          <ButtonLink to="/admin/orders/new" size="sm" block={false}>
-            + Create order
-          </ButtonLink>
+          {ORDER_FOR_CUSTOMER_ENABLED && (
+            <ButtonLink to="/admin/orders/new" size="sm" block={false}>
+              + Create order
+            </ButtonLink>
+          )}
         </div>
       </div>
 
