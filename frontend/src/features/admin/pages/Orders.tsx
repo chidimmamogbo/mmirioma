@@ -249,7 +249,7 @@ function OrderPanel({ reference, onChange }: { reference: string; onChange: () =
           </div>
           {o.partner && (
             <KeyValue
-              label={o.status === 'assigned' ? 'Assigned to' : 'Rider'}
+              label={o.status === 'assigned' ? 'Assigned to' : o.status === 'delivered' ? 'Delivered by' : 'Rider'}
               value={
                 <span>
                   {o.partner.code ? `${o.partner.name} · ${o.partner.code}` : o.partner.name}
