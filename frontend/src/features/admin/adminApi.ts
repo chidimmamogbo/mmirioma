@@ -7,10 +7,10 @@
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
  * `assignOrder` (#16), `listAreas`, `saveArea` (#74), the hold review
  * functions (#166), and the shell, dashboard, live map, activity and settings
- * reads (#217), and cancelling an order, which is `transitionOrder` with
+ * reads (#217), and support requests, the audit log and admin notifications (#219), and cancelling an order, which is `transitionOrder` with
  * `to: cancelled` (#176).
  */
-import type { AdminOrderFilter, PriceListDraft, ReportRange, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceListDraft, ReportRange, ResolutionAction, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
@@ -21,6 +21,7 @@ import * as areas from './real/areas'
 import * as cash from './real/cash'
 import * as holds from './real/holds'
 import * as operations from './real/operations'
+import * as support from './real/support'
 import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
@@ -131,13 +132,15 @@ export const markPayoutPaid = api('Rider earnings', mock.markPayoutPaid)
 
 export const getReport = (range: ReportRange) => (USE_MOCKS ? mock.getReport(range) : reports.getReport(range))
 
-export const listIssues = api('Support', mock.listIssues)
-export const getIssuePeople = api('Support', mock.getIssuePeople)
-export const resolveIssue = api('Support', mock.resolveIssue)
+// Support requests (#219): the real API resolves with one note; the mock keeps its five resolutions.
+export const listIssues = (query?: string) => (USE_MOCKS ? mock.listIssues(query) : support.listIssues(query))
+export const getIssuePeople = (issueId: string) => (USE_MOCKS ? mock.getIssuePeople(issueId) : support.getIssuePeople(issueId))
+export const resolveIssue = (issueId: string, action: ResolutionAction, reason: string, points?: number) =>
+  USE_MOCKS ? mock.resolveIssue(issueId, action, reason, points) : support.resolveIssue(issueId, reason)
 
-export const listAudit = api('Audit log', mock.listAudit)
-export const listAdminNotifications = api('Notifications', mock.listAdminNotifications)
-export const markAdminNotificationsRead = api('Notifications', mock.markAdminNotificationsRead)
+export const listAudit = (limit?: number) => (USE_MOCKS ? mock.listAudit(limit) : support.listAudit(limit))
+export const listAdminNotifications = () => (USE_MOCKS ? mock.listAdminNotifications() : support.listAdminNotifications())
+export const markAdminNotificationsRead = () => (USE_MOCKS ? mock.markAdminNotificationsRead() : support.markAdminNotificationsRead())
 // Settings are read only: there is no save endpoint (admin-operations.md, decision 4), so `saveSettings` stays not connected.
 export const getSettings = () => (USE_MOCKS ? mock.getSettings() : operations.getSettings())
 export const saveSettings = api('Settings', mock.saveSettings)

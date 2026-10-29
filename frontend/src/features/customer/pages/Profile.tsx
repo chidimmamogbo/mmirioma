@@ -30,7 +30,7 @@ import { formatPhone } from '../../../lib/format/phone'
 import { useLogout, useSession } from '../../auth/useSession'
 import { PushSettingRows } from '../../pwa/PushParts'
 import { useProfile, useUpdateProfile } from '../queries'
-import { POINTS_ENABLED } from '../../../lib/features'
+import { CUSTOMER_PROFILE_EDITS_ENABLED, POINTS_ENABLED, PUSH_ENABLED } from '../../../lib/features'
 
 /** Largest photo accepted, before it is stored (keeps uploads small on mobile data). */
 const MAX_PHOTO_BYTES = 500_000
@@ -86,23 +86,27 @@ export function Profile() {
             <div className="rise-1 relative z-[2] mt-1.5 flex flex-col items-center gap-1.5">
               <span className="relative">
                 <Avatar name={p.name} size={78} fontSize={24} photoUrl={p.photo_url} className="shadow-[0_0_0_4px_rgba(255,255,255,0.35)]" />
-                <button
-                  type="button"
-                  aria-label="Change photo"
-                  onClick={() => fileRef.current?.click()}
-                  className="hit-44 absolute right-[-2px] bottom-[-2px] flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-gold text-ink"
-                >
-                  <CameraBodyIcon size={14} strokeWidth={2.4} />
-                </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  onChange={(e) => pickPhoto(e.target.files?.[0])}
-                />
+                {CUSTOMER_PROFILE_EDITS_ENABLED && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Change photo"
+                      onClick={() => fileRef.current?.click()}
+                      className="hit-44 absolute right-[-2px] bottom-[-2px] flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-gold text-ink"
+                    >
+                      <CameraBodyIcon size={14} strokeWidth={2.4} />
+                    </button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      onChange={(e) => pickPhoto(e.target.files?.[0])}
+                    />
+                  </>
+                )}
               </span>
               <div className="text-[20px] font-extrabold">{p.name}</div>
               <div className="text-[13px] text-[#DCEBFD]">Customer since {since}</div>
@@ -226,19 +230,22 @@ export function AccountSettings() {
                   </div>
                 </Card>
               )}
-              <Card className="rise-3 px-4 py-1">
-                <PushSettingRows app="customer" />
-                {/* No switches when the app does not offer them (customer-account.md, decision 3). */}
-                {p.preferences && PREFS.map((pref) => (
-                  <div key={pref.key} className="mo-li">
-                    <span className="flex-1">
-                      <span className="block font-bold">{pref.title}</span>
-                      <span className="text-chip text-mute">{pref.sub}</span>
-                    </span>
-                    <Toggle label={pref.title} checked={p.preferences?.[pref.key] ?? false} onChange={(v) => update.mutate({ preferences: { [pref.key]: v } })} />
-                  </div>
-                ))}
-              </Card>
+              {/* Empty with the real API: no push (#221) and no switches. */}
+              {(PUSH_ENABLED || p.preferences) && (
+                <Card className="rise-3 px-4 py-1">
+                  <PushSettingRows app="customer" />
+                  {/* No switches when the app does not offer them (customer-account.md, decision 3). */}
+                  {p.preferences && PREFS.map((pref) => (
+                    <div key={pref.key} className="mo-li">
+                      <span className="flex-1">
+                        <span className="block font-bold">{pref.title}</span>
+                        <span className="text-chip text-mute">{pref.sub}</span>
+                      </span>
+                      <Toggle label={pref.title} checked={p.preferences?.[pref.key] ?? false} onChange={(v) => update.mutate({ preferences: { [pref.key]: v } })} />
+                    </div>
+                  ))}
+                </Card>
+              )}
             </>
           )}
           <Card className="rise-4 px-4 py-1">

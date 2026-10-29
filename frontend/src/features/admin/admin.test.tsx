@@ -7,6 +7,7 @@ import { AppProviders } from '../../app/providers'
 import { routes } from '../../app/router'
 import { decideProof } from '../../mocks/adminMock'
 import { mockLogin } from '../../mocks/authMock'
+import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED } from '../../lib/features'
 import { read, resetMockDb } from '../../mocks/db'
 import { DEMO_PASSWORD } from '../../mocks/seed'
 import { notReadyToAssign, timeAgo } from './adminFormat'
@@ -565,4 +566,42 @@ describe('timeAgo', () => {
     expect(timeAgo('2026-10-20T11:00:00Z', now)).toBe('1 h ago')
     expect(timeAgo('2026-10-19T09:00:00Z', now)).toBe('Yesterday')
   })
+})
+
+// With the real API these are hidden (#221, mockOnly.real.test.tsx); mock mode keeps the full demo.
+describe('mock-only admin actions in mock mode (#221)', () => {
+  beforeEach(() => mockLogin({ phone: '0800 000 0100', password: DEMO_PASSWORD }))
+
+  it('offers Payments and "+ Create order" on the dashboard', async () => {
+    expect(PAYMENTS_PAGE_ENABLED && ORDER_FOR_CUSTOMER_ENABLED && DIRECTORY_EDITS_ENABLED).toBe(true)
+    renderAt('/admin')
+    expect((await screen.findAllByText('Awaiting rider', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
+    const nav = screen.getAllByRole('navigation', { name: 'Admin' })[0]
+    expect(within(nav).getByRole('link', { name: /Payments/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '+ Create order' })).toHaveAttribute('href', '/admin/orders/new')
+  }, SLOW)
+
+  it('offers "+ Create order for a customer" on Orders', async () => {
+    renderAt('/admin/orders')
+    expect(await screen.findByRole('link', { name: '+ Create order for a customer' }, { timeout: WAIT })).toBeInTheDocument()
+  }, SLOW)
+
+  it('offers "+ Add rider" on Riders', async () => {
+    renderAt('/admin/riders')
+    expect(await screen.findByRole('link', { name: '+ Add rider' }, { timeout: WAIT })).toHaveAttribute('href', '/admin/riders/new')
+  }, SLOW)
+
+  it('offers the order, phone, points and payment actions on an unverified customer', async () => {
+    renderAt('/admin/customers?id=user-ifeoma')
+    expect(await screen.findByText('Phone not verified yet', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Place order for/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark phone verified' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Adjust points' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Payment records' })).toBeInTheDocument()
+  }, SLOW)
+
+  it('opens the Payments page', async () => {
+    renderAt('/admin/payments')
+    expect(await screen.findByRole('heading', { name: 'Customer payments' }, { timeout: WAIT })).toBeInTheDocument()
+  }, SLOW)
 })

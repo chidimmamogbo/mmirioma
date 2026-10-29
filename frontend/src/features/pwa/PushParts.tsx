@@ -7,6 +7,7 @@ import { Toggle } from '../../components/ui/Controls'
 import { Notice } from '../../components/ui/Notice'
 import { errorMessage } from '../../lib/api/errorMessage'
 import { cx } from '../../lib/cx'
+import { PUSH_ENABLED } from '../../lib/features'
 import { InstallCard } from './InstallParts'
 import type { AppKind } from './manifest'
 import { pushBlocked, pushSupport } from './push'
@@ -25,9 +26,14 @@ const COVERS: Record<AppKind, string> = {
 /**
  * "Phone notifications" rows for a settings card (`mo-li` rows). Explains
  * why push is not possible when it is not (browser, iPhone outside the
- * installed app, blocked), so the switch never looks broken.
+ * installed app, blocked), so the switch never looks broken. Nothing while
+ * push is out of the MVP with the real API (`PUSH_ENABLED`, #221).
  */
 export function PushSettingRows({ app, tone = 'blue' }: { app: AppKind; tone?: 'blue' | 'green' }) {
+  return PUSH_ENABLED ? <PushRows app={app} tone={tone} /> : null
+}
+
+function PushRows({ app, tone }: { app: AppKind; tone: 'blue' | 'green' }) {
   const support = pushSupport()
   const settings = usePushSettings(support === 'supported')
   const save = useSetPush()
@@ -130,11 +136,12 @@ function NotifyCard({ app, tone, className }: { app: AppKind; tone: 'blue' | 'gr
 
 /**
  * The one app card a dashboard shows: "Install the app" while that is
- * possible and not put off, otherwise "Turn on notifications".
+ * possible and not put off, otherwise "Turn on notifications" (while push is
+ * offered: `PUSH_ENABLED`, #221).
  */
 export function HomeAppCard({ app, tone = 'blue', className }: { app: AppKind; tone?: 'blue' | 'green'; className?: string }) {
   const install = useInstallAction()
   const [installSnoozed] = useState(() => isSnoozed(`install-${app}`))
   if (install.available && !installSnoozed) return <InstallCard app={app} tone={tone} className={className} />
-  return <NotifyCard app={app} tone={tone} className={className} />
+  return PUSH_ENABLED ? <NotifyCard app={app} tone={tone} className={className} /> : null
 }

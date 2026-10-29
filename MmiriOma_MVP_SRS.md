@@ -2,7 +2,7 @@
 
 **Version:** 0.3 — Product decisions of 19 October 2026 incorporated (#55)\
 **Date:** 19 October 2026 (v0.2: 17 October 2026; v0.1: 13 October 2026)\
-**Related document:** [PRD.md](PRD.md)  
+**Related document:** [MmiriOma MVP PRD](MmiriOma_MVP_PRD.md)  
 **Target:** Working web MVP plus at least one safely and lawfully completed real-world pilot  
 **Normative wording:** **MUST/SHALL** = required; **SHOULD** = preferred; **MAY** = optional\
 **Changes in v0.3 and v0.2:** see [§13 Change history](#13-change-history)
