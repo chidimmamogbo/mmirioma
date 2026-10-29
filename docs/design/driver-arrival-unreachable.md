@@ -128,6 +128,41 @@ contract change. Three client fields are new to the app's own types
 - **"Start navigation"** stays on U1; U2 has no navigation button (the partner
   has arrived).
 
+## Problem report: the job line and Back (#257)
+
+Added for [#257](https://github.com/chidimmamogbo/mmirioma/issues/257), which
+waits for this slice. The "Report a problem" screen (`r-issue`, U5) shows a
+card with the job: "<quantity> · <where the job is>". Today it has two phrases
+only: "on the way to customer" for every job past loading, including one that has
+arrived or is unloading, and "going to the station" for the rest. With the
+arrival step (U1, U2) the app can tell the steps apart, so the line names the
+real one, and the "Back" arrow returns to the screen of that step.
+
+The line and the Back target follow the step of the job (the first column is
+the backend `order_status`; the client tells the steps apart as described below
+the table):
+
+| `order_status` | Job line on the report card | Back goes to |
+| --- | --- | --- |
+| `accepted`, `departed` | <quantity> · going to the station | The refill step (as today) |
+| `collected`, `en_route` | <quantity> · on the way to customer | The customer step, U1 (as today) |
+| `arrived` | <quantity> · arrived at the customer | The arrived screen, U2 |
+| `unloading` | <quantity> · unloading | The code screen (as today's `r-otp`/`t-otp`) |
+
+- **Wording to approve (new):** "arrived at the customer" and "unloading". The
+  other two phrases are the app's current ones and do not change.
+- No new endpoint or field. The app's `PartnerJob` has no `order_status` (only
+  the backend's `DriverJobSummary` does), and its stage `collected` covers
+  `collected`, `en_route`, `arrived` and `unloading`. The steps are told apart
+  with the fields added in #263: stage `accepted` is before loading; for stage
+  `collected`, no `arrived_at` means on the way to the customer,
+  `arrived_at` with `can_start_unloading` means arrived (U2), and `arrived_at`
+  without it means unloading.
+- The report card shows for an active job only; a finished job has no card (the
+  screen then reads "Support", as today).
+- "Customer not reachable" on this screen after arrival opens U3 (decision 2);
+  the job line and Back above are the same on that path.
+
 ## Open questions
 
 None.
