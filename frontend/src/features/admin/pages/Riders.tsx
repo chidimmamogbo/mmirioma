@@ -18,6 +18,7 @@ import { describeQuantity, litresFromGallons } from '../../../domain/quantity'
 import { parseGallons } from '../../../domain/tankCapacity'
 import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { DIRECTORY_EDITS_ENABLED } from '../../../lib/features'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
 import * as api from '../adminApi'
@@ -52,9 +53,11 @@ export function Riders() {
               title="Riders and drivers"
               sub={list.data ? `${list.data.counts.all} riders · ${list.data.online} online now · ${list.data.pending} waiting for approval` : 'Approve, suspend and reactivate partners.'}
               actions={
-                <ButtonLink to="/admin/riders/new" size="sm" block={false}>
-                  + Add rider
-                </ButtonLink>
+                DIRECTORY_EDITS_ENABLED && (
+                  <ButtonLink to="/admin/riders/new" size="sm" block={false}>
+                    + Add rider
+                  </ButtonLink>
+                )
               }
             />
             <Pills

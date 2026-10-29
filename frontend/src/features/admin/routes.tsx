@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom'
-import { PARTNER_PAY_ENABLED, POINTS_ENABLED } from '../../lib/features'
+import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PARTNER_PAY_ENABLED, PAYMENTS_PAGE_ENABLED, POINTS_ENABLED } from '../../lib/features'
 import { RequireRole } from '../auth/RequireRole'
 import { SignedOutOnly } from '../auth/SessionRedirects'
 import { AdminArea } from './AdminParts'
@@ -36,10 +36,15 @@ export const adminRoutes: RouteObject[] = [
       { index: true, ...page(() => import('./pages/Dashboard').then((m) => ({ Component: m.Dashboard }))) }, // a-dashboard
       { path: 'map', ...page(() => import('./pages/AccountPages').then((m) => ({ Component: m.LiveMapPage }))) }, // added
       { path: 'orders', ...page(() => import('./pages/Orders').then((m) => ({ Component: m.Orders }))) }, // a-orders
-      { path: 'orders/new', ...page(() => import('./pages/CreateOrder').then((m) => ({ Component: m.CreateOrder }))) }, // a-create
+      // Mock-only actions (lib/features.ts, #221): with the real API old links go to the dashboard.
+      ORDER_FOR_CUSTOMER_ENABLED
+        ? { path: 'orders/new', ...page(() => import('./pages/CreateOrder').then((m) => ({ Component: m.CreateOrder }))) } // a-create
+        : { path: 'orders/new', element: <Navigate to="/admin" replace /> },
       { path: 'customers', ...page(() => import('./pages/Customers').then((m) => ({ Component: m.Customers }))) }, // a-customers
       { path: 'riders', ...page(() => import('./pages/Riders').then((m) => ({ Component: m.Riders }))) }, // a-riders
-      { path: 'riders/new', ...page(() => import('./pages/Riders').then((m) => ({ Component: m.NewRider }))) }, // added
+      DIRECTORY_EDITS_ENABLED
+        ? { path: 'riders/new', ...page(() => import('./pages/Riders').then((m) => ({ Component: m.NewRider }))) } // added
+        : { path: 'riders/new', element: <Navigate to="/admin" replace /> },
       { path: 'stations', ...page(() => import('./pages/Stations').then((m) => ({ Component: m.Stations }))) }, // a-stations
       { path: 'areas', ...page(() => import('./pages/Areas').then((m) => ({ Component: m.Areas }))) }, // added
       { path: 'pricing', ...page(() => import('./pages/Pricing').then((m) => ({ Component: m.Pricing }))) }, // a-pricing
@@ -47,7 +52,9 @@ export const adminRoutes: RouteObject[] = [
       POINTS_ENABLED
         ? { path: 'loyalty', ...page(() => import('./pages/Loyalty').then((m) => ({ Component: m.Loyalty }))) } // added (a-pricing tab)
         : { path: 'loyalty', element: <Navigate to="/admin" replace /> },
-      { path: 'payments', ...page(() => import('./pages/Payments').then((m) => ({ Component: m.Payments }))) }, // added (a-pricing tab)
+      PAYMENTS_PAGE_ENABLED
+        ? { path: 'payments', ...page(() => import('./pages/Payments').then((m) => ({ Component: m.Payments }))) } // added (a-pricing tab)
+        : { path: 'payments', element: <Navigate to="/admin" replace /> },
       { path: 'cash', ...page(() => import('./pages/Cash').then((m) => ({ Component: m.Cash }))) }, // K3, K5 (docs/design/admin-cash.md)
       { path: 'cash/drivers/:driverId', ...page(() => import('./pages/CashDriver').then((m) => ({ Component: m.CashDriver }))) }, // K4
       PARTNER_PAY_ENABLED

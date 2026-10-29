@@ -11,6 +11,7 @@ import { Notice } from '../../../components/ui/Notice'
 import type { AdminCustomer } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
+import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED } from '../../../lib/features'
 import { formatShortDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { formatPhone } from '../../../lib/format/phone'
@@ -89,9 +90,11 @@ function CustomerDetail({ id }: { id: string }) {
             {formatPhone(c.phone)} · {c.email ?? 'no email'} · since {new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' }).format(new Date(c.customer_since))}
           </div>
         </div>
-        <ButtonLink to={`/admin/orders/new?customer=${c.id}`} size="sm" block={false} className="px-5">
-          Place order for {first}
-        </ButtonLink>
+        {ORDER_FOR_CUSTOMER_ENABLED && (
+          <ButtonLink to={`/admin/orders/new?customer=${c.id}`} size="sm" block={false} className="px-5">
+            Place order for {first}
+          </ButtonLink>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Fact label="Orders" value={c.orders} />
@@ -105,9 +108,11 @@ function CustomerDetail({ id }: { id: string }) {
             <div className="font-extrabold">Phone not verified yet</div>
             <div className="text-[14px] text-[#5A4310]">Call the customer to confirm the number before confirming orders (FR-003).</div>
           </div>
-          <Button size="sm" block={false} className="bg-green-solid px-4 hover:bg-green" loading={verify.isPending} onClick={() => verify.mutate(undefined)}>
-            Mark phone verified
-          </Button>
+          {DIRECTORY_EDITS_ENABLED && (
+            <Button size="sm" block={false} className="bg-green-solid px-4 hover:bg-green" loading={verify.isPending} onClick={() => verify.mutate(undefined)}>
+              Mark phone verified
+            </Button>
+          )}
         </div>
       )}
       {verify.isError && <Notice tone="error">{errorMessage(verify.error)}</Notice>}
@@ -147,15 +152,19 @@ function CustomerDetail({ id }: { id: string }) {
         </section>
       </div>
       <div className="flex flex-wrap gap-2.5">
-        <button type="button" onClick={() => setAdjusting((v) => !v)} className="mo-mini mo-mini-alt hit-44 h-10 px-4 text-[14px]">
-          Adjust points
-        </button>
+        {DIRECTORY_EDITS_ENABLED && (
+          <button type="button" onClick={() => setAdjusting((v) => !v)} className="mo-mini mo-mini-alt hit-44 h-10 px-4 text-[14px]">
+            Adjust points
+          </button>
+        )}
         <MiniLink to={`/admin/support?q=${encodeURIComponent(c.name)}`} tone="alt" className="h-10 px-4 text-[14px]">
           Support history
         </MiniLink>
-        <MiniLink to={`/admin/payments?customer=${c.id}`} tone="alt" className="h-10 px-4 text-[14px]">
-          Payment records
-        </MiniLink>
+        {PAYMENTS_PAGE_ENABLED && (
+          <MiniLink to={`/admin/payments?customer=${c.id}`} tone="alt" className="h-10 px-4 text-[14px]">
+            Payment records
+          </MiniLink>
+        )}
       </div>
       {adjusting && <AdjustPoints customer={c} onDone={() => setAdjusting(false)} />}
     </Card>

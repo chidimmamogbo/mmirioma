@@ -36,6 +36,7 @@ import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../..
 import { DECLINE_LABEL, ENDED_STAGE_LABEL, ISSUE_LABEL, type DeclineReason, type PartnerIssueType, type PartnerJob, type PartnerNotification } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
+import { PARTNER_DOCUMENTS_ENABLED } from '../../../lib/features'
 import { formatNaira } from '../../../lib/format/money'
 import { JobMiniCard } from '../components/JobParts'
 import { jobDeliveryType, jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
@@ -294,47 +295,52 @@ export function PartnerVehicle() {
                 </span>
               </div>
             </Card>
-            <SectionTitle className="rise-3">Documents</SectionTitle>
-            <Card className="rise-3 px-4 py-1">
-              {p.documents.map((d) => (
-                <div key={d.id} className="mo-li">
-                  {docIcon(d.status)}
-                  <div className="flex-1">
-                    <div className="font-bold">{d.name}</div>
-                    <div className={cx('text-chip', d.status === 'expiring' || d.status === 'missing' ? 'text-amber' : 'text-mute')}>{d.note}</div>
-                  </div>
-                  {d.status === 'valid' && <Chip tone="green" className="px-2 py-[3px]">Valid</Chip>}
-                  {d.status === 'done' && <Chip tone="green" className="px-2 py-[3px]">Done</Chip>}
-                  {d.status === 'checking' && <Chip tone="blue" className="px-2 py-[3px]">Checking</Chip>}
-                  {(d.status === 'expiring' || d.status === 'missing') && d.can_upload && (
-                    <MiniButton
-                      disabled={upload.isPending}
-                      onClick={() => {
-                        setDocId(d.id)
-                        fileRef.current?.click()
-                      }}
-                    >
-                      Upload
-                    </MiniButton>
-                  )}
-                </div>
-              ))}
-            </Card>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden="true"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f && docId) upload.mutate({ id: docId, fileName: f.name })
-                e.target.value = ''
-              }}
-            />
-            {upload.isSuccess && <Notice tone="success">Uploaded. Admin will check it.</Notice>}
-            {upload.isError && <Notice tone="error">{errorMessage(upload.error)}</Notice>}
+            {/* Documents are out of the MVP: the admin checks papers in person (#221). */}
+            {PARTNER_DOCUMENTS_ENABLED && (
+              <>
+                <SectionTitle className="rise-3">Documents</SectionTitle>
+                <Card className="rise-3 px-4 py-1">
+                  {p.documents.map((d) => (
+                    <div key={d.id} className="mo-li">
+                      {docIcon(d.status)}
+                      <div className="flex-1">
+                        <div className="font-bold">{d.name}</div>
+                        <div className={cx('text-chip', d.status === 'expiring' || d.status === 'missing' ? 'text-amber' : 'text-mute')}>{d.note}</div>
+                      </div>
+                      {d.status === 'valid' && <Chip tone="green" className="px-2 py-[3px]">Valid</Chip>}
+                      {d.status === 'done' && <Chip tone="green" className="px-2 py-[3px]">Done</Chip>}
+                      {d.status === 'checking' && <Chip tone="blue" className="px-2 py-[3px]">Checking</Chip>}
+                      {(d.status === 'expiring' || d.status === 'missing') && d.can_upload && (
+                        <MiniButton
+                          disabled={upload.isPending}
+                          onClick={() => {
+                            setDocId(d.id)
+                            fileRef.current?.click()
+                          }}
+                        >
+                          Upload
+                        </MiniButton>
+                      )}
+                    </div>
+                  ))}
+                </Card>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f && docId) upload.mutate({ id: docId, fileName: f.name })
+                    e.target.value = ''
+                  }}
+                />
+                {upload.isSuccess && <Notice tone="success">Uploaded. Admin will check it.</Notice>}
+                {upload.isError && <Notice tone="error">{errorMessage(upload.error)}</Notice>}
+              </>
+            )}
             <p className="rise-4 m-0 text-caption text-mute">
               Only approved {vehicle === 'keke' ? 'riders' : 'drivers'} with valid papers can receive orders. Changes to your {vehicle} are checked by admin.
             </p>
