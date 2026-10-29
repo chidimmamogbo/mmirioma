@@ -7,10 +7,10 @@
  * functions (#19), `listOrders`, `getOrder` (#15), `listEligibleRiders`,
  * `assignOrder` (#16), `listAreas`, `saveArea` (#74), the hold review
  * functions (#166), and the shell, dashboard, live map, activity and settings
- * reads (#217), and support requests, the audit log and admin notifications (#219), and cancelling an order, which is `transitionOrder` with
+ * reads (#217), support requests, the audit log and admin notifications (#219), and the customers and riders (#220), and cancelling an order, which is `transitionOrder` with
  * `to: cancelled` (#176).
  */
-import type { AdminOrderFilter, PriceListDraft, ReportRange, ResolutionAction, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, ApprovalVehicleInput, NewAddressInput, PriceListDraft, ReportRange, ResolutionAction, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
@@ -25,10 +25,13 @@ import * as support from './real/support'
 import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
+import * as directory from './real/directory'
 import * as reports from './real/reports'
 import * as dispatch from './real/ordersDispatch'
 
-export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
+import type { ApprovalAction, RiderFilter } from '../../mocks/adminMock'
+
+export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter, RiderList } from '../../mocks/adminMock'
 
 /** Wrap a mock so real-API mode reports the feature as not connected yet. */
 function api<A extends unknown[], R>(feature: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
@@ -64,16 +67,19 @@ export const transitionOrder = (reference: string, request: AdminTransitionReque
 export const createOrderForCustomer = api('Orders', mock.createOrderForCustomer)
 export const quoteForAdmin = api('Prices', mock.quoteForAdmin)
 
-export const listCustomers = api('Customers', mock.listCustomers)
-export const getCustomer = api('Customers', mock.getCustomer)
+// Customers and riders (#220): linked to the agreed directory endpoints; the actions with no endpoint are #221's.
+export const listCustomers = (query?: string) => (USE_MOCKS ? mock.listCustomers(query) : directory.listCustomers(query))
+export const getCustomer = (id: string) => (USE_MOCKS ? mock.getCustomer(id) : directory.getCustomer(id))
 export const createCustomer = api('Customers', mock.createCustomer)
-export const addCustomerAddress = api('Customers', mock.addCustomerAddress)
+export const addCustomerAddress = (customerId: string, input: NewAddressInput) =>
+  USE_MOCKS ? mock.addCustomerAddress(customerId, input) : directory.addCustomerAddress(customerId, input)
 export const verifyCustomerPhone = api('Customers', mock.verifyCustomerPhone)
 export const adjustPoints = api('Loyalty points', mock.adjustPoints)
 
-export const listRiders = api('Riders', mock.listRiders)
-export const getRider = api('Riders', mock.getRider)
-export const setRiderApproval = api('Riders', mock.setRiderApproval)
+export const listRiders = (filter?: RiderFilter, query?: string) => (USE_MOCKS ? mock.listRiders(filter, query) : directory.listRiders(filter, query))
+export const getRider = (id: string) => (USE_MOCKS ? mock.getRider(id) : directory.getRider(id))
+export const setRiderApproval = (id: string, action: ApprovalAction, reason: string, vehicle?: ApprovalVehicleInput) =>
+  USE_MOCKS ? mock.setRiderApproval(id, action, reason) : directory.setRiderApproval(id, action, reason, vehicle)
 export const addRider = api('Riders', mock.addRider)
 
 export const listStations = api('Refill stations', mock.listStations)

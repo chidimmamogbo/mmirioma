@@ -136,6 +136,15 @@ TEST_DATABASE_URL=postgresql+asyncpg://... .venv/bin/pytest tests/test_admin_cus
   none is in the contract.
 - `points`, `complaints` and `email` from the design's mock have no source
   yet (points #11, support tickets #22, no email column).
+- **Frontend (#220):** the Customers page reads these endpoints in real-API
+  mode (`frontend/src/lib/api/adminDirectory.ts`, `features/admin/real/directory.ts`,
+  mapping in `docs/architecture/api-mapping.md`, "Admin customers and drivers"). It
+  shows no points, complaints or email and no SAMPLE note on the paid total, says
+  "ordered in the last 7 days", and shows no Keke or Tanker word for an order with no
+  delivery type. The address call is linked but no real-mode screen reaches it: its
+  only screen, "Create order for a customer", has no endpoint, and the design's
+  address form has no service zone, which the backend requires (the adapter refuses
+  a call without `zone_id`). Tests: `features/admin/directory.screens.test.tsx`.
 - The contract sets no limit on the number of addresses for the staff write,
   so it does not apply the customer's own limit of 20. A customer who has more
   than 20 saved addresses cannot add another themselves until they remove one.

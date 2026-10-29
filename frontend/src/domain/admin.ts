@@ -205,13 +205,17 @@ export interface AdminCustomerSummary {
 }
 
 export interface AdminCustomer extends AdminCustomerSummary {
+  /** The backend has no email: `null`, and the real-mode screen shows none. */
   email: string | null
   customer_since: string
   total_paid_minor_units: number
-  points: number
-  complaints: number
+  /** Not sent by the backend (points are out of the MVP): absent, and the real-mode screen hides it. */
+  points?: number
+  /** Not sent by the backend (no support tickets per customer): absent, and the real-mode screen hides it. */
+  complaints?: number
   addresses: { id: string; label: string; address: string; landmark: string | null; is_default: boolean }[]
-  recent_orders: { reference: string; quantity: string; delivery_type: DeliveryType; created_at: string; status: AdminOrderStatus }[]
+  /** `delivery_type` is `null` for an order created before delivery details existed (#21). */
+  recent_orders: { reference: string; quantity: string; delivery_type: DeliveryType | null; created_at: string; status: AdminOrderStatus }[]
 }
 
 /* ---------- Riders and drivers ---------- */
@@ -220,19 +224,31 @@ export interface AdminRider {
   id: string
   name: string
   phone: string
-  code: string
-  vehicle: { type: DeliveryType; plate: string; tank_gallons: number | null }
+  /** Fleet code. The backend has none (admin-directory.md, open question 9): `null`. */
+  code: string | null
+  /** `type` is `null` for a driver created with the command-line tool before sign-up asked for it. */
+  vehicle: { type: DeliveryType | null; plate: string; tank_gallons: number | null }
+  /**
+   * Real API only: whether an admin has verified the vehicle (description and safe payload). Approving a partner
+   * who has none records it (FR-013). Absent in the mock, which has no such step.
+   */
+  vehicle_verified?: boolean
+  /** Real API only: what the partner typed at sign-up, shown as a claim next to the verified vehicle. */
+  declared_vehicle?: { plate: string | null; capacity_gallons: number | null; capacity_litres: number | null }
   service_areas: string[]
   online: boolean
   approval: ApprovalStatus
-  today_minor_units: number
+  /** Not sent by the backend (partner pay is out of the MVP): absent, and the real-mode screen hides it. */
+  today_minor_units?: number
   trips: number
   rating: number | null
-  payout_due_minor_units: number
-  /** "Papers due 31 Oct", "Papers valid". */
-  documents_note: string
+  /** Not sent by the backend (partner pay is out of the MVP): absent, and the real-mode screen hides it. */
+  payout_due_minor_units?: number
+  /** "Papers due 31 Oct", "Papers valid". Not sent by the backend (papers are checked in person): absent in real mode. */
+  documents_note?: string
   active_orders: number
-  reported_issues: number
+  /** Not sent by the backend (no partner support tickets): absent, and the real-mode screen hides it. */
+  reported_issues?: number
   partner_since: string
 }
 
@@ -560,6 +576,17 @@ export interface NewAddressInput {
   label: string
   address: string
   landmark: string | null
+  /** The service zone the address is in. The real API requires it (FR-020); the mock does not. */
+  zone_id?: string | null
+}
+
+/** What an admin verified when approving a partner (FR-013); the real API requires it when the partner has none yet. */
+export interface ApprovalVehicleInput {
+  /** The vehicle profile's type text, 1 to 50 characters, for example "Tanker truck". */
+  description: string
+  /** The verified safe payload per trip, 1 to 100,000 litres. */
+  safe_payload_litres: number
+  transfer_methods: ('ground' | 'overhead')[]
 }
 
 export interface NewRiderInput {
