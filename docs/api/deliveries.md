@@ -1145,6 +1145,46 @@ else of the assignment:
 `null` on the others) and `backend/tests/test_admin_order_list_example.py`
 checks it against the built schema.
 
+### Amendment (#243): the driver on the admin order list after the order ends
+
+**Status: proposed** by @Daveoski (+ Claude Code) for
+[#243](https://github.com/chidimmamogbo/mmirioma/issues/243). Needs one
+reviewer who is not the author to agree it (G3) before any code.
+
+**Gap.** The [#204 amendment](#amendment-204-the-driver-on-the-admin-order-list)
+gives `driver` only for a **live** assignment, so a `delivered`, `failed` or
+`cancelled` order has `driver: null` and the Rider column reads "None yet".
+The detail panel is fixed on the client (it already receives the ended
+assignment). The list cannot say who delivered an order, or who held a
+cancelled job.
+
+**Proposal.** Change only the rule for `driver` on each item of
+`GET /admin/orders`. The shape is unchanged (`null`, or `{ id, name }`):
+
+| Order status | `driver` |
+| --- | --- |
+| `assigned`, `accepted`, `departed`, `collected`, `en_route`, `arrived`, `unloading` | The driver of the live assignment (`offered` or `accepted`), as today |
+| `delivered`, `failed` | The driver of the order's `completed` assignment |
+| `cancelled` | The driver of the order's `withdrawn` assignment **if the driver had accepted it** (`responded_at` set, no `decline_reason`); otherwise `null` |
+| Any other (`confirmed` and earlier, `disputed`) | `null` unless a live assignment exists, as today |
+
+- **Same rule as the detail.** The panel names the same driver for the same
+  order (frontend, PR #246).
+- **A never-accepted offer names nobody.** The SRS has no rule for who "held"
+  a cancelled job (FR-036 says orders "may be reassigned or cancelled with
+  reason"); the author chose "accepted only", so an unanswered offer that was
+  withdrawn when the order was cancelled shows "None yet".
+- **An order back in the pool** (`confirmed` after a withdraw) keeps no driver.
+- **Additive.** Same field, same shape; a client that ignores it keeps working.
+  No new table, status or setting; `assignments` already stores it.
+- **Cost.** Still one query for the page's assignments (the live rule becomes
+  "live, or the order's final assignment"), plus the drivers' accounts.
+- **Example.** `examples/admin-orders-page.json` gains an item with a
+  `delivered` order and a driver.
+
+**Open question for the reviewer.** Is "accepted only" the right rule for a
+cancelled order, or should the latest assignment show whatever its state?
+
 ## Admin hold review endpoints
 
 Status: **agreed** (G3) on 2026-10-21 by @nnamdi-security (technical lead,
