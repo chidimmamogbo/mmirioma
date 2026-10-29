@@ -8,7 +8,14 @@ Requirements: FR-038 (P0), FR-035, FR-036, BR-14, NFR-020 · Acceptance test:
 T-25 · Contract: [deliveries.md](../api/deliveries.md) (agreed, G3), driver job
 part 2, design check rows A3, A4 and A7 · Prompt:
 [prompts/18-driver-arrival-and-unreachable.md](prompts/18-driver-arrival-and-unreachable.md)
-Designer: @Bonvee120 + Claude Code · Reviewed by: pending · Status: draft
+Designer: @Bonvee120 + Claude Code · Reviewed by: @nnamdi-security (technical lead) on 2026-10-29 · Status: approved
+
+**Approved (G2)** by @nnamdi-security (technical lead) on 2026-10-29, for both
+apps, with the wording in "Wording to approve" below
+([decision on #250](https://github.com/chidimmamogbo/mmirioma/issues/250#issuecomment-6503910898)).
+Version approved: the clickable preview as it stood on 2026-10-29 (it shows no
+version number). Contract: agreed (G3). Decisions 5 and 7 and the known
+limitation were added by that decision.
 
 The partner app's steps from arriving at the customer to a failed delivery when
 nobody answers: the arrival (U1, U2), the contact attempts and the wait (U3,
@@ -58,9 +65,9 @@ arrival before the job can fail.
 | All | Reassigned | 404 `order_not_found` on a job the app had open | |
 
 Every row points to an endpoint in `docs/api/deliveries.md`. Nothing needs a
-contract change. Two client fields are new to the app's own types
+contract change. Three client fields are new to the app's own types
 (`arrived_at`, `contact_attempts`, `unreachable_allowed_at` in
-`frontend/src/domain/partner.ts`); that goes in its own small PR after G2.
+`frontend/src/domain/partner.ts`); that goes in its own small PR.
 
 ## Wording to approve
 
@@ -100,18 +107,21 @@ contract change. Two client fields are new to the app's own types
    and end buttons are off while offline and nothing is shown as waiting to
    send. Decided by the owner.
 5. **A confirm sheet before failing, and more than two attempts allowed.** Two
-   additions of the prompt, for the reviewer to confirm. The sheet guards a step
-   that cannot be undone; the extra attempts cost nothing and the contract
-   accepts them.
+   additions of the prompt, approved on #250. The sheet guards a step that
+   cannot be undone. The contract says the failed step needs at least two
+   attempts and sets no maximum, so every attempt is recorded and extra ones
+   only add evidence.
 6. **The wait is a clock time, not a ticking countdown.** "Wait until 9:52 AM"
    with a small "in N min" next to it. The server's `allowed_actions` decides
    when the end button turns on; the phone's clock never does.
+7. **The customer step keeps the app's title** ("Deliver 750 gallons (3,000
+   litres)", and the rider's equivalent), not the preview's "Go to customer".
+   Approved on #250.
 
-## Differences from the current app to check at G2
+## Differences from the current app
 
-- **The customer step's title.** The preview shows "Go to customer". The app's
-  customer step is titled "Deliver 750 gallons (3,000 litres)" (and the rider's
-  equivalent). Keep the app's title unless the reviewer wants the new one.
+- **The customer step's title.** The preview shows "Go to customer"; the app
+  keeps its own title (decision 7).
 - **The button's old wording.** The preview's note quotes "Arrived · water
   pumped in" for both apps; the rider app's was "I have arrived · pour the
   water" for a Keke. Both are replaced by "I have arrived".
@@ -149,8 +159,19 @@ The line and the Back target follow the job's `order_status`:
 
 ## Open questions
 
-None for the owner. For the reviewer: the extra confirm sheet (decision 5),
-the screen title above, and the version of the preview you approve.
+None.
+
+## Known limitations
+
+- **Self-reported times.** With no arrival location, "I have arrived" and each
+  attempt are times the driver reports by tapping, so a driver could tap "I have
+  arrived" early to start the clock. The server enforces the full wait from
+  that time and the two attempts, and the dispatcher sees the times. To list in
+  `docs/features/partner-app.md` when the screens are built.
+- **"The dispatcher will contact you."** promises staff action, so the pilot
+  needs a dispatcher to follow up a failed delivery.
+- **The report screen's job line** (#257) is not part of this design; its wording
+  is decided with #257.
 
 ## Changes to the design system
 
