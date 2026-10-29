@@ -125,6 +125,27 @@ function listedDriver(read: AdminOrderRead | AdminOrderDetail): AdminOrder['part
 }
 
 /**
+ * The driver who held an order that has ended (#243): the detail's assignment when the order is delivered, failed or
+ * cancelled and the driver had taken the job (a `completed` assignment, or a `withdrawn` one the driver had accepted).
+ * An offer that was never accepted, or was declined, names nobody, and an order back in the pool keeps no driver.
+ */
+function endedDriver(read: AdminOrderRead | AdminOrderDetail): AdminOrder['partner'] {
+  const assignment = 'assignment' in read ? read.assignment : null
+  if (!assignment || (read.status !== 'delivered' && read.status !== 'failed' && read.status !== 'cancelled')) return null
+  const held =
+    assignment.status === 'completed' || (assignment.status === 'withdrawn' && assignment.responded_at !== null && !assignment.decline_reason)
+  if (!held) return null
+  const vehicleType = assignment.vehicle?.type
+  return {
+    id: assignment.driver.id,
+    name: assignment.driver.name,
+    code: null,
+    vehicle: vehicleType === 'keke' || vehicleType === 'tanker' ? vehicleType : null,
+    plate: null,
+  }
+}
+
+/**
  * Backend order (list row or detail) to the design's admin order.
  *
  * @param read - `AdminOrderRead` from the list, or `AdminOrderDetail`, which
@@ -163,8 +184,8 @@ export function adminOrderFromRead(read: AdminOrderRead | AdminOrderDetail): Adm
           vehicle: vehicleType === 'keke' || vehicleType === 'tanker' ? vehicleType : null,
           plate: null,
         }
-      : // A list row names its live driver only; the detail names them through the assignment (#204).
-        listedDriver(read),
+      : // A list row names its live driver only; the detail names them through the assignment (#204), and the driver of an ended order too (#243).
+        (endedDriver(read) ?? listedDriver(read)),
     assigned_by: live?.offered_by.name ?? null,
     station_name: detail?.source?.name ?? null,
     // The history is a separate endpoint; `getOrder` adds its assignment events (#16).

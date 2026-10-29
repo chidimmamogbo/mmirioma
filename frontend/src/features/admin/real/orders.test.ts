@@ -61,6 +61,29 @@ describe('adminOrderFromRead', () => {
     expect(order.timeline).toEqual([{ label: 'Order placed', at: DETAIL.created_at }])
   })
 
+  describe('the driver of an ended order (#243)', () => {
+    const ended = (status: string, assignment: Partial<NonNullable<AdminOrderDetail['assignment']>>): AdminOrderDetail =>
+      ({ ...DETAIL, status, assignment: { ...DETAIL.assignment!, responded_at: '2026-10-19T09:10:00Z', ended_at: '2026-10-19T11:00:00Z', ...assignment } }) as AdminOrderDetail
+    const driver = { id: DETAIL.assignment!.driver.id, name: 'Sample Driver One', code: null, vehicle: null, plate: null }
+
+    it('names the driver who delivered, from the completed assignment', () => {
+      const order = adminOrderFromRead(ended('delivered', { status: 'completed' }))
+      expect(order.status).toBe('delivered')
+      expect(order.partner).toMatchObject({ id: driver.id, name: 'Sample Driver One' })
+    })
+
+    it('names the driver of a failed delivery, and of a cancelled job the driver had accepted', () => {
+      expect(adminOrderFromRead(ended('failed', { status: 'completed' })).partner?.name).toBe('Sample Driver One')
+      expect(adminOrderFromRead(ended('cancelled', { status: 'withdrawn' })).partner?.name).toBe('Sample Driver One')
+    })
+
+    it('names nobody for an offer never accepted, a decline, or an order back in the pool', () => {
+      expect(adminOrderFromRead(ended('cancelled', { status: 'withdrawn', responded_at: null })).partner).toBeNull()
+      expect(adminOrderFromRead(ended('cancelled', { status: 'declined', decline_reason: 'too_far' })).partner).toBeNull()
+      expect(adminOrderFromRead(ended('confirmed', { status: 'withdrawn' })).partner).toBeNull()
+    })
+  })
+
   it('carries the open hold, and no hold as null (admin hold review, R0)', () => {
     const hold = { id: '9b2c4d6e-8f1a-4b3c-9d5e-6f7a8b9c0d1e', kind: 'proof_review' as const, since: '2026-10-20T08:48:00Z' }
     expect(adminOrderFromRead({ ...ROW, hold }).hold).toEqual(hold)
