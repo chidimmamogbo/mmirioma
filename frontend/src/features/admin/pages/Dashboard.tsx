@@ -21,7 +21,7 @@ import { Chip, SampleTag } from '../../../components/ui/Chip'
 import { IconBadge, type IconBadgeTone } from '../../../components/ui/Content'
 import type { ActivityKind, AdminOrder } from '../../../domain/admin'
 import { USE_MOCKS } from '../../../lib/api/mode'
-import { ORDER_FOR_CUSTOMER_ENABLED } from '../../../lib/features'
+import { ORDER_FOR_CUSTOMER_ENABLED, STATIONS_PAGE_ENABLED } from '../../../lib/features'
 import { formatDayDate } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { greeting } from '../../partner/greeting'
@@ -231,9 +231,11 @@ export function Dashboard() {
           title="Refill stations"
           className="flex-[1_1_300px]"
           action={
-            <Link to="/admin/stations" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
-              Manage
-            </Link>
+            STATIONS_PAGE_ENABLED && (
+              <Link to="/admin/stations" className="text-[14px] font-bold text-primary no-underline hover:text-primary-dark">
+                Manage
+              </Link>
+            )
           }
         >
           {USE_MOCKS && stations.isError && <ErrorBlock error={stations.error} onRetry={() => stations.refetch()} />}

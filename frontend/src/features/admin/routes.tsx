@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom'
-import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PARTNER_PAY_ENABLED, PAYMENTS_PAGE_ENABLED, POINTS_ENABLED } from '../../lib/features'
+import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PARTNER_PAY_ENABLED, PAYMENTS_PAGE_ENABLED, POINTS_ENABLED, STATIONS_PAGE_ENABLED } from '../../lib/features'
 import { RequireRole } from '../auth/RequireRole'
 import { SignedOutOnly } from '../auth/SessionRedirects'
 import { AdminArea } from './AdminParts'
@@ -45,7 +45,10 @@ export const adminRoutes: RouteObject[] = [
       DIRECTORY_EDITS_ENABLED
         ? { path: 'riders/new', ...page(() => import('./pages/Riders').then((m) => ({ Component: m.NewRider }))) } // added
         : { path: 'riders/new', element: <Navigate to="/admin" replace /> },
-      { path: 'stations', ...page(() => import('./pages/Stations').then((m) => ({ Component: m.Stations }))) }, // a-stations
+      // Stations have no admin endpoint (lib/features.ts, #235): with the real API the old link goes to the dashboard.
+      STATIONS_PAGE_ENABLED
+        ? { path: 'stations', ...page(() => import('./pages/Stations').then((m) => ({ Component: m.Stations }))) } // a-stations
+        : { path: 'stations', element: <Navigate to="/admin" replace /> },
       { path: 'areas', ...page(() => import('./pages/Areas').then((m) => ({ Component: m.Areas }))) }, // added
       { path: 'pricing', ...page(() => import('./pages/Pricing').then((m) => ({ Component: m.Pricing }))) }, // a-pricing
       // Loyalty points and rider earnings are out of the MVP (lib/features.ts, #156): old links go to the dashboard.

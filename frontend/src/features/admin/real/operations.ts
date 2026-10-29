@@ -51,6 +51,20 @@ export async function getShellData(client: ApiClient = apiClient): Promise<Admin
 }
 
 /**
+ * The signed-in admin's own account, for My account: the name and phone from
+ * `GET /auth/me`, and the role "Admin" (the backend has one staff role). The
+ * page shows only those, so `last_active` is `null` and the settings staff
+ * list is not read (api-mapping.md, "Admin account and refill stations").
+ *
+ * @param client - The API client; tests pass one with a fake `fetch`.
+ * @throws {ApiError} `not_authenticated` (401) and the shared errors.
+ */
+export async function getAdminAccount(client: ApiClient = apiClient): Promise<{ name: string; phone: string; role: string; last_active: string | null }> {
+  const { user } = await getMe(undefined, client)
+  return { name: user.name, phone: user.phone, role: 'Admin', last_active: null }
+}
+
+/**
  * Today's dashboard.
  *
  * The four order tiles group the backend's `by_status` with the admin status

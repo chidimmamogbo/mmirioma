@@ -150,4 +150,4 @@ export const markAdminNotificationsRead = () => (USE_MOCKS ? mock.markAdminNotif
 // Settings are read only: there is no save endpoint (admin-operations.md, decision 4), so `saveSettings` stays not connected.
 export const getSettings = () => (USE_MOCKS ? mock.getSettings() : operations.getSettings())
 export const saveSettings = api('Settings', mock.saveSettings)
-export const getAdminAccount = api('Account', mock.getAdminAccount)
+export const getAdminAccount = () => (USE_MOCKS ? mock.getAdminAccount() : operations.getAdminAccount())
