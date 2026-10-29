@@ -481,6 +481,37 @@ Codes built from a status (`deletion_request_<status>`,
 `water_source_<status>`) and any code added later show as the code itself,
 until a row is added here.
 
+## Admin customers and drivers
+
+Backend customers and drivers ([admin-directory.md](../api/admin-directory.md),
+agreed 2026-10-28, built in #45) to the admin design types. The link issue is
+#220; the rows follow the contract's "Mapping to the design types" table. The
+screen decisions marked **#220** are proposed in this PR and agreed when a
+reviewer who is not the author approves it (they are also a G2 request on #220).
+
+**Customers**
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `GET /admin/customers` (`q`, `limit`) | `listCustomers(query)` | `q` = the search text. The adapter reads the first 100. `customers` = `items`; `total` = `total` (the customers matching `q`); `ordered_this_week` = `ordered_last_7_days`, which counts the last 7 days and not the calendar week, so the real-mode subtitle says "ordered in the last 7 days" (**#220**) |
+| `AdminCustomerSummary` | `AdminCustomerSummary` | `orders` = `orders_count`. `is_active` is not used |
+| `GET /admin/customers/{id}` | `getCustomer(id)` | `customer_since` = `created_at`; `total_paid_minor_units` = `paid_total_minor_units` (integer kobo). `email`, `points` and `complaints` have no source: `email` is `null`, the other two are absent, and the real-mode screen hides them and the "no email" text (**#220**) |
+| `Address` | `addresses[]` | `id`, `label`, `address`, `landmark`, `is_default`; `zone` is dropped until a screen shows it |
+| `recent_orders[]` | `recent_orders[]` | `quantity` = `quantity_litres` worded with the [quantity rules](#quantities); `delivery_type` is `null` for an order created before #21 and the screen then shows no Keke or Tanker word (**#220**); `status` through the [admin order status](#admin-order-status) table |
+| `POST /admin/customers/{id}/addresses` | `addCustomerAddress(id, input)` | The backend needs `zone_id`, which the design's address form has no field for. The adapter sends the input's `zone_id` and refuses a call without one with a `validation_error` on `zone_id`, never a guessed zone. The only screen that adds an address is "Create order for a customer", which is not linked (`createOrderForCustomer` has no endpoint), so no real-mode screen reaches it yet. 404 `customer_not_found` and 404 `service_zone_not_found` show as they are |
+
+**Drivers (riders)**
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `GET /admin/drivers` (`delivery_type`, `approval_status`, `is_active`, `q`, `limit`) | `listRiders(filter, query)` | Always `is_active=true` (**#220**): a deactivated account has no design state and is never shown as "suspended". The pills map to the filters: `keke` and `tanker` to `delivery_type`, `pending` and `suspended` to `approval_status`, `all` to none. `limit` is 100 |
+| `counts` | `counts`, `online`, `pending` | `counts.all`, `keke`, `tanker`, `pending` as they are; `online` = `counts.available`; `pending` = `counts.pending`. There is no `suspended` count, so it is `null`, never `0` |
+| `AdminDriver` | `AdminRider` | `approval` = `approval_status`; `online` = `is_available`; `trips` = `completed_jobs`; `active_orders` = `live_jobs`; `partner_since` = `created_at`; `service_areas` = the `zones` names |
+| `vehicle` | `vehicle` | `type` = `delivery_type` (`null` for a driver created with the command-line tool before sign-up); `plate` = `plate`, empty when `null`; `tank_gallons` = verified `safe_payload_litres` ÷ 4 for a tanker, `null` until approval and for a Keke |
+| not sent | `code`, `rating`, `today_minor_units`, `payout_due_minor_units`, `documents_note`, `reported_issues` | Fleet code, rating, partner pay, documents and partner issues have no source in the MVP ([admin-directory.md](../api/admin-directory.md), "Not in `AdminDriver`"). They are `null` or absent, and the real-mode screen hides the code, the "Today" column, "Rating", "Payout due", "Documents" and "Reported issues" (**#220**) |
+| `GET /admin/drivers/{id}` | `getRider(id)` | A deactivated account (`is_active: false`) is shown as the error state "This account is deactivated.", with the code `driver_inactive` (a client-side error, never "suspended") (**#220**) |
+| `POST /admin/drivers/{id}/approval` | `setRiderApproval(id, action, reason, vehicle?)` | `approve` and `reactivate` send `approved`, with the reason when given; `suspend` sends `suspended` with a reason of 5 to 500 characters. Approving a partner with no verified vehicle also sends `vehicle` (`description`, `safe_payload_litres`, `transfer_methods`), which the approve form collects (**#220**, G2); approving a suspended partner who already has one sends none. 409 `driver_inactive`, `partner_phone_not_verified` and `driver_has_accepted_job`, and 422 `validation_error` (under the field it names), show in the server's words |
+
 ## Open questions
 
 | # | Question | Settled in |
