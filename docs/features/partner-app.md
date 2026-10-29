@@ -245,6 +245,17 @@ they order (the customer mock); the partner app gets it only after unloading.
 - Photos and papers are not uploaded anywhere; the mock only records them.
 - Admin, phone and WhatsApp numbers are placeholders.
 - The decline flow needs a contract change before the real API.
+- **Arrival and an unreachable customer (FR-038, T-25, #250).** The customer
+  step has one button, "Arrived · water pumped in", and "Unloading done, send
+  the code" records arrival, start of unloading and end of unloading in one tap
+  (`completeUnloading` in `features/partner/real/jobs.ts`). So the arrival time
+  the server stores is when unloading ended, a driver cannot wait after
+  arriving, and the app has no screens to record contact attempts or to fail a
+  delivery as "customer not reachable". The problem report's "Customer not
+  reachable" sends an `other` incident to the dispatcher, who can end the job
+  with "Fail delivery". That does not enforce the two attempts or the 10-minute
+  wait. The backend and the contract are ready; the screens wait for the design
+  in [prompt 18](../design/prompts/18-driver-arrival-and-unreachable.md).
 - Real API sign-up takes a typed area, not a zone list, so a partner must
   spell the zone's name. The demo seed creates no zones; create one before
   trying sign-up locally.
