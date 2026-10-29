@@ -89,7 +89,7 @@ class AdminOrderListFilters(AdminOrderFilters):
 
 
 class AdminOrderListItem(AdminOrderRead):
-    """An order on the admin list: ``AdminOrderRead`` plus its live driver (#204).
+    """An order on the admin list: ``AdminOrderRead`` plus its driver (#204, #243).
 
     The detail keeps the full ``assignment`` instead (admin dispatch, decision
     4); the list carries only who has the order, so the Rider column can name
@@ -97,8 +97,10 @@ class AdminOrderListItem(AdminOrderRead):
 
     Attributes:
         driver: The driver of the order's live assignment (``offered`` or
-            ``accepted``), or null (not confirmed, in the pool, declined,
-            withdrawn, delivered, cancelled or failed).
+            ``accepted``); for a delivered or failed order, the driver of its
+            completed assignment; for a cancelled one, the driver who had
+            accepted the job; else null (not confirmed, in the pool, declined,
+            withdrawn). Rules: ``dispatch.service.listed_drivers_by_order``.
     """
 
     driver: PersonRead | None

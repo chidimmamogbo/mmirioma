@@ -386,8 +386,8 @@ async def list_orders(
 
     Returns:
         ``(orders, total)``; ``total`` counts every match, so with
-        ``on_hold=True`` it is the On hold count. Each order carries its live
-        driver, read for the whole page at once.
+        ``on_hold=True`` it is the On hold count. Each order carries its driver
+        (live, or the one who held an ended order; #243), read for the whole page at once.
     """
     extra = [] if on_hold is None else [on_hold_condition() if on_hold else ~on_hold_condition()]
     staff_orders, total = await orders_service.list_orders_for_staff(
@@ -402,7 +402,9 @@ async def list_orders(
     )
     order_ids = [item.order.id for item in staff_orders]
     holds = await current_holds(session, order_ids)
-    drivers = await dispatch_service.live_drivers_by_order(session, order_ids)
+    drivers = await dispatch_service.listed_drivers_by_order(
+        session, {item.order.id: item.order.status for item in staff_orders}
+    )
     return [
         HeldOrder(
             staff_order=item, hold=holds.get(item.order.id), driver=drivers.get(item.order.id)
