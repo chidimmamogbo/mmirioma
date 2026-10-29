@@ -1,0 +1,15 @@
+# 2026-10-29: End-to-end run on the real backend (customer, dispatcher, driver, cash)
+
+- **Area:** process
+- **Author:** Bonvee120 + agent
+- **Symptom:** Ran one delivery from order to reconciled cash on `main` (7730770) with `VITE_USE_MOCKS=false`, a scratch database and the demo seed. Every step worked on the second try. The first order stopped at the driver's first step, and the run turned up four things worth fixing or deciding.
+- **Cause / findings:**
+  1. **Driver cannot start before the delivery day.** The first order was confirmed for 30 Oct. "Start: go to refill station" then "Confirm loading" sent `POST /driver/jobs/{ref}/transition` with `to: departed` and got 409 `transition_requirements_unmet`, `details.missing: ["delivery_day_reached"]`. The rule is correct. The screen shows only "This step needs more information before it can be recorded." and the driver cannot tell the cause is the date. The message should say the job starts on the delivery day.
+  2. **Admin timeline stops at "Accepted".** For the delivered order the admin order panel lists placed, confirmed, offered and accepted, and nothing after: no departed, collected, en route, arrived, unloading or delivered entries. The customer's timeline for the same order shows all of them (picked up 1:40 PM, on the way, delivered 1:41 PM).
+  3. **Rider column reads "None yet" once an order ends.** The delivered order (driver Demo Driver) and the cancelled one (assigned, then cancelled by the dispatcher) both show "None yet" in the Rider column. The panel should still say who delivered it.
+  4. **Receipt shows the customer's preference as the source.** The receipt says "Source: Any Bore hole water" while the admin panel shows the confirmed source, Demo Borehole A. Probably intended (the receipt has no station name), but it is the only place the two differ.
+- **Also noted, not problems:** the confirm step refuses an agreement time earlier than the order's creation (422 "The customer cannot have agreed before the order was sent"); a second order can't be assigned to a driver who already has an accepted job (409 `driver_not_eligible`, reason `busy`); cancelling an accepted job with `customer_request` works and frees the driver. The customer order screen has no rating control for a delivered order, and the end-to-end journey did not exercise a rating.
+- **Passed in the browser:** customer order with server price and receipt (₦8,800); dispatcher confirm with window and agreement, assign, Rider column; driver accept, refill, loading, pickup, deliver, delivery code (mock SMS), delivered screen, record cash (₦8,800, matches), mark ready to hand over; admin Cash receive (₦8,800) and reconcile (Received, Reconciled both ₦8,800, Still with drivers ₦0); customer sees Delivered with the timeline and a receipt.
+- **Fix / workaround:** none applied. Items 1 to 3 are candidates for issues in this fork; the owner needs to confirm whether they are wanted.
+- **Status:** open
+- **Refs:** run on scratch database `mmirioma_clicktest` (dropped afterwards); orders MO-37TVGPVBCW (cancelled) and MO-B7DMK10MPH (delivered).
