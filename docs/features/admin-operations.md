@@ -8,7 +8,7 @@ BR-09, NFR-003, NFR-004
 
 The endpoints behind the admin shell badges, dashboard, live map, recent
 activity, Reports page, Support page, audit log, header bell and read-only
-Settings page. The shell, dashboard, live map, activity and settings reads are linked to the screens in #217 (see "Frontend" below); the support, audit log, notifications and reports screens are linked in later issues.
+Settings page. The shell, dashboard, live map, activity and settings reads are linked to the screens in #217 (see "Frontend" below); support requests, the audit log and admin notifications are linked in #219 (see "Frontend" below); the reports screen is linked in a later issue.
 
 ## 1. Overview and purpose
 
@@ -72,6 +72,9 @@ saving settings are out of the MVP).
 | `backend/tests/test_admin_operations_integration.py` | Messages from real actions, support list, search, contacts and resolve, audit filter, shell and staff |
 | `frontend/src/lib/api/adminOperations.ts` | Typed client and Zod checks for `GET /admin/shell`, `/dashboard`, `/live-map`, `/activity` and `/settings` (#217) |
 | `frontend/src/features/admin/real/operations.ts` | Adapters converting them to the admin design types, as docs/architecture/api-mapping.md "Admin operations" says |
+| `frontend/src/lib/api/adminSupport.ts` | Typed client and Zod checks for the support request, audit log and notification endpoints (#219) |
+| `frontend/src/features/admin/real/support.ts` | Adapters: request to issue, the audit action wording, notification links |
+| `frontend/src/features/admin/support.screens.test.tsx` | The Support page, the audit log and the notifications in real-API mode |
 | `frontend/src/features/admin/operations.screens.test.tsx` | The screens in real-API mode, on the contract's example responses |
 | `backend/tests/test_admin_reports_api.py` | Dashboard, reports, live map and activity: roles, query rules, bodies against the examples (no database) |
 | `backend/tests/test_admin_reports_integration.py` | Real against simulated counts, ranges, on time, cash, buckets, per driver and per source, holds, live map, activity |
@@ -243,11 +246,19 @@ in the database does not affect them.
 - The contract's open questions stay open: which events notify admins (1),
   urgent support requests (2), an order-level CSV (3), support hours (4),
   reopening a resolved request (5).
-- **Linked in #217: shell, dashboard, live map, activity and settings.** The
-  other admin screens (support, audit log, notifications, reports) still run
-  on their mocks in real mode until their link issues. The Settings page
-  still loads the audit log, so in real mode its audit panel shows the error
-  until that is linked.
+- **Linked in #217: shell, dashboard, live map, activity and settings. Linked
+  in #219: support requests, the audit log and admin notifications.** The
+  reports screen still runs on its mock in real mode until its link issue.
+- **Support in real mode resolves with one note** (5 to 500 characters),
+  kept on the request and not in the audit log. There is no resolution
+  picker, no points and no urgent count; a refused note shows under the
+  field in the server's words. Confirming without the code, withdrawing and
+  cancelling are done from the order's page and the hold review. A driver in
+  the contacts reads "Driver" (the contacts carry no delivery type).
+- **The audit log shows plain words for the codes the backend writes** and
+  any other code as it is; it has no reason column value. Codes built from a
+  status (`deletion_request_<status>`, `water_source_<status>`) show as the
+  code until words are added.
 - **Real-mode screens show only what the backend sends.** The dashboard has
   no "Rider payouts due" or "Payments to verify" cards, and its "Refill
   stations" panel lists the live map's water sources (no count of active
