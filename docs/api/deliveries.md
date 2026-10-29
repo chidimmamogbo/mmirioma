@@ -839,7 +839,11 @@ open question 8: the SRS does not say).
 
 1. **Upper bound for `delivered_litres`:** the ordered quantity, the volume
    collected, or none? The SRS does not say.
-2. **Limit on contact attempts:** record every tap, or stop at two?
+2. ~~**Limit on contact attempts:** record every tap, or stop at two?~~
+   **Decided** (2026-10-29, @nnamdi-security, on #250): record every attempt,
+   with no maximum. The failed step needs at least two; the app does not stop
+   at two (design [driver-arrival-unreachable.md](../design/driver-arrival-unreachable.md),
+   decision 5).
 3. **Alternative proof reasons:** are `customer_cannot_receive_code` and
    `other` enough for A5-j?
 4. **Rejected alternative proof:** what the driver may do next (send a new

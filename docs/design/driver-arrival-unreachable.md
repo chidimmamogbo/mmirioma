@@ -8,7 +8,7 @@ Requirements: FR-038 (P0), FR-035, FR-036, BR-14, NFR-020 · Acceptance test:
 T-25 · Contract: [deliveries.md](../api/deliveries.md) (agreed, G3), driver job
 part 2, design check rows A3, A4 and A7 · Prompt:
 [prompts/18-driver-arrival-and-unreachable.md](prompts/18-driver-arrival-and-unreachable.md)
-Designer: @Bonvee120 + Claude Code · Reviewed by: pending · Status: draft
+Designer: @Bonvee120 + Claude Code · Reviewed by: @nnamdi-security on 2026-10-29 · Status: approved
 
 The partner app's steps from arriving at the customer to a failed delivery when
 nobody answers: the arrival (U1, U2), the contact attempts and the wait (U3,
@@ -16,6 +16,12 @@ with a confirm sheet), the failed outcome (U4) and the problem report entry
 (U5). It is for both apps, the Keke rider app and the tanker driver app. The
 rule is FR-038: two recorded contact attempts and the full 10 minutes from
 arrival before the job can fail.
+
+**Approved (G2)** by @nnamdi-security (technical lead) on 2026-10-29, on #250
+([the decision](https://github.com/chidimmamogbo/mmirioma/issues/250#issuecomment-6503910898)):
+the preview as it stood that day (it shows no version number), with the wording
+in "Wording to approve". The contract is agreed (G3,
+[deliveries.md](../api/deliveries.md)).
 
 ## Design link
 
@@ -100,9 +106,10 @@ contract change. Two client fields are new to the app's own types
    and end buttons are off while offline and nothing is shown as waiting to
    send. Decided by the owner.
 5. **A confirm sheet before failing, and more than two attempts allowed.** Two
-   additions of the prompt, for the reviewer to confirm. The sheet guards a step
-   that cannot be undone; the extra attempts cost nothing and the contract
-   accepts them.
+   additions of the prompt, confirmed at G2 (@nnamdi-security, 2026-10-29, #250).
+   The sheet guards a step that cannot be undone; the extra attempts cost
+   nothing and the contract accepts them (every attempt is recorded, no
+   maximum).
 6. **The wait is a clock time, not a ticking countdown.** "Wait until 9:52 AM"
    with a small "in N min" next to it. The server's `allowed_actions` decides
    when the end button turns on; the phone's clock never does.
@@ -120,8 +127,17 @@ contract change. Two client fields are new to the app's own types
 
 ## Open questions
 
-None for the owner. For the reviewer: the extra confirm sheet (decision 5),
-the screen title above, and the version of the preview you approve.
+None. Settled at G2 on #250: the extra confirm sheet (decision 5) and the extra
+attempts are approved, the customer step keeps the app's title, and the version
+approved is the preview as it stood on 2026-10-29.
+
+## Known limitation
+
+With no arrival location (decision 1), "I have arrived" and each attempt are
+self-reported times, so a driver could tap "I have arrived" early to start the
+clock. The server enforces the two attempts and the wait, and the dispatcher
+sees the times in the hold evidence. Add this to the known limitations of
+`docs/features/partner-app.md` when the screens are built.
 
 ## Changes to the design system
 
