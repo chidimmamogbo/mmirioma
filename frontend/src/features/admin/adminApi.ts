@@ -10,7 +10,7 @@
  * reads (#217), and cancelling an order, which is `transitionOrder` with
  * `to: cancelled` (#176).
  */
-import type { AdminOrderFilter, PriceListDraft, ServiceArea } from '../../domain/admin'
+import type { AdminOrderFilter, PriceListDraft, ReportRange, ServiceArea } from '../../domain/admin'
 import type { CorrectionRequest, ReceiveRequest, ReconcileRequest } from '../../lib/api/adminCash'
 import { USE_MOCKS } from '../../lib/api/mode'
 import { notConnected } from '../../lib/api/notConnected'
@@ -24,6 +24,7 @@ import * as operations from './real/operations'
 import type { AdminTransitionRequest, CancelReason, CancellationOutcome, HoldDecisionRequest, HoldReview, ProofOverrideRequest, WithdrawRequest } from './real/holds'
 import * as orders from './real/orders'
 import * as pricing from './real/pricing'
+import * as reports from './real/reports'
 import * as dispatch from './real/ordersDispatch'
 
 export type { AdminShellData, ApprovalAction, LiveMapData, OrderList, PaymentFilter, RiderFilter } from '../../mocks/adminMock'
@@ -128,7 +129,7 @@ export const reconcileCash = (request: ReconcileRequest) =>
 export const listPayouts = api('Rider earnings', mock.listPayouts)
 export const markPayoutPaid = api('Rider earnings', mock.markPayoutPaid)
 
-export const getReport = api('Reports', mock.getReport)
+export const getReport = (range: ReportRange) => (USE_MOCKS ? mock.getReport(range) : reports.getReport(range))
 
 export const listIssues = api('Support', mock.listIssues)
 export const getIssuePeople = api('Support', mock.getIssuePeople)

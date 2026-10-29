@@ -426,6 +426,26 @@ BR-09), so a database that holds only demo accounts shows zeros. The screens
 send no `simulated` parameter and have no toggle (a toggle is new UI). With
 `VITE_USE_MOCKS=true` they keep their SAMPLE tags (**#217**).
 
+## Admin reports
+
+Backend `GET /admin/reports` ([admin-operations.md](../api/admin-operations.md#get-adminreports),
+agreed, built in #102 part 2) to `AdminReport`. The link issue is #218. The
+adapter is `features/admin/real/reports.ts`.
+
+| Backend | Design type | Rule |
+| --- | --- | --- |
+| `range` (query) | `ReportRange` | Always sent (`today`, `7d` or `30d`). A missing `range` is 422 `validation_error`, not a default (decision 7) |
+| `AdminReportRead` | `AdminReport` | `range` as it is; `orders` = `orders.total`; `delivered` = `deliveries.delivered` (counted by the `delivered` event); `cancelled` = `orders.by_status.cancelled`, 0 when absent; `by_type` = `by_delivery_type` without `not_recorded`; `is_sample` = `is_simulated` |
+| `cash.collected_minor_units` | `revenue_minor_units` | Integer kobo, shown in naira only for display. The screen's note reads "Cash collected" for real numbers |
+| `by_zone[]` | `by_area[]` | `area` = `name`; the row with `name` `null` (orders with no zone) reads "Area not listed" |
+| `by_driver[]` | `by_rider[]` | `name`; `code` = `plate` (`null` shows the name alone); `trips` = `delivered` |
+| (no source) | `by_rider[].earned_minor_units` | The backend does not send it (partner pay is out of the MVP). The field becomes optional and the "Earned" column, and its CSV column, are hidden when absent, never shown as zero. **#218** (screen change, G2) |
+| `by_source[]` | `by_station[]` | `name`; `loads` = `pickups`. A pickup at another source has no row (decision 9) |
+
+The screen shows its SAMPLE tag when `is_sample` is true (always in mock mode),
+and drops the "SAMPLE prices" revenue note otherwise. Like the dashboard, it
+sends no `simulated` parameter, so it counts real orders (BR-09).
+
 ## Admin support, audit log and notifications
 
 Backend support requests, audit log and admin notifications
