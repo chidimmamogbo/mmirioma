@@ -348,6 +348,44 @@ Wrong codes are renamed to what the code screen reads:
 For `other`, the note is cut to 500 characters (`INCIDENT_NOTE_MAX_LENGTH`).
 `running_late` and `volume_issue` have no design type and are never sent.
 
+### Arrival and the unreachable customer (#250)
+
+Decided by the technical lead on #250 (G2, 2026-10-29), design
+[driver-arrival-unreachable.md](../design/driver-arrival-unreachable.md). The
+trip gains an arrival step and the unreachable-customer steps of FR-038. The
+design's `stage` does not change: `collected`, `en_route`, `arrived` and
+`unloading` are all stage `collected`, so the new fields below tell the steps
+apart. They are optional on `PartnerJob` (`domain/partner.ts`); the mock leaves
+them out.
+
+| Design field | From the backend job |
+| --- | --- |
+| `arrived_at` | `arrived_at` (the server's time; `null` before arrival) |
+| `contact_attempts` | `contact_attempts[].attempted_at`, oldest first; `[]` before the first |
+| `unreachable_allowed_at` | `unreachable_allowed_at` (`arrived_at` plus 10 minutes; `null` before arrival) |
+| `can_start_unloading` | `allowed_actions` contains `start_unloading` |
+| `can_fail_unreachable` | `allowed_actions` contains `record_failed_attempt` (two attempts and the wait over). Not computed from the phone's clock (design decision 6) |
+
+The two flags go beyond the three fields the technical lead listed. The
+contract already lists both actions; without them the screens would have to
+guess from the device clock or from the stage, which cannot tell arrived from
+unloading.
+
+| Partner function (screen) | Backend steps |
+| --- | --- |
+| `arriveAtCustomer` (U1, "I have arrived") | `arrive` with `{ "location_consent": false }` and no `location`; repeating returns 200 unchanged |
+| `startUnloading` (U2, "Start unloading") | `transition` `unloading` |
+| `recordContactAttempt` (U3, "I tried to reach the customer") | `contact-attempts` (no body, 201); the screen shows the new row only after the answer |
+| `failUnreachable` (U3-S, "Fail the delivery") | `transition` `failed`; the server sets `customer_unreachable`; the answer is the finished job in `done` |
+| `completeUnloading` ("Unloading done, send the code") | now `unloading-complete` only; it no longer sends `arrive` or `transition` `unloading` |
+
+Errors: 409 `transition_requirements_unmet` with `details.missing` of
+`contact_attempts_recorded` and/or `unreachable_wait_elapsed` gives "Record
+two attempts first." or "You can end this job from <time>."; 409
+`invalid_order_transition` gives "This job has changed. Refresh."; 409
+`job_on_hold` gives the paused notice; 404 `order_not_found` gives "This job was
+reassigned." The words are in the design record.
+
 ## Admin order status
 
 Backend `status` to the design's `AdminOrderStatus` (`domain/admin.ts`).

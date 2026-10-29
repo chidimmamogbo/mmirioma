@@ -123,6 +123,38 @@ export interface PartnerJob {
    */
   cash?: JobCash | null
   /**
+   * When the partner pressed "I have arrived" at the customer (UTC ISO, the
+   * server's time; FR-038, docs/design/driver-arrival-unreachable.md, U1 and
+   * U2). `null` or absent before arrival. Self-reported: no location is sent.
+   */
+  arrived_at?: string | null
+  /**
+   * The times of the partner's attempts to reach the customer (UTC ISO,
+   * server time, oldest first; FR-038, U3). Empty or absent before the first
+   * attempt. There is no maximum: every attempt is recorded.
+   */
+  contact_attempts?: string[]
+  /**
+   * The earliest time the partner may end the job as "customer not
+   * reachable": `arrived_at` plus the full 10 minutes (FR-038, U3 "wait
+   * until"). `null` or absent before arrival.
+   */
+  unreachable_allowed_at?: string | null
+  /**
+   * Whether the server offers "Start unloading" now (`allowed_actions`
+   * contains `start_unloading`). Tells U2 from the code screen, since both
+   * arrived and unloading are stage `collected`. Absent: not known, as in mock
+   * mode.
+   */
+  can_start_unloading?: boolean
+  /**
+   * Whether the server allows ending the job as "customer not reachable"
+   * (`allowed_actions` contains `record_failed_attempt`: two attempts recorded
+   * and `unreachable_allowed_at` passed). The phone's clock never decides
+   * this (design decision 6). Absent: not known, as in mock mode.
+   */
+  can_fail_unreachable?: boolean
+  /**
    * Mock mode only: the customer's code, so a demo can finish a delivery
    * without the customer's phone. Never sent by a real server.
    */
