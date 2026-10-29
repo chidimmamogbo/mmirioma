@@ -11,6 +11,7 @@ import { formatDateTime } from '../../../lib/format/datetime'
 import { formatNaira } from '../../../lib/format/money'
 import { describeQuantity } from '../../../domain/quantity'
 import { jobQuantity } from '../jobHelpers'
+import { ArrivalToast, CashCard } from '../cash/CashParts'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
 import { useJob, usePartnerProfile } from '../queries'
 
@@ -23,8 +24,8 @@ const CONFETTI = [
 ]
 
 /**
- * Delivery successful (`r-done`). Payment is shown as its own status: cash
- * collected at the gate is "Awaiting check" until staff confirm it (BR-07).
+ * Delivery successful (`r-done`). No payment status (FR-040, BR-13): the K1
+ * Cash card shows the amount due and the cash recorded (driver-cash.md, #20).
  */
 export function RiderDone() {
   const { reference = '' } = useParams()
@@ -40,6 +41,7 @@ export function RiderDone() {
     <MobileShell className="bg-[linear-gradient(180deg,#E7F9EE_0%,#F4F7FB_45%)]">
       <Confetti pieces={CONFETTI} height={240} />
       <ScrollArea className="items-center gap-3 pt-10 text-center">
+        <ArrivalToast />
         {job.isPending && <LoadingBlock />}
         {job.isError && <ErrorBlock error={job.error} onRetry={() => job.refetch()} />}
         {j && (
@@ -76,8 +78,9 @@ export function RiderDone() {
               {/* The receiver is not sent once the job ends (real API): leave the row out. */}
               {j.customer.contact_name && <KeyValue label="Customer" value={j.customer.contact_name} />}
               {j.delivered_at && <KeyValue label="Delivered at" value={formatDateTime(j.delivered_at)} />}
-              {/* No payment row: partners never see an order's payment status (FR-040, BR-13); the K1 Cash card (#20) goes here. */}
             </Card>
+            {/* No payment row: partners never see an order's payment status (FR-040, BR-13). The K1 Cash card takes its place (#20). */}
+            <CashCard job={j} base={base} vehicle="keke" />
             <div className="rise-5 flex w-full flex-col gap-2">
               <ButtonLink to={base}>Back to dashboard</ButtonLink>
               <ButtonLink to={`${base}/earnings`} variant="alt">

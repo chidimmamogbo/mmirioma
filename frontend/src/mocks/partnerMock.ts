@@ -33,6 +33,7 @@ import { addActivity, addAdminNotification, nextFleetCode, nextIssueNumber } fro
 import { eligible } from './eligibility'
 import { applyAccepted, applyCollected, completeDelivery, findCustomerOrder } from './orderSync'
 import type { MockState, PartnerData, StoredJob } from './seed'
+import { jobCash } from './partnerCashMock'
 import { clone, delay, mockError, newDeliveryCode, newId } from './store'
 
 const CODE_TRIES = 3
@@ -61,6 +62,7 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   delete copy.payment_status
   const code = job.stage === 'collected' && job.code_tries_left !== null ? codeFor(s, job) : null
   if (code) copy.demo_code = code
+  copy.cash = jobCash(s, job)
   return copy
 }
 

@@ -257,6 +257,7 @@ out rather than fill them in:
 | `earning_minor_units` | `null`: partner pay is out of the MVP (docs/api/partners.md, decision 7). The earning line is hidden, not shown as "not known yet" |
 | `assigned_by` | `null`: the job does not name the dispatcher |
 | payment status | Not in `PartnerJob`: partners never see an order's payment status (FR-040, BR-13; docs/design/driver-cash.md, decision 3). The K1 Cash card (#20) takes its place |
+| `cash` | The job's `cash` as sent (payments.md, amendment 2; the contract's `JobCash`, unconverted): `null` until unloading is complete and on a job that ended without unloading, so the Done screen shows no Cash card. Delivered jobs come from the `done` group, which carries it too (#20) |
 
 Also decided by @chidimmamogbo on #12 (2026-10-27), for fields missing on
 whole groups of jobs:

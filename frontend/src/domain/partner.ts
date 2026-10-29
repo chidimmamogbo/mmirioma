@@ -5,6 +5,7 @@
  *
  * No contract exists yet; served by mocks. Money in kobo, times in UTC.
  */
+import type { JobCash } from '../lib/api/driverCash'
 import type { WaterChoice } from './orders'
 
 export type VehicleType = 'keke' | 'tanker'
@@ -114,6 +115,13 @@ export interface PartnerJob {
   pickup: { loaded: boolean; receipt: boolean; photo_url: string | null; gallons_loaded: number | null } | null
   /** The partner's own estimate to the customer once collected (sample). */
   remaining: { distance_km: number; minutes: number } | null
+  /**
+   * The K1 Cash card (docs/design/driver-cash.md, #20): the amount due and the
+   * cash recorded, from the job's `cash` object (payments.md, amendment 2).
+   * `null` or absent until unloading is complete, and on a job that ended
+   * without unloading (no card).
+   */
+  cash?: JobCash | null
   /**
    * Mock mode only: the customer's code, so a demo can finish a delivery
    * without the customer's phone. Never sent by a real server.

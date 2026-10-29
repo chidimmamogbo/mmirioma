@@ -19,6 +19,7 @@ import { greeting } from '../greeting'
 import { PARTNER_PAY_ENABLED } from '../../../lib/features'
 import { deliveredToday, jobQuantity, kmSuffix, tankerTripLine } from '../jobHelpers'
 import { jobStepPath, usePartnerApp } from '../partnerContext'
+import { HomeCashCard } from '../cash/CashParts'
 import { useActiveJobs, useAvailableJobs, useEarnings, useHistory, usePartnerProfile, useSetOnline } from '../queries'
 
 /** How many pool orders the dashboard lists before "View all". */
@@ -110,6 +111,8 @@ export function DriverHome() {
               </button>
             )}
             {setOnline.isError && <Notice tone="error">{errorMessage(setOnline.error)}</Notice>}
+            {/* K2 home card: only while cash is on hand (driver-cash.md). */}
+            <HomeCashCard base={base} />
 
             {PARTNER_PAY_ENABLED ? (
               <div className="rise-3 grid grid-cols-3 gap-2">

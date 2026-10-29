@@ -12,6 +12,7 @@ export const partnerKeys = {
   earnings: ['partner', 'earnings'] as const,
   history: ['partner', 'history'] as const,
   notifications: ['partner', 'notifications'] as const,
+  cash: ['partner', 'cash'] as const,
 }
 
 export const usePartnerProfile = () => useQuery({ queryKey: partnerKeys.profile, queryFn: api.getPartnerProfile })
@@ -29,6 +30,9 @@ export const useAvailableJobs = () =>
 
 /** Jobs assigned to or accepted by me. Refreshes so an admin assignment shows up. */
 export const useActiveJobs = () => useQuery({ queryKey: partnerKeys.active, queryFn: api.listMyActiveJobs, refetchInterval: 30_000 })
+
+/** The partner's cash (K2). `enabled` false skips the request. */
+export const useMyCash = (enabled = true) => useQuery({ queryKey: partnerKeys.cash, queryFn: api.getMyCash, enabled })
 
 export const useJob = (ref: string) => useQuery({ queryKey: partnerKeys.job(ref), queryFn: () => api.getJob(ref), enabled: Boolean(ref) })
 
@@ -102,4 +106,16 @@ export function useMarkPartnerNotificationsRead() {
 
 export function useReportIssue() {
   return useMutation({ mutationFn: (i: { type: PartnerIssueType; note: string; reference: string | null }) => api.reportIssue(i) })
+}
+
+/** Record the cash for a delivered job (K1). Refreshes the job's card and My cash. */
+export function useRecordCash(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: (request: api.RecordCashRequest) => api.recordCash(ref, request), onSuccess: refresh })
+}
+
+/** Mark records ready to hand over (K2). Refreshes on failure too: a 409 means the list changed. */
+export function useHandOverCash() {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: api.handOverCash, onSettled: refresh })
 }

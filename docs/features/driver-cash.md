@@ -2,77 +2,80 @@
 
 Requirements: FR-040 (pay on delivery, fallback F4), FR-041 (cash part),
 BR-12, BR-13, BR-15, NFR-011, NFR-012, NFR-020, NFR-021 · Acceptance tests:
-T-14 (the driver's part) · Design:
-[cash-remittance.md](../design/cash-remittance.md) (approved G2 2026-10-22;
-boards Cash01-Cash05) · Contract: [payments.md](../api/payments.md), "Driver
-endpoints" (agreed G3; amendments 1-3 agreed 2026-10-23) · Issues:
-[#124](https://github.com/mmiri-oma/mmirioma/issues/124) (K2 in PR #139, K1
-in this change); active job screens #97; backend #123; admin side
-[cash-remittance.md](cash-remittance.md) (#125)
+T-14 (the partner's part) · Design:
+[driver-cash.md](../design/driver-cash.md) (#7, approved G2 2026-10-26; based
+on the main repo's [cash-remittance.md](../design/cash-remittance.md)) ·
+Contract: [payments.md](../api/payments.md), "Driver endpoints" (agreed G3;
+amendments 1-3 agreed 2026-10-23) · Issue: #20 (this fork's screens and link);
+admin side #19 ([cash-remittance.md](cash-remittance.md)). The backend
+endpoints came across with the upstream backend (upstream #123).
 
 ## 1. Overview and purpose
 
-The driver's view of the cash in their care, from the customer's hand to the
-office:
+The partner's view of the customer's cash in their care, from the
+customer's hand to the office, in both partner apps (Keke rider and tanker
+driver; the server role is `driver` for both):
 
-- **Cash card (K1)** on the job once unloading is complete: the amount due
-  from the server and "Record cash"; once recorded, what was recorded and
-  when it must reach the office.
-- **Record cash (K1)**: the driver types the cash received; a different
+- **Cash card (K1)** on the Done screen once the job is delivered: the amount
+  due from the server and "Record cash"; once recorded, what was recorded and
+  when it must reach the office. A delivered job's page *is* the Done screen
+  (the job page sends a delivered job there), so this is also the card "on
+  the delivered job's page" the design asks for.
+- **Record cash (K1)**: the partner types the cash received; a different
   amount, including ₦0, needs a note; a dialog confirms it.
-- **My cash (K2)**, driver menu "Cash": how much they hold, when it is due
+- **Home card (K2, fork)**: "Cash to hand over" on the home screen while cash
+  is on hand, red with "Overdue" when the server says so.
+- **My cash (K2)**, menu item "My cash": how much they hold, when it is due
   (6:00 pm Africa/Lagos, from the server), and their recent records.
 - **Hand over cash (K2)**: marks records "Ready to hand over". It moves no
-  money; the cash stays the driver's until an administrator receives it (K4).
+  money; the cash stays the partner's until an administrator receives it (K4).
 
-Delivery and payment never wait for each other (BR-12): the Cash card and
-"Mark as delivered" can be used in either order, and the driver never sees
-the order's payment status.
+Delivery and payment never wait for each other (BR-12), and the partner
+never sees the order's payment status: the Done screens' old "Payment" row is
+gone (design decision 3).
 
 ## 2. Feature workflow
 
-1. The driver records unloading complete (A5). Every job response now
-   carries `cash` (payments amendment 2), and the job screen shows the Cash
-   card beside "Complete delivery": "Amount due", the amount, "Manual quote ·
-   Pay on delivery: cash after unloading", and "Record cash" while
+1. The partner enters the customer's code and the job is delivered. Every job
+   response carries `cash` once unloading is complete (payments amendment 2).
+   A delivered job's own address answers 404, so the Done screen reads the
+   job from the `done` group of `GET /driver/jobs`, which carries `cash` too.
+2. The Done screen shows the Cash card: "Amount due", the amount, "Pay on
+   delivery: cash after unloading" ("Manual quote · ..." only for
+   `manual_quote`, decision 8), the hint and "Record cash" while
    `cash.record_allowed` is true.
-2. The card also shows on "Waiting for proof approval" (a `proof_review`
-   hold) and on the "Delivered" outcome. A delivered job's own address
-   answers 404, so the outcome and Record cash read the job from today's
-   `done` group of My jobs, which carries `cash` too.
-3. "Record cash" opens `/driver/jobs/:reference/cash`. The driver types whole
-   naira; the formatted amount and a line ("Matches the amount due.", "Less
-   than…", "More than…", "Customer paid nothing.") show under the field. A
-   different amount asks "What happened?" (500 characters, with a counter).
-4. "Record cash" opens the dialog "You received ₦… in cash for MO-….", "You
-   can't change this after you record it.". Confirming sends `POST
-   /driver/jobs/{reference}/cash-collection` with `amount_minor_units` and
-   `note`.
-5. On 201 (or 200 for a repeat) the page shows the toast "Cash recorded for
-   MO-…." and the recorded card: amount, "Collected by driver", recorded at,
-   "Hand over by" from the server, the difference and note. The job, My jobs
-   and My cash are read again.
-6. Menu › Cash (`/driver/cash`) lists the cash on hand. "Hand over cash"
-   opens the sheet; "Ready to hand over" sends `POST /driver/cash/handover`;
-   the toast says how many records are ready and their total.
+3. "Record cash" opens `.../jobs/:reference/cash`. The partner types whole
+   naira after the ₦ sign; the formatted amount and a line ("Matches the
+   amount due.", "Less than...", "More than...", "Customer paid nothing.") show
+   under the field. A different amount asks "What happened? (required)" (500
+   characters, with a counter).
+4. "Record cash" opens the dialog "You received ₦... in cash for MO-.... You
+   can't change this after you record it." with "Record cash" and "Go back".
+   Confirming sends `POST /driver/jobs/{reference}/cash-collection`.
+5. On 201 (or 200 for a repeat) the app returns to the Done screen with
+   "Cash recorded for MO-...." and the recorded card: "Cash recorded", the time,
+   "Collected by rider" (or driver), the amount, any outstanding amount,
+   "Hand over by ..." from the server and "My cash".
+6. The home card and Menu > My cash (`.../cash`) show the cash on hand. "Hand
+   over cash" opens `.../cash/handover`: every `collected` record ticked, the
+   total, "Still your responsibility", and "Ready to hand over", which sends
+   `POST /driver/cash/handover` and returns to My cash with "Marked ready to
+   hand over.".
 
 ## 3. Important files
 
 | File | Responsibility |
 | --- | --- |
-| `frontend/src/lib/api/driverCash.ts` | `getMyCash`, `handOverCash`, `recordCash`; Zod schemas for `DriverCash`, `CashCollection` and the job's `cash` (`jobCashSchema`) |
+| `frontend/src/lib/api/driverCash.ts` | Typed calls `getMyCash`, `handOverCash`, `recordCash`; Zod schemas for `DriverCash`, `CashCollection` and the job's `cash` |
 | `frontend/src/lib/api/driverJobs.ts` | `cash` on `DriverJobSummary` and `DriverJobDetail` |
-| `frontend/src/features/driver-cash/useDriverCash.ts` | Queries and mutations (`networkMode: 'always'`); recording reads the job, My jobs and My cash again |
-| `frontend/src/features/driver-cash/recordCash.ts` | K1 rules and wording: reading the amount, the comparison lines, the note rule, error kinds |
-| `frontend/src/features/driver-cash/labels.ts` | K2 chips, time lines, toast, error kinds |
-| `frontend/src/features/driver-cash/components/CashCard.tsx` | K1 Cash card, the recorded cash, the amount block |
-| `frontend/src/features/driver-cash/pages/RecordCashPage.tsx` | K1 Record cash and every state after sending |
-| `frontend/src/features/driver-cash/components/CashParts.tsx` | Cash row and cash list |
-| `frontend/src/features/driver-cash/components/HandOverSheet.tsx` | Cash05 sheet |
-| `frontend/src/features/driver-cash/pages/MyCashPage.tsx` | Cash04 |
-| `frontend/src/features/driver-jobs/components/ActiveJob.tsx`, `ActiveParts.tsx` | Mount the Cash card on A5, the proof review hold and the A7 outcome |
-| `frontend/src/features/driver-jobs/components/DriverLayout.tsx` | Menu items "Jobs" and "Cash" |
-| `frontend/src/lib/money.ts` | `formatNaira`, `nairaInputToKobo` (shared with the admin screens) |
+| `frontend/src/domain/partner.ts` | `cash` on `PartnerJob` |
+| `frontend/src/features/partner/real/jobs.ts`, `real/cash.ts` | The job's `cash`, and the three cash adapters |
+| `frontend/src/features/partner/partnerApi.ts`, `queries.ts` | The mock / real switch, `useMyCash`, `useRecordCash`, `useHandOverCash` |
+| `frontend/src/features/partner/cash/logic.ts` | Wording, ₦ with kobo, the Lagos due times, the comparison lines, the error words |
+| `frontend/src/features/partner/cash/CashParts.tsx` | Cash card (K1), home card (K2), cash row, amount block, the arrival toast |
+| `frontend/src/features/partner/cash/CashPages.tsx` | Record cash, My cash, Hand over cash |
+| `frontend/src/features/partner/pages/RiderDone.tsx`, `DriverDone.tsx`, `RiderHome.tsx`, `DriverHome.tsx`, `PartnerAccount.tsx`, `routes.tsx` | Where the card, the home card, the menu item "My cash" and the routes sit |
+| `frontend/src/mocks/partnerCashMock.ts` | The mock endpoints, on the admin cash mock's records (`admin.cash`), so the office sees what a partner records and hands over |
 
 ## 4. Database models and relationships
 
@@ -112,25 +115,28 @@ Responses are checked with Zod; an unknown status or a fractional amount is
 
 ## 7. Authentication and authorization requirements
 
-Behind `AppGate app="driver"` (role `driver`); the server returns only the
-signed-in driver's jobs and records, and another driver's job is 404. Both
-`POST` calls send `X-CSRF-Token`. 401 ends the session; another role sees X4.
+Behind `RequireRole role="driver"` (the partner area); the server returns
+only the signed-in partner's jobs and records, and another partner's job is
+404. Both `POST` calls send `X-CSRF-Token`.
 
 ## 8. Error handling and edge cases
 
 | Situation | Shown |
 | --- | --- |
-| Record cash: nothing typed, or not whole naira | Record cash off; "Enter an amount in whole naira." |
-| A different amount without a note | "Tell the office what happened before you record the cash."; nothing sent |
-| Sending | The dialog locked: "Recording…" busy, Cancel off |
-| 409 `cash_already_recorded` | "Cash for this order is already recorded." / "Recorded amount: ₦…. Ask the office if this is wrong." and the recorded card |
-| 409 `transition_requirements_unmet`, or no `cash` yet | "You can record cash only after unloading." / "Missing: Unloading completed." (or "An amount due on the order") and Back to job |
-| Offline | "No connection" / "You can record the cash when you are back online. Your entries are kept."; Record cash off; nothing queued |
-| No connection or 5xx while sending | "Not sent" with the server's message; entries kept; "Try again" repeats the same request, which the server answers once (NFR-011) |
-| 404 `order_not_found` | "Order not found" / "This job may have been given to another driver." and Back to jobs |
-| 403 `csrf_failed` | The server's message with "Reload" |
+| Nothing typed, or not whole naira | "Enter the cash you received in whole naira." under the field; nothing sent |
+| A different amount without a note | "Tell us what happened." under the note; nothing sent |
+| Sending | The button busy; the field locked |
+| 409 `cash_already_recorded` | "Cash already recorded" / "₦... was recorded for this order. Contact the office if that is wrong."; the form closes |
+| 409 `transition_requirements_unmet`, or no `cash` yet | "Finish unloading first" / "You can record cash once unloading is complete." |
+| 404 `order_not_found` | "This order is no longer yours" / "It may have been reassigned. Go back to your jobs." and "Back to my jobs" |
 | 422 | The server's message under the amount or the note |
-| My cash and the handover | As before: "Not loaded", nothing ticked, "This cash record has changed." with Refresh, "Not sent" with Try again, security, other |
+| No connection or 5xx while sending | "Not sent" / "Check your connection and try again. Nothing was recorded." with "Try again"; the amount and note are kept (NFR-012); the server answers a repeat once (NFR-011) |
+| My cash not loaded | The shared error block with "Try again"; the home card shows nothing |
+| Nothing on hand | "No cash to hand over" / "Cash you record after a delivery shows here." |
+| Overdue | Red "Overdue" notice with the due time; it blocks nothing |
+| Handover: none ticked | "Ready to hand over" off |
+| 409 `cash_collection_changed` | "Some cash changed" / "The office already received some of it. Your list is updated." and the list reloads |
+| Handover not sent | "Not sent" / "Check your connection and try again." |
 
 ## 9. Testing instructions
 
@@ -139,35 +145,54 @@ cd frontend
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-- `src/lib/api/driverCash.test.ts`: record and handover requests (URL, CSRF,
-  body), the contract examples, the 409 envelopes, invalid responses.
-- `src/lib/api/driverJobs.test.ts`: `cash` on a job, a job without it, a
-  malformed card.
-- `src/features/driver-cash/recordCash.test.ts`: reading amounts, the note
-  rule, every line's wording, error kinds, missing requirements.
-- `src/features/driver-cash/recordCash.test.tsx` (real routes): the card on
-  A5, the proof review hold and the Delivered outcome, none without
-  unloading, the recorded card; every form and after-sending state above,
-  and recording a delivered job from its `done` summary.
-- `src/features/driver-cash/driverCash.test.tsx`, `labels.test.ts`: K2.
+- `src/lib/api/driverCash.test.ts`, `driverJobs.test.ts`: the typed calls and
+  the job's `cash`.
+- `src/features/partner/real/cash.test.ts`: each adapter with a mocked
+  `fetch`, a success and the error codes (`cash_already_recorded`,
+  `order_not_found`, `transition_requirements_unmet`,
+  `cash_collection_changed`, `invalid_response`).
+- `src/features/partner/cash/logic.test.ts`: ₦ with kobo, the Lagos times,
+  the labels, decision 8, the comparison lines, the error words.
+- `src/features/partner/cash/cash.test.tsx` (real routes, mock mode): the Done
+  screen's card, recording the amount due and the recorded card, the note rule,
+  "Cash already recorded", My cash, handing over, none ticked, "Some cash
+  changed", the home card.
+- `src/mocks/partnerCash.test.ts`: the mock's rules, and the office seeing a
+  handover.
 
-**End-to-end run (2026-10-23, #124, Bonvee120 + agent).** On a throwaway
-PostGIS database seeded through the app's services, with the backend and the
-Vite dev server running locally:
+**Click-through on the real backend (2026-10-28, #20).** A local backend on a
+throwaway database (`VITE_USE_MOCKS=false`, demo seed), signed in as the demo
+driver (tanker app), with four delivered, priced, pay-on-delivery jobs made
+through the services the endpoints call (the payments tests' helpers):
 
-1. The order went from creation to unloading complete through the real API.
-2. In the browser (412 px), the driver signed in, saw the Cash card on A5 and
-   recorded ₦40,000.00 against ₦45,000.00 with a note. It was recorded at
-   9:04 pm Lagos time, so the server set "Hand over by Sat 24 Oct 2026,
-   6:00 pm".
-3. The driver handed it over from My cash.
-4. The server then showed the collection `awaiting_remittance`, the admin
-   cash page listing it with the driver, and the history's `cash_recorded`
-   and `cash_handed_over` steps.
-5. The order stayed `unloading` with payment `pending_collection` (BR-12).
+1. The Done screen showed the Cash card: "Amount due ₦45,000.00", "Manual
+   quote · Pay on delivery: cash after unloading" (the server's
+   `manual_quote`) and Record cash; the home card was hidden with nothing on
+   hand.
+2. Recording ₦45,000.00 ("Matches the amount due.", the dialog) returned to
+   the Done screen with "Cash recorded for MO-…." and the recorded card. It was
+   recorded at 11:14 pm, so the server set "Hand over by Thu 29 Oct, 6:00 pm".
+3. ₦15,000.00 against ₦20,000.00: "Less than the amount due." / "₦5,000.00
+   will show as outstanding.", "Tell us what happened." until a note was
+   typed, then the card with "₦5,000.00 outstanding". ₦11,000.00 against
+   ₦10,000.00 showed "More than the amount due." and recorded with a note.
+4. ₦0.00 recorded through the API for a third job while its form was open;
+   recording ₦30,000.00 on screen showed "Cash already recorded" / "₦0.00 was
+   recorded for this order. …".
+5. The home card and My cash showed ₦60,000.00 on hand; the menu has "My
+   cash". Hand over cash: all ticked, ₦0.00 with none ticked and the button
+   off; two records handed over, "Marked ready to hand over.".
+6. The last `collected` record handed over through the API meanwhile: "Some
+   cash changed" and the list reloaded.
+7. The dispatcher received one record through the admin API: My cash listed
+   it under "Handed over (last 7 days)" as "Received by Demo Dispatcher".
+8. One record's due time moved into the past on the throwaway database: the
+   red "Overdue" notice on My cash, the "Overdue" chip on the record, and the
+   home card's "Overdue".
 
-There were no database edits after seeding. The delivered-job card was
-covered by the component tests, not this run.
+Not on the real backend: the Keke app's wording ("Collected by rider", the
+mock tests cover it), "This order is no longer yours" and "Not sent" (the
+logic and adapter tests cover them).
 
 ## 10. Known limitations
 
@@ -176,11 +201,7 @@ covered by the component tests, not this run.
   the boards show only the current amount, so the client ignores them.
 - **A finished job's card is reachable only today**: My jobs lists finished
   jobs on the day they ended, and a delivered job's own address answers 404.
-- **Opening a delivered job's address directly** (not from My jobs) shows "no
-  longer available" rather than the outcome: the job page needs My jobs'
-  "accepted" hint (#97 behaviour). The Record cash page itself reads the
-  `done` summary and works either way.
-- **The header of My cash shows the driver's name only**; the vehicle is not
-  in the session or `GET /driver/cash`.
-- **Chip tones differ from the admin cash screens** (logged 2026-10-23).
 - "Hand over cash" is offered offline too; the request then shows "Not sent".
+- **The mock's amount due** is the customer order's total when the job came
+  from one, else the sample price for the job's water; seeded history paid
+  before the cash flow has no card.
