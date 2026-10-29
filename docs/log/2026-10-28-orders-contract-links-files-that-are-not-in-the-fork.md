@@ -26,5 +26,14 @@
   admin dispatch design, `pilot-plan`), `payments.md` (`pilot-plan`) and some
   feature docs (`docs/features/admin-dispatch.md`, `admin-order-directory.md`,
   `customer-ordering.md`, `order-confirmation.md`, `sms.md`, `water-sources.md`).
-- **Status:** resolved for `orders.md`; open for the other documents above
+- **Follow-up (2026-10-29):** the remaining links to the same missing files
+  (designs `admin-dispatch`, `admin-orders`, `admin-order-confirmation`,
+  `customer-ordering`, `driver-deliveries`, `ui-system`, `privacy-notice`,
+  `prompts/10-driver-pickup-source`, and `process/pilot-plan`) are plain text
+  now in `deliveries.md`, `payments.md`, `docs/api/README.md`, seven feature
+  docs and the cash remittance prompt, with the wording unchanged. A link
+  check of every Markdown file in `docs/` finds none broken. Not touched: the
+  SRS (normative) links `PRD.md`, but the file is `MmiriOma_MVP_PRD.md`; that
+  is one word in a normative document, left for the technical lead.
+- **Status:** resolved
 - **Refs:** #99, #165, #188, `docs/api/orders.md`.

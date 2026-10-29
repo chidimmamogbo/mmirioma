@@ -6,7 +6,7 @@ tests: T-07, T-08, T-22, T-24, T-25 · Contract:
 [docs/api/deliveries.md](../api/deliveries.md), "Driver job endpoints"
 (part 1, agreed 2026-10-19) and "Driver job endpoints, part 2 (#51)"
 (agreed 2026-10-20, PR #74) · Design:
-[driver-deliveries.md](../design/driver-deliveries.md) · Issues: S1-06 (#7),
+driver-deliveries.md · Issues: S1-06 (#7),
 S1-15 (#19), #51 (part 2 contract), #75 (part 2 build)
 
 ## 1. Overview and purpose

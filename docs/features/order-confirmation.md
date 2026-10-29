@@ -5,9 +5,9 @@ FR-033 (rows 26 and 7), FR-050, BR-02, NFR-004, NFR-012 · Acceptance tests:
 T-04, T-09, T-14 · Contract:
 [deliveries.md](../api/deliveries.md#order-confirmation-endpoints) (agreed
 G3, PR #111) · Design:
-[admin-order-confirmation.md](../design/admin-order-confirmation.md)
+admin-order-confirmation.md
 (approved G2) · Issues: #113 (backend), #114 (screens), from #87 · Pilot fallbacks F2-F5
-([pilot plan](../process/pilot-plan.md#agreed-manual-fallbacks)) · Source
+(pilot plan) · Source
 records: [water-sources.md](water-sources.md) (#112)
 
 ## 1. Overview and purpose

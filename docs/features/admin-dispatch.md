@@ -4,7 +4,7 @@ Requirements: FR-030, FR-031, FR-032, FR-033, FR-036, BR-03, BR-09, NFR-004,
 NFR-020, NFR-021, NFR-022 · Acceptance tests: T-07 · Contract:
 [deliveries.md](../api/deliveries.md#admin-dispatch-endpoints), "Admin
 dispatch endpoints" (agreed, G3, PR #59) · Design:
-[admin-dispatch.md](../design/admin-dispatch.md) (approved, G2, canvas
+admin-dispatch.md (approved, G2, canvas
 `1792429309-2405`) · Issues: #61 (backend), #62 (screens)
 
 ## 1. Overview and purpose
