@@ -1147,9 +1147,9 @@ checks it against the built schema.
 
 ### Amendment (#243): the driver on the admin order list after the order ends
 
-**Status: proposed** by @Cloudcrackamara (+ Claude Code) for
-[#243](https://github.com/chidimmamogbo/mmirioma/issues/243). Needs one
-reviewer who is not the author to agree it (G3) before any code.
+**Status: agreed** (G3) on 2026-10-29 by @nnamdi-security (technical lead),
+proposed by @Cloudcrackamara (+ Claude Code) for
+[#243](https://github.com/chidimmamogbo/mmirioma/issues/243).
 
 **Gap.** The [#204 amendment](#amendment-204-the-driver-on-the-admin-order-list)
 gives `driver` only for a **live** assignment, so a `delivered`, `failed` or
@@ -1182,8 +1182,10 @@ cancelled job.
 - **Example.** `examples/admin-orders-page.json` gains an item with a
   `delivered` order and a driver.
 
-**Open question for the reviewer.** Is "accepted only" the right rule for a
-cancelled order, or should the latest assignment show whatever its state?
+**Decided** (2026-10-29, @nnamdi-security, on #243): "accepted only" is right
+for a cancelled order. A driver who never accepted never held the job, and the
+SRS has no rule for who "held" it (FR-036), so the list does not name one. It
+is the same rule the order panel uses (PR #246).
 
 ## Admin hold review endpoints
 
