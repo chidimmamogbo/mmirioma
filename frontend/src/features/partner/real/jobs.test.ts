@@ -280,11 +280,24 @@ describe('confirmPickup (#13)', () => {
     expect(sent(1).body).toEqual({ to: 'en_route' })
   })
 
-  it('passes delivery_day_reached through and records no pickup', async () => {
+  it('refuses delivery_day_reached with the day the job can start, keeps the code and records no pickup (#241)', async () => {
     const { client, fetchMock } = setup({ body: accepted }, { body: envelope('transition_requirements_unmet', { missing: ['delivery_day_reached'] }), status: 409 })
     const error = await rejection(confirmPickup(REF, loaded, client))
     expect([error.code, error.details]).toEqual(['transition_requirements_unmet', { missing: ['delivery_day_reached'] }])
+    expect(error.message).toBe('This job can start from Mon, 19 Oct 2026. Come back on that day.')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the server message for another unmet requirement (#241)', async () => {
+    const { client } = setup({ body: accepted }, { body: envelope('transition_requirements_unmet', { missing: ['delivery_window_set'] }), status: 409 })
+    const error = await rejection(confirmPickup(REF, loaded, client))
+    expect(error.message).toBe('Sample transition_requirements_unmet')
+  })
+
+  it('keeps the server message when the job has no delivery window (#241)', async () => {
+    const { client } = setup({ body: { ...accepted, delivery_window_start_at: null } }, { body: envelope('transition_requirements_unmet', { missing: ['delivery_day_reached'] }), status: 409 })
+    const error = await rejection(confirmPickup(REF, loaded, client))
+    expect(error.message).toBe('Sample transition_requirements_unmet')
   })
 })
 

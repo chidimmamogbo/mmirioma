@@ -221,6 +221,11 @@ once).
 - Skipping a step (`en_route` from `accepted`, arrive before `en_route`) →
   409 `invalid_order_transition`; `collected`, `arrived` or `delivered` as a
   `transition` target → 422 (they have their own endpoints).
+- Start job before the delivery day → 409 `transition_requirements_unmet`
+  with `delivery_day_reached`. The driver app's pickup step (`confirmPickup`,
+  `features/partner/real/jobs.ts`) shows "This job can start from <day>. Come
+  back on that day." instead of the server's generic text (#241). The error
+  code and details are unchanged; with no delivery window the server text stays.
 - Proof before unloading is complete → 409 `transition_requirements_unmet`
   with `unloading_confirmed`; new code before it → the same.
 - Location without consent, out-of-range coordinates, both or neither of
