@@ -40,7 +40,7 @@ import { PARTNER_DOCUMENTS_ENABLED } from '../../../lib/features'
 import { formatNaira } from '../../../lib/format/money'
 import { JobMiniCard } from '../components/JobParts'
 import { jobDeliveryType, jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
-import { usePartnerApp } from '../partnerContext'
+import { TRIP_STEP_LINE, tripStep, tripStepPath, usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useDeclineJob, useHistory, useJob, useMarkPartnerNotificationsRead, usePartnerNotifications, usePartnerProfile, useReportIssue, useUploadDocument } from '../queries'
 
 function TitleBar({ back, title, right }: { back: string; title: string; right?: ReactNode }) {
@@ -372,7 +372,10 @@ export function PartnerIssue() {
   const initial = (params.get('type') as PartnerIssueType | null) ?? 'customer_unreachable'
   const [type, setType] = useState<PartnerIssueType>(initial in ISSUE_LABEL ? initial : 'customer_unreachable')
   const [note, setNote] = useState('')
-  const back = job ? (job.stage === 'collected' ? `${base}/jobs/${job.reference}/customer` : `${base}/jobs/${job.reference}/refill`) : `${base}/menu`
+  // The list rows carry no arrival fields (real API), so the step comes from the job's own detail (#257).
+  const detail = useJob(job?.reference ?? '')
+  const step = job ? tripStep(detail.data ?? job) : null
+  const back = job && step ? tripStepPath(base, job.reference, step) : `${base}/menu`
 
   return (
     <MobileShell>
@@ -384,7 +387,7 @@ export function PartnerIssue() {
             <div className="flex-1">
               <div className="font-extrabold">{job.reference}</div>
               <div className="text-caption text-mute">
-                {jobQuantity(job)} · {job.stage === 'collected' ? 'on the way to customer' : 'going to the station'}
+                {jobQuantity(job)} · {TRIP_STEP_LINE[step ?? 'station']}
               </div>
             </div>
           </Card>

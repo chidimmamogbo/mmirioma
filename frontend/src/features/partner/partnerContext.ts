@@ -43,3 +43,34 @@ export function jobStepPath(base: string, job: Pick<PartnerJob, 'reference' | 's
       return `${base}/orders/${r}`
   }
 }
+
+/** A step of the trip the problem report tells apart (docs/design/driver-arrival-unreachable.md, "Problem report", #257). */
+export type TripStep = 'station' | 'customer' | 'arrived' | 'unloading'
+
+/**
+ * Where an active job is on the trip. `PartnerJob.stage` is `collected` from loading to unloading, so the steps after
+ * it are told apart by the arrival fields (#263): no `arrived_at` is on the way to the customer; `arrived_at` with
+ * `can_start_unloading` is arrived; `arrived_at` without it is unloading. A job before loading is at the station.
+ */
+export function tripStep(job: Pick<PartnerJob, 'stage' | 'arrived_at' | 'can_start_unloading'>): TripStep {
+  if (job.stage !== 'collected') return 'station'
+  if (!job.arrived_at) return 'customer'
+  return job.can_start_unloading ? 'arrived' : 'unloading'
+}
+
+/** The job line on the problem report card, for a step. */
+export const TRIP_STEP_LINE: Record<TripStep, string> = {
+  station: 'going to the station',
+  customer: 'on the way to customer',
+  arrived: 'arrived at the customer',
+  unloading: 'unloading',
+}
+
+/**
+ * The screen "Back" returns to from the problem report, for a step. The arrived screen (U2) is not built yet, so an
+ * arrived job goes back to the customer step, which is where the job's next action is until it exists.
+ */
+export function tripStepPath(base: string, reference: string, step: TripStep): string {
+  const to = { station: 'refill', customer: 'customer', arrived: 'customer', unloading: 'code' }[step]
+  return `${base}/jobs/${reference}/${to}`
+}

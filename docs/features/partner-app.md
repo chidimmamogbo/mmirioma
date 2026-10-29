@@ -275,6 +275,10 @@ they order (the customer mock); the partner app gets it only after unloading.
   with "Fail delivery". That does not enforce the two attempts or the 10-minute
   wait. The backend and the contract are ready; the screens wait for the design
   in [prompt 18](../design/prompts/18-driver-arrival-and-unreachable.md).
+  The report screen's job line names the step (going to the station, on the way
+  to customer, arrived at the customer, unloading) and "Back" returns to it
+  (#257); until the arrived screen (U2) exists, "Back" from an arrived job goes
+  to the customer step.
 - Real API sign-up takes a typed area, not a zone list, so a partner must
   spell the zone's name. The demo seed creates no zones; create one before
   trying sign-up locally.
