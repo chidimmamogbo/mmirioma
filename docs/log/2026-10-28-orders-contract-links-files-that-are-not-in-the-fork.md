@@ -14,10 +14,17 @@
 - **Cause:** the contract was written and agreed in the upstream repo, and only
   its text came across; the designs, the prompt and the pilot plan it links
   did not.
-- **Fix / workaround:** none for the links yet. #188 designs and approves the
-  window's place before building it, so it does not depend on the missing
-  design. Fixing the rest means bringing those files across, or removing the
-  links, which belongs to whoever owns each document. When a contract is copied
-  from another repo, check that every file it links exists here.
-- **Status:** open
+- **Fix / workaround:** #188 designed and approved the window's place itself
+  (`docs/design/customer-delivery-window.md`), so it did not depend on the
+  missing design. For `orders.md`, the nine links to the six files are now
+  plain text, with a note under the Status paragraph that the documents are in
+  the main repo (`mmiri-oma/mmirioma`, read only; all six exist there). Nothing
+  was copied across: the designs and the pilot plan belong to the main repo.
+  A link check of `orders.md` finds no broken link now. When a contract is
+  copied from another repo, check that every file it links exists here.
+  Still linked and still missing, outside `orders.md`: `deliveries.md` (the
+  admin dispatch design, `pilot-plan`), `payments.md` (`pilot-plan`) and some
+  feature docs (`docs/features/admin-dispatch.md`, `admin-order-directory.md`,
+  `customer-ordering.md`, `order-confirmation.md`, `sms.md`, `water-sources.md`).
+- **Status:** resolved for `orders.md`; open for the other documents above
 - **Refs:** #99, #165, #188, `docs/api/orders.md`.

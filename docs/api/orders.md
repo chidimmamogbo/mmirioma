@@ -6,10 +6,17 @@ Acceptance tests: T-06, T-07
 Status: agreed (G3, S1-16) on 2026-10-15 by @nnamdi-security (contract owner),
 with @chidimmamogbo (backend, S1-03), @Cloudcrackamara (customer UI, S1-05)
 and @Daveoski (admin UI, S1-09). Checked against the approved designs
-[customer-ordering.md](../design/customer-ordering.md) and
-[admin-orders.md](../design/admin-orders.md); see
+customer-ordering.md and
+admin-orders.md; see
 [Design check](#design-check-s1-16). The delivery-phase transitions remain
 proposed until S1-06.
+
+> **Documents from the main repo.** This contract was agreed in the main
+> repository. The designs it checks against (`customer-ordering`,
+> `admin-orders`, `admin-dispatch`, `customer-pilot-status` and its prompt 11)
+> and the pilot plan (`process/pilot-plan`) are named in the text below but are
+> not in this fork, so they are not linked. Read them in `mmiri-oma/mmirioma`
+> (read only). The designs this fork has are in `docs/design/`.
 
 **Changed 2026-10-17 (SRS v0.2, FR-003, FR-021), re-agreed by
 @Cloudcrackamara (PR #45 review, 2026-10-18) and @chidimmamogbo (to the
@@ -44,7 +51,7 @@ Stored as an explicit enumeration. Names follow FR-033. The full list,
 meanings and transitions are in [deliveries.md](deliveries.md) (proposed,
 S1-06); the four statuses added by SRS v0.2 are not reachable through any
 endpoint yet. Their staff labels come from the
-[admin dispatch design](../design/admin-dispatch.md) (Decision 1); customer
+admin dispatch design (Decision 1); customer
 labels wait for the customer progress design.
 
 | Status | Meaning | Customer sees it as | Staff see it as |
@@ -66,10 +73,10 @@ labels wait for the customer progress design.
 | `disputed` | Customer or dispatcher disputes the delivery (T-12) | "Under review" | "Disputed" |
 
 Labels come from the approved designs: customer wording from
-[customer-ordering.md](../design/customer-ordering.md) (status wording table),
-staff wording from [admin-orders.md](../design/admin-orders.md) (Decision on
+customer-ordering.md (status wording table),
+staff wording from admin-orders.md (Decision on
 status labels) and, for the four v0.2 statuses,
-[admin-dispatch.md](../design/admin-dispatch.md) (Decision 1). The API sends only the `status` value; labels are client-side.
+admin-dispatch.md (Decision 1). The API sends only the `status` value; labels are client-side.
 Until a "Pending design" status has approved wording, and for any value the
 customer app does not know, the customer screens show a neutral fallback:
 "Order update" with "We're working on your order. Contact us if you have
@@ -250,9 +257,9 @@ listed under Planned; they are not part of this agreement.
 Status: **agreed** (G3) on 2026-10-24 by @nnamdi-security (technical lead,
 contract owner), without the cancellation SMS (see below). Proposed by
 @Daveoski (+ Claude Code) on 2026-10-22 from
-[prompt 11](../design/prompts/11-customer-pilot-order-status.md); the design
+prompt 11; the design
 is approved (G2, 2026-10-24,
-[customer-pilot-status.md](../design/customer-pilot-status.md)). The backend
+customer-pilot-status.md). The backend
 review by @chidimmamogbo and the customer UI review by @Cloudcrackamara are
 recorded on the build PR. **Built** in #165 (PR #187): the backend sends
 all three fields and the customer app maps `price` and `water_category`
@@ -293,7 +300,7 @@ summary (C2); a `payment_method` field comes with prepaid payments (FR-040).
 The proposal included an SMS sent by the app when an administrator cancels
 an order. **Dropped** (technical lead, 2026-10-24): for the pilot the
 cancellation outcome is told by an administrator under fallback F10
-([pilot plan](../process/pilot-plan.md), agreed 2026-10-23, #102). The
+(pilot plan, agreed 2026-10-23, #102). The
 agreed admin cancel
 ([deliveries.md](deliveries.md#post-adminordersreferencetransition-fail-and-cancel))
 is unchanged.
