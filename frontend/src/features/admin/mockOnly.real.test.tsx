@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import dashboardSample from '../../../../docs/api/examples/admin-dashboard.json'
+import liveMapSample from '../../../../docs/api/examples/admin-live-map.json'
 import ordersPageSample from '../../../../docs/api/examples/admin-orders-page.json'
 import shellSample from '../../../../docs/api/examples/admin-shell.json'
 import type { AdminCustomer } from '../../domain/admin'
@@ -42,6 +43,7 @@ const BODIES: Record<string, unknown> = {
   '/admin/shell': shellSample,
   '/admin/dashboard': dashboardSample,
   '/admin/orders': ordersPageSample,
+  '/admin/live-map': liveMapSample,
 }
 
 /** Answers each backend path from `BODIES`, anything else 404 (set up before the app loads: the client binds `fetch` on import). */
@@ -84,6 +86,7 @@ describe('mock-only admin actions with the real API (#221)', () => {
     expect(features.PAYMENTS_PAGE_ENABLED).toBe(false)
     expect(features.ORDER_FOR_CUSTOMER_ENABLED).toBe(false)
     expect(features.DIRECTORY_EDITS_ENABLED).toBe(false)
+    expect(features.STATIONS_PAGE_ENABLED).toBe(false)
   })
 
   it('offers no Payments entry and no "+ Create order" on the dashboard', async () => {
@@ -118,7 +121,26 @@ describe('mock-only admin actions with the real API (#221)', () => {
     expect(screen.queryByRole('link', { name: 'Payment records' })).not.toBeInTheDocument()
   }, SLOW)
 
-  it.each(['/admin/payments', '/admin/orders/new', '/admin/riders/new'])('sends an old link to %s to the dashboard', async (path) => {
+  it('offers no Refill stations menu entry, and no Manage link on the dashboard panel, which stays (#235)', async () => {
+    renderAt('/admin')
+    expect(await screen.findByRole('heading', { name: 'Refill stations' }, { timeout: WAIT })).toBeInTheDocument()
+    const nav = screen.getAllByRole('navigation', { name: 'Admin' })[0]
+    expect(within(nav).getByRole('link', { name: /Cash/ })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: /Refill stations/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Manage' })).not.toBeInTheDocument()
+  }, SLOW)
+
+  it('shows My account from /auth/me: name, role and phone, with no "not connected" message (#235)', async () => {
+    renderAt('/admin/account')
+    expect(await screen.findByRole('heading', { name: 'My account' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(await screen.findByText('Phone (sign-in)', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getAllByText('Sample Admin').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0)
+    expect(screen.getByText('0800 000 0099')).toBeInTheDocument()
+    expect(screen.queryByText(/not connected/i)).toBeNull()
+  }, SLOW)
+
+  it.each(['/admin/payments', '/admin/orders/new', '/admin/riders/new', '/admin/stations'])('sends an old link to %s to the dashboard', async (path) => {
     const router = renderAt(path)
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/admin'), { timeout: WAIT })
   }, SLOW)

@@ -70,6 +70,18 @@ export const ORDER_FOR_CUSTOMER_ENABLED = USE_MOCKS
 export const DIRECTORY_EDITS_ENABLED = USE_MOCKS
 
 /**
+ * The Refill stations page (`listStations`, `setStationOpen`, `saveStation`,
+ * `uploadStationPapers`). The agreed contracts give stations no admin
+ * endpoint: they stay on the command-line tool (docs/process/linking-plan.md;
+ * decision on #235). The Dashboard's "Refill stations" panel stays: with the
+ * real API it reads the live map's water sources (#217).
+ *
+ * While `false`: no "Refill stations" menu entry, no "Manage" link on the
+ * Dashboard panel, and `/admin/stations` redirects to the dashboard.
+ */
+export const STATIONS_PAGE_ENABLED = USE_MOCKS
+
+/**
  * Editing the customer profile (`updateProfile`): the photo, email and message
  * switches. customer-account.md has deliberately no `PATCH /me/profile` in the
  * pilot (answer 2 on #221). The real profile sends no email or switches, so

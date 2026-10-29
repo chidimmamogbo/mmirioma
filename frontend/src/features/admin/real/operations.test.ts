@@ -6,7 +6,7 @@ import settingsSample from '../../../../../docs/api/examples/admin-settings.json
 import shellSample from '../../../../../docs/api/examples/admin-shell.json'
 import { ApiError, createApiClient } from '../../../lib/api/client'
 import type { AdminDashboardRead, LiveMapRead } from '../../../lib/api/adminOperations'
-import { dashboardFromRead, getDashboard, getLiveMap, getSettings, getShellData, listActivity, liveMapFromRead, settingsFromRead } from './operations'
+import { dashboardFromRead, getAdminAccount, getDashboard, getLiveMap, getSettings, getShellData, listActivity, liveMapFromRead, settingsFromRead } from './operations'
 
 const ME = { user: { id: 'u1', name: 'Sample Admin', phone: '+2348000000099', role: 'admin', phone_verified: true }, csrf_token: 'csrf', expires_at: '2026-10-29T00:00:00Z' }
 const envelope = (code: string) => ({ error: { code, message: 'No', details: null } })
@@ -33,6 +33,23 @@ describe('getShellData', () => {
   it('passes 401 not_authenticated through', async () => {
     const { client } = clientByPath({ '/auth/me': { body: envelope('not_authenticated'), status: 401 }, '/admin/shell': { body: envelope('not_authenticated'), status: 401 } })
     await expect(getShellData(client)).rejects.toMatchObject({ status: 401, code: 'not_authenticated' })
+  })
+})
+
+describe('getAdminAccount (#235)', () => {
+  it('takes the name and phone from /auth/me, the role is Admin, and nothing else is read', async () => {
+    const { client, fetchMock } = clientByPath({ '/auth/me': { body: ME } })
+    expect(await getAdminAccount(client)).toEqual({ name: 'Sample Admin', phone: '+2348000000099', role: 'Admin', last_active: null })
+    // Only /auth/me: the page shows no last sign-in, so the settings staff list is not read.
+    expect(fetchMock.mock.calls.map((c) => new URL(String(c[0])).pathname)).toEqual(['/api/v1/auth/me'])
+  })
+
+  it.each([
+    [401, 'not_authenticated'],
+    [403, 'forbidden'],
+  ])('passes %i %s through', async (status, code) => {
+    const { client } = clientByPath({ '/auth/me': { body: envelope(code), status } })
+    await expect(getAdminAccount(client)).rejects.toMatchObject({ status, code })
   })
 })
 

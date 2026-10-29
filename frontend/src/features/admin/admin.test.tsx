@@ -7,7 +7,7 @@ import { AppProviders } from '../../app/providers'
 import { routes } from '../../app/router'
 import { decideProof } from '../../mocks/adminMock'
 import { mockLogin } from '../../mocks/authMock'
-import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED } from '../../lib/features'
+import { DIRECTORY_EDITS_ENABLED, ORDER_FOR_CUSTOMER_ENABLED, PAYMENTS_PAGE_ENABLED, STATIONS_PAGE_ENABLED } from '../../lib/features'
 import { read, resetMockDb } from '../../mocks/db'
 import { DEMO_PASSWORD } from '../../mocks/seed'
 import { notReadyToAssign, timeAgo } from './adminFormat'
@@ -579,6 +579,20 @@ describe('mock-only admin actions in mock mode (#221)', () => {
     const nav = screen.getAllByRole('navigation', { name: 'Admin' })[0]
     expect(within(nav).getByRole('link', { name: /Payments/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '+ Create order' })).toHaveAttribute('href', '/admin/orders/new')
+  }, SLOW)
+
+  it('offers Refill stations in the menu and a Manage link on the dashboard panel (#235)', async () => {
+    expect(STATIONS_PAGE_ENABLED).toBe(true)
+    renderAt('/admin')
+    expect((await screen.findAllByText('Awaiting rider', {}, { timeout: WAIT })).length).toBeGreaterThan(0)
+    const nav = screen.getAllByRole('navigation', { name: 'Admin' })[0]
+    expect(within(nav).getByRole('link', { name: /Refill stations/ })).toHaveAttribute('href', '/admin/stations')
+    expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute('href', '/admin/stations')
+  }, SLOW)
+
+  it('keeps the Refill stations page in mock mode (#235)', async () => {
+    renderAt('/admin/stations')
+    expect(await screen.findByRole('heading', { name: 'Refill stations' }, { timeout: WAIT })).toBeInTheDocument()
   }, SLOW)
 
   it('offers "+ Create order for a customer" on Orders', async () => {

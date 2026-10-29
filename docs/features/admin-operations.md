@@ -266,6 +266,14 @@ in the database does not affect them.
   limit, with no support hours, safe load or save button. A live-map
   delivery with no delivery type gets a neutral marker, and with no plate it
   shows the driver's name.
+- **My account and Refill stations (#235).** My account reads `GET /auth/me`
+  (`getAdminAccount` in `features/admin/real/operations.ts`): the name and
+  phone, and the role "Admin" (one staff role); the page shows no last
+  sign-in. Refill stations has no admin endpoint (stations stay on the
+  command-line tool), so with the real API the page is switched off
+  (`STATIONS_PAGE_ENABLED` in `lib/features.ts`): no menu entry, the old
+  link goes to the dashboard, and the dashboard panel keeps listing the live
+  map's water sources without its "Manage" link. Mock mode keeps the page.
 - **A database with only demo accounts shows zeros on the dashboard.** It
   counts real orders by default (BR-09); the screens send no `simulated`
   parameter and have no toggle.
