@@ -48,6 +48,11 @@ export const declineJob = (ref: string, reason: DeclineReason, note: string): Pr
   USE_MOCKS ? mock.declineJob(ref, reason, note) : realJobs.declineJob(ref, reason, note)
 export const confirmPickup = (ref: string, p: Pickup): Promise<PartnerJob> => (USE_MOCKS ? mock.confirmPickup(ref, p) : realJobs.confirmPickup(ref, p))
 export const completeUnloading = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.completeUnloading(ref) : realJobs.completeUnloading(ref))
+// Arrival and the unreachable customer (#250, FR-038).
+export const arriveAtCustomer = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.arriveAtCustomer(ref) : realJobs.arriveAtCustomer(ref))
+export const startUnloading = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.startUnloading(ref) : realJobs.startUnloading(ref))
+export const recordContactAttempt = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.recordContactAttempt(ref) : realJobs.recordContactAttempt(ref))
+export const failUnreachable = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.failUnreachable(ref) : realJobs.failUnreachable(ref))
 export const verifyCode =(ref: string, code: string): Promise<PartnerJob> => (USE_MOCKS ? mock.verifyCode(ref, code) : realJobs.verifyCode(ref, code))
 export const resendCode = (ref: string): Promise<PartnerJob> => (USE_MOCKS ? mock.resendCode(ref) : realJobs.resendCode(ref))
 

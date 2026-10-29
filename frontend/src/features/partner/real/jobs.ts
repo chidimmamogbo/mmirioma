@@ -25,6 +25,10 @@
  *   complete (the server sends the code).
  * - `verifyCode`: the proof, with the litres recorded at pickup.
  *
+ * Arrival and the unreachable customer (#250, FR-038) are separate steps, one
+ * request each: `arriveAtCustomer`, `startUnloading`, `recordContactAttempt`
+ * and `failUnreachable`.
+ *
  * Server errors pass through unchanged as `ApiError`, except the wrong-code
  * errors, renamed to the codes the code screen reads.
  */
@@ -40,6 +44,7 @@ import {
   declineDriverJob,
   getDriverJob,
   listDriverJobs,
+  recordContactAttempt as recordDriverContactAttempt,
   recordPickup,
   reportIncident,
   requestNewCode,
@@ -126,6 +131,17 @@ export function partnerJobFromRead(job: DriverJobSummary | DriverJobDetail): Par
     pickup: null,
     remaining: null,
     cash: job.cash,
+    ...(detail
+      ? {
+          // Arrival and the unreachable customer (#250). The two flags come from the server's own list of what
+          // the driver may do now, never from the phone's clock (design decision 6).
+          arrived_at: detail.arrived_at,
+          contact_attempts: detail.contact_attempts.map((attempt) => attempt.attempted_at),
+          unreachable_allowed_at: detail.unreachable_allowed_at,
+          can_start_unloading: detail.allowed_actions.includes('start_unloading'),
+          can_fail_unreachable: detail.allowed_actions.includes('record_failed_attempt'),
+        }
+      : {}),
   }
 }
 
@@ -298,6 +314,52 @@ export async function completeUnloading(reference: string, client: ApiClient = a
     job = await completeDriverUnloading(reference, client)
   }
   return partnerJobFromRead(job)
+}
+
+/**
+ * "I have arrived" (U1): records the arrival (`POST .../arrive`). No location
+ * is sent: the fork asks for no location consent (FR-035), so the time is the
+ * moment the partner tapped. Repeating returns the job unchanged.
+ *
+ * @throws {ApiError} `invalid_order_transition`; `job_on_hold`; `order_not_found`.
+ */
+export async function arriveAtCustomer(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  return partnerJobFromRead(await arriveDriverJob(reference, { location_consent: false }, client))
+}
+
+/**
+ * "Start unloading" (U2): the `unloading` step. The code is sent later, by
+ * `completeUnloading`.
+ *
+ * @throws {ApiError} `invalid_order_transition`; `job_on_hold`; `order_not_found`.
+ */
+export async function startUnloading(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  return partnerJobFromRead(stepJob(await transitionDriverJob(reference, { to: 'unloading' }, client)))
+}
+
+/**
+ * "I tried to reach the customer" (U3): records one attempt
+ * (`POST .../contact-attempts`, FR-038). The server stamps the time and sets
+ * no maximum, so every attempt is kept. The returned job lists them all.
+ *
+ * @throws {ApiError} `invalid_order_transition`; `order_not_found`.
+ */
+export async function recordContactAttempt(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  return partnerJobFromRead(await recordDriverContactAttempt(reference, client))
+}
+
+/**
+ * "Fail the delivery" (U3-S): ends the job as "customer not reachable"
+ * (`transition` `failed`; the server sets the reason `customer_unreachable`).
+ * The server refuses until two attempts are recorded and the full 10 minutes
+ * have passed since arrival (FR-038, T-25). The answer is the finished job.
+ *
+ * @throws {ApiError} `transition_requirements_unmet` with `details.missing` of
+ *   `contact_attempts_recorded` and/or `unreachable_wait_elapsed`;
+ *   `invalid_order_transition`; `job_on_hold`; `order_not_found`.
+ */
+export async function failUnreachable(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
+  return partnerJobFromRead(stepJob(await transitionDriverJob(reference, { to: 'failed' }, client)))
 }
 
 /**

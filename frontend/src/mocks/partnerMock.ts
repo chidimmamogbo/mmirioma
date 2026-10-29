@@ -39,6 +39,13 @@ import { clone, delay, mockError, newDeliveryCode, newId } from './store'
 const CODE_TRIES = 3
 const RESEND_SECONDS = 120
 
+/**
+ * How long after arrival the mock lets a partner end a job as "customer not
+ * reachable". The backend waits the full 10 minutes (FR-038); a demo should not,
+ * so the mock waits one minute. Everything else about the rule is the same.
+ */
+export const MOCK_UNREACHABLE_WAIT_MS = 60_000
+
 function partnerOf(s: MockState): { id: string; data: PartnerData } {
   const id = requireUserId()
   const user = s.users.find((u) => u.id === id)
@@ -58,11 +65,18 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   delete copy.declined_by
   delete copy.mock_code
   delete copy.mock_code_expired
+  delete copy.mock_unloading_started
   // Partners never see the order's payment status (FR-040, BR-13).
   delete copy.payment_status
   const code = job.stage === 'collected' && job.code_tries_left !== null ? codeFor(s, job) : null
   if (code) copy.demo_code = code
   copy.cash = jobCash(s, job)
+  // What the server would allow now, worked out as the server does (#250); the screens never use the clock.
+  if (job.arrived_at && job.stage === 'collected') {
+    const open = !job.mock_unloading_started
+    copy.can_start_unloading = open
+    copy.can_fail_unreachable = open && (job.contact_attempts?.length ?? 0) >= 2 && Date.now() >= Date.parse(job.unreachable_allowed_at ?? '')
+  }
   return copy
 }
 
@@ -291,6 +305,86 @@ export async function confirmPickup(
     job.code_tries_left = null
     job.code_resend_at = null
     applyCollected(s, job, now)
+    return view(s, job)
+  })
+}
+
+/** The partner's own job that is on its way to, or at, the customer. */
+function jobAtCustomer(s: MockState, reference: string): StoredJob {
+  const { id, data } = partnerOf(s)
+  const job = findVisible(s, id, data, reference)
+  if (job.partner_id !== id || job.stage !== 'collected') throw mockError(409, 'invalid_order_transition', 'This job is not at the step that allows this action.')
+  return job
+}
+
+/** A job the partner has arrived at and not started unloading. */
+function jobWaitingAtCustomer(s: MockState, reference: string): StoredJob {
+  const job = jobAtCustomer(s, reference)
+  if (!job.arrived_at || job.mock_unloading_started) throw mockError(409, 'invalid_order_transition', 'This job is not at the step that allows this action.')
+  return job
+}
+
+/**
+ * "I have arrived" (U1, #250): stamps the arrival and the earliest time the
+ * partner may end the job as unreachable. No location. Repeating changes nothing.
+ */
+export async function arriveAtCustomer(reference: string): Promise<PartnerJob> {
+  await delay(null, 300)
+  return mutate((s) => {
+    const job = jobAtCustomer(s, reference)
+    if (!job.arrived_at) {
+      const now = Date.now()
+      job.arrived_at = new Date(now).toISOString()
+      job.unreachable_allowed_at = new Date(now + MOCK_UNREACHABLE_WAIT_MS).toISOString()
+      job.contact_attempts = []
+    }
+    return view(s, job)
+  })
+}
+
+/** "Start unloading" (U2, #250). Repeating changes nothing. */
+export async function startUnloading(reference: string): Promise<PartnerJob> {
+  await delay(null, 300)
+  return mutate((s) => {
+    const job = jobAtCustomer(s, reference)
+    if (!job.arrived_at) throw mockError(409, 'invalid_order_transition', 'This job is not at the step that allows this action.')
+    job.mock_unloading_started = true
+    return view(s, job)
+  })
+}
+
+/** "I tried to reach the customer" (U3, #250): one more attempt, with the server's time. No maximum. */
+export async function recordContactAttempt(reference: string): Promise<PartnerJob> {
+  await delay(null, 300)
+  return mutate((s) => {
+    const job = jobWaitingAtCustomer(s, reference)
+    job.contact_attempts = [...(job.contact_attempts ?? []), new Date().toISOString()]
+    return view(s, job)
+  })
+}
+
+/**
+ * "Fail the delivery" (U3-S, #250, FR-038): refused until two attempts are
+ * recorded and the wait since arrival is over, with the backend's 409 and its
+ * `details.missing`. Then the job ends as failed, "customer_unreachable".
+ *
+ * @throws 409 `transition_requirements_unmet` (`contact_attempts_recorded`, `unreachable_wait_elapsed`).
+ */
+export async function failUnreachable(reference: string): Promise<PartnerJob> {
+  await delay(null, 300)
+  return mutate((s) => {
+    const job = jobWaitingAtCustomer(s, reference)
+    const missing: string[] = []
+    if ((job.contact_attempts?.length ?? 0) < 2) missing.push('contact_attempts_recorded')
+    if (Date.now() < Date.parse(job.unreachable_allowed_at ?? '')) missing.push('unreachable_wait_elapsed')
+    if (missing.length > 0) throw mockError(409, 'transition_requirements_unmet', 'This step needs more information before it can be recorded.', { missing })
+    const now = new Date().toISOString()
+    const by = s.users.find((u) => u.id === job.partner_id)?.name ?? 'The partner'
+    job.stage = 'failed'
+    job.ended = { kind: 'failed', reason_code: 'customer_unreachable', note: null, by, at: now }
+    const found = findCustomerOrder(s, reference)
+    if (found) found.order.timeline.push({ label: 'Delivery failed', at: now })
+    addActivity(s, 'admin', `${by} could not reach the customer for ${reference.slice(0, 7)}; the delivery failed`, reference)
     return view(s, job)
   })
 }

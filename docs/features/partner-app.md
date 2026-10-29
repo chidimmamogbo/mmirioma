@@ -125,6 +125,25 @@ can send several backend steps, each only if the job has not made it yet
 | `resendCode` | `POST .../delivery-code` |
 | `reportIssue` | `POST .../incidents`; a report with no order fails with `not_connected` |
 
+Four more functions are the arrival and the unreachable customer (#250,
+FR-038, [design](../design/driver-arrival-unreachable.md)), one request each.
+They exist in the adapters and in the mock, and no screen calls them yet; the
+screens come next:
+
+| Function | Endpoint |
+| --- | --- |
+| `arriveAtCustomer` | `POST .../arrive` with `{ "location_consent": false }` and no location |
+| `startUnloading` | `POST .../transition` (`unloading`) |
+| `recordContactAttempt` | `POST .../contact-attempts`; the job then lists every attempt, oldest first |
+| `failUnreachable` | `POST .../transition` (`failed`); the server refuses until two attempts are recorded and the full 10 minutes have passed since arrival |
+
+The job also carries `arrived_at`, `contact_attempts`, `unreachable_allowed_at`,
+`can_start_unloading` and `can_fail_unreachable` (the last two from the server's
+`allowed_actions`; [api-mapping.md](../architecture/api-mapping.md#arrival-and-the-unreachable-customer-250)).
+`completeUnloading` still catches up arrival and the start of unloading until
+the screens send them as their own steps. The mock waits one minute, not ten
+(`MOCK_UNREACHABLE_WAIT_MS`), so a demo can finish.
+
 Earnings, payouts and document upload still run on mocks. In real-API mode
 they fail with `not_connected`. Earnings and payouts are **hidden in the
 pilot** (`PARTNER_PAY_ENABLED` in `lib/features.ts`, #157; partner pay is out
