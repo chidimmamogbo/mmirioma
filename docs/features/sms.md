@@ -12,7 +12,7 @@ Before the pilot, each P0 message must be proven on the team's real phones
 from a non-production run (#102, Phase 2 step 8). The command
 `app.modules.messaging.live_test` sends every built template, with sample
 values, to one team phone, and the results go in the pilot plan's
-[SMS live test record](../process/pilot-plan.md#sms-live-test-record).
+SMS live test record.
 
 ## 2. Feature workflow
 
@@ -151,7 +151,7 @@ Live test on real phones:
 2. Preview: `python -m app.modules.messaging.live_test --to <team phone>`.
 3. Send: add `--send`. Copy the result lines.
 4. The phone's holder fills the
-   [SMS live test record](../process/pilot-plan.md#sms-live-test-record):
+   SMS live test record:
    who, when, received or not, and any difference from the preview.
 5. Repeat on a phone on the Do-Not-Disturb list, which only the `dnd` route
    reaches.
