@@ -450,7 +450,8 @@ export interface AdminIssue {
   at: string
   urgent: boolean
   status: 'open' | 'resolved'
-  resolution: { action: ResolutionAction; reason: string; by: string; at: string; points?: number } | null
+  /** The real backend resolves with a note only, so it sends no `action` and no `points`: they belong to the mock. */
+  resolution: { action?: ResolutionAction; reason: string; by: string; at: string; points?: number } | null
 }
 
 export interface AuditEntry {

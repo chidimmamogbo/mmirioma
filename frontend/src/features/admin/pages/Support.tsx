@@ -12,11 +12,13 @@ import { TextField } from '../../../components/ui/Field'
 import { Notice } from '../../../components/ui/Notice'
 import { RESOLUTION_LABEL, type AdminIssue, type IssueType, type ResolutionAction } from '../../../domain/admin'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { USE_MOCKS } from '../../../lib/api/mode'
 import { cx } from '../../../lib/cx'
 import { formatDateTime, formatTime } from '../../../lib/format/datetime'
 import * as api from '../adminApi'
 import { DETAIL_PANEL_ID, revealDetail, timeAgo } from '../adminFormat'
 import { AdminFrame, PageHead } from '../AdminParts'
+import { decisionFailure } from '../hold/logic'
 import { useAdminMutation, useAdminOrder, useIssuePeople, useIssues } from '../queries'
 
 const ISSUE_ICON: Record<IssueType, { tone: IconBadgeTone; icon: ReactNode }> = {
@@ -54,7 +56,8 @@ export function Support() {
     <AdminFrame searchPlaceholder="Search issues or order numbers" onSearch={(q) => setParams(q ? { q } : {}, { replace: true })}>
       <PageHead
         title="Support and delivery problems"
-        sub={`${open.length} open · ${open.filter((i) => i.urgent).length} urgent. Sensitive actions are permission-checked and logged.${query ? ` Results for “${query}”.` : ''}`}
+        // The real backend has no urgent flag, so only the mock counts urgent requests (admin-operations.md).
+        sub={`${open.length} open${USE_MOCKS ? ` · ${open.filter((i) => i.urgent).length} urgent` : ''}. Sensitive actions are permission-checked and logged.${query ? ` Results for “${query}”.` : ''}`}
       />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="rise-2 flex w-full shrink-0 flex-col gap-2.5 lg:w-[380px]">
@@ -86,14 +89,22 @@ export function Support() {
           ))}
         </div>
         <div id={DETAIL_PANEL_ID} className="rise-3 min-w-0 flex-1 scroll-mt-4">
-          {selected && <IssueDetail key={selected.id} issue={selected} />}
+          {selected && (
+            <IssueDetail
+              key={selected.id}
+              issue={selected}
+              // Pin the request in the address before it is resolved: open requests sort first, so once it is resolved another
+              // one would become the first in the list and the page would move on without showing the result (as #176, #209).
+              onBeforeResolve={() => setParams(query ? { q: query, id: selected.id } : { id: selected.id }, { replace: true })}
+            />
+          )}
         </div>
       </div>
     </AdminFrame>
   )
 }
 
-function IssueDetail({ issue }: { issue: AdminIssue }) {
+function IssueDetail({ issue, onBeforeResolve }: { issue: AdminIssue; onBeforeResolve: () => void }) {
   const order = useAdminOrder(issue.reference)
   const people = useIssuePeople(issue.id)
   const actions = actionsFor(issue)
@@ -159,9 +170,23 @@ function IssueDetail({ issue }: { issue: AdminIssue }) {
 
       {issue.status === 'resolved' && issue.resolution ? (
         <Notice tone="success">
-          <b>{RESOLUTION_LABEL[issue.resolution.action]}</b>
-          {issue.resolution.points ? ` (${issue.resolution.points} points)` : ''} by {issue.resolution.by}, {formatDateTime(issue.resolution.at)}. Reason: {issue.resolution.reason}
+          {issue.resolution.action ? (
+            <>
+              <b>{RESOLUTION_LABEL[issue.resolution.action]}</b>
+              {issue.resolution.points ? ` (${issue.resolution.points} points)` : ''} by {issue.resolution.by}, {formatDateTime(issue.resolution.at)}. Reason: {issue.resolution.reason}
+            </>
+          ) : (
+            // The real backend resolves with a note only: no action to name.
+            <>
+              Resolved by {issue.resolution.by}, {formatDateTime(issue.resolution.at)}. Note: {issue.resolution.reason}
+            </>
+          )}
         </Notice>
+      ) : !USE_MOCKS ? (
+        <NoteResolution note={reason} onNote={setReason} pending={resolve.isPending} error={resolve.isError ? resolve.error : null} onSubmit={() => {
+          onBeforeResolve()
+          resolve.mutate(undefined)
+        }} />
       ) : (
         <form
           noValidate
@@ -186,5 +211,33 @@ function IssueDetail({ issue }: { issue: AdminIssue }) {
         </form>
       )}
     </Card>
+  )
+}
+
+/**
+ * Resolving a request with the real API (`POST .../resolve`): one required note,
+ * 5 to 500 characters, kept on the request. Confirming without the code,
+ * withdrawing and cancelling are done from the order's page first. A refused
+ * note shows under the field in the server's own words (G2 on #219).
+ */
+function NoteResolution({ note, onNote, pending, error, onSubmit }: { note: string; onNote: (note: string) => void; pending: boolean; error: unknown; onSubmit: () => void }) {
+  const failure = error ? decisionFailure(error) : null
+  return (
+    <form
+      noValidate
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit()
+      }}
+    >
+      <h3 className="m-0 text-[16px] font-extrabold">Resolution</h3>
+      <p className="m-0 text-caption text-mute">If this needs an action, take it first on the order's page (confirm, withdraw or cancel), then resolve the request here.</p>
+      <TextField label="Note" value={note} error={failure?.fields.note} onChange={(e) => onNote(e.target.value)} placeholder="e.g. Called customer, confirmed 600 L received in tank." />
+      {failure && !failure.fields.note && <Notice tone="error">{failure.message}</Notice>}
+      <Button type="submit" block={false} className="self-start px-7" loading={pending}>
+        Apply and resolve
+      </Button>
+    </form>
   )
 }
