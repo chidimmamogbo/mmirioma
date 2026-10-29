@@ -1,12 +1,12 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Illustration } from '../../../components/brand/Illustration'
-import { DownloadIcon, RefreshIcon } from '../../../components/icons/icons'
+import { DownloadIcon, RefreshIcon, StarIcon } from '../../../components/icons/icons'
 import { BackLink, Footer, MobileShell, ScrollArea, TopBar } from '../../../components/layout/MobileShell'
 import { ErrorBlock, LoadingBlock } from '../../../components/layout/StateScreens'
 import { Button, ButtonLink } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Chip, SampleTag } from '../../../components/ui/Chip'
-import { KeyValue, Separator } from '../../../components/ui/Content'
+import { KeyValue, SectionTitle, Separator } from '../../../components/ui/Content'
 import { IconLink } from '../../../components/ui/IconButton'
 import { STAGE_LABEL, isProblemStage, type CustomerOrder } from '../../../domain/orders'
 import { cx } from '../../../lib/cx'
@@ -24,6 +24,47 @@ function paymentText(o: CustomerOrder): string {
   if (o.payment.status === null) return method
   if (o.payment.status === 'paid') return `${method}, confirmed`
   return `${method}, ${PAYMENT_LABEL[o.payment.status].toLowerCase()}`
+}
+
+/**
+ * The way back to the rating screen for a delivered order (#249). The Orders
+ * list opens this page, and the rating screen is otherwise reached only by the
+ * tracking redirect right after delivery. Not rated: a button. Rated: the
+ * saved stars, read-only, and a link to change them. One feedback per order,
+ * and sending again replaces it (FR-051).
+ *
+ * @param reference - The order's reference.
+ * @param rating - The saved rating (1 to 5), or `null` when the customer has not rated.
+ */
+function RatingCard({ reference, rating }: { reference: string; rating: number | null }) {
+  const to = `/orders/${reference}/delivered`
+  return (
+    <Card pad className="rise-2">
+      {rating === null ? (
+        <>
+          <SectionTitle>How did we do?</SectionTitle>
+          <p className="mt-1 mb-3 text-sub text-mute">Tell us how the delivery went.</p>
+          <ButtonLink to={to} size="sm">
+            Rate this delivery
+          </ButtonLink>
+        </>
+      ) : (
+        <>
+          <SectionTitle>Your rating</SectionTitle>
+          <div role="img" aria-label={`${rating} out of 5 stars`} className="mt-2 mb-2 flex gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <span key={n} style={{ color: n <= rating ? '#F2B33D' : '#C9D4E1' }}>
+                <StarIcon size={24} filled />
+              </span>
+            ))}
+          </div>
+          <Link to={to} className="text-sub font-bold text-primary no-underline hover:text-primary-dark">
+            Change your rating
+          </Link>
+        </>
+      )}
+    </Card>
+  )
 }
 
 /** Order details with timeline and reorder (`c-order-detail`). */
@@ -118,6 +159,8 @@ export function OrderDetail() {
                 })}
               </ol>
             </Card>
+
+            {o.stage === 'delivered' && <RatingCard reference={reference} rating={o.feedback?.rating ?? null} />}
 
             <Card pad className="rise-3">
               {/* The dispatcher's agreed window, not an arrival time; no row and no placeholder without one (customer-delivery-window.md). */}

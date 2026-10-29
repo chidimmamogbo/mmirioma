@@ -193,6 +193,9 @@ another customer's order returns the same 404 as a missing one.
   order, sending again replaces it; rating before delivery is 409
   `order_not_delivered`. The screen sends its two answers; the optional ones
   stay unsent (customer-account.md, decision 7).
+  A delivered order's detail page (`/orders/:ref`) has a card that links to the
+  rating screen: "Rate this delivery" when not rated, or the saved stars and
+  "Change your rating" when rated (#249). Other stages show no card.
 
 ## 9. Testing instructions
 
