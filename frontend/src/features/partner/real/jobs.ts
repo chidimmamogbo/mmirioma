@@ -30,6 +30,7 @@
  */
 import { DECLINE_LABEL, ISSUE_LABEL, type DeclineReason, type JobStage, type PartnerIssueType, type PartnerJob } from '../../../domain/partner'
 import { litresFromGallons } from '../../../domain/quantity'
+import { formatDayDate } from '../../../lib/format/datetime'
 import { apiClient, ApiError, type ApiClient } from '../../../lib/api/client'
 import {
   acceptDriverJob,
@@ -217,6 +218,30 @@ export function collectedLitres(job: Pick<DriverJobDetail, 'quantity_litres'>, g
 }
 
 /**
+ * Replaces the server's generic text for a Start job refused before the
+ * delivery day (409 `transition_requirements_unmet` with
+ * `details.missing` containing `delivery_day_reached`, issue #241) with one
+ * that names the day. The code and details stay as the server sent them.
+ * Any other error, or a job with no window, is returned unchanged.
+ *
+ * @param error - What the Start job request threw.
+ * @param windowStartAt - The job's delivery window start (UTC ISO), or `null`.
+ */
+function withDeliveryDayMessage(error: unknown, windowStartAt: string | null): unknown {
+  if (!(error instanceof ApiError) || error.code !== 'transition_requirements_unmet' || windowStartAt === null) return error
+  const missing = (error.details as { missing?: unknown } | null)?.missing
+  if (!Array.isArray(missing) || !missing.includes('delivery_day_reached')) return error
+  return new ApiError({
+    kind: error.kind,
+    status: error.status,
+    code: error.code,
+    message: `This job can start from ${formatDayDate(windowStartAt)}. Come back on that day.`,
+    details: error.details,
+    cause: error,
+  })
+}
+
+/**
  * Pickup (`refill`, `pickup` and `loading` screens): Start job (`departed`),
  * the pickup at the job's assigned source, then Leave for customer
  * (`en_route`). The receipt tick and the photo have no field in the
@@ -232,7 +257,14 @@ export async function confirmPickup(
   client: ApiClient = apiClient,
 ): Promise<PartnerJob> {
   let job: DriverJobDetail | DriverJobSummary = await getDriverJob(reference, undefined, client)
-  if (job.order_status === 'accepted') job = stepJob(await transitionDriverJob(reference, { to: 'departed' }, client))
+  if (job.order_status === 'accepted') {
+    const windowStartAt = job.delivery_window_start_at
+    try {
+      job = stepJob(await transitionDriverJob(reference, { to: 'departed' }, client))
+    } catch (error) {
+      throw withDeliveryDayMessage(error, windowStartAt)
+    }
+  }
   if (job.order_status === 'departed') {
     job = await recordPickup(
       reference,
