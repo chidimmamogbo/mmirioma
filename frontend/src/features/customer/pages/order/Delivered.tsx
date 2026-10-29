@@ -42,9 +42,13 @@ export function Delivered() {
   const shownRating = rating ?? o?.feedback?.rating ?? 0
   const shownPoured = poured ?? o?.feedback?.poured_by_partner ?? null
 
+  /**
+   * Saves the rating and the answer together. The API needs both (`poured_by_partner` is a required boolean), and the
+   * customer must have given both: nothing is saved, and no answer is made up, until each is chosen (#256).
+   */
   function send(nextRating: number, nextPoured: boolean | null) {
-    if (nextRating < 1) return
-    feedback.mutate({ rating: nextRating, poured_by_partner: nextPoured ?? true })
+    if (nextRating < 1 || nextPoured === null) return
+    feedback.mutate({ rating: nextRating, poured_by_partner: nextPoured })
   }
 
   function orderAgain() {
@@ -115,8 +119,8 @@ export function Delivered() {
                   size="sm"
                   role="radio"
                   aria-checked={shownPoured === true}
-                  variant={shownPoured === false ? 'line' : 'primary'}
-                  className="shadow-none"
+                  variant={shownPoured === true ? 'primary' : 'line'}
+                  className={shownPoured === true ? 'shadow-none' : undefined}
                   onClick={() => {
                     setPoured(true)
                     send(shownRating, true)
@@ -140,6 +144,9 @@ export function Delivered() {
               </div>
               {shownRating === 0 && shownPoured !== null && (
                 <p className="mt-2 mb-0 text-caption text-mute">Choose the stars too, so we can save your answer.</p>
+              )}
+              {shownRating > 0 && shownPoured === null && (
+                <p className="mt-2 mb-0 text-caption text-mute">Answer this question too, so we can save your rating.</p>
               )}
               {feedback.isSuccess && (
                 <Notice tone="success" className="mt-3">
