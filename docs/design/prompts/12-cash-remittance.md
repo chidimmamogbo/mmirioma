@@ -17,7 +17,7 @@ contract is written from this design (G3) · Backend: none. There is no
 **Why this prompt:** the pilot is pay on delivery only (fallback F4), so
 cash is the only payment, and T-14 needs reconciliation shown without
 database edits. Today nothing records the cash: the driver design left it
-out on purpose ([driver-deliveries.md](../driver-deliveries.md), decision 2:
+out on purpose (driver-deliveries.md, decision 2:
 "a cash collection screen still needs its own design"), and the admin app
 has no payment view.
 
@@ -37,9 +37,9 @@ The cash rule is fixed by SRS FR-041 and BR-15:
 Out of scope (agreed fallbacks): Paystack and bank transfer (F4), refunds
 (F7, recorded outside the app), cost recording (F6, measurement sheet).
 
-It extends the approved [driver deliveries](../driver-deliveries.md),
-[admin dispatch](../admin-dispatch.md) and
-[admin order confirmation](../admin-order-confirmation.md) designs, which
+It extends the approved driver deliveries,
+admin dispatch and
+admin order confirmation designs, which
 stay as they are.
 
 **Before using:** open the team Claude Design project ("MmiriOma Design

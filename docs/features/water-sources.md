@@ -5,7 +5,7 @@ tests: T-04 (an expired approval blocks the source) · Contract:
 [deliveries.md](../api/deliveries.md#order-confirmation-endpoints), "Source
 eligibility (shared with R2)" and "Data needed" (agreed G3, PR #111) ·
 Issue: #112 (from #87) · Pilot fallback: F1
-([pilot plan](../process/pilot-plan.md#agreed-manual-fallbacks))
+(pilot plan)
 
 ## 1. Overview and purpose
 

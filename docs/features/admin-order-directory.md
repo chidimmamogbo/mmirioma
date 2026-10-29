@@ -1,7 +1,7 @@
 # Admin order directory
 
 Requirements: FR-030 (list/filter/inspect), FR-033 (status meanings), FR-027, FR-003, BR-09, NFR-020, NFR-021, NFR-022 ·
-Issues: S1-08 (#9), S1-09 (#10), #63 · Design: [admin-orders.md](../design/admin-orders.md) and [admin-dispatch.md](../design/admin-dispatch.md) (both approved) ·
+Issues: S1-08 (#9), S1-09 (#10), #63 · Design: admin-orders.md and admin-dispatch.md (both approved) ·
 Contract: [orders.md](../api/orders.md) (agreed) · Acceptance tests: none automated yet (T-xx cover backend behaviour)
 
 ## 1. Overview and purpose
@@ -50,7 +50,7 @@ the staff route guard (`AppGate app="staff"`, see
 
 The screens use the approved design system
 ([docs/design/design-system.md](../design/design-system.md)); shared components
-are listed in [docs/design/ui-system.md](../design/ui-system.md).
+are listed in docs/design/ui-system.md.
 
 ## 4. Database models and relationships
 

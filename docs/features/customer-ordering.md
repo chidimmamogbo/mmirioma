@@ -2,7 +2,7 @@
 
 Requirements: FR-001, FR-003 (banner), FR-020, FR-021, FR-026, FR-027, FR-032 (wording),
 FR-033 (status meanings), BR-09, NFR-012, NFR-020, NFR-021, NFR-022 ·
-Issue: S1-05 (#6) · Design: [customer-ordering.md](../design/customer-ordering.md) (approved, G2) ·
+Issue: S1-05 (#6) · Design: customer-ordering.md (approved, G2) ·
 Contract: [orders.md](../api/orders.md) (agreed, G3) · Acceptance tests: T-06 and T-07 behaviour in the UI (frontend tests); the server side is S1-03
 
 ## 1. Overview and purpose

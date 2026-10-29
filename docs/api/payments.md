@@ -535,7 +535,7 @@ The rest were decided on 2026-10-22 by the technical lead, with
    `confirmed` or later and not `cancelled`; others stay `NULL` until
    confirmed.
 9. **An outstanding balance is collected outside the app in the pilot**
-   (fallback F9 in the [pilot plan](../process/pilot-plan.md#agreed-manual-fallbacks));
+   (fallback F9 in the pilot plan);
    the order stays `partially_paid` with its balance shown.
 
 No open questions remain.

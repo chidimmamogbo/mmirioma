@@ -29,7 +29,7 @@ own open questions.
 
 ### Privacy notice page: no endpoints
 
-The privacy notice page and its links ([design](../design/privacy-notice.md),
+The privacy notice page and its links (design,
 #100) call no endpoint: the notice text is bundled with the frontend at build
 time and the page does not check the session. G3 for that slice is passed
 without a contract. Any later change that loads the notice from the server

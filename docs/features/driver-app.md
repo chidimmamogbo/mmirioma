@@ -3,7 +3,7 @@
 Requirements: FR-001, FR-032, FR-033, FR-034, FR-035, FR-036, FR-038,
 FR-050, BR-04, BR-06, BR-09, BR-13, NFR-012, NFR-020, NFR-021 · Acceptance
 tests: T-07, T-08, T-22, T-25 (in part; see limitations) · Design:
-[driver-deliveries.md](../design/driver-deliveries.md) (J1, J2 approved G2
+driver-deliveries.md (J1, J2 approved G2
 2026-10-19; A1 and A3-A8 approved G2 2026-10-23, "Change: active job (#97)";
 A2 as first approved) and [authentication.md](../design/authentication.md)
 (D1, X1-X5) · Contract: [deliveries.md](../api/deliveries.md), "Driver job

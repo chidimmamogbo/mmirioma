@@ -226,7 +226,7 @@ Examples: [delivery-event.json](examples/delivery-event.json),
 
 Status: agreed (G3, S1-06 part 2) on 2026-10-19 by @nnamdi-security
 (technical lead), proposed by @Cloudcrackamara from the approved driver design
-([driver-deliveries.md](../design/driver-deliveries.md), S1-15 #19). Updated
+(driver-deliveries.md, S1-15 #19). Updated
 with the technical lead's decisions of 2026-10-19 (PR #50): paths use the
 order reference, jobs are `dispatch` assignments, the delivery code keeps
 SRS v0.2's 10 minutes. Implemented in `backend/app/modules/deliveries/` (see
@@ -567,7 +567,7 @@ and @chidimmamogbo (PR #74). Drafted 2026-10-19; checked against every element
 of the approved driver design by @Bonvee120 (owner, #51) on 2026-10-20 (see
 [Design check](#design-check-51)). Built in #75 (see
 [driver-jobs.md](../features/driver-jobs.md)). Derived from the approved
-[driver design](../design/driver-deliveries.md) (G2) and SRS v0.3 (FR-035
+driver design (G2) and SRS v0.3 (FR-035
 amended by #67). The services for accept exist
 (`dispatch.service.accept_assignment`); everything else here is new.
 
@@ -777,7 +777,7 @@ answers the design's open question 2.
 
 ### Design check (#51)
 
-Every element of the approved [driver design](../design/driver-deliveries.md)
+Every element of the approved driver design
 that uses the server, mapped to this contract (2026-10-20). Build next: J1,
 J2 and the status wording. A1-A8 are design ahead; A3, A4 and A5 must change
 before they are built (design decisions 9 and open question 7), and the
@@ -850,7 +850,7 @@ open question 8: the SRS does not say).
 
 Status: **agreed** (G3) on 2026-10-19 by @nnamdi-security (technical lead)
 and @chidimmamogbo (orders backend; PR #59 review). Derived from the
-approved [admin dispatch design](../design/admin-dispatch.md) (#53, G2).
+approved admin dispatch design (#53, G2).
 Implemented in `backend/app/modules/dispatch/` (#61; see
 [admin-dispatch.md](../features/admin-dispatch.md)); since #93 the detail,
 withdraw and history routes are served by `deliveries/admin_router.py`, with
@@ -1564,10 +1564,10 @@ three open questions unanswered:
 Status: **agreed** (G3) on 2026-10-22 by @nnamdi-security (technical lead,
 contract owner) and @chidimmamogbo (backend reviewer; PR #111 review).
 Derived from the approved
-[admin order confirmation design](../design/admin-order-confirmation.md)
+admin order confirmation design
 (#87, G2 2026-10-22), the technical lead's decisions on #87 (2026-10-20 and
 2026-10-21) and the pilot fallbacks F1-F5
-([pilot plan](../process/pilot-plan.md#agreed-manual-fallbacks)). The
+(pilot plan). The
 proposal's four open questions were answered in that review and are
 [decisions 7-10](#confirmation-decisions). Built in #112 (source records)
 and #113 (`backend/app/modules/confirmation/`, migration `0012`; see
@@ -1947,7 +1947,7 @@ contract owner), with the answers to prompt 10's open questions 1-3 as
 marked below. Drafted 2026-10-23 by @Cloudcrackamara from the A2 change on
 the driver canvas ("Driver pickup source (#109)", version
 `1792747672-774e`, recorded in
-[driver-deliveries.md](../design/driver-deliveries.md#change-pickup-from-a-recorded-source-109),
+driver-deliveries.md,
 approved G2 on 2026-10-23). The backend review by @chidimmamogbo and the
 driver endpoint owner @Bonvee120 is recorded on the build PR. Not built: the
 build is deferred until after the pilot (technical lead, 2026-10-23); until
@@ -1961,7 +1961,7 @@ administrators do not match a typed name to a record. The source records
 exist (#112, PR #115), and R2's eligibility check already answers from
 `pickup_records.source_id` (`deliveries.holds.source_eligibility`). Follows
 the answers to
-[prompt 10](../design/prompts/10-driver-pickup-source.md#open-questions-for-the-technical-lead)'s
+prompt 10's
 open questions 1-3 (the recommended ones, decided by the technical lead on
 2026-10-23); each is marked below.
 
