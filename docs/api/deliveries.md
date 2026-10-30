@@ -1170,7 +1170,7 @@ cancelled job.
 | --- | --- |
 | `assigned`, `accepted`, `departed`, `collected`, `en_route`, `arrived`, `unloading` | The driver of the live assignment (`offered` or `accepted`), as today |
 | `delivered`, `failed` | The driver of the order's `completed` assignment |
-| `cancelled` | The driver of the order's `withdrawn` assignment **if the driver had accepted it** (`responded_at` set, no `decline_reason`); otherwise `null` |
+| `cancelled` | The driver of the order's `completed` assignment, when the job had finished before the cancellation (a failed delivery the dispatcher then cancelled; clarification below); otherwise the driver of its `withdrawn` assignment **if the driver had accepted it** (`responded_at` set, no `decline_reason`); otherwise `null` |
 | Any other (`confirmed` and earlier, `disputed`) | `null` unless a live assignment exists, as today |
 
 - **Same rule as the detail.** The panel names the same driver for the same
@@ -1192,12 +1192,24 @@ for a cancelled order. A driver who never accepted never held the job, and the
 SRS has no rule for who "held" it (FR-036), so the list does not name one. It
 is the same rule the order panel uses (PR #246).
 
+**Clarification** (#275), proposed by @Bonvee120 (+ Claude Code); **agreed**
+(G3) on 2026-10-30 by @nnamdi-security (technical lead). The table above does not say what a `cancelled` order
+with a `completed` assignment names. That order exists: a driver fails a
+delivery (`failed`, row 20, which completes the assignment), and the dispatcher
+then cancels the failed order, the only action the panel offers on it. Cancelling
+withdraws a *live* assignment only (row 23), so the completed one stays. The
+list returned `null` for it ("None yet") while the order panel named the driver,
+which breaks "same rule as the detail" above. The rule is unchanged in spirit:
+the list names who held the job, here the driver of the completed assignment.
+`disputed` stays `null`, as the table says. Implemented in
+[PR #283](https://github.com/mmiri-oma/mmirioma/pull/283).
+
 ### Amendment (#280): contact attempts on the admin order detail
 
-**Status: proposed.** Proposed by @Bonvee120 (+ Claude Code) for
-[#280](https://github.com/mmiri-oma/mmirioma/issues/280). **Awaiting agreement
-(G3) by the backend reviewer, who is not the author; their name and the date go
-here before any code is written.**
+**Status: agreed** (G3) on 2026-10-30 by @nnamdi-security (technical lead),
+proposed by @Bonvee120 (+ Claude Code) for
+[#280](https://github.com/mmiri-oma/mmirioma/issues/280). The timeline wording
+still needs G2 before the frontend change.
 
 **Gap.** FR-038 has the driver record two contact attempts, each with its time,
 before a delivery can fail as `customer_unreachable`. The driver's job read
@@ -1257,12 +1269,14 @@ So the order panel's timeline reads "Arrived", then "Delivery failed ·
   gives 404; the field is present in an assign and a transition response.
   Frontend: the timeline lines, in real mode and in mock mode.
 
-**For the reviewer to decide.**
+**Decided** (2026-10-30, @nnamdi-security, on #286):
 
-1. The field on `AdminOrderDetail` (recommended) or history entries.
-2. Every attempt on the order (recommended) or only the current delivery
-   attempt's.
-3. The timeline wording "Contact attempt N · time" (G2).
+1. **The field on `AdminOrderDetail`**, not history entries.
+2. **Every attempt on the order**, not only the current delivery attempt's.
+3. **The timeline wording "Contact attempt N · time"** is the wording to use.
+   It is a screen change, so it still needs G2 (`docs/design/`) before the
+   frontend work.
+
 
 ## Admin hold review endpoints
 
