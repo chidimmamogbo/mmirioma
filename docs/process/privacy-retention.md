@@ -225,9 +225,8 @@ python -m app.modules.privacy.cli retention-review --by <your admin phone> --app
 
 ## Backups
 
-Backups expire within 30 days (the main repo's
-[deployment runbook](https://github.com/mmiri-oma/mmirioma-original/blob/main/docs/architecture/deployment.md#procedures-nfr-033);
-the fork has no deployment document yet). If a backup is ever restored,
+Backups expire within 30 days (see
+[the Hostinger deployment runbook](../deployment/hostinger.md#backups)). If a backup is ever restored,
 before the service is used again re-apply every deletion and anonymization
 recorded in the register since that backup was taken, and record the
 restore in the register (notice section 10).

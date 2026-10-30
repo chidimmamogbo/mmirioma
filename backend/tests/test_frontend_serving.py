@@ -1,6 +1,6 @@
 """The API serving the built frontend on one origin, and HTTPS only (#103).
 
-docs/architecture/deployment.md: on Railway the frontend and ``/api`` share
+docs/deployment/hostinger.md: in production the frontend and ``/api`` share
 one service. These cover the SPA fallback, caching, API 404s staying JSON,
 path traversal, the startup check, and the HSTS header in production.
 """
@@ -104,7 +104,7 @@ def test_hsts_only_in_production(
     assert "strict-transport-security" not in client.get("/api/v1/health").headers
     for name, value in {
         "APP_ENV": "production",
-        "FRONTEND_URL": "https://mmirioma.up.railway.app",
+        "FRONTEND_URL": "https://mmiriomadelivery.com",
         "SESSION_SECRET": "x" * 40,
         "SMS_PROVIDER": "termii",
         "TERMII_API_KEY": "test-only-key",

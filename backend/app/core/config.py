@@ -74,7 +74,7 @@ class Settings(BaseSettings):
         sms_timeout_seconds: Timeout for one SMS provider request.
         frontend_dist_dir: Folder of the built frontend (``npm run build``)
             that the API serves at ``/`` so the app and ``/api`` share one
-            origin (Railway, docs/architecture/deployment.md). Unset in
+            origin (docs/deployment/hostinger.md). Unset in
             development and tests, where Vite serves the frontend. When set it
             must contain ``index.html``.
     """

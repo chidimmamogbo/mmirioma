@@ -63,7 +63,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(api_router)
     if settings.frontend_dist_dir is not None:
-        # After the API routes: one origin for the app and /api (Railway, #103).
+        # After the API routes: one origin for the app and /api (#103).
         mount_frontend(app, settings.frontend_dist_dir)
     return app
 
