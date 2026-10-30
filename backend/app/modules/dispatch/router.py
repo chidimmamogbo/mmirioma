@@ -27,6 +27,7 @@ from app.core.errors import ErrorResponse
 from app.modules.auth.dependencies import CurrentAdmin
 from app.modules.confirmation import service as confirmation_service
 from app.modules.confirmation.schemas import OrderConfirmationFields
+from app.modules.deliveries import holds
 from app.modules.dispatch import service
 from app.modules.dispatch.schemas import (
     AdminOrderDetail,
@@ -98,5 +99,6 @@ async def assign(
         None,
         OrderConfirmationFields.from_view(staff_order, view),
         OrderPaymentRead.from_view(payment),
+        contact_attempts=await holds.contact_attempt_times(db, staff_order.id),
         lookups=await orders_service.read_lookups(db, [staff_order]),
     )

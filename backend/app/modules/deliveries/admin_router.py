@@ -84,6 +84,7 @@ def _detail(detail: holds.OrderDetail) -> AdminOrderDetail:
         hold_read(detail.hold),
         OrderConfirmationFields.from_view(detail.dispatch.staff_order.order, detail.confirmation),
         OrderPaymentRead.from_view(detail.payment),
+        contact_attempts=detail.contact_attempts,
         lookups=detail.lookups,
     )
 

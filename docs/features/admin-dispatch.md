@@ -84,13 +84,13 @@ focus to the first entry that appeared.
 | `backend/app/modules/deliveries/admin_router.py` | The detail, withdraw and history routes (moved here with the hold review, #93, because they show or close the job's hold); see [admin-hold-review.md](admin-hold-review.md) |
 | `backend/app/modules/dispatch/schemas.py` | `AssignRequest`, `WithdrawRequest`, `AdminOrderDetail`, `AdminAssignment`, `DispatchDriver`, `AdminOrderEvent` and their wrappers |
 | `backend/app/modules/dispatch/service.py` | Admin views: `get_dispatch_order`, `list_drivers_for_order`, `offer_order`, `order_history`; `withdraw_assignment` with `expected_status` (and `commit=False`, so the hold review can close holds in the same transaction); events linked to assignments |
-| `backend/app/modules/deliveries/holds.py` | `withdraw_job` (withdraw plus closing the job's holds), `get_order_detail`, `order_history` with optional hold entries |
+| `backend/app/modules/deliveries/holds.py` | `withdraw_job` (withdraw plus closing the job's holds), `get_order_detail`, `contact_attempt_times` (the detail's `contact_attempts`, #280), `order_history` with optional hold entries |
 | `backend/app/modules/orders/service.py` | `transition_order(..., assignment_id=...)`, `list_order_events` |
 | `backend/app/modules/orders/models.py` | `OrderEvent.assignment_id` |
 | `backend/app/modules/auth/service.py` | `list_users_by_role` (driver accounts for D1) |
 | `backend/app/modules/orders/router.py` | Customer order endpoints only; the admin list and detail are in the deliveries admin router (#93) |
 | `backend/alembic/versions/20261019_0008_add_order_event_assignment.py` | Migration `0008` |
-| `docs/api/examples/admin-order-detail.json`, `dispatch-drivers.json`, `admin-order-history.json`, `error-driver-not-eligible.json`, `error-assignment-not-found.json` | Contract samples; the API tests compare responses with them |
+| `docs/api/examples/admin-order-detail.json`, `admin-order-detail-failed.json` (a failed order with two contact attempts), `dispatch-drivers.json`, `admin-order-history.json`, `error-driver-not-eligible.json`, `error-assignment-not-found.json` | Contract samples; the API tests compare responses with them |
 
 Modules depend one way: orders, then dispatch, then deliveries. The admin
 detail, withdraw and history first lived in the dispatch router because they
@@ -144,7 +144,7 @@ All under `/api/v1`; shapes as in the [contract](../api/deliveries.md#admin-disp
 
 | Method | Path | Request | Success | Errors |
 | --- | --- | --- | --- | --- |
-| GET | `/admin/orders/{reference}` | none | 200 `AdminOrderDetail` | 404 `order_not_found` |
+| GET | `/admin/orders/{reference}` | none | 200 `AdminOrderDetail`; its `contact_attempts` list holds the time of each attempt to reach the customer, oldest first, empty if none (FR-038, #280) | 404 `order_not_found` |
 | GET | `/admin/orders/{reference}/drivers` | none | 200 `{items: DispatchDriver[]}` | 404 `order_not_found` |
 | POST | `/admin/orders/{reference}/assign` | `{driver_id}` | 201 `AdminOrderDetail`; 200 for a repeated offer | 404 `order_not_found`, `driver_not_found`; 409 `driver_not_eligible`, `invalid_order_transition`; 422 |
 | POST | `/admin/orders/{reference}/withdraw` | `{expected_status, note?}` | 200 `AdminOrderDetail` | 404 `order_not_found`, `assignment_not_found`; 409 `invalid_order_transition`; 422 |
@@ -360,6 +360,7 @@ API layer, not clicked.
 
 ## 10. Known limitations
 
+- **The attempts are not on screen yet (#280).** The backend sends `contact_attempts` on every `AdminOrderDetail`. The panel's timeline does not show them until the frontend change, which needs G2 for its wording ("Contact attempt 1 · 9:44 AM").
 - **Accept is not end to end yet:** the D4 state was reached by accepting
   through the service, because the accept endpoint is #51.
 - **The staff top bar overflows a 360 px phone by 10 px** (the Account button
