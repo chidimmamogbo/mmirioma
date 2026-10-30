@@ -183,6 +183,11 @@ another customer's order returns the same 404 as a missing one.
   wait; the phone number is kept (NFR-012).
 - A lost connection keeps the order draft (sessionStorage); retrying "Place
   order" reuses the same idempotency key.
+- The order draft belongs to no account, so it is cleared on sign-out and on
+  every successful sign-in or registration (#272). On the delivery details
+  step, a draft `address_id` that is not one of the account's saved addresses
+  is ignored: the account's default address is selected, or the new-address
+  field is shown when it has none.
 - In real-API mode, features without a backend show "… is not connected to
   the server yet." instead of pretending to work.
 - Order errors pass through unchanged: 403 `phone_not_verified` shows "Verify
@@ -209,6 +214,10 @@ npm test
 - `src/features/customer/order/order.test.ts`: draft persistence, Keke has no
   source, flow, reorder.
 - `src/features/customer/pages/SignIn.test.tsx`: sign-in screen behaviour.
+- `src/features/auth/useSession.draft.test.tsx`: the draft is cleared on
+  sign-out and sign-in (#272).
+- `src/features/customer/pages/order/DeliveryDetails.test.tsx`: a draft address
+  id the account does not own is ignored (#272).
 
 Manual: `npm run dev`, open `http://127.0.0.1:5173/`, sign in with the demo
 account in `src/mocks/seed.ts` (mock mode only), place a Keke order, use
