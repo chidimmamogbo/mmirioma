@@ -97,10 +97,11 @@ class AdminOrderListItem(AdminOrderRead):
 
     Attributes:
         driver: The driver of the order's live assignment (``offered`` or
-            ``accepted``); for a delivered or failed order, the driver of its
-            completed assignment; for a cancelled one, the driver who had
-            accepted the job; else null (not confirmed, in the pool, declined,
-            withdrawn). Rules: ``dispatch.service.listed_drivers_by_order``.
+            ``accepted``); for a delivered, failed or cancelled order, the driver
+            of its completed assignment; for a cancelled one, also the driver
+            who had accepted the job before it was withdrawn; else null (not
+            confirmed, in the pool, declined, withdrawn, disputed). Rules:
+            ``dispatch.service.listed_drivers_by_order``.
     """
 
     driver: PersonRead | None
