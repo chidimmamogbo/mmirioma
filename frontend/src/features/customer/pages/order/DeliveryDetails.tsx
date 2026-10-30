@@ -85,12 +85,19 @@ export function DeliveryDetails() {
   useEffect(() => {
     if (!addresses.data) return
     const current = getValues('address_id')
-    if (current === NEW && !wantsNew && !draft.address_id && addresses.data.length > 0) {
+    // A draft id that is not one of this account's addresses (left by another
+    // account, or a deleted address) is not trusted: fall back as if there were none (#272).
+    const staleId = current !== NEW && !addresses.data.some((a) => a.id === current)
+    if (staleId) {
+      const def = wantsNew ? undefined : (addresses.data.find((a) => a.is_default) ?? addresses.data[0])
+      setValue('address_id', def?.id ?? NEW)
+      setValue('landmark', def ? (def.landmark ?? '') : draft.new_address.landmark)
+    } else if (current === NEW && !wantsNew && !draft.address_id && addresses.data.length > 0) {
       const def = addresses.data.find((a) => a.is_default) ?? addresses.data[0]
       setValue('address_id', def.id)
       setValue('landmark', def.landmark ?? '')
     }
-  }, [addresses.data, getValues, setValue, wantsNew, draft.address_id])
+  }, [addresses.data, getValues, setValue, wantsNew, draft.address_id, draft.new_address.landmark])
 
   const addressId = useWatch({ control, name: 'address_id' })
   const isNew = addressId === NEW

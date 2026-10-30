@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api/client'
 import type { LoginInput, RegisterInput, Session, User } from '../../lib/api/auth'
 import type { PhoneChangeInput } from '../../lib/api/phoneVerification'
+import { clearDraft } from '../customer/order/draft'
 import { getMe, login, logout, register, requestPhoneChange, requestPhoneVerification, verifyPhone, verifyPhoneChange } from './authApi'
 
 export const SESSION_KEY = ['session'] as const
@@ -29,13 +30,18 @@ export function useSession() {
   })
 }
 
-/** Sign in; on success the session query holds the new session. */
+/**
+ * Sign in; on success the session query holds the new session. The order draft
+ * is cleared too: it holds a receiver's name, phone and address and is not tied
+ * to an account, so the previous person's draft must not reach this one.
+ */
 export function useLogin() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: LoginInput) => login(input),
     onSuccess: (session) => {
       qc.clear()
+      clearDraft()
       qc.setQueryData(SESSION_KEY, session)
     },
   })
@@ -48,14 +54,16 @@ export function useRegister() {
     mutationFn: (input: RegisterInput) => register(input),
     onSuccess: (session) => {
       qc.clear()
+      clearDraft()
       qc.setQueryData(SESSION_KEY, session)
     },
   })
 }
 
 /**
- * Sign out. All cached data is dropped so the next person on a shared phone
- * never sees the previous account's orders.
+ * Sign out. All cached data and the saved order draft are dropped so the next
+ * person on a shared phone never sees the previous account's orders, name,
+ * phone number or address (#272).
  */
 export function useLogout() {
   const qc = useQueryClient()
@@ -63,6 +71,7 @@ export function useLogout() {
     mutationFn: () => logout(),
     onSettled: () => {
       qc.clear()
+      clearDraft()
       qc.setQueryData(SESSION_KEY, null)
     },
   })
