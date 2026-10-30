@@ -15,6 +15,7 @@ import { orderQuantityText } from '../orderHelpers'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { cx } from '../../../lib/cx'
 import { formatShortDate } from '../../../lib/format/datetime'
+import { useWhatsappNumber } from '../../marketing/queries'
 import { useCreateTicket, useOrders, useTickets } from '../queries'
 
 const TYPES = Object.keys(PROBLEM_LABEL) as ProblemType[]
@@ -25,6 +26,8 @@ export function Support() {
   const orders = useOrders()
   const tickets = useTickets()
   const create = useCreateTicket()
+  // `null` while WhatsApp support is off: the tile is hidden, as on Contact us (public-site.md, #277).
+  const whatsapp = useWhatsappNumber()
   const [type, setType] = useState<ProblemType>('late')
   const [message, setMessage] = useState('')
   const [messageError, setMessageError] = useState<string | null>(null)
@@ -61,9 +64,11 @@ export function Support() {
             <p className="mt-[3px] mb-0 text-sub text-slate">Call or message our team.</p>
           </div>
         </div>
-        <div className="rise-2 grid grid-cols-3 gap-2.5">
+        <div className={cx('rise-2 grid gap-2.5', whatsapp ? 'grid-cols-3' : 'grid-cols-2')}>
           <ActionTile to="/support/contact#call" icon={<IconBadge tone="green"><PhoneIcon size={20} /></IconBadge>} label="Call us" />
-          <ActionTile to="/support/contact#whatsapp" icon={<IconBadge tone="teal"><MessageCircleIcon size={20} /></IconBadge>} label="WhatsApp" />
+          {whatsapp && (
+            <ActionTile to="/support/contact#whatsapp" icon={<IconBadge tone="teal"><MessageCircleIcon size={20} /></IconBadge>} label="WhatsApp" />
+          )}
           <ActionTile to="/support/contact#chat" icon={<IconBadge tone="blue"><MessageSquareIcon size={20} /></IconBadge>} label="Chat" />
         </div>
         <Card pad className="rise-3">
