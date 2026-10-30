@@ -1192,9 +1192,8 @@ for a cancelled order. A driver who never accepted never held the job, and the
 SRS has no rule for who "held" it (FR-036), so the list does not name one. It
 is the same rule the order panel uses (PR #246).
 
-**Clarification** (#275), proposed by @Bonvee120 (+ Claude Code); **awaiting
-agreement (G3) by one reviewer who is not the author, to be recorded here
-before this merges.** The table above does not say what a `cancelled` order
+**Clarification** (#275), proposed by @Bonvee120 (+ Claude Code); **agreed**
+(G3) on 2026-10-30 by @nnamdi-security (technical lead). The table above does not say what a `cancelled` order
 with a `completed` assignment names. That order exists: a driver fails a
 delivery (`failed`, row 20, which completes the assignment), and the dispatcher
 then cancels the failed order, the only action the panel offers on it. Cancelling
