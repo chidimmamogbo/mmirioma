@@ -27,8 +27,12 @@ export function usePartnerApp(): PartnerApp {
   return useContext(PartnerAppContext)
 }
 
-/** The screen a job belongs on, from its stage. */
-export function jobStepPath(base: string, job: Pick<PartnerJob, 'reference' | 'stage'>): string {
+/**
+ * The screen a job belongs on, from its stage. A collected job is at the
+ * customer step (U1), the arrived screen (U2) or the code screen, as `tripStep`
+ * tells them apart; a failed job is at the failed screen (U4).
+ */
+export function jobStepPath(base: string, job: Pick<PartnerJob, 'reference' | 'stage'> & Partial<Pick<PartnerJob, 'arrived_at' | 'can_start_unloading'>>): string {
   const r = job.reference
   switch (job.stage) {
     case 'assigned':
@@ -36,15 +40,17 @@ export function jobStepPath(base: string, job: Pick<PartnerJob, 'reference' | 's
     case 'accepted':
       return `${base}/jobs/${r}/refill`
     case 'collected':
-      return `${base}/jobs/${r}/customer`
+      return tripStepPath(base, r, tripStep(job))
     case 'delivered':
       return `${base}/jobs/${r}/done`
+    case 'failed':
+      return `${base}/jobs/${r}/failed`
     default:
       return `${base}/orders/${r}`
   }
 }
 
-/** A step of the trip the problem report tells apart (docs/design/driver-arrival-unreachable.md, "Problem report", #257). */
+/** A step of the trip, told apart by the arrival fields (docs/design/driver-arrival-unreachable.md; the problem report's job line, #257). */
 export type TripStep = 'station' | 'customer' | 'arrived' | 'unloading'
 
 /**
@@ -66,11 +72,8 @@ export const TRIP_STEP_LINE: Record<TripStep, string> = {
   unloading: 'unloading',
 }
 
-/**
- * The screen "Back" returns to from the problem report, for a step. The arrived screen (U2) is not built yet, so an
- * arrived job goes back to the customer step, which is where the job's next action is until it exists.
- */
+/** The screen of a trip step: the refill, customer (U1), arrived (U2) or code screen. */
 export function tripStepPath(base: string, reference: string, step: TripStep): string {
-  const to = { station: 'refill', customer: 'customer', arrived: 'customer', unloading: 'code' }[step]
+  const to = { station: 'refill', customer: 'customer', arrived: 'arrived', unloading: 'code' }[step]
   return `${base}/jobs/${reference}/${to}`
 }

@@ -21,6 +21,7 @@ import { shortReference } from '../../../domain/orders'
 import { describeQuantity, gallonsFromLitres, litresFromGallons } from '../../../domain/quantity'
 import type { PartnerJob } from '../../../domain/partner'
 import { errorMessage } from '../../../lib/api/errorMessage'
+import { ArriveButton } from '../components/ArriveButton'
 import { JobStep } from '../components/JobStep'
 import { placeAddress } from '../jobHelpers'
 import { directionsUrl } from '../maps'
@@ -255,7 +256,7 @@ function LoadingForm({ job: j }: { job: PartnerJob }) {
 export function DriverCustomer() {
   const { base } = usePartnerApp()
   return (
-    <JobStep stage="collected">
+    <JobStep stage="collected" step="customer">
       {(j) => {
         const eta = j.remaining ?? (j.customer.distance_km !== null && j.customer.minutes !== null ? { distance_km: j.customer.distance_km, minutes: j.customer.minutes } : null)
         const [lead, ...rest] = (j.tank_note ?? '').split('. ')
@@ -308,9 +309,7 @@ export function DriverCustomer() {
                 <NavigationIcon size={20} filled />
                 Start navigation
               </ExternalButton>
-              <ButtonLink to={`${base}/jobs/${j.reference}/code`} variant="alt" className={GREEN_ALT}>
-                Arrived · water pumped in
-              </ButtonLink>
+              <ArriveButton reference={j.reference} className={GREEN_ALT} />
             </Footer>
           </MobileShell>
         )

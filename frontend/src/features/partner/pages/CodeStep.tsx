@@ -18,7 +18,7 @@ import { phoneEnding } from '../../../lib/format/phone'
 import { mmss, useSecondsUntil } from '../../../lib/useNow'
 import { JobMiniCard } from '../components/JobParts'
 import { contactSuffix, jobDeliveryType, jobQuantity } from '../jobHelpers'
-import { jobStepPath, usePartnerApp } from '../partnerContext'
+import { jobStepPath, tripStep, usePartnerApp } from '../partnerContext'
 import { useCompleteUnloading, useJob, useResendCode, useVerifyCode } from '../queries'
 
 /**
@@ -37,6 +37,10 @@ export function CodeStep() {
       </MobileShell>
     )
   if (job.data.stage !== 'collected') return <Navigate to={jobStepPath(base, job.data)} replace />
+  // Before unloading starts there is no code to enter: a job that has not arrived, or has arrived and not started
+  // unloading, belongs on its own step (U1, U2). A job whose code was issued stays here.
+  const step = tripStep(job.data)
+  if (job.data.code_tries_left === null && (step === 'customer' || step === 'arrived')) return <Navigate to={jobStepPath(base, job.data)} replace />
   return <CodeEntryScreen job={job.data} />
 }
 

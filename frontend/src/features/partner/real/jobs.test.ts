@@ -315,13 +315,11 @@ describe('collectedLitres', () => {
 })
 
 describe('completeUnloading (#13)', () => {
-  it('records arrival without a location, starts and completes unloading', async () => {
-    const { client, sent, fetchMock } = setup({ body: enRoute }, { body: arrived }, { body: unloading }, { body: base, status: 201 })
+  it('completes unloading only, without arrival or the unloading step', async () => {
+    const { client, sent, fetchMock } = setup({ body: unloading }, { body: base, status: 201 })
     const job = await completeUnloading(REF, client)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
-    expect(sent(1)).toMatchObject({ url: `${STEP}/arrive`, method: 'POST', body: { location_consent: false } })
-    expect(sent(2)).toMatchObject({ url: `${STEP}/transition`, body: { to: 'unloading' } })
-    expect(sent(3)).toMatchObject({ url: `${STEP}/unloading-complete`, method: 'POST' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(sent(1)).toMatchObject({ url: `${STEP}/unloading-complete`, method: 'POST' })
     expect([job.stage, job.code_tries_left]).toEqual(['collected', 5])
   })
 
@@ -331,9 +329,9 @@ describe('completeUnloading (#13)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('passes job_on_hold through', async () => {
-    const { client } = setup({ body: enRoute }, { body: envelope('job_on_hold'), status: 409 })
-    expect((await rejection(completeUnloading(REF, client))).code).toBe('job_on_hold')
+  it.each(['job_on_hold', 'invalid_order_transition'])('passes %s through', async (code) => {
+    const { client } = setup({ body: unloading }, { body: envelope(code), status: 409 })
+    expect((await rejection(completeUnloading(REF, client))).code).toBe(code)
   })
 })
 

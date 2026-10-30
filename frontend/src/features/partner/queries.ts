@@ -83,6 +83,33 @@ export function useCompleteUnloading(ref: string) {
   return useMutation({ mutationFn: () => api.completeUnloading(ref), onSuccess: refresh })
 }
 
+/** "I have arrived" (U1, FR-038). Refreshes on failure too: a 409 means the job is no longer at this step. */
+export function useArriveAtCustomer(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: () => api.arriveAtCustomer(ref), onSettled: refresh })
+}
+
+/** "Start unloading" (U2). Refreshes on failure too, as for arrival. */
+export function useStartUnloading(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: () => api.startUnloading(ref), onSettled: refresh })
+}
+
+/** "I tried to reach the customer" (U3): one more recorded attempt. Refreshes on failure too. */
+export function useRecordContactAttempt(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: () => api.recordContactAttempt(ref), onSettled: refresh })
+}
+
+/**
+ * "Fail the delivery" (U3-S): ends the job as "customer not reachable". Refreshes on failure too: a refused end
+ * (`transition_requirements_unmet`) means the screen's attempts or wait were stale.
+ */
+export function useFailUnreachable(ref: string) {
+  const refresh = useRefreshAll()
+  return useMutation({ mutationFn: () => api.failUnreachable(ref), onSettled: refresh })
+}
+
 export function useVerifyCode(ref: string) {
   const refresh = useRefreshAll()
   // Refresh on failure too: a wrong code changes the tries left.

@@ -33,6 +33,10 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/pickup', lazy: () => import('./pages/RiderTrip').then((m) => ({ Component: m.PickupStep })) }, // r-pickup
       { path: 'jobs/:reference/customer', lazy: () => import('./pages/RiderTrip').then((m) => ({ Component: m.CustomerStep })) }, // r-customer
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // r-otp, r-otp-error
+      // Arrival and the unreachable customer (U2 to U4; docs/design/driver-arrival-unreachable.md, #250).
+      { path: 'jobs/:reference/arrived', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.ArrivedStep })) }, // U2
+      { path: 'jobs/:reference/unreachable', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.UnreachableStep })) }, // U3
+      { path: 'jobs/:reference/failed', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.JobFailed })) }, // U4
       { path: 'jobs/:reference/done', lazy: () => import('./pages/RiderDone').then((m) => ({ Component: m.RiderDone })) }, // r-done
       // Driver cash (K1, K2; docs/design/driver-cash.md, #20).
       { path: 'jobs/:reference/cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.RecordCash })) }, // K1 Record cash
@@ -71,6 +75,10 @@ export const partnerRoutes: RouteObject[] = [
       { path: 'jobs/:reference/pickup', lazy: () => import('./pages/RiderTrip').then((m) => ({ Component: m.PickupStep })) }, // redirects to loading
       { path: 'jobs/:reference/customer', lazy: () => import('./pages/DriverTrip').then((m) => ({ Component: m.DriverCustomer })) }, // t-customer
       { path: 'jobs/:reference/code', lazy: () => import('./pages/CodeStep').then((m) => ({ Component: m.CodeStep })) }, // t-otp
+      // Arrival and the unreachable customer (U2 to U4; docs/design/driver-arrival-unreachable.md, #250).
+      { path: 'jobs/:reference/arrived', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.ArrivedStep })) }, // U2
+      { path: 'jobs/:reference/unreachable', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.UnreachableStep })) }, // U3
+      { path: 'jobs/:reference/failed', lazy: () => import('./pages/ArrivalPages').then((m) => ({ Component: m.JobFailed })) }, // U4
       { path: 'jobs/:reference/done', lazy: () => import('./pages/DriverDone').then((m) => ({ Component: m.DriverDone })) }, // t-done
       // Driver cash (K1, K2; docs/design/driver-cash.md, #20).
       { path: 'jobs/:reference/cash', lazy: () => import('./cash/CashPages').then((m) => ({ Component: m.RecordCash })) }, // K1 Record cash

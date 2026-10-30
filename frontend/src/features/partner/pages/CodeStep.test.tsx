@@ -9,7 +9,7 @@ import { ApiError } from '../../../lib/api/client'
 import { errorMessage } from '../../../lib/api/errorMessage'
 import { mockLogin, mockLogout } from '../../../mocks/authMock'
 import { resetMockDb } from '../../../mocks/db'
-import { acceptJob, completeUnloading, confirmPickup, listAvailableJobs, simulateCodeProblem } from '../../../mocks/partnerMock'
+import { acceptJob, arriveAtCustomer, completeUnloading, confirmPickup, listAvailableJobs, simulateCodeProblem, startUnloading } from '../../../mocks/partnerMock'
 import { DEMO_PASSWORD } from '../../../mocks/seed'
 import { CodeStep } from './CodeStep'
 
@@ -17,12 +17,18 @@ const loaded = { loaded: true, receipt: true, photo_url: null, gallons_loaded: n
 
 beforeEach(() => resetMockDb())
 
-/** A rider job just collected at the station: no code issued yet. */
+/**
+ * A rider job at the customer with unloading started: no code issued yet. The
+ * arrival and "Start unloading" are their own steps (#250), so the code screen
+ * is only reached after them.
+ */
 async function collectedJob(): Promise<string> {
   await mockLogin({ phone: '0800 000 0101', password: DEMO_PASSWORD })
   const [job] = await listAvailableJobs()
   await acceptJob(job.reference)
   await confirmPickup(job.reference, loaded)
+  await arriveAtCustomer(job.reference)
+  await startUnloading(job.reference)
   return job.reference
 }
 
@@ -37,6 +43,26 @@ function renderCodeStep(reference: string) {
     </QueryClientProvider>,
   )
 }
+
+describe('CodeStep before unloading starts (#250)', () => {
+  it('sends a job that has not arrived back to the customer step', async () => {
+    await mockLogin({ phone: '0800 000 0101', password: DEMO_PASSWORD })
+    const [job] = await listAvailableJobs()
+    await acceptJob(job.reference)
+    await confirmPickup(job.reference, loaded)
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[`/partner/rider/jobs/${job.reference}/code`]}>
+          <Routes>
+            <Route path="/partner/rider/jobs/:reference/code" element={<CodeStep />} />
+            <Route path="/partner/rider/jobs/:reference/customer" element={<p>Customer step</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('Customer step')).toBeInTheDocument()
+  })
+})
 
 describe('CodeStep before the code is issued (#13)', () => {
   it('sends the code when unloading is done, then shows the keypad', async () => {
