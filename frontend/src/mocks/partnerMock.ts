@@ -71,6 +71,8 @@ function view(s: MockState, job: StoredJob): PartnerJob {
   const code = job.stage === 'collected' && job.code_tries_left !== null ? codeFor(s, job) : null
   if (code) copy.demo_code = code
   copy.cash = jobCash(s, job)
+  copy.ended_at = job.ended?.at ?? null
+  copy.end_reason = job.ended?.reason_code ?? null
   // What the server would allow now, worked out as the server does (#250); the screens never use the clock.
   if (job.arrived_at && job.stage === 'collected') {
     const open = !job.mock_unloading_started

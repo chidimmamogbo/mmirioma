@@ -365,6 +365,8 @@ them out.
 | `unreachable_allowed_at` | `unreachable_allowed_at` (`arrived_at` plus 10 minutes; `null` before arrival) |
 | `can_start_unloading` | `allowed_actions` contains `start_unloading` |
 | `can_fail_unreachable` | `allowed_actions` contains `record_failed_attempt` (two attempts and the wait over). Not computed from the phone's clock (design decision 6) |
+| `ended_at` | `ended_at` (the server's time the job ended; `null` while open). Also on list rows. Added for U4 and the history row of a failed job |
+| `end_reason` | `end_reason` (e.g. `customer_unreachable`; `null` while open or when delivered). Also on list rows |
 
 The two flags go beyond the three fields the technical lead listed. The
 contract already lists both actions; without them the screens would have to

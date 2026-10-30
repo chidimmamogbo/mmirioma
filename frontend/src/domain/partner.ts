@@ -155,6 +155,18 @@ export interface PartnerJob {
    */
   can_fail_unreachable?: boolean
   /**
+   * When the job ended (UTC ISO, the server's time): the backend's `ended_at`.
+   * `null` or absent while the job is open. Used for a failed job's "Recorded
+   * at" time and its history row (docs/design/driver-arrival-unreachable.md, U4).
+   */
+  ended_at?: string | null
+  /**
+   * Why a failed or cancelled job ended, as the backend's reason code, e.g.
+   * `customer_unreachable` (FR-038). `null` or absent while the job is open or
+   * when it was delivered.
+   */
+  end_reason?: string | null
+  /**
    * Mock mode only: the customer's code, so a demo can finish a delivery
    * without the customer's phone. Never sent by a real server.
    */

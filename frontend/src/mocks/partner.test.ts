@@ -221,7 +221,9 @@ describe('arrival and the unreachable customer (#250, FR-038)', () => {
     await recordContactAttempt(ref)
     await recordContactAttempt(ref)
     afterTheWait()
-    expect((await failUnreachable(ref)).stage).toBe('failed')
+    const failed = await failUnreachable(ref)
+    expect([failed.stage, failed.end_reason]).toEqual(['failed', 'customer_unreachable'])
+    expect(Date.parse(failed.ended_at!)).not.toBeNaN()
     await expect(recordContactAttempt(ref)).rejects.toMatchObject({ code: 'invalid_order_transition' })
   })
 

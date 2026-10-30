@@ -128,6 +128,8 @@ export function partnerJobFromRead(job: DriverJobSummary | DriverJobDetail): Par
     accepted_at: null,
     collected_at: detail?.pickup?.picked_up_at ?? null,
     delivered_at: job.order_status === 'delivered' ? job.ended_at : null,
+    ended_at: job.ended_at,
+    end_reason: job.end_reason,
     pickup: null,
     remaining: null,
     cash: job.cash,
