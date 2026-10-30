@@ -58,7 +58,7 @@ export function Support() {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(234,243,254,.97)_45%,rgba(234,243,254,0)_80%)]" />
           <div className="relative max-w-[210px] p-[18px]">
             <div className="text-[22px] leading-[1.15] font-extrabold">How can we help?</div>
-            <p className="mt-[3px] mb-0 text-sub text-slate">Call, WhatsApp or chat with our team. Hours: [SUPPORT HOURS]</p>
+            <p className="mt-[3px] mb-0 text-sub text-slate">Call or message our team.</p>
           </div>
         </div>
         <div className="rise-2 grid grid-cols-3 gap-2.5">
