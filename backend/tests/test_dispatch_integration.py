@@ -274,7 +274,7 @@ def test_the_order_list_names_the_live_driver_in_one_read(created: Created) -> N
 
 
 def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> None:
-    """#243: delivered/failed name the completed driver; cancelled only one who had accepted."""
+    """#243, #275: a completed job names its driver, whatever the order became later."""
 
     async def end(
         sessions: async_sessionmaker[AsyncSession],
@@ -304,6 +304,8 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
         declined = await confirmed_order(sessions, created)
         back_in_pool = await confirmed_order(sessions, created)
         reassigned = await confirmed_order(sessions, created)
+        failed_then_cancelled = await confirmed_order(sessions, created)
+        disputed = await confirmed_order(sessions, created)
 
         async with sessions() as session:
             for order, who in ((delivered, driver), (failed, other)):
@@ -314,6 +316,20 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
         # The first two jobs end; then the driver is free for the next ones.
         await end(sessions, delivered.id, S.DELIVERED, AssignmentStatus.COMPLETED)
         await end(sessions, failed.id, S.FAILED, AssignmentStatus.COMPLETED)
+        # Both drivers are free again. Two more jobs finish, and then the order moves on: a
+        # failed delivery the dispatcher cancels (its only action, #275) and a delivery the
+        # customer disputes. The assignment stays `completed` while the order status changes.
+        # The agreed amendment names the first one and gives `disputed` null.
+        async with sessions() as session:
+            for order, who in ((failed_then_cancelled, other), (disputed, driver)):
+                await service.assign_driver(
+                    session, order_id=order.id, driver_user_id=who.id, admin=admin
+                )
+                await service.accept_assignment(session, order_id=order.id, driver=who)
+        await end(sessions, failed_then_cancelled.id, S.FAILED, AssignmentStatus.COMPLETED)
+        await end(sessions, failed_then_cancelled.id, S.CANCELLED)
+        await end(sessions, disputed.id, S.DELIVERED, AssignmentStatus.COMPLETED)
+        await end(sessions, disputed.id, S.DISPUTED)
         async with sessions() as session:
             await service.assign_driver(
                 session, order_id=held.id, driver_user_id=driver.id, admin=admin
@@ -379,6 +395,8 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
             declined.id: S.CANCELLED,
             back_in_pool.id: S.CONFIRMED,
             reassigned.id: S.CANCELLED,
+            failed_then_cancelled.id: S.CANCELLED,
+            disputed.id: S.DISPUTED,
         }
         async with sessions() as session:
             named = await service.listed_drivers_by_order(session, statuses)
@@ -386,6 +404,7 @@ def test_the_order_list_names_the_driver_of_an_ended_order(created: Created) -> 
             delivered.id: driver.id,
             failed.id: other.id,
             held.id: driver.id,
+            failed_then_cancelled.id: other.id,
         }
 
     run(scenario)

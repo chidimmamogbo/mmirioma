@@ -72,8 +72,13 @@ from app.modules.orders.models import Order, OrderEvent, OrderStatus, Transition
 from app.modules.orders.service import StaffOrder
 from app.modules.orders.transitions import Requirement
 
-_ENDED_WITH_DRIVER = (OrderStatus.DELIVERED, OrderStatus.FAILED)
-"""Order statuses whose driver the admin list names from the ``completed`` assignment (#243)."""
+_ENDED_WITH_DRIVER = (OrderStatus.DELIVERED, OrderStatus.FAILED, OrderStatus.CANCELLED)
+"""Order statuses whose driver the admin list names from the ``completed`` assignment.
+
+A failed delivery the dispatcher then cancels keeps its ``completed`` assignment, and
+the order panel names that driver, so the list must too (#243, #275). ``disputed`` is
+left out on purpose: the agreed amendment gives it ``null`` (docs/api/deliveries.md).
+"""
 
 
 class Ineligibility(StrEnum):
@@ -237,9 +242,10 @@ async def listed_drivers_by_order(
 
     * An order with a live assignment (``offered`` or ``accepted``) names that
       driver, the same rule as the detail's "Assigned to" line.
-    * ``delivered`` and ``failed`` name the driver of the order's
-      ``completed`` assignment.
-    * ``cancelled`` names the driver of its ``withdrawn`` assignment only if
+    * ``delivered``, ``failed`` and ``cancelled`` name the driver of the
+      order's ``completed`` assignment. A cancelled order has one when the job
+      finished (a failed delivery) before the cancellation (#275).
+    * ``cancelled`` also names the driver of its ``withdrawn`` assignment only if
       that driver had accepted it (``responded_at`` set, no ``decline_reason``):
       a driver who never accepted never held the job, and the SRS has no rule
       for who "held" a cancelled job (FR-036), so an unanswered offer names
