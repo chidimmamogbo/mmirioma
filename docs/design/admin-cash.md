@@ -1,9 +1,9 @@
 # Admin cash design (admin app)
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#19](https://github.com/chidimmamogbo/mmirioma/issues/19) · Requirements:
+Issue: [#19](https://github.com/mmiri-oma/mmirioma/issues/19) · Requirements:
 FR-040 (pay on delivery only, F4), FR-041 (cash part), FR-050 (payment SMS),
 BR-07, BR-12, BR-15, NFR-004, NFR-012, NFR-020, NFR-021 · Acceptance tests:
 T-14, T-21, T-24 · Contract: [payments.md](../api/payments.md) (agreed, G3) ·

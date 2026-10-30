@@ -1,5 +1,10 @@
 # Linking hand-off
 
+> **Decided 30 October 2026:** the supervisors chose this fork. It was
+> transferred to `mmiri-oma/mmirioma`, and the main repo is archived as
+> `mmiri-oma/mmirioma-original`. The text below is kept as written for the
+> decision.
+
 For the supervisors who choose between this fork (`chidimmamogbo/mmirioma`)
 and the main repo. It says what the fork does with the real backend, what it
 leaves on mocks on purpose, what is still wrong, and how to see it run. State
@@ -9,7 +14,7 @@ claim about the main repo.
 ## What the fork is
 
 The new-design frontend and its own copy of the backend (copied from
-`mmiri-oma/mmirioma@adc8654`, PR #4). Every screen runs on typed mocks when
+`mmiri-oma/mmirioma-original@adc8654`, PR #4). Every screen runs on typed mocks when
 `VITE_USE_MOCKS=true` and on the real API when it is `false`. Linking meant
 replacing each mock function with an adapter in a feature's `real/` folder, as
 described in [linking-plan.md](linking-plan.md) and

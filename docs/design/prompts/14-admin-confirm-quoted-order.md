@@ -1,6 +1,6 @@
 # Prompt 14: confirming an order in the admin app (server price or manual price)
 
-Issue: [#72](https://github.com/chidimmamogbo/mmirioma/issues/72) ·
+Issue: [#72](https://github.com/mmiri-oma/mmirioma/issues/72) ·
 Requirements: FR-012, FR-014, FR-022, FR-023, FR-024, FR-027, FR-030,
 FR-033 (rows 26 and 7), FR-036, FR-050, BR-02, BR-05, NFR-004, NFR-012,
 NFR-020, NFR-021, NFR-022 · Acceptance tests: T-04, T-09, T-14 · Contracts:

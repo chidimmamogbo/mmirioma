@@ -14,20 +14,23 @@ normative) and follow them. If a
 requirement is missing, ambiguous, or conflicts with this file, ask; do not guess
 business rules (pricing, order states, dispatch logic, payments).
 
-## Team fork workflow (read first)
+## Team workflow (read first)
 
-This repository is the team's fork, `chidimmamogbo/mmirioma`. It holds the
-new-design frontend and its own copy of the main repo's backend (copied from
-`mmiri-oma/mmirioma@adc8654` in PR #4). The current goal is **linking**: the
-new-design screens run on typed mocks, and each task swaps a mock for the real
-backend, or builds the backend piece a screen still needs. At the end, the
-supervisors choose between this fork and the main repo.
+This repository, `mmiri-oma/mmirioma`, is the project's repo. It began as the
+team's fork `chidimmamogbo/mmirioma`, with the new-design frontend and its own
+copy of the original repo's backend (copied from
+`mmiri-oma/mmirioma-original@adc8654` in PR #4). On 30 October 2026 the
+supervisors chose it, and it was transferred into the organization; the old
+repo is archived as `mmiri-oma/mmirioma-original`. The new-design screens run
+on typed mocks, and each linking task swaps a mock for the real backend, or
+builds the backend piece a screen still needs.
 
-- **The main repo stays read-only.** All branches, issues and PRs live in
-  this fork, and you push only to `origin`. If you add the main repo as a
-  remote, name it `upstream` and turn off pushing to it:
-  `git remote set-url --push upstream DISABLED`.
-- **One issue, one branch, one PR.** Every task is an issue in this fork, in
+- **The original repo is archived.** Read `mmiri-oma/mmirioma-original` for
+  reference only. All branches, issues and PRs live in this repo, and you
+  push only to `origin` (`https://github.com/mmiri-oma/mmirioma.git`). A clone
+  made before the transfer still points at `chidimmamogbo/mmirioma`; fix it
+  with `git remote set-url origin https://github.com/mmiri-oma/mmirioma.git`.
+- **One issue, one branch, one PR.** Every task is an issue in this repo, in
   the `Linking MVP` milestone. Start one with `/work-issue <number>` (agents
   without slash commands: follow `.claude/commands/work-issue.md` for that
   issue). Branch from an up-to-date `main` as `feat/<issue>-<slug>` (or
@@ -49,12 +52,12 @@ supervisors choose between this fork and the main repo.
   that calls the client in `frontend/src/lib/api/` and converts the response
   using `docs/architecture/api-mapping.md`. Pages and components keep their
   props, and `VITE_USE_MOCKS=true` still serves the full mock demo.
-- **Backend changes are allowed in this fork** under the backend rules below:
+- **Backend changes are allowed** under the backend rules below:
   an agreed contract in `docs/api/` first, a migration for every schema
   change, and review by one of the reviewers. A field or endpoint the backend
-  lacks becomes an issue in this fork; the frontend shows its error state
+  lacks becomes an issue in this repo; the frontend shows its error state
   until it exists.
-- **Gates in this fork** (see [UI-driven workflow](#ui-driven-workflow)):
+- **Gates** (see [UI-driven workflow](#ui-driven-workflow)):
   linking an existing screen is plumbing and needs only an agreed contract
   (G3). A new screen needs design approval (G2). **One reviewer suffices**
   for either gate: any of @chidimmamogbo, @nnamdi-security or

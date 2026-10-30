@@ -2,9 +2,9 @@
 
 Issue: #93 (version 1.2, renumbered 2.0 in #104; not yet published) · First built in the
 main repo:
-[#100](https://github.com/mmiri-oma/mmirioma/issues/100) · Requirements:
+[#100](https://github.com/mmiri-oma/mmirioma-original/issues/100) · Requirements:
 NFR-005, NFR-003, FR-055 · Pilot condition: G7 · Design: the main repo's
-[privacy-notice.md](https://github.com/mmiri-oma/mmirioma/blob/main/docs/design/privacy-notice.md)
+[privacy-notice.md](https://github.com/mmiri-oma/mmirioma-original/blob/main/docs/design/privacy-notice.md)
 (approved 2026-10-23); in the fork the page uses the public site's legal
 page layout ([public-pages.md](public-pages.md)) · Contract: none (no
 endpoints)

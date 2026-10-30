@@ -4,7 +4,7 @@ How every linking adapter converts between the fork's backend
 (`frontend/src/lib/api/`, contracts in `docs/api/`) and the new design's types
 (`frontend/src/domain/`). Every lane converts with these rules, so one value
 never shows two ways on two screens. Change this file only in its own small
-PR (CLAUDE.md, "Team fork workflow").
+PR (CLAUDE.md, "Team workflow").
 
 **Status:** draft for #5, 2026-10-26. Decided rules are marked with their
 source. Open questions name the issue that settles them; until then the

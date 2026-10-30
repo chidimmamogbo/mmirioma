@@ -8,7 +8,7 @@ migration `0013`; see [cash-remittance.md](../features/cash-remittance.md)).
 The build found three gaps; [amendments 1-3](#amendments-proposed-in-the-123-build)
 were agreed by the technical lead on 2026-10-23 and are built (#135).
 
-Issue: [#98](https://github.com/mmiri-oma/mmirioma/issues/98) · Prompt:
+Issue: [#98](https://github.com/mmiri-oma/mmirioma-original/issues/98) · Prompt:
 [12-cash-remittance.md](../design/prompts/12-cash-remittance.md) ·
 Requirements: FR-040 (pay on delivery only, fallback F4), FR-041 (cash
 part), FR-050 (payment acknowledgment, P0), BR-12, BR-15, NFR-004, NFR-011,

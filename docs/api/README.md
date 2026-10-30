@@ -24,7 +24,7 @@ the order-level statuses they must map onto.
 
 **Status:** proposed for review by Chidinma (orders) and Chukwuebuka (delivery).
 A contract is agreed once both reviews are done, or when the technical lead
-agrees it alone (CLAUDE.md, "Team fork workflow"). Each document ends with its
+agrees it alone (CLAUDE.md, "Team workflow"). Each document ends with its
 own open questions.
 
 ### Privacy notice page: no endpoints

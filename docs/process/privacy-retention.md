@@ -6,7 +6,7 @@ privacy contact and the legal operator named in the notice · Decided:
 technical lead, 2026-10-23 (main repo), extended for the fork 2026-10-27
 
 Copied from the main repo's
-[docs/process/privacy-retention.md](https://github.com/mmiri-oma/mmirioma/blob/main/docs/process/privacy-retention.md)
+[docs/process/privacy-retention.md](https://github.com/mmiri-oma/mmirioma-original/blob/main/docs/process/privacy-retention.md)
 (commit `c4d972c`), then brought up to date with what the fork's privacy
 tool does: deletion requests made in the app, and the customer data added
 since (saved addresses, in-app messages, support requests, order feedback).
@@ -226,7 +226,7 @@ python -m app.modules.privacy.cli retention-review --by <your admin phone> --app
 ## Backups
 
 Backups expire within 30 days (the main repo's
-[deployment runbook](https://github.com/mmiri-oma/mmirioma/blob/main/docs/architecture/deployment.md#procedures-nfr-033);
+[deployment runbook](https://github.com/mmiri-oma/mmirioma-original/blob/main/docs/architecture/deployment.md#procedures-nfr-033);
 the fork has no deployment document yet). If a backup is ever restored,
 before the service is used again re-apply every deletion and anonymization
 recorded in the register since that backup was taken, and record the

@@ -15,7 +15,7 @@ proposed until S1-06.
 > repository. The designs it checks against (`customer-ordering`,
 > `admin-orders`, `admin-dispatch`, `customer-pilot-status` and its prompt 11)
 > and the pilot plan (`process/pilot-plan`) are named in the text below but are
-> not in this fork, so they are not linked. Read them in `mmiri-oma/mmirioma`
+> not in this fork, so they are not linked. Read them in `mmiri-oma/mmirioma-original`
 > (read only). The designs this fork has are in `docs/design/`.
 
 **Changed 2026-10-17 (SRS v0.2, FR-003, FR-021), re-agreed by

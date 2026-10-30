@@ -66,7 +66,7 @@ and the screen-to-endpoint table.
 
 ### 3. Approval (gate G2)
 
-One reviewer who is not the designer (in the fork: @chidimmamogbo,
+One reviewer who is not the designer (in this repo: @chidimmamogbo,
 @nnamdi-security or @Cloudcrackamara) checks the design before anyone builds
 it, then sets `Status: approved` with their name and the date in
 `docs/design/<slice>.md`:

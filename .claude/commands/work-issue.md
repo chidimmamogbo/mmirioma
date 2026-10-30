@@ -1,22 +1,22 @@
 ---
-description: Take one Linking MVP issue in the team fork from start to an open PR
+description: Take one Linking MVP issue in this repo from start to an open PR
 argument-hint: <issue number>
 ---
 
-Work issue #$ARGUMENTS in `chidimmamogbo/mmirioma`, the team fork. Follow the
+Work issue #$ARGUMENTS in `mmiri-oma/mmirioma`. Follow the
 steps in order; each ends on its **Done when**. Ask the user before every git
 action that changes history or the remote (branch, commit, push, PR), as
 CLAUDE.md requires.
 
 ## 1. Load the issue
 
-1. `gh issue view $ARGUMENTS --repo chidimmamogbo/mmirioma --json title,body,labels,comments`.
+1. `gh issue view $ARGUMENTS --repo mmiri-oma/mmirioma --json title,body,labels,comments`.
    Use `--json`: outside a terminal, `--comments` prints only the comments
    and leaves out the issue body.
-2. Read CLAUDE.md, starting with "Team fork workflow", and your lane in
+2. Read CLAUDE.md, starting with "Team workflow", and your lane in
    `docs/process/linking-plan.md`.
 3. For each issue on the "Depends on" line, check it is closed
-   (`gh issue view <n> --repo chidimmamogbo/mmirioma --json state`).
+   (`gh issue view <n> --repo mmiri-oma/mmirioma --json state`).
    An open dependency means stop: tell the user which one and why it blocks.
 4. Search the log for known problems in this area:
    `grep -ril "<words>" docs/log LOG.md`.
@@ -76,7 +76,7 @@ file in `docs/log/` (template in `docs/log/README.md`).
 With the user's OK: commit in Conventional Commits style, push to `origin`,
 and open the PR against `main` using `.github/pull_request_template.md`,
 with `Closes #$ARGUMENTS`. CODEOWNERS requests the reviewers.
-Then wait for CI: `gh pr checks <pr> --repo chidimmamogbo/mmirioma --watch`.
+Then wait for CI: `gh pr checks <pr> --repo mmiri-oma/mmirioma --watch`.
 
 **Done when:** the PR is open with both CI jobs green. A red job means
 fix, push, and wait again.

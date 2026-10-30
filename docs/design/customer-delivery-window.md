@@ -1,9 +1,9 @@
 # Customer delivery window design
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#188](https://github.com/chidimmamogbo/mmirioma/issues/188) ·
+Issue: [#188](https://github.com/mmiri-oma/mmirioma/issues/188) ·
 Requirements: FR-023, FR-037, NFR-012 · Prompt: none (a one-row change on an
 existing screen, written from the screens as they are) · Contract (agreed):
 [orders.md](../api/orders.md#customer-pilot-changes-99), `OrderRead.delivery_window`

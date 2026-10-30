@@ -1,9 +1,9 @@
 # Driver arrival and the unreachable customer design (partner app)
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#250](https://github.com/chidimmamogbo/mmirioma/issues/250) ·
+Issue: [#250](https://github.com/mmiri-oma/mmirioma/issues/250) ·
 Requirements: FR-038 (P0), FR-035, FR-036, BR-14, NFR-020 · Acceptance test:
 T-25 · Contract: [deliveries.md](../api/deliveries.md) (agreed, G3), driver job
 part 2, design check rows A3, A4 and A7 · Prompt:
@@ -12,7 +12,7 @@ Designer: @Bonvee120 + Claude Code · Reviewed by: @nnamdi-security (technical l
 
 **Approved (G2)** by @nnamdi-security (technical lead) on 2026-10-29, for both
 apps, with the wording in "Wording to approve" below
-([decision on #250](https://github.com/chidimmamogbo/mmirioma/issues/250#issuecomment-6503910898)).
+([decision on #250](https://github.com/mmiri-oma/mmirioma/issues/250#issuecomment-6503910898)).
 Version approved: the clickable preview as it stood on 2026-10-29 (it shows no
 version number). Contract: agreed (G3). Decisions 5 and 7 and the known
 limitation were added by that decision.
@@ -130,7 +130,7 @@ contract change. Three client fields are new to the app's own types
 
 ## Problem report: the job line and Back (#257)
 
-Added for [#257](https://github.com/chidimmamogbo/mmirioma/issues/257), which
+Added for [#257](https://github.com/mmiri-oma/mmirioma/issues/257), which
 waits for this slice. The "Report a problem" screen (`r-issue`, U5) shows a
 card with the job: "<quantity> · <where the job is>". Today it has two phrases
 only: "on the way to customer" for every job past loading, including one that has

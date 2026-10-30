@@ -1,10 +1,10 @@
-# Linking plan (team fork)
+# Linking plan (team)
 
-How five developers link the new-design frontend to this fork's backend in
+How five developers link the new-design frontend to this repo's backend in
 parallel. Rules that apply to every task are in
-[CLAUDE.md](../../CLAUDE.md#team-fork-workflow-read-first); this file holds
+[CLAUDE.md](../../CLAUDE.md#team-workflow-read-first); this file holds
 the lanes. Every task is an issue in the
-[Linking MVP milestone](https://github.com/chidimmamogbo/mmirioma/milestone/1).
+[Linking MVP milestone](https://github.com/mmiri-oma/mmirioma/milestone/1).
 
 ## Lanes
 

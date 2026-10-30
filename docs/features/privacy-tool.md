@@ -1,6 +1,6 @@
 # Privacy tool (deletion, correction, retention review)
 
-Issue: [#129](https://github.com/mmiri-oma/mmirioma/issues/129) (Phase 2,
+Issue: [#129](https://github.com/mmiri-oma/mmirioma-original/issues/129) (Phase 2,
 follows #100) · Requirements: NFR-005, NFR-003, NFR-004 · Pilot condition: G7 ·
 Decisions: technical lead, 2026-10-23 (on #129) · Procedure:
 [privacy-retention.md](../process/privacy-retention.md)

@@ -1,9 +1,9 @@
 # Customer live prices design
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#79](https://github.com/chidimmamogbo/mmirioma/issues/79) ·
+Issue: [#79](https://github.com/mmiri-oma/mmirioma/issues/79) ·
 Requirements: FR-010, FR-012, FR-014, FR-020, FR-021, FR-022, FR-023,
 FR-024, FR-026, FR-027, NFR-002, NFR-012, NFR-020, NFR-021, NFR-022 ·
 Prompt: [prompts/13-customer-live-prices.md](prompts/13-customer-live-prices.md)

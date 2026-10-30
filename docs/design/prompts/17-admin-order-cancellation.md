@@ -1,6 +1,6 @@
 # Prompt 17: cancelling an order from the admin order detail
 
-Issue: [#129](https://github.com/chidimmamogbo/mmirioma/issues/129) ·
+Issue: [#129](https://github.com/mmiri-oma/mmirioma/issues/129) ·
 Requirements: FR-036, FR-044, FR-050, NFR-004, SRS fallback F10 · Contract
 (agreed, G3):
 [deliveries.md](../../api/deliveries.md#get-adminordersreferencecancellation-outcome),
