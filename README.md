@@ -197,6 +197,8 @@ npm run build
   database, migrations, error envelope, CORS, health endpoints.
 - [`docs/architecture/frontend.md`](docs/architecture/frontend.md): API client and
   error handling.
+- [`docs/deployment/hostinger.md`](docs/deployment/hostinger.md): deploying to the
+  Hostinger VPS (Docker Compose, Caddy, migrations, backups, rollback).
 - [`docs/process/ui-driven-development.md`](docs/process/ui-driven-development.md):
   how features are built (design in Claude Design, then contract, then code).
   Design prompts live in [`docs/design/prompts/`](docs/design/prompts/).

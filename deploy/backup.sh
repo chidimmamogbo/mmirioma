@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Back up the MmiriOma database to a local folder (NFR-014).
 #
-# Run from a trusted team machine, so the copy is off Railway; the off-site
-# target and schedule are an open decision (docs/architecture/deployment.md,
-# "Backups"). Writes one `pg_dump --format=custom` file, checks it can be
+# Keep a copy off the server that hosts the database; the off-site target is an
+# open decision (docs/deployment/hostinger.md, "Backups"; the production wrapper
+# is deploy/production-backup.sh). Writes one `pg_dump --format=custom` file, checks it can be
 # read back, and deletes this folder's backups older than BACKUP_KEEP_DAYS.
 #
 # Usage:

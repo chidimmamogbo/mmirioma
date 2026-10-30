@@ -1,18 +1,17 @@
 """HTTPS only in production (NFR-001): the Strict-Transport-Security header.
 
-Railway's edge already refuses plain HTTP: it answers a plain ``GET`` with a
-301 to HTTPS and only forwards TLS traffic (docs.railway.com, "Specs &
-Limits", checked 2026-10-23). This header makes browsers go straight to
-HTTPS for later visits too, so a first request on a hostile network cannot be
-downgraded. It is added only in production, never to plain-http local
-development.
+In production the reverse proxy (Caddy, compose.production.yaml) terminates
+TLS and redirects plain HTTP to HTTPS, so the API only sees forwarded TLS
+traffic. This header makes browsers go straight to HTTPS for later visits
+too, so a first request on a hostile network cannot be downgraded. It is added
+only in production, never to plain-http local development.
 """
 
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 #: One year. ``includeSubDomains`` and ``preload`` are left out: the app runs
-#: on a Railway address (or a subdomain) whose other hosts are not ours.
+#: on a host whose other subdomains may not be served over HTTPS yet.
 HSTS_VALUE = "max-age=31536000"
 
 

@@ -1,14 +1,14 @@
 # MmiriOma production image: the API and the built frontend on one origin.
 #
-# Build context: the repository root (railway.json; locally
-# `docker build -f backend/Dockerfile .`). See docs/architecture/deployment.md.
+# Build context: the repository root (`docker build -f backend/Dockerfile .`).
+# Production runs it through compose.production.yaml (docs/deployment/hostinger.md),
+# which replaces CMD: migrations are run on purpose, not at start.
 
 # --- Stage 1: build the frontend ------------------------------------------------
 FROM node:24-bookworm-slim AS frontend
 
 # Public value baked into the bundle at build time: the app's own https origin,
-# e.g. https://mmirioma-production.up.railway.app (Railway passes service
-# variables to the build only when declared with ARG). Never a secret.
+# e.g. https://mmiriomadelivery.com. Never a secret.
 ARG VITE_API_BASE_URL
 ARG VITE_SUPPORT_PHONE=
 ARG VITE_SUPPORT_WHATSAPP=
@@ -23,6 +23,10 @@ COPY frontend/ ./
 COPY PRIVACY_NOTICE.md /repo/PRIVACY_NOTICE.md
 COPY docs/api/examples /repo/docs/api/examples
 ENV VITE_ORDERS_SOURCE=api
+# A production image never serves the typed mock demo data.
+ENV VITE_USE_MOCKS=false
+# The build runs on a small VPS next to the live stack: cap Node's heap.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 # --- Stage 2: the API -------------------------------------------------------------
@@ -48,7 +52,7 @@ COPY --from=frontend /repo/frontend/dist ./frontend_dist
 RUN useradd --create-home --uid 10001 mmirioma && chmod 0755 start.sh
 USER mmirioma
 
-# Railway injects PORT; 8000 locally.
+# 8000 unless PORT is set.
 ENV PORT=8000
 EXPOSE 8000
 CMD ["./start.sh"]

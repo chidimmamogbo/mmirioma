@@ -1,0 +1,184 @@
+# MmiriOma production stack for one small VPS (Hostinger KVM 1: 1 vCPU, 4 GB RAM).
+# Runbook: docs/deployment/hostinger.md. Local development keeps using compose.yaml.
+#
+# Always run it through deploy/prod.sh, which passes the environment file and
+# tags the API image with the git commit (so a rollback is a re-tag, not a rebuild):
+#
+#   ./deploy/prod.sh build api
+#   ./deploy/prod.sh up -d
+#
+# Traffic:   internet -> caddy (80/443, automatic HTTPS) -> api -> db
+#   - caddy is the only service that publishes ports.
+#   - api serves /api/* AND the built React app (FRONTEND_DIST_DIR, backend/Dockerfile),
+#     so the app and the API share one origin and the session cookie stays first-party.
+#   - db is reachable only on the internal "data" network (no route to the internet,
+#     no published port).
+name: mmirioma_prod
+
+x-logging: &logging
+  # Keeps 30 MB of logs per container at most, so logs never fill the 50 GB disk.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    # Same image as CI and compose.yaml (PostgreSQL 16, PostGIS 3.4), pinned.
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mmirioma
+      POSTGRES_USER: mmirioma
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    # Small settings for a 4 GB machine shared with the API and Caddy.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=50
+      - -c
+      - log_min_duration_statement=1000
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [data]
+    mem_limit: 1g
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmirioma -d mmirioma"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  api:
+    image: mmirioma-api:${APP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        # The app's own origin: the browser calls /api on the same host.
+        VITE_API_BASE_URL: https://${SITE_DOMAIN:?Set SITE_DOMAIN in .env.production}
+        VITE_SUPPORT_PHONE: ${VITE_SUPPORT_PHONE:-}
+        VITE_SUPPORT_WHATSAPP: ${VITE_SUPPORT_WHATSAPP:-}
+    restart: unless-stopped
+    # Settings (database, SMS, support) come from the file; the lines below win
+    # over it so production cannot be started in a development mode by mistake.
+    env_file:
+      - path: ${PROD_ENV_FILE:-.env.production}
+        required: true
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://mmirioma:${POSTGRES_PASSWORD}@db:5432/mmirioma
+      FRONTEND_URL: https://${SITE_DOMAIN}
+      SMS_PROVIDER: termii
+    # One worker: the sign-in rate limits live in process memory
+    # (backend/app/modules/auth/rate_limit.py), so a second worker would give
+    # each client two separate counters. It is also all one vCPU can use.
+    # Migrations do NOT run here; see deploy/production-migrate.sh.
+    # Only Caddy (the edge network) may set X-Forwarded-* headers, so the real
+    # client address reaches the rate limits and the logs.
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - 172.28.0.0/24
+      - --no-server-header
+    networks: [edge, data]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 768m
+    healthcheck:
+      # /health/ready also checks the database. The image has no curl.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=5)"
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+
+  # One-off job, not part of "up": `./deploy/prod.sh run --rm migrate ...`.
+  # Use deploy/production-migrate.sh, which backs up first and refuses
+  # destructive changes without a flag.
+  migrate:
+    image: mmirioma-api:${APP_VERSION:-latest}
+    profiles: [tools]
+    env_file:
+      - path: ${PROD_ENV_FILE:-.env.production}
+        required: true
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://mmirioma:${POSTGRES_PASSWORD}@db:5432/mmirioma
+      FRONTEND_URL: https://${SITE_DOMAIN}
+      SMS_PROVIDER: termii
+    entrypoint: ["alembic"]
+    command: ["current"]
+    networks: [data]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    logging: *logging
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates: losing this volume means asking Let's Encrypt again.
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+networks:
+  # Caddy and the API. The fixed range lets the API trust proxy headers from it
+  # (and from nothing else); keep it in step with --forwarded-allow-ips above.
+  edge:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  # The API and PostgreSQL. "internal" removes any route to the outside.
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

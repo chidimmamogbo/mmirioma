@@ -1,13 +1,14 @@
 #!/bin/sh
-# Container start (backend/Dockerfile): migrate, then serve.
+# Default container start (backend/Dockerfile): migrate, then serve. For a
+# throwaway or single-container run only. The Hostinger production stack
+# (compose.production.yaml) does NOT use it: migrations there are explicit
+# (deploy/production-migrate.sh) and proxy trust is limited to Caddy's network.
 #
 # 1. `alembic upgrade head` brings the database to this release's schema. If it
-#    fails the container exits, the health check never passes and Railway keeps
-#    the previous deployment serving (docs/architecture/deployment.md).
-# 2. uvicorn on Railway's PORT. Railway's edge terminates TLS and sends
-#    X-Forwarded-Proto: https; --proxy-headers lets the app see https. The edge
-#    address is not fixed, hence --forwarded-allow-ips '*'; the container is
-#    reachable only through Railway's proxy and private network.
+#    fails the container exits.
+# 2. uvicorn on PORT. --proxy-headers with --forwarded-allow-ips '*' trusts any
+#    sender of X-Forwarded-*: use this script only when the container is
+#    reachable through a trusted proxy alone.
 set -eu
 
 alembic upgrade head

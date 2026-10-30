@@ -1,0 +1,41 @@
+# Caddy for MmiriOma production (compose.production.yaml).
+# SITE_DOMAIN comes from .env.production (for example mmiriomadelivery.com).
+# Caddy gets and renews the HTTPS certificates itself (Let's Encrypt); the
+# DNS A records for both names must point at the VPS first, and ports 80 and
+# 443 must be open, or issuance fails.
+{
+	# Admin API only inside the container (the health check uses it).
+	admin 127.0.0.1:2019
+}
+
+# www redirects to the main domain, keeping the path and query.
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		# The API sends HSTS too; this covers the static pages as well.
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# One upstream for everything: the API answers /api/* and serves the built
+	# React app, with index.html as the fallback so React Router paths such as
+	# /orders/123 survive a reload (backend/app/core/frontend.py).
+	# Caddy adds X-Forwarded-For/-Proto/-Host for the API's proxy-header handling.
+	reverse_proxy api:8000 {
+		health_uri /api/v1/health
+		health_interval 30s
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

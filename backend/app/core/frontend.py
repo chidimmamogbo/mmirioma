@@ -1,9 +1,8 @@
 """Serve the built frontend from the API, so both share one origin.
 
-On Railway the app runs as a single service: the frontend (``npm run build``
-output) and ``/api`` must share one origin, because ``up.railway.app`` is on
-the Public Suffix List and a session cookie set for one service's address
-would not reach another (technical lead, #103; docs/architecture/deployment.md).
+In production the app runs as a single service: the frontend (``npm run build``
+output) and ``/api`` share one origin, so the session cookie stays first-party
+(technical lead, #103; docs/deployment/hostinger.md).
 
 Only mounted when ``FRONTEND_DIST_DIR`` is set (production image). In
 development and tests Vite serves the frontend and nothing here runs.
