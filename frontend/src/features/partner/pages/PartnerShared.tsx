@@ -69,8 +69,9 @@ export function PartnerHistory() {
   const delivered = list.filter((j) => j.stage === 'delivered')
   // Partner pay is out of the MVP (partners.md, decision 7): with the real
   // API no job carries an amount, so the "Earned" figure is left out rather
-  // than shown as ₦0.
-  const known = list.every((j) => j.earning_minor_units !== null)
+  // than shown as ₦0. An empty list (no trips in the period, or the history
+  // still loading) has no amount to show either, so it needs a job to show one.
+  const known = list.length > 0 && list.every((j) => j.earning_minor_units !== null)
   const amount = delivered.reduce((a, j) => a + (j.earning_minor_units ?? 0), 0)
   const volume = totalLitres(delivered)
   const short = amount >= 1_000_000 ? `₦${Math.round(amount / 100_000)}k` : formatNaira(amount)

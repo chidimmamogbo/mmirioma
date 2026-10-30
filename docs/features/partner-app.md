@@ -166,6 +166,9 @@ of the MVP, `partners.md` decision 7): no Earnings tab, menu item or "View
 earnings" button, and `.../earnings` goes home. The home tiles show real
 counts only: rider "Completed" and driver "Trips today" count today's
 delivered jobs (Lagos time) from the history, beside the active order. The
+history screen's "Earned" tile appears only when the period has jobs and they
+carry an amount (the mock does; the real API sends none), never as "₦0" for an
+empty period or while the history loads. The
 trip maps are illustrations with no place names; the screen names the real
 station and address.
 Error codes used by the mock: `job_not_found` (404), `order_taken` (409),
