@@ -8,7 +8,11 @@ import { usePartnerProfile } from './queries'
 function VehicleGate({ vehicle }: { vehicle: VehicleType }) {
   const profile = usePartnerProfile()
   if (profile.isPending) return <LoadingScreen />
-  if (profile.isError) return <ErrorScreen error={profile.error} onRetry={() => profile.refetch()} />
+  // Only a profile that never loaded blocks the app. Every step action refreshes
+  // all partner queries, the profile included; when that refresh fails (the
+  // connection is lost) the cached profile keeps the screen the partner is on, so
+  // the step's own notice can say what happened.
+  if (profile.isError && profile.data === undefined) return <ErrorScreen error={profile.error} onRetry={() => profile.refetch()} />
   const own = profile.data.vehicle.type
   // A tanker driver who opens a rider link (or the reverse) goes to their own app.
   if (own !== vehicle) return <Navigate to={PARTNER_APPS[own].base} replace />

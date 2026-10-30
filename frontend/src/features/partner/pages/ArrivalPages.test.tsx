@@ -8,6 +8,8 @@ import { createQueryClient } from '../../../app/queryClient'
 import { mockLogin } from '../../../mocks/authMock'
 import { read, resetMockDb } from '../../../mocks/db'
 import { DEMO_PASSWORD } from '../../../mocks/seed'
+import { ApiError } from '../../../lib/api/client'
+import * as partnerApi from '../partnerApi'
 import { PARTNER_APPS, PartnerAppContext } from '../partnerContext'
 import { ArrivedStep, JobFailed, UnreachableStep } from './ArrivalPages'
 import { CodeStep } from './CodeStep'
@@ -165,5 +167,48 @@ describe('a failed delivery in the history (U4)', () => {
     expect(await screen.findByText('Delivery failed', {}, { timeout: WAIT })).toBeInTheDocument()
     expect(screen.getByText('Reason: Customer not reachable')).toBeInTheDocument()
     expect(screen.getAllByText(/^Today, /).length).toBeGreaterThan(0)
+  })
+})
+
+describe('a step that fails after the job has loaded', () => {
+  const failure = (kind: 'http' | 'network', status: number | null, code: string) => new ApiError({ kind, status, code, message: 'Server words', details: null })
+
+  /** The first read of the job works; every later one (the refresh after the failed step) fails. */
+  function failRefreshes(error: ApiError) {
+    const real = partnerApi.getJob
+    vi.spyOn(partnerApi, 'getJob').mockImplementationOnce(real).mockRejectedValue(error)
+  }
+
+  it('keeps the screen and says the request was not sent when the connection is lost', async () => {
+    const user = userEvent.setup()
+    arrive()
+    const network = failure('network', null, 'network_error')
+    failRefreshes(network)
+    vi.spyOn(partnerApi, 'startUnloading').mockRejectedValue(network)
+    renderAt(`${BASE}/jobs/${REF}/arrived`)
+    await user.click(await screen.findByRole('button', { name: 'Start unloading' }, { timeout: WAIT }))
+    expect(await screen.findByText('Not sent. Check your connection and try again. Nothing changed.', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'You have arrived' })).toBeInTheDocument()
+    expect(screen.queryByText(/We cannot reach MmiriOma/)).not.toBeInTheDocument()
+  }, 20_000)
+
+  it('keeps the screen and offers the way home when the job was reassigned', async () => {
+    const user = userEvent.setup()
+    arrive({ contact_attempts: [ARRIVED_AT] })
+    const gone = failure('http', 404, 'order_not_found')
+    failRefreshes(gone)
+    vi.spyOn(partnerApi, 'recordContactAttempt').mockRejectedValue(gone)
+    renderAt(`${BASE}/jobs/${REF}/unreachable`)
+    await user.click(await screen.findByRole('button', { name: 'I tried to reach the customer' }, { timeout: WAIT }))
+    expect(await screen.findByText(/This job was reassigned\. It is no longer on your list\./, {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to dashboard' })).toHaveAttribute('href', BASE)
+    expect(screen.getByRole('heading', { name: 'Customer not reachable' })).toBeInTheDocument()
+  })
+
+  it('still shows the full-screen error for a job that never loaded', async () => {
+    vi.spyOn(partnerApi, 'getJob').mockRejectedValue(failure('http', 404, 'order_not_found'))
+    renderAt(`${BASE}/jobs/${REF}/arrived`)
+    expect(await screen.findByRole('button', { name: 'Try again' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'You have arrived' })).not.toBeInTheDocument()
   })
 })

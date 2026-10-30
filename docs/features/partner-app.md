@@ -73,9 +73,9 @@ with the customer's delivery code, and follow their sample earnings.
 | `frontend/src/lib/api/partners.ts` | Zod-checked client for the partner account endpoints and `GET /service-zones` |
 | `frontend/src/features/partner/queries.ts` | Query hooks; pool and active jobs refresh every 30 s |
 | `frontend/src/features/partner/partnerContext.ts` | Which app (`/partner/rider` or `/partner/driver`), words per vehicle, `jobStepPath` |
-| `frontend/src/features/partner/PartnerArea.tsx` | Signed-in partner guard and vehicle redirect |
+| `frontend/src/features/partner/PartnerArea.tsx` | Signed-in partner guard and vehicle redirect; keeps the screen when a later refresh of the profile fails |
 | `frontend/src/features/partner/pages/` | Screens; `Rider*` for Keke, `Driver*` for tanker, `PartnerShared.tsx`, `PartnerAccount.tsx`, `JobDetail.tsx` and `CodeStep.tsx` serve both |
-| `frontend/src/features/partner/components/JobStep.tsx` | Loads a job and redirects when it is not at the screen's stage (and trip step) |
+| `frontend/src/features/partner/components/JobStep.tsx` | Loads a job and redirects when it is not at the screen's stage (and trip step); keeps the screen when a later refresh of the job fails |
 | `frontend/src/features/partner/pages/ArrivalPages.tsx` | Arrived (U2), Customer not reachable with its confirm sheet (U3) and Delivery failed (U4); the customer step's "I have arrived" button (U1) is `components/ArriveButton.tsx` |
 | `frontend/src/features/partner/components/` | `AttemptList` (U3's timed rows and count), `StepError` (the design's error wording per step), `useOnline` |
 | `frontend/src/components/art/Art.tsx` | Tanker maps and the `TankGauge` used on the loading screen |
@@ -220,6 +220,13 @@ active job, for calling.
   waiting-for-approval explain why the pool is empty.
 - Errors that block a footer button show next to that button.
 - Reloading a trip screen at the wrong stage redirects to the right step.
+- A trip step whose request fails stays on its screen and shows its own notice:
+  "Not sent. Check your connection and try again. Nothing changed." when the
+  connection is lost, "This job was reassigned. It is no longer on your list."
+  with "Back to dashboard" when the job was taken away. Every step action ends
+  by refreshing the job and the profile, so a failed refresh must not replace
+  the screen: only a job or profile that never loaded shows the full-screen
+  error.
 - Taken orders, a locked code and a resend that is too soon each show a
   clear message.
 - Code screen (#138, FR-050): when `code_sms_status` is `failed` the screen
