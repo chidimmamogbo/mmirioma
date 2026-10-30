@@ -358,6 +358,11 @@ describe('arrival and the unreachable customer (#250)', () => {
     expect(job.contact_attempts).toHaveLength(2)
   })
 
+  it('maps when and why a job ended, on a list row too', () => {
+    expect(partnerJobFromRead(failedSummary)).toMatchObject({ ended_at: failedSummary.ended_at, end_reason: 'customer_unreachable' })
+    expect(partnerJobFromRead(unreachable)).toMatchObject({ ended_at: null, end_reason: null })
+  })
+
   it('leaves the fields out for a list row, which carries no detail', () => {
     const job = partnerJobFromRead(doneJob)
     for (const field of ['arrived_at', 'contact_attempts', 'unreachable_allowed_at', 'can_start_unloading', 'can_fail_unreachable']) {
