@@ -25,4 +25,4 @@ labels: []
 
 ## Start
 
-Read `CLAUDE.md` ("Team fork workflow") and `docs/process/linking-plan.md`, then run `/work-issue <this issue number>` in Claude Code.
+Read `CLAUDE.md` ("Team workflow") and `docs/process/linking-plan.md`, then run `/work-issue <this issue number>` in Claude Code.

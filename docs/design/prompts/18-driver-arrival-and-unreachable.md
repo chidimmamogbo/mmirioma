@@ -1,6 +1,6 @@
 # Prompt 18: the driver's arrival and the unreachable customer (rider and driver apps)
 
-Issue: [#250](https://github.com/chidimmamogbo/mmirioma/issues/250) ·
+Issue: [#250](https://github.com/mmiri-oma/mmirioma/issues/250) ·
 Requirements: FR-038 (P0), FR-035, FR-036, BR-14, NFR-020 · Acceptance test:
 T-25 · Contract (agreed, G3): [deliveries.md](../../api/deliveries.md), driver
 job part 2: `POST /driver/jobs/{reference}/arrive`, `POST

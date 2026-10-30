@@ -1093,7 +1093,7 @@ questions:
 
 **Status: agreed** (G3) on 2026-10-28 by @nnamdi-security (technical lead), on
 PR #205. Proposed by @Daveoski (+ Claude Code) for
-[#204](https://github.com/chidimmamogbo/mmirioma/issues/204), option B.
+[#204](https://github.com/mmiri-oma/mmirioma/issues/204), option B.
 
 **Gap.** `GET /admin/orders` returns `AdminOrderRead`, which names no driver;
 only the detail does, through `assignment.driver`
@@ -1142,7 +1142,7 @@ else of the assignment:
    dispatcher needs to see who an order has been offered to, so as not to
    offer it twice.
 
-**Built in:** [#204](https://github.com/chidimmamogbo/mmirioma/issues/204)
+**Built in:** [#204](https://github.com/mmiri-oma/mmirioma/issues/204)
 (`AdminOrderListItem` in `deliveries/admin_schemas.py`,
 `dispatch.service.live_drivers_by_order`, since #243
 `listed_drivers_by_order`). The contract example
@@ -1154,7 +1154,7 @@ checks it against the built schema.
 
 **Status: agreed** (G3) on 2026-10-29 by @nnamdi-security (technical lead),
 proposed by @Cloudcrackamara (+ Claude Code) for
-[#243](https://github.com/chidimmamogbo/mmirioma/issues/243).
+[#243](https://github.com/mmiri-oma/mmirioma/issues/243).
 
 **Gap.** The [#204 amendment](#amendment-204-the-driver-on-the-admin-order-list)
 gives `driver` only for a **live** assignment, so a `delivered`, `failed` or
@@ -1695,7 +1695,7 @@ approval for this water category has expired." The first reason in the
 table's order gives the message. `cannot_check` stays for an order with no
 water category ("This order has no water category."). A free-text source
 stays `not_eligible` ([decision 7](#hold-review-decisions); recorded sources
-at pickup are [#109](https://github.com/mmiri-oma/mmirioma/issues/109)).
+at pickup are [#109](https://github.com/mmiri-oma/mmirioma-original/issues/109)).
 
 ### State machine change (row 26)
 
@@ -1872,8 +1872,8 @@ Additive, so the shipped dispatch history keeps working:
 **Status: agreed** (G3) on 2026-10-27 by @chidimmamogbo and @nnamdi-security
 (technical lead, contract owner), on PR #132. Proposed by @Daveoski (+ Claude
 Code) for the confirm sheet of
-[#72](https://github.com/chidimmamogbo/mmirioma/issues/72) (prompt 14).
-**Built** in [#136](https://github.com/chidimmamogbo/mmirioma/issues/136),
+[#72](https://github.com/mmiri-oma/mmirioma/issues/72) (prompt 14).
+**Built** in [#136](https://github.com/mmiri-oma/mmirioma/issues/136),
 part 1 (`AdminOrderQuoteRead` in `orders/schemas.py`, `SourceOptionRead.kind`
 in `confirmation/schemas.py`). The rest of this section stays agreed as it
 is.

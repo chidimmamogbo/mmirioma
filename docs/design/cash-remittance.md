@@ -1,13 +1,13 @@
 # Cash remittance design
 
-> **Reference copy** from the main repo (`mmiri-oma/mmirioma@adc8654`), kept for
+> **Reference copy** from the main repo (`mmiri-oma/mmirioma-original@adc8654`), kept for
 > [driver-cash.md](driver-cash.md), which reuses its approved K1 and K2. Links to other
 > main repo design documents point to files that are not in this fork.
 
 <!-- Recorded from the Claude Design canvas "MmiriOma Cash Remittance",
 version 1792676565-c441. Workflow: docs/process/ui-driven-development.md -->
 
-Issue: [#98](https://github.com/mmiri-oma/mmirioma/issues/98) · Requirements:
+Issue: [#98](https://github.com/mmiri-oma/mmirioma-original/issues/98) · Requirements:
 FR-040 (pay on delivery only, F4), FR-041 (cash part), FR-050 (payment
 acknowledgment), BR-12, BR-15, NFR-004, NFR-012, NFR-020, NFR-021 ·
 Acceptance tests: T-14, T-21, T-24 · Prompt:

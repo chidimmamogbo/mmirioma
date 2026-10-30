@@ -1,9 +1,9 @@
 # Admin pricing design
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#44](https://github.com/chidimmamogbo/mmirioma/issues/44) ·
+Issue: [#44](https://github.com/mmiri-oma/mmirioma/issues/44) ·
 Requirements: FR-011, FR-021, FR-022, FR-024, BR-01, BR-09, NFR-004,
 NFR-012 · Prompt: [prompts/15-admin-pricing.md](prompts/15-admin-pricing.md) ·
 Contracts (agreed):

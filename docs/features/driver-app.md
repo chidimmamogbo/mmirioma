@@ -9,7 +9,7 @@ A2 as first approved) and [authentication.md](../design/authentication.md)
 (D1, X1-X5) · Contract: [deliveries.md](../api/deliveries.md), "Driver job
 endpoints" part 1 and part 2 (agreed G3) · Backend:
 [driver-jobs.md](driver-jobs.md) · Issue:
-[#97](https://github.com/mmiri-oma/mmirioma/issues/97) (Phase 2, step 3)
+[#97](https://github.com/mmiri-oma/mmirioma-original/issues/97) (Phase 2, step 3)
 
 ## 1. Overview and purpose
 

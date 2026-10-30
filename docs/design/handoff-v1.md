@@ -1,7 +1,7 @@
 # Design handoff v1 (fork: new design frontend)
 
-Fork: `chidimmamogbo/mmirioma`, branch `feat/new-design-frontend` (upstream
-`mmiri-oma/mmirioma`). Status: approved by @chidimmamogbo for this fork on
+Fork: `chidimmamogbo/mmirioma` (now `mmiri-oma/mmirioma`), branch `feat/new-design-frontend` (upstream
+`mmiri-oma/mmirioma`, now archived as `mmiri-oma/mmirioma-original`). Status: approved by @chidimmamogbo for this fork on
 2026-10-16.
 
 This fork builds a second frontend from the design handoff

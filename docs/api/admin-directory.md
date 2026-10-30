@@ -3,7 +3,7 @@
 **Status: agreed** on 2026-10-28 (G3, #43): proposed on 2026-10-26 by
 @Cloudcrackamara (+ Claude Code) in #18, and every section is now agreed. It
 became `Status: agreed` when one reviewer other than its author agreed it
-(CLAUDE.md, "Team fork workflow", since 2026-10-27).
+(CLAUDE.md, "Team workflow", since 2026-10-27).
 
 **Amended 2026-10-26 for #30** (service zones): open questions 5, 6, 13, 14
 and 15 decided by @nnamdi-security; the zone's fallback rate is now one fee

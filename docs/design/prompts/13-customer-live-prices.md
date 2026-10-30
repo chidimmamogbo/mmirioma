@@ -1,6 +1,6 @@
 # Prompt 13: live prices for customers (zone picker and quote states)
 
-Issue: [#79](https://github.com/chidimmamogbo/mmirioma/issues/79) ·
+Issue: [#79](https://github.com/mmiri-oma/mmirioma/issues/79) ·
 Requirements: FR-010, FR-012, FR-014, FR-020, FR-021, FR-022, FR-023, FR-024,
 FR-026, FR-027, NFR-002, NFR-012, NFR-020, NFR-021, NFR-022 · Acceptance
 tests: T-01, T-02, T-03, T-17, T-18 · Contracts (all agreed, G3):

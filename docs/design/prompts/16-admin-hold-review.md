@@ -1,6 +1,6 @@
 # Prompt 16: reviewing and deciding held orders in the admin app
 
-Issue: [#128](https://github.com/chidimmamogbo/mmirioma/issues/128) ·
+Issue: [#128](https://github.com/mmiri-oma/mmirioma/issues/128) ·
 Requirements: FR-012, FR-034, FR-035, FR-036, FR-038, FR-044, BR-06, BR-12,
 BR-13, BR-14, NFR-004, NFR-012, NFR-020, NFR-021, SRS §8 · Acceptance tests:
 T-14, T-23 · Contract (agreed, G3):

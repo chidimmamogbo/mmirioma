@@ -1,9 +1,9 @@
 # Admin order cancellation design
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#129](https://github.com/chidimmamogbo/mmirioma/issues/129) ·
+Issue: [#129](https://github.com/mmiri-oma/mmirioma/issues/129) ·
 Requirements: FR-036, FR-044, FR-050, NFR-004, SRS fallback F10 · Prompt:
 [prompts/17-admin-order-cancellation.md](prompts/17-admin-order-cancellation.md)
 · Contract (agreed, G3):

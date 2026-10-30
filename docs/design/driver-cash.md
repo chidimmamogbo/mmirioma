@@ -1,9 +1,9 @@
 # Driver cash design (partner app)
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#7](https://github.com/chidimmamogbo/mmirioma/issues/7) · Requirements:
+Issue: [#7](https://github.com/mmiri-oma/mmirioma/issues/7) · Requirements:
 FR-040 (pay on delivery only, F4), FR-041 (cash part), BR-12, BR-13, BR-15,
 NFR-004, NFR-012, NFR-021 · Acceptance tests: T-14, T-21, T-24 · Contract:
 [payments.md](../api/payments.md) (agreed, G3) · Based on: the main repo's

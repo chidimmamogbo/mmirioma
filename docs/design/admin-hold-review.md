@@ -1,9 +1,9 @@
 # Admin hold review design
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#128](https://github.com/chidimmamogbo/mmirioma/issues/128) ·
+Issue: [#128](https://github.com/mmiri-oma/mmirioma/issues/128) ·
 Requirements: FR-012, FR-034, FR-035, FR-036, FR-038, FR-044, BR-06, BR-12,
 BR-13, BR-14, NFR-004, NFR-012, NFR-020, NFR-021, SRS §8 · Acceptance tests:
 T-14, T-23 · Prompt:
@@ -106,7 +106,7 @@ Design choices for the reviewer (G2):
    from an order that is Driver accepted or later **with no hold**, because
    rejecting a proof ends with "fail the delivery (Other, with a note)" and
    nothing else on the page can do it. The CANCEL dialog is the same one
-   [#129](https://github.com/chidimmamogbo/mmirioma/issues/129) will reuse
+   [#129](https://github.com/mmiri-oma/mmirioma/issues/129) will reuse
    from the order detail (decision 14).
 6. **FAIL offers only the three reasons the contract agrees for these
    screens**: source quality concern, unsafe access, other (note required).

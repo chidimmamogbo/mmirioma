@@ -1,14 +1,14 @@
 # Phone verification design (customer app)
 
 <!-- Workflow: docs/process/ui-driven-development.md. Fork gates: CLAUDE.md,
-"Team fork workflow". -->
+"Team workflow". -->
 
-Issue: [#6](https://github.com/chidimmamogbo/mmirioma/issues/6) · Requirements:
+Issue: [#6](https://github.com/mmiri-oma/mmirioma/issues/6) · Requirements:
 FR-003, FR-004, FR-050, FR-055, NFR-002, NFR-012, NFR-020, NFR-021, NFR-022 ·
 Contract: [auth.md](../api/auth.md#phone-verification-fr-003-fr-004) (agreed,
 G3) and [orders.md](../api/orders.md) (`phone_not_verified`) · Based on: the
 main repo's approved phone verification design
-(`mmiri-oma/mmirioma`, `docs/design/phone-verification.md`)
+(`mmiri-oma/mmirioma-original`, `docs/design/phone-verification.md`)
 Designer: @chidimmamogbo + Claude Code · Reviewed by: @chidimmamogbo on 2026-10-26 · Status: approved
 
 **Approved (G2)** by @chidimmamogbo on 2026-10-26, at preview version

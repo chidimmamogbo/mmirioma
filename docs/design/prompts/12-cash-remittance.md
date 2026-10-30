@@ -1,10 +1,10 @@
 # Prompt 12: cash collection, remittance and reconciliation
 
-> **Reference copy** from the main repo (`mmiri-oma/mmirioma@adc8654`), kept for
+> **Reference copy** from the main repo (`mmiri-oma/mmirioma-original@adc8654`), kept for
 > [driver-cash.md](../driver-cash.md), which reuses its approved K1 and K2. Links to other
 > main repo design documents point to files that are not in this fork.
 
-Issue: [#98](https://github.com/mmiri-oma/mmirioma/issues/98) · Production
+Issue: [#98](https://github.com/mmiri-oma/mmirioma-original/issues/98) · Production
 plan step 4 · Requirements: FR-040 (pay on delivery only, fallback F4),
 FR-041 (cash part), FR-050 (payment acknowledgment SMS, P0), BR-12, BR-15,
 NFR-004, NFR-012, NFR-020, NFR-021, NFR-032 · Acceptance tests: T-14, T-21,

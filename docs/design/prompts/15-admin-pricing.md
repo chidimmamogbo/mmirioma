@@ -1,6 +1,6 @@
 # Prompt 15: the admin Pricing screen around FR-022 price lists
 
-Issue: [#44](https://github.com/chidimmamogbo/mmirioma/issues/44) ·
+Issue: [#44](https://github.com/mmiri-oma/mmirioma/issues/44) ·
 Requirements: FR-011, FR-021, FR-022, FR-024, BR-01, BR-09, NFR-004,
 NFR-012 · Contract (agreed, G3):
 [admin-directory.md](../../api/admin-directory.md#price-lists) ("Price

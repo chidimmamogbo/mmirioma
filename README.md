@@ -156,7 +156,7 @@ npm install
 npm run dev                      # http://localhost:5173
 ```
 
-In this fork the UI follows the design handoff (see
+In this repo the UI follows the design handoff (see
 [`docs/design/handoff-v1.md`](docs/design/handoff-v1.md)). The handoff pack
 itself lives in `design/` locally and is not tracked.
 
