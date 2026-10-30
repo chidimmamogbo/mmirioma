@@ -1192,6 +1192,78 @@ for a cancelled order. A driver who never accepted never held the job, and the
 SRS has no rule for who "held" it (FR-036), so the list does not name one. It
 is the same rule the order panel uses (PR #246).
 
+### Amendment (#280): contact attempts on the admin order detail
+
+**Status: proposed.** Proposed by @Bonvee120 (+ Claude Code) for
+[#280](https://github.com/mmiri-oma/mmirioma/issues/280). **Awaiting agreement
+(G3) by the backend reviewer, who is not the author; their name and the date go
+here before any code is written.**
+
+**Gap.** FR-038 has the driver record two contact attempts, each with its time,
+before a delivery can fail as `customer_unreachable`. The driver's job read
+carries them (`contact_attempts`, [Driver job object](#driver-job-object)), and
+the approved design for #250 says the dispatcher can see the times. The admin
+reads do not carry them:
+
+- `AdminOrderDetail` has no attempts.
+- `GET /admin/orders/{reference}/history` returns order events. Each one is a
+  status change (`from_status`, `to_status`), and an attempt is not one, so no
+  entry exists for it, with or without `include=holds`.
+- The only admin read with attempts is `HoldReview.proof.contact_attempts`
+  ([Admin hold review endpoints](#admin-hold-review-endpoints)), and it exists
+  only while a proof-review hold is open. A failed delivery opens no hold.
+
+So the order panel's timeline reads "Arrived", then "Delivery failed ·
+<driver> · Customer unreachable", with nothing between them.
+
+**Proposal.** One additive field on `AdminOrderDetail`, and no other change:
+
+```json
+{
+  "contact_attempts": [
+    { "attempted_at": "2026-10-19T09:44:00Z" },
+    { "attempted_at": "2026-10-19T09:49:00Z" }
+  ]
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `contact_attempts` | Always present on `AdminOrderDetail`: a list, empty when no attempt was recorded (an order no driver has reached has `[]`). Each item is `{ "attempted_at": "<UTC>" }`, the server's time of the attempt. Oldest first. The same item as the driver job read and `proof.contact_attempts` |
+| Which attempts | Every contact attempt recorded on the order, across all its delivery attempts. Today an order has one arrival, so one set of attempts. A rescheduled order (row 21, designed ahead) will have more; the items do not say which arrival they belong to, and an additive `arrived_at` can come with rescheduling if the panel needs grouping |
+| Who sees it | Staff with the admin role, as the rest of the detail. Times only: no phone numbers, no location, no driver notes |
+| Every route | `AdminOrderDetail` is also the response of assign, withdraw, transition, hold and proof-override calls, and the admin client replaces its cached detail with each response. All of them carry the field, or the panel would lose the attempts after the next action |
+
+- **Why not history entries.** A history entry is an order event with a
+  `to_status`. An attempt changes no status, so the shape would need a
+  nullable `to_status` or an invented one, and every consumer of the history
+  (the timeline, the hold review) would have to cope. The history is also a
+  separate call that can fail on its own (H1), and the attempts would vanish
+  with it.
+- **How the panel uses it** (the frontend change, not this contract). It
+  merges the attempts into the timeline by time, between "Arrived" and
+  "Delivery failed": "Contact attempt 1 · 9:44 AM". The wording is a screen
+  change and needs G2.
+- **Cost.** One more read on the detail path: the order's contact attempts
+  through `delivery_attempts`. Not on the list. No migration, because the
+  `contact_attempts` table exists.
+- **Errors.** None new. `404 order_not_found` as before.
+- **Examples.** None change in this amendment. `examples/admin-order-detail.json`
+  gains `contact_attempts` (empty) in the backend change, and a failed order
+  with two attempts is added then: a backend test compares the response's keys
+  with that file, so it must change together with the code.
+- **Tests expected.** Backend: a failed order with two attempts returns two
+  items, oldest first; an order with none returns `[]`; an unknown reference
+  gives 404; the field is present in an assign and a transition response.
+  Frontend: the timeline lines, in real mode and in mock mode.
+
+**For the reviewer to decide.**
+
+1. The field on `AdminOrderDetail` (recommended) or history entries.
+2. Every attempt on the order (recommended) or only the current delivery
+   attempt's.
+3. The timeline wording "Contact attempt N · time" (G2).
+
 ## Admin hold review endpoints
 
 Status: **agreed** (G3) on 2026-10-21 by @nnamdi-security (technical lead,
