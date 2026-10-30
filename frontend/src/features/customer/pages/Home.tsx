@@ -81,7 +81,7 @@ export function Home() {
           <Illustration name="drop-hero" className="absolute top-0 right-[-36px] h-full w-auto max-w-none" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(234,243,254,.97)_0%,rgba(234,243,254,.88)_46%,rgba(234,243,254,0)_72%)]" />
           <div className="relative max-w-[220px] px-[18px] py-5">
-            <div className="text-[22px] leading-[1.15] font-extrabold tracking-[-0.4px]">Welcome back,</div>
+            <div className="text-[22px] leading-[1.15] font-extrabold tracking-[-0.4px]">Welcome,</div>
             <div className="text-[26px] leading-[1.15] font-extrabold tracking-[-0.5px] text-primary">{firstName ? `${firstName}!` : ' '}</div>
             {/* Design said "Clean water poured...": quality claim removed (decision 15). */}
             <p className="mt-2 mb-0 text-[13px] text-slate">Water poured straight into your tank. No lifting, no stress.</p>
