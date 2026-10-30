@@ -214,6 +214,8 @@ npm test
 - `src/features/customer/order/order.test.ts`: draft persistence, Keke has no
   source, flow, reorder.
 - `src/features/customer/pages/SignIn.test.tsx`: sign-in screen behaviour.
+- `src/features/customer/pages/Support.test.tsx`: neither support page shows a
+  bracketed placeholder (#270).
 - `src/features/auth/useSession.draft.test.tsx`: the draft is cleared on
   sign-out and sign-in (#272).
 - `src/features/customer/pages/order/DeliveryDetails.test.tsx`: a draft address
@@ -233,7 +235,8 @@ account in `src/mocks/seed.ts` (mock mode only), place a Keke order, use
   no station is open with valid papers (FR-012).
 - Maps are illustrations, not live maps; "Move pin" explains that pins are
   not available yet.
-- Support phone, WhatsApp and hours are placeholders. Terms and privacy are
+- Support hours are not decided (no SRS rule), so the support screens show no
+  hours, only the notice that they will be added (#270). Terms and privacy are
   the public pages ([public-pages.md](public-pages.md)) and need legal review.
 - Points are hidden (`POINTS_ENABLED = false` in `src/lib/features.ts`).
   Turning them back on needs SRS rules, a contract and a backend first;

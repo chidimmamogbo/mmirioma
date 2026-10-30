@@ -12,8 +12,8 @@ import { useSupportContact } from '../../marketing/queries'
  * Contact channels behind the Call us / WhatsApp / Chat tiles. Not in the
  * handoff. The phone and WhatsApp come from the backend's support contact
  * (`GET /public/contact`, FR-055); the WhatsApp tile is hidden while WhatsApp
- * support is off. Support hours are not decided yet, so they stay a
- * placeholder in the design's square-bracket style.
+ * support is off. Support hours are not decided yet, so the page shows only a
+ * notice that they will be added (#270); it never prints a placeholder.
  */
 export function SupportContact({ back = '/support' }: { back?: string | -1 }) {
   const { phone, whatsapp } = useSupportContact()
@@ -21,7 +21,6 @@ export function SupportContact({ back = '/support' }: { back?: string | -1 }) {
     <MobileShell>
       <TopBar left={<BackLink to={back} />} center={<TopBarTitle>Contact us</TopBarTitle>} right={<TopBarSpacer />} />
       <ScrollArea className="gap-3">
-        <p className="rise-1 m-0 text-sub text-mute">Our team answers during [SUPPORT HOURS].</p>
         <Card id="call" className="rise-2 flex items-center gap-3 p-3.5">
           <IconBadge tone="green">
             <PhoneIcon size={20} />
