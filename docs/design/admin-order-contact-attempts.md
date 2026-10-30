@@ -9,8 +9,8 @@ Requirements: FR-038 (P0), FR-030 · Acceptance test: T-25 · Contract
 [deliveries.md](../api/deliveries.md), "Amendment (#280): contact attempts on
 the admin order detail" · Backend: PR #289 · Related:
 [driver-arrival-unreachable.md](driver-arrival-unreachable.md) (#250)
-Designer: @Bonvee120 + Claude Code · Reviewed by: pending (one reviewer who is
-not the author) · Status: draft, awaiting G2
+Designer: @Bonvee120 + Claude Code · Reviewed by: @nnamdi-security (technical
+lead), 2026-10-30 · Status: approved
 
 When a driver ends a delivery as "Customer not reachable", FR-038 has them
 record two timed contact attempts first, and the approved #250 design says the
