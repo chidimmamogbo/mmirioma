@@ -365,11 +365,17 @@ them out.
 | `unreachable_allowed_at` | `unreachable_allowed_at` (`arrived_at` plus 10 minutes; `null` before arrival) |
 | `can_start_unloading` | `allowed_actions` contains `start_unloading` |
 | `can_fail_unreachable` | `allowed_actions` contains `record_failed_attempt` (two attempts and the wait over). Not computed from the phone's clock (design decision 6) |
+| `ended_at` | `ended_at` of the finished job (list row or detail); `null` while open |
+| `end_reason` | `end_reason` of the finished job, the server's reason code (`customer_unreachable`, or a dispatcher's reason); `null` while open or when delivered |
 
-The two flags go beyond the three fields the technical lead listed. The
-contract already lists both actions; without them the screens would have to
-guess from the device clock or from the stage, which cannot tell arrived from
-unloading.
+The two flags and `ended_at` and `end_reason` go beyond the three fields the
+technical lead listed. The contract already lists both actions; without the
+flags the screens would have to guess from the device clock or from the stage,
+which cannot tell arrived from unloading. `ended_at` and `end_reason` are
+already on the finished job in the contract (`DriverJobSummary`); the "Delivery
+failed" screen (U4) shows the reason and the time from them, and without them
+it would have to use the phone's clock and always say "Customer not reachable",
+which is wrong for a job a dispatcher failed for another reason.
 
 | Partner function (screen) | Backend steps |
 | --- | --- |

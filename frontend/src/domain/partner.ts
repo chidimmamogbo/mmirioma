@@ -155,6 +155,20 @@ export interface PartnerJob {
    */
   can_fail_unreachable?: boolean
   /**
+   * When the job ended (UTC ISO, the server's time), for the "Delivery failed"
+   * screen and the Done list (docs/design/driver-arrival-unreachable.md, U4).
+   * `null` or absent while the job is open.
+   */
+  ended_at?: string | null
+  /**
+   * Why the job ended, as the server's reason code: `customer_unreachable`
+   * when the partner ended it after two attempts and the wait (FR-038); a
+   * dispatcher's reason otherwise. `null` or absent while the job is open or
+   * when it ended by delivery. Screens turn the code into words and show none
+   * for a code they do not know.
+   */
+  end_reason?: string | null
+  /**
    * Mock mode only: the customer's code, so a demo can finish a delivery
    * without the customer's phone. Never sent by a real server.
    */
