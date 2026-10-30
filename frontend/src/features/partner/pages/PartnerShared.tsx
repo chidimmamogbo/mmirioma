@@ -39,7 +39,7 @@ import { cx } from '../../../lib/cx'
 import { PARTNER_DOCUMENTS_ENABLED } from '../../../lib/features'
 import { formatNaira } from '../../../lib/format/money'
 import { JobMiniCard } from '../components/JobParts'
-import { jobDeliveryType, jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
+import { END_REASON_LABEL, jobDeliveryType, jobEndedAt, jobQuantity, jobShort, relativeWhen, totalLitres } from '../jobHelpers'
 import { TRIP_STEP_LINE, tripStep, tripStepPath, usePartnerApp } from '../partnerContext'
 import { useActiveJobs, useDeclineJob, useHistory, useJob, useMarkPartnerNotificationsRead, usePartnerNotifications, usePartnerProfile, useReportIssue, useUploadDocument } from '../queries'
 
@@ -53,8 +53,10 @@ type Period = 'today' | 'week' | 'month'
 const PERIOD_MS: Record<Period, number> = { today: 0, week: 7 * 86_400_000, month: 31 * 86_400_000 }
 
 function inPeriod(job: PartnerJob, period: Period, now = Date.now()): boolean {
-  if (!job.delivered_at) return false
-  const t = Date.parse(job.delivered_at)
+  // A failed or cancelled job counts from the time it ended.
+  const endedAt = jobEndedAt(job)
+  if (!endedAt) return false
+  const t = Date.parse(endedAt)
   if (period === 'today') return new Date(t + 3_600_000).toISOString().slice(0, 10) === new Date(now + 3_600_000).toISOString().slice(0, 10)
   return now - t <= PERIOD_MS[period]
 }
@@ -120,7 +122,10 @@ export function PartnerHistory() {
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-extrabold">{jobQuantity(j)}</div>
               <div className="text-chip text-mute">{jobShort(j)}</div>
-              <div className="text-chip text-mute">{j.delivered_at ? relativeWhen(j.delivered_at) : ''}</div>
+              <div className="text-chip text-mute">{jobEndedAt(j) ? relativeWhen(jobEndedAt(j)!) : ''}</div>
+              {j.stage === 'failed' && j.end_reason && END_REASON_LABEL[j.end_reason] && (
+                <div className="text-chip text-mute">Reason: {END_REASON_LABEL[j.end_reason]}</div>
+              )}
             </div>
             <div className="flex flex-col items-end gap-1">
               {j.earning_minor_units !== null && (
@@ -376,6 +381,8 @@ export function PartnerIssue() {
   const detail = useJob(job?.reference ?? '')
   const step = job ? tripStep(detail.data ?? job) : null
   const back = job && step ? tripStepPath(base, job.reference, step) : `${base}/menu`
+  // After arrival the report cannot record the attempts FR-038 asks for, so "Customer not reachable" opens U3 instead (U5).
+  const opensAttempts = step === 'arrived' && type === 'customer_unreachable'
 
   return (
     <MobileShell>
@@ -423,13 +430,22 @@ export function PartnerIssue() {
           maxLength={500}
           onChange={(e) => setNote(e.target.value)}
         />
+        {opensAttempts && (
+          <Notice tone="info">
+            <b>You have arrived.</b> Record your attempts to reach the customer on the next screen. The report cannot record them.
+          </Notice>
+        )}
         {report.isSuccess && <Notice tone="success">Sent. Admin will contact you. If it is urgent, call admin now.</Notice>}
         {report.isError && <Notice tone="error">{errorMessage(report.error)}</Notice>}
       </ScrollArea>
       <Footer>
-        <Button loading={report.isPending} disabled={report.isSuccess} onClick={() => report.mutate({ type, note, reference: job?.reference ?? null })}>
-          {report.isSuccess ? 'Sent to admin' : 'Send to admin'}
-        </Button>
+        {opensAttempts && job ? (
+          <ButtonLink to={`${base}/jobs/${job.reference}/unreachable`}>Record attempts</ButtonLink>
+        ) : (
+          <Button loading={report.isPending} disabled={report.isSuccess} onClick={() => report.mutate({ type, note, reference: job?.reference ?? null })}>
+            {report.isSuccess ? 'Sent to admin' : 'Send to admin'}
+          </Button>
+        )}
         <ButtonLink to="/partner/contact" variant="alt" className="h-[46px]">
           <PhoneIcon size={18} strokeWidth={2.2} />
           Call admin now

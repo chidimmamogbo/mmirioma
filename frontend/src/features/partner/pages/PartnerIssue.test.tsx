@@ -43,8 +43,7 @@ describe('the problem report names the trip step (#257)', () => {
   it.each([
     ['going to the station', 'refill', () => { job().stage = 'accepted' }],
     ['on the way to customer', 'customer', () => {}],
-    // The arrived screen (U2) is not built yet: Back goes to the customer step until it is.
-    ['arrived at the customer', 'customer', () => { Object.assign(job(), { arrived_at: ARRIVED_AT, contact_attempts: [], unreachable_allowed_at: '2026-10-29T09:52:00Z' }) }],
+    ['arrived at the customer', 'arrived', () => { Object.assign(job(), { arrived_at: ARRIVED_AT, contact_attempts: [], unreachable_allowed_at: '2026-10-29T09:52:00Z' }) }],
     ['unloading', 'code', () => { Object.assign(job(), { arrived_at: ARRIVED_AT, mock_unloading_started: true }) }],
   ] as const)('says "%s" and goes back to the %s step', async (line, screenName, setUp) => {
     setUp()
@@ -55,5 +54,22 @@ describe('the problem report names the trip step (#257)', () => {
     for (const other of ['going to the station', 'on the way to customer', 'arrived at the customer', 'unloading'].filter((p) => p !== line)) {
       expect(screen.queryByText(new RegExp(`· ${other}$`))).not.toBeInTheDocument()
     }
+  })
+})
+
+/** After arrival the report cannot record the attempts, so "Customer not reachable" opens U3 (U5). */
+describe('the problem report after arrival (U5, #250)', () => {
+  it('sends "Customer not reachable" to the attempts screen once the job has arrived', async () => {
+    Object.assign(job(), { arrived_at: '2026-10-29T09:42:00Z', contact_attempts: [], unreachable_allowed_at: '2026-10-29T09:52:00Z' })
+    renderReport()
+    expect(await screen.findByText(/Record your attempts to reach the customer on the next screen/, {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Record attempts' })).toHaveAttribute('href', `/partner/rider/jobs/${REF}/unreachable`)
+    expect(screen.queryByRole('button', { name: 'Send to admin' })).not.toBeInTheDocument()
+  })
+
+  it('still sends the report before arrival', async () => {
+    renderReport()
+    expect(await screen.findByRole('button', { name: 'Send to admin' }, { timeout: WAIT })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Record attempts' })).not.toBeInTheDocument()
   })
 })

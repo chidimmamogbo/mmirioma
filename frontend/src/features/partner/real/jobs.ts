@@ -302,20 +302,19 @@ export async function confirmPickup(
 }
 
 /**
- * "Unloading done, send the code" (code screen): arrival without a location
- * (the fork asks for no location consent, FR-035), Start unloading, then
- * unloading complete, which sends the customer's code by SMS.
+ * "Unloading done, send the code" (code screen): unloading complete, which
+ * sends the customer's code by SMS. Arrival and "Start unloading" are their own
+ * steps now (`arriveAtCustomer`, `startUnloading`, #250), so the recorded
+ * arrival time is the real one. Nothing is sent when unloading is already
+ * complete, so a retry after a lost answer is safe.
  *
- * @throws {ApiError} `job_on_hold`; `invalid_order_transition`; `order_not_found`.
+ * @throws {ApiError} `job_on_hold`; `invalid_order_transition` (the job is not
+ *   unloading); `order_not_found`.
  */
 export async function completeUnloading(reference: string, client: ApiClient = apiClient): Promise<PartnerJob> {
-  let job: DriverJobDetail | DriverJobSummary = await getDriverJob(reference, undefined, client)
-  if (job.order_status === 'en_route') job = await arriveDriverJob(reference, { location_consent: false }, client)
-  if (job.order_status === 'arrived') job = stepJob(await transitionDriverJob(reference, { to: 'unloading' }, client))
-  if (job.order_status === 'unloading' && 'allowed_actions' in job && job.unloading_completed_at === null) {
-    job = await completeDriverUnloading(reference, client)
-  }
-  return partnerJobFromRead(job)
+  const job = await getDriverJob(reference, undefined, client)
+  if (job.unloading_completed_at !== null) return partnerJobFromRead(job)
+  return partnerJobFromRead(await completeDriverUnloading(reference, client))
 }
 
 /**

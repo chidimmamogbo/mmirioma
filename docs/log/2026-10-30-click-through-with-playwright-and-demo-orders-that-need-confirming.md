@@ -1,0 +1,9 @@
+# 2026-10-30: Click-through by script: no browser tool, and the demo orders are only quote requests
+
+- **Area:** tooling
+- **Author:** nnamdi-security + agent
+- **Symptom:** For #250 the agent had to click through the new driver screens on the real backend, but the machine had no automated browser. Then the demo seed's four orders were all `quote_requested`, so no driver job existed. The first confirm request failed with 422 `validation_error` (`The window cannot start in the past`, `loc: body.delivery_window.start_at`), and the first assign with 409 `invalid_order_transition` (`quote_requested` to `assigned`). `confirmation-options` listed "Potable Water" first, with the source `not_activated`.
+- **Cause:** Playwright is not a project dependency. The seed creates quote requests only. A confirmation window must start in the future, and the source is activated for Utility Water only, so the first category cannot be used.
+- **Fix / workaround:** Install Playwright and Chromium outside the repo (its own folder, no `package.json` change). On a scratch database (`mmirioma_clicktest`, dropped afterwards) add a borehole source and activate it for `utility`. Then, per order, `POST /admin/orders/{ref}/transition` to `confirmed` with the category whose source has no `reasons`, a window starting a couple of minutes ahead and the agreement time just before now, then `POST /admin/orders/{ref}/assign` to the demo driver. Run the backend with `SMS_PROVIDER=mock` (the root `.env` uses `termii`) and the frontend with `VITE_USE_MOCKS=false`. To skip the real 10-minute wait, set `delivery_attempts.arrived_at` back on the scratch database only. Do not `pkill -f` a pattern that also matches your own shell command: it killed the agent's shell once; kill by port instead.
+- **Status:** workaround
+- **Refs:** #250; see also `2026-10-28-click-through-needs-a-scratch-database-and-a-migrated-one.md`

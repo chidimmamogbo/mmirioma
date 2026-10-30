@@ -59,16 +59,11 @@ a hidden route goes to the dashboard. The flags are in
 - Issue #243: the Rider column reads "None yet" once an order is delivered or
   cancelled. The panel half is merged (PR #246). The list half waits on the
   contract amendment in PR #247 and then needs backend and adapter work.
-- Issue #250: the driver app cannot do the unreachable-customer steps of FR-038
-  and T-25 (two recorded contact attempts, the full 10-minute wait, then a
-  failed delivery). The backend and the contract exist. The app also has no
-  separate arrival step: "Unloading done, send the code" records arrival, start
-  and end of unloading together, so the recorded arrival time is the time
-  unloading ended. Until the slice is built, the driver sends the "Customer not
-  reachable" problem report and the dispatcher ends the job with "Fail
-  delivery". That records the failure but enforces neither the two attempts nor
-  the wait. The design prompt is
-  [18-driver-arrival-and-unreachable.md](../design/prompts/18-driver-arrival-and-unreachable.md).
+- Issue #250: the driver app records the arrival on its own, the contact
+  attempts, the 10-minute wait and the failed delivery (FR-038, T-25), in both
+  partner apps. Known limits: arrival and attempts are self-reported times (no
+  location), and "The dispatcher will contact you." needs a dispatcher to follow
+  up a failed delivery. See [partner-app.md](../features/partner-app.md).
 - `addCustomerAddress` is linked, but no real-mode screen reaches it: it needs
   a `zone_id` and the design's form has none.
 - The Dashboard search box still says "Search orders, customers, riders,

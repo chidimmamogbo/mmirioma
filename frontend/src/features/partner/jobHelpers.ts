@@ -108,3 +108,16 @@ export function relativeWhen(iso: string, now = new Date()): string {
   if (now.getTime() - Date.parse(iso) < 6 * 86_400_000) return `${formatDayDate(iso).split(',')[0]}, ${formatTime(iso)}`
   return `${day}, ${formatTime(iso)}`
 }
+
+/** Words for the reason a job ended, as the backend's `end_reason` code (FR-038). Unknown codes have no entry. */
+export const END_REASON_LABEL: Record<string, string> = {
+  customer_unreachable: 'Customer not reachable',
+}
+
+/**
+ * When a job ended: its delivery time, or for a failed or cancelled job the
+ * backend's end time. `null` while the job is open.
+ */
+export function jobEndedAt(job: PartnerJob): string | null {
+  return job.delivered_at ?? job.ended_at ?? null
+}

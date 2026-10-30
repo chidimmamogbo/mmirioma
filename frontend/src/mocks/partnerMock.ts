@@ -538,8 +538,8 @@ export async function listHistory(): Promise<PartnerJob[]> {
   const s = read()
   const { id } = partnerOf(s)
   return s.jobs
-    .filter((j) => j.partner_id === id && (j.stage === 'delivered' || j.stage === 'cancelled'))
-    .sort((a, b) => Date.parse(b.delivered_at ?? '') - Date.parse(a.delivered_at ?? ''))
+    .filter((j) => j.partner_id === id && (j.stage === 'delivered' || j.stage === 'cancelled' || j.stage === 'failed'))
+    .sort((a, b) => Date.parse(b.delivered_at ?? b.ended?.at ?? '') - Date.parse(a.delivered_at ?? a.ended?.at ?? ''))
     .map((j) => view(s, j))
 }
 

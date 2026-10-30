@@ -29,11 +29,25 @@ with the customer's delivery code, and follow their sample earnings.
    first partner; others see "already taken".
 5. **Trip**: go to the station (`refill`) → confirm pickup (`pickup`: full load
    required, receipt and photo optional) → go to the customer (`customer`) →
-   unload, then tap "Unloading done, send the code" (`code`: the customer's
+   tap "I have arrived", which records the arrival on its own (`arrived`, U2,
+   "You have arrived") → "Start unloading" → unload, then tap "Unloading done,
+   send the code" (`code`: the customer's
    code is sent only now, FR-035, #13; until then that button is the only
    action, with no keypad and no "Verify code" footer) → enter the
    customer's 6-digit code (3 tries, resend after 2 minutes, then ask admin)
    → done (`done`).
+
+   **If nobody answers (FR-038, T-25, #250):** on the arrived screen the
+   driver taps "Customer not reachable" (`unreachable`, U3; the problem
+   report's "Customer not reachable" opens it too once the job has arrived).
+   The screen lists the contact attempts with the server's times and shows
+   "wait until 9:52 AM". "I tried to reach the customer" records an attempt
+   (there is no maximum). "Customer not reachable, fail the job" stays off
+   until the server allows it (two attempts and the full 10 minutes from
+   arrival, `allowed_actions` has `record_failed_attempt`), asks "End this
+   delivery?", and then the job ends as `failed` with reason
+   `customer_unreachable` (`failed`, U4, "Delivery failed"). Attempts and the
+   end are off while the phone is offline: nothing is queued.
 6. **Account**: earnings and withdraw request, history, notifications,
    vehicle and papers (upload), report a problem, profile, settings (new
    order alerts and SMS updates), change password. Partners have no email and
@@ -61,7 +75,9 @@ with the customer's delivery code, and follow their sample earnings.
 | `frontend/src/features/partner/partnerContext.ts` | Which app (`/partner/rider` or `/partner/driver`), words per vehicle, `jobStepPath` |
 | `frontend/src/features/partner/PartnerArea.tsx` | Signed-in partner guard and vehicle redirect |
 | `frontend/src/features/partner/pages/` | Screens; `Rider*` for Keke, `Driver*` for tanker, `PartnerShared.tsx`, `PartnerAccount.tsx`, `JobDetail.tsx` and `CodeStep.tsx` serve both |
-| `frontend/src/features/partner/components/JobStep.tsx` | Loads a job and redirects when it is not at the screen's stage |
+| `frontend/src/features/partner/components/JobStep.tsx` | Loads a job and redirects when it is not at the screen's stage (and trip step) |
+| `frontend/src/features/partner/pages/ArrivalPages.tsx` | Arrived (U2), Customer not reachable with its confirm sheet (U3) and Delivery failed (U4); the customer step's "I have arrived" button (U1) is `components/ArriveButton.tsx` |
+| `frontend/src/features/partner/components/` | `AttemptList` (U3's timed rows and count), `StepError` (the design's error wording per step), `useOnline` |
 | `frontend/src/components/art/Art.tsx` | Tanker maps and the `TankGauge` used on the loading screen |
 | `frontend/src/mocks/partnerMock.ts` | Mock server rules for partners |
 | `frontend/src/mocks/orderSync.ts` | Keeps the customer's order in step with the partner's job |
@@ -120,15 +136,14 @@ can send several backend steps, each only if the job has not made it yet
 | Function | Endpoints |
 | --- | --- |
 | `confirmPickup` | `POST .../transition` (`departed`), `POST .../pickup`, `POST .../transition` (`en_route`) |
-| `completeUnloading` | `POST .../arrive` (no location), `POST .../transition` (`unloading`), `POST .../unloading-complete` |
+| `completeUnloading` | `POST .../unloading-complete` only; arrival and the start of unloading are their own steps (below) |
 | `verifyCode` | `POST .../proof` with the code and the litres recorded at pickup |
 | `resendCode` | `POST .../delivery-code` |
 | `reportIssue` | `POST .../incidents`; a report with no order fails with `not_connected` |
 
 Four more functions are the arrival and the unreachable customer (#250,
 FR-038, [design](../design/driver-arrival-unreachable.md)), one request each.
-They exist in the adapters and in the mock, and no screen calls them yet; the
-screens come next:
+The screens call them (U1 to U4):
 
 | Function | Endpoint |
 | --- | --- |
@@ -140,9 +155,9 @@ screens come next:
 The job also carries `arrived_at`, `contact_attempts`, `unreachable_allowed_at`,
 `can_start_unloading` and `can_fail_unreachable` (the last two from the server's
 `allowed_actions`; [api-mapping.md](../architecture/api-mapping.md#arrival-and-the-unreachable-customer-250)).
-`completeUnloading` still catches up arrival and the start of unloading until
-the screens send them as their own steps. The mock waits one minute, not ten
-(`MOCK_UNREACHABLE_WAIT_MS`), so a demo can finish.
+The job also carries `ended_at` and `end_reason` (the failed screen's time and
+reason, and the history row of a failed job). The mock waits one minute, not
+ten (`MOCK_UNREACHABLE_WAIT_MS`), so a demo can finish.
 
 Earnings, payouts and document upload still run on mocks. In real-API mode
 they fail with `not_connected`. Earnings and payouts are **hidden in the
@@ -264,21 +279,19 @@ they order (the customer mock); the partner app gets it only after unloading.
 - Photos and papers are not uploaded anywhere; the mock only records them.
 - Admin, phone and WhatsApp numbers are placeholders.
 - The decline flow needs a contract change before the real API.
-- **Arrival and an unreachable customer (FR-038, T-25, #250).** The customer
-  step has one button, "Arrived · water pumped in", and "Unloading done, send
-  the code" records arrival, start of unloading and end of unloading in one tap
-  (`completeUnloading` in `features/partner/real/jobs.ts`). So the arrival time
-  the server stores is when unloading ended, a driver cannot wait after
-  arriving, and the app has no screens to record contact attempts or to fail a
-  delivery as "customer not reachable". The problem report's "Customer not
-  reachable" sends an `other` incident to the dispatcher, who can end the job
-  with "Fail delivery". That does not enforce the two attempts or the 10-minute
-  wait. The backend and the contract are ready; the screens wait for the design
-  in [prompt 18](../design/prompts/18-driver-arrival-and-unreachable.md).
-  The report screen's job line names the step (going to the station, on the way
-  to customer, arrived at the customer, unloading) and "Back" returns to it
-  (#257); until the arrived screen (U2) exists, "Back" from an arrived job goes
-  to the customer step.
+- **Self-reported arrival and attempts (FR-038, #250).** The app sends no
+  location with "I have arrived", so the arrival and each attempt are times the
+  driver reports by tapping, and a driver could tap "I have arrived" early to
+  start the 10-minute clock. The server enforces the full wait from that time
+  and the two attempts, and the dispatcher sees the times in the hold evidence.
+- **"The dispatcher will contact you."** on the failed screen promises staff
+  action, so the pilot needs a dispatcher to follow up a failed delivery.
+- **No paused-job banner.** The job carries no hold in the app's types, so a
+  paused job shows its notice only when an arrival, attempt or end request is
+  refused with 409 `job_on_hold` ("This job is paused. The dispatcher will
+  contact you." and the server's message), not when the screen opens.
+- The history now also lists cancelled and failed jobs from the time they
+  ended; it listed only delivered ones before.
 - Real API sign-up takes a typed area, not a zone list, so a partner must
   spell the zone's name. The demo seed creates no zones; create one before
   trying sign-up locally.

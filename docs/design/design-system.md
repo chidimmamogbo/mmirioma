@@ -873,3 +873,13 @@ Made by the technical lead on 2026-10-14, after the canvas was approved:
   `--spacing-touch-lg`. Approved with the authentication design.
 
 Future changes: update the canvas, then this file, in one reviewed PR.
+
+## Additions from the driver arrival design (#250)
+
+- **Outline-danger button** (arrived screen, "Customer not reachable"): built as
+  the existing `line-danger` variant (white with red text and border), so no
+  new variant exists.
+- **AttemptList** (`features/partner/components/AttemptList.tsx`): rows
+  "Attempt n · time" with a count under them ("0 of 2 attempts recorded", "3
+  attempts recorded"). No existing part lists timed rows with a count; the job
+  timeline is admin-only.

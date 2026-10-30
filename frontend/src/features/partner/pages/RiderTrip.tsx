@@ -35,6 +35,7 @@ import { readPickupPhoto } from '../photo'
 import { jobDeliveryType, placeAddress } from '../jobHelpers'
 import { usePartnerApp } from '../partnerContext'
 import { useConfirmPickup } from '../queries'
+import { ArriveButton } from '../components/ArriveButton'
 import { JobStep } from '../components/JobStep'
 
 /** Step 1: go to the refill station (`r-refill`). */
@@ -238,9 +239,9 @@ function PickupForm({ job: j, base }: { job: PartnerJob; base: string }) {
 
 /** Step 2: go to the customer (`r-customer`). */
 export function CustomerStep() {
-  const { base, vehicle } = usePartnerApp()
+  const { base } = usePartnerApp()
   return (
-    <JobStep stage="collected">
+    <JobStep stage="collected" step="customer">
       {(j) => {
         const eta = j.remaining ?? (j.customer.distance_km !== null && j.customer.minutes !== null ? { distance_km: j.customer.distance_km, minutes: j.customer.minutes } : null)
         return (
@@ -296,9 +297,7 @@ export function CustomerStep() {
                 <NavigationIcon size={20} filled />
                 Start navigation
               </ExternalButton>
-              <ButtonLink to={`${base}/jobs/${j.reference}/code`} variant="alt" className="h-[46px]">
-                {jobDeliveryType(j, vehicle) === 'keke' ? 'I have arrived · pour the water' : 'Arrived · water pumped in'}
-              </ButtonLink>
+              <ArriveButton reference={j.reference} />
             </Footer>
           </MobileShell>
         )
