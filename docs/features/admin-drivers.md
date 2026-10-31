@@ -150,6 +150,12 @@ A deactivated account's sessions stop working because the auth layer checks
   refuse (a reason that is too short, a vehicle with a suspension, a duplicate
   transfer method, a payload outside 1-100,000) is 422 `validation_error` and
   nothing is called or saved.
+- The Riders panel checks a suspension's reason itself (trimmed, at least 5
+  characters) when "Suspend rider" is pressed, and shows the message under the
+  box without opening the confirm sheet; the server still checks it. A
+  reactivation's reason is optional, so it is not checked. The box is emptied
+  once an action is saved, so the next one (suspend, then reactivate) starts
+  with no text (#294).
 - Every refusal rolls back: no status, vehicle, audit row or message is left
   behind (the integration tests check each).
 - Two administrators acting on one driver at once are serialized by a row lock

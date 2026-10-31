@@ -113,9 +113,15 @@ export function Riders() {
   )
 }
 
+/** A suspension needs a reason of at least this many characters, after trimming (admin-directory.md, `ApprovalChange.reason`). */
+const MIN_SUSPEND_REASON = 5
+const REASON_REQUIRED = 'A reason of at least 5 characters is required'
+
 function RiderPanel({ id }: { id: string }) {
   const rider = useRider(id)
   const [reason, setReason] = useState('')
+  // Set when "Suspend rider" is pressed with a reason that is too short; shown under the box, without opening the sheet (#294).
+  const [reasonMissing, setReasonMissing] = useState(false)
   const [asking, setAsking] = useState(false)
   const [vehicle, setVehicle] = useState<VehicleForm>({ description: '', payload: '', ground: false, overhead: false })
   const change = useAdminMutation((action: api.ApprovalAction) =>
@@ -125,6 +131,14 @@ function RiderPanel({ id }: { id: string }) {
   if (rider.isPending) return <Card className="p-4"><LoadingBlock label="Loading the rider" /></Card>
   if (rider.isError || !r) return <Card className="p-4"><ErrorBlock error={rider.error} onRetry={() => rider.refetch()} /></Card>
   const action: api.ApprovalAction = r.approval === 'pending' ? 'approve' : r.approval === 'approved' ? 'suspend' : 'reactivate'
+  /** Check a suspension's reason before asking to confirm, so the sheet never asks about an action that cannot go through. */
+  const ask = (next: api.ApprovalAction) => {
+    if (next === 'suspend' && reason.trim().length < MIN_SUSPEND_REASON) {
+      setReasonMissing(true)
+      return
+    }
+    setAsking(true)
+  }
   return (
     <Card className="rise-2 flex flex-col gap-3 p-4">
       <div className="flex items-center gap-3">
@@ -160,8 +174,11 @@ function RiderPanel({ id }: { id: string }) {
           label={`Reason to ${action} (saved in the audit log)`}
           rows={2}
           value={reason}
-          error={fieldErrors(change.error).reason}
-          onChange={(e) => setReason(e.target.value)}
+          error={fieldErrors(change.error).reason ?? (reasonMissing ? REASON_REQUIRED : undefined)}
+          onChange={(e) => {
+            setReason(e.target.value)
+            setReasonMissing(false)
+          }}
           placeholder={action === 'suspend' ? 'e.g. Papers expired; two missed deliveries' : 'e.g. New papers checked'}
         />
       )}
@@ -169,7 +186,7 @@ function RiderPanel({ id }: { id: string }) {
         <Notice tone="error">{fieldErrors(change.error).other ?? errorMessage(change.error)}</Notice>
       )}
       {change.isSuccess && <Notice tone="success">Saved. The rider sees the change in their app.</Notice>}
-      <Button variant={action === 'suspend' ? 'line-danger' : 'primary'} loading={change.isPending} onClick={() => setAsking(true)}>
+      <Button variant={action === 'suspend' ? 'line-danger' : 'primary'} loading={change.isPending} onClick={() => ask(action)}>
         {action === 'approve' ? 'Approve rider' : action === 'suspend' ? 'Suspend rider' : 'Reactivate rider'}
       </Button>
       <ConfirmDialog
@@ -179,7 +196,16 @@ function RiderPanel({ id }: { id: string }) {
         confirmLabel={action === 'approve' ? 'Approve' : action === 'suspend' ? 'Suspend' : 'Reactivate'}
         loading={change.isPending}
         onCancel={() => setAsking(false)}
-        onConfirm={() => change.mutate(action, { onSettled: () => setAsking(false) })}
+        onConfirm={() =>
+          change.mutate(action, {
+            // The reason belongs to the action just done: the next one (suspend, then reactivate) starts with an empty box.
+            onSuccess: () => {
+              setReason('')
+              setReasonMissing(false)
+            },
+            onSettled: () => setAsking(false),
+          })
+        }
       >
         {action === 'approve'
           ? 'They can go online and accept orders straight away.'
