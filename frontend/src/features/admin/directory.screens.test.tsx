@@ -137,19 +137,65 @@ describe('the Riders screen against the real API (#220, G2 approved by the techn
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ approval_status: 'suspended', reason: 'Vehicle papers expired' })
   }, SLOW)
 
-  it('shows a refused suspend reason under the field, in the server’s own words (422)', async () => {
+  it('shows a reason the server refuses under the field, in the server’s own words (422)', async () => {
     const user = userEvent.setup()
     routes[`POST /admin/drivers/${APPROVED_TANKER.id}/approval`] = {
       status: 422,
-      body: { error: { code: 'validation_error', message: 'Request validation failed', details: [{ loc: ['body'], msg: 'Value error, A reason of at least 5 characters is required', type: 'value_error' }] } },
+      body: { error: { code: 'validation_error', message: 'Request validation failed', details: [{ loc: ['body'], msg: 'Value error, The reason must be 500 characters or fewer', type: 'value_error' }] } },
     }
     renderAt(`/admin/riders?id=${APPROVED_TANKER.id}`)
-    await user.type(await screen.findByLabelText(/Reason to suspend/, {}, { timeout: WAIT }), 'no')
+    await user.type(await screen.findByLabelText(/Reason to suspend/, {}, { timeout: WAIT }), 'Vehicle papers expired')
     await user.click(screen.getByRole('button', { name: 'Suspend rider' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Suspend' }))
     // The server reports this rule at ["body"] with pydantic's prefix; it shows under the reason field without the prefix.
-    expect(await screen.findByText('A reason of at least 5 characters is required', {}, { timeout: WAIT })).toBeInTheDocument()
+    expect(await screen.findByText('The reason must be 500 characters or fewer', {}, { timeout: WAIT })).toBeInTheDocument()
     expect(screen.queryByText('Saved. The rider sees the change in their app.')).toBeNull()
+  }, SLOW)
+
+  it('asks for a suspend reason before it opens the confirm sheet, and sends nothing (#294)', async () => {
+    const user = userEvent.setup()
+    renderAt(`/admin/riders?id=${APPROVED_TANKER.id}`)
+    const box = await screen.findByLabelText(/Reason to suspend/, {}, { timeout: WAIT })
+    await user.click(screen.getByRole('button', { name: 'Suspend rider' }))
+    expect(await screen.findByText('A reason of at least 5 characters is required')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    // Spaces do not count, and a short reason is refused the same way.
+    await user.type(box, '   ab  ')
+    expect(screen.queryByText('A reason of at least 5 characters is required')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Suspend rider' }))
+    expect(await screen.findByText('A reason of at least 5 characters is required')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+    // A reason that is long enough takes the message away and opens the sheet.
+    await user.clear(box)
+    await user.type(box, 'Papers expired')
+    await user.click(screen.getByRole('button', { name: 'Suspend rider' }))
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.queryByText('A reason of at least 5 characters is required')).toBeNull()
+  }, SLOW)
+
+  it('does not ask for a reason to reactivate: it is optional (#294)', async () => {
+    const user = userEvent.setup()
+    renderAt('/admin/riders?id=d-suspended')
+    await user.click(await screen.findByRole('button', { name: 'Reactivate rider' }, { timeout: WAIT }))
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.queryByText('A reason of at least 5 characters is required')).toBeNull()
+  }, SLOW)
+
+  it('empties the reason once a suspend is saved, so the reactivate box starts empty (#294)', async () => {
+    const user = userEvent.setup()
+    routes[`POST /admin/drivers/${APPROVED_TANKER.id}/approval`] = () => {
+      // After the save the server reports the rider as suspended.
+      routes[`GET /admin/drivers/${APPROVED_TANKER.id}`] = { body: { ...APPROVED_TANKER, approval_status: 'suspended' } }
+      return { body: { ...APPROVED_TANKER, approval_status: 'suspended' } }
+    }
+    renderAt(`/admin/riders?id=${APPROVED_TANKER.id}`)
+    await user.type(await screen.findByLabelText(/Reason to suspend/, {}, { timeout: WAIT }), 'Papers expired')
+    await user.click(screen.getByRole('button', { name: 'Suspend rider' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Suspend' }))
+    const next = await screen.findByLabelText(/Reason to reactivate/, {}, { timeout: WAIT })
+    expect(next).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Reactivate rider' })).toBeInTheDocument()
   }, SLOW)
 
   it('asks for the verified vehicle when approving a partner who has none, with the declared claim next to it', async () => {
