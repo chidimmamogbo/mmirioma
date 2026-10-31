@@ -80,8 +80,8 @@ focus to the first entry that appeared.
 
 | File | Responsibility |
 | --- | --- |
-| `backend/app/modules/dispatch/router.py` | The driver list and assign; `CurrentAdmin`; thin handlers |
-| `backend/app/modules/deliveries/admin_router.py` | The detail, withdraw and history routes (moved here with the hold review, #93, because they show or close the job's hold); see [admin-hold-review.md](admin-hold-review.md) |
+| `backend/app/modules/dispatch/router.py` | The driver list; `CurrentAdmin`; thin handlers |
+| `backend/app/modules/deliveries/admin_router.py` | The detail, assign, withdraw and history routes (moved here with the hold review, #93, because they show or close the job's hold; assign followed in #280, because its response carries the contact attempts); see [admin-hold-review.md](admin-hold-review.md) |
 | `backend/app/modules/dispatch/schemas.py` | `AssignRequest`, `WithdrawRequest`, `AdminOrderDetail`, `AdminAssignment`, `DispatchDriver`, `AdminOrderEvent` and their wrappers |
 | `backend/app/modules/dispatch/service.py` | Admin views: `get_dispatch_order`, `list_drivers_for_order`, `offer_order`, `order_history`; `withdraw_assignment` with `expected_status` (and `commit=False`, so the hold review can close holds in the same transaction); events linked to assignments |
 | `backend/app/modules/deliveries/holds.py` | `withdraw_job` (withdraw plus closing the job's holds), `get_order_detail`, `contact_attempt_times` (the detail's `contact_attempts`, #280), `order_history` with optional hold entries |
@@ -93,12 +93,15 @@ focus to the first entry that appeared.
 | `docs/api/examples/admin-order-detail.json`, `admin-order-detail-failed.json` (a failed order with two contact attempts), `dispatch-drivers.json`, `admin-order-history.json`, `error-driver-not-eligible.json`, `error-assignment-not-found.json` | Contract samples; the API tests compare responses with them |
 
 Modules depend one way: orders, then dispatch, then deliveries. The admin
-detail, withdraw and history first lived in the dispatch router because they
-add the assignment. Since the hold review (#93) they also show or close the
-job's hold, which the deliveries module owns, so they are served by the
-deliveries admin router; their services stay in dispatch (technical lead,
-2026-10-21). Paths and shapes are unchanged, apart from the additive `hold`
-field and the history's `include=holds`.
+detail, assign, withdraw and history first lived in the dispatch router
+because they add the assignment. Since the hold review (#93) the detail,
+withdraw and history also show or close the job's hold, which the deliveries
+module owns, so they are served by the deliveries admin router; their services
+stay in dispatch (technical lead, 2026-10-21). `assign` moved there too in
+#280, because every `AdminOrderDetail` carries the order's contact attempts,
+which deliveries owns, and dispatch must not import deliveries (technical
+lead, 2026-10-30). Paths and shapes are unchanged, apart from the additive
+`hold` and `contact_attempts` fields and the history's `include=holds`.
 
 Frontend:
 
